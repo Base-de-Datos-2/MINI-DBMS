@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **1.3** — aligned with `PLAN.md` and `ETAPA_02.md`.
+> Context version: **1.5** — aligned with `PLAN.md` and the completed `ETAPA_02.md`.
 
 ## Project identity
 
@@ -451,7 +451,7 @@ All multibyte fields use little-endian, standard sizes, and no native padding
 | Page | 4096 bytes | header, slot directory, contiguous free area, payload area |
 | PageHeader | `<IHHHH` / 12 bytes | page_id, slot_count, free_space_start, free_space_end, active_record_count |
 | SlotEntry | `<HHB` / 5 bytes | offset, length, status (0 free, 1 active) |
-| File header (planned) | `<8sIII` / 20 bytes | magic, version, page_size, allocated_page_count |
+| FileHeader | `<8sIII` / 20 bytes | magic, version, page_size, allocated_page_count |
 
 The directory grows from byte 12 toward higher offsets; record bytes grow
 backward from byte 4096. Page offsets are relative to the page, not the file.
@@ -484,7 +484,7 @@ validators check buffer size and geometry; optional active payload ranges
 allow overlap checks without knowing records or slot objects. Page now parses
 its slot directory and supplies all active ranges to these shared validators.
 
-### Implemented SlotEntry and in-memory Page (tasks 2.7–2.11)
+### Implemented SlotEntry and in-memory Page (tasks 2.7–2.13)
 
 `SlotEntry(offset=0, length=0, status=0)` is an immutable value, exported with
 `Page` from `engine.storage`. Its slot id is its position in the directory, not
@@ -507,8 +507,9 @@ immutable snapshots only: `header`, `slots`, and `read(slot_id)` results.
 | `insert(payload: bytes) -> int` | First free slot or append; consumes payload plus directory cost when needed |
 | `read(slot_id: int) -> bytes` | Snapshot of one active payload, including valid empty bytes |
 | `delete(slot_id: int) -> None` | Mark free and decrease active count; retain directory and payload holes |
+| `compact() -> None` | Repack live payloads in slot order, preserving all slot ids and directory entries |
 | `serialize() -> bytes` | Validated 4096-byte snapshot of header, directory, payload and unused bytes |
-| `deserialize(payload: bytes) -> Page` | Empty-page reconstruction only in this block; preserves unused bytes |
+| `deserialize(payload: bytes) -> Page` | Fully validated, independent reconstruction; preserves all 4096 bytes |
 
 All directory entries and live ranges are checked before exposing payloads or
 changing state: per-slot validity, active-count agreement, free-area bounds,
@@ -531,32 +532,35 @@ Page-wide corruption is checked before resolving a correctly typed slot id;
 it is not masked as a missing-record error. No new error hierarchy was needed.
 Valid-looking byte changes cannot be detected without additional checksums.
 
-Task 2.8 includes reconstruction of pages with **zero allocated slots**.
-`Page.deserialize` explicitly raises `NotImplementedError` for pages with any
-slots, even all-deleted ones; full reconstruction belongs to task 2.13. It never
-silently discards records. Serialization of current in-memory states already
-preserves their entire frame, but this is not a completed general round-trip
-or disk persistence feature.
+`Page.deserialize` now reconstructs empty, populated, fragmented, all-deleted
+and compacted pages. It reuses the full header/directory/range validation used
+by the other Page operations, before exposing any record. It preserves unused
+bytes and holes as well as live data; it does not implicitly compact the page.
 
 ### RID lifetime and space reuse
 
 Live `RID(page_id, slot_id)` values survive page-local compaction. Compaction
 moves bytes and updates offsets, never renumbers slots or moves rows across
-pages; that algorithm remains pending in task 2.12. Deletion now marks the
+pages. Deletion marks the
 entry free (offset and length reset to zero), decrements the active count, and
 leaves a reclaimable hole until compaction. It does not securely erase bytes.
 Slot entries and free-space boundaries are retained, even after all records
 are deleted. Insertion reuses the first free slot before appending one, but it
 still needs contiguous payload capacity. It does not reuse holes or compact
 automatically. A full page with a deleted record can therefore reject a new
-nonempty payload until 2.12; an empty payload can reuse a slot at zero byte cost.
-Future compaction will recover holes without changing live slot identities.
+nonempty payload until the caller explicitly invokes `compact()`; an empty
+payload can reuse a slot at zero byte cost. Compaction assembles a new frame,
+packs live payloads backward in ascending slot-id order, updates their offsets
+and `free_space_end`, and zero-fills unused bytes. Empty active payloads keep
+offset 4096. Free entries remain canonical zero entries, and the directory
+never shrinks, even when all records are deleted. Repeating compaction is
+idempotent. Clearing this in-memory frame is not secure deletion from disk.
 
 An eliminated RID is invalidated, but its pair can subsequently identify a
 new row when its slot is reused. No generation counter or historical identity
 guarantee is provided. Future storage/index integration must remove old index
 references before making a deleted slot reusable. The logical RID class is
-unchanged; this block provides page-local slots, not file-level page allocation.
+unchanged; PageManager now separately validates file-level page allocation.
 
 ### Primitive and record encoding
 
@@ -589,21 +593,104 @@ SQL NULL remains unsupported. Wrong argument/scalar types raise
 `InvalidTypeError`; range, framing, UTF-8, boolean and header/layout failures
 raise `ValidationError`, retaining TypeError/ValueError compatibility.
 
-### File and catalog strategy (not file I/O yet)
+### FileHeader, PageManager and catalog strategy (tasks 2.14–2.16)
 
 Use a 20-byte file-header prefix before the first data page, not a reserved
 metadata page. Its magic is `b"MINIDB\x00\x00"` (8 bytes), format version is 1,
-and page size must equal 4096. The future manager maps a zero-based page id to
+and page size must equal 4096. PageManager maps a zero-based page id to
 `20 + page_id * 4096`, verifies `page_id < allocated_page_count`, and checks
 file length against the count. File counts fit uint32; therefore the maximum
 allocated id is below the maximum count, even though PageHeader can represent
-any uint32 id. No FileHeader class, allocation, flushing, or recovery is
-implemented in tasks 2.2–2.6.
+any uint32 id. `FileHeader` is immutable and defaults to zero allocated pages;
+it validates exact integer types, uint32 limits, signature, supported version
+and page size, and serializes/deserializes exactly 20 bytes. Metadata alone
+does not prove that the corresponding pages exist.
+
+`PageManager.create(path)` creates an exclusive new header-only file; existing
+paths raise `FileExistsError` and are never overwritten. It does not create
+parent directories. `PageManager.open(path)` opens an existing file for binary
+read/write without truncation or implicit creation. `PageManager(path,
+create=False)` is the equivalent constructor. Paths must be text strings or
+text PathLike objects, not file descriptors or byte paths.
+
+Opening validates the header and exact file length; it does not read all data
+pages into memory. Each read/write/allocation rechecks physical length. All
+raw addressing is owned by PageManager, using the same offset helper for data
+pages and the expected file end. Page ids must be exact built-in ints, with
+`0 <= page_id < allocated_page_count` for reading or rewriting.
+
+| PageManager API | Behavior |
+|---|---|
+| `allocate_page() -> int` | Append an initialized empty Page, update FileHeader, return consecutive id |
+| `read_page(page_id) -> Page` | Read/validate a fresh independent Page, including stored-id/physical-id agreement |
+| `write_page(page) -> None` | Validate and rewrite one already allocated page; never allocate implicitly |
+| `flush() -> None` | Flush the handle and call `os.fsync` to request synchronization |
+| `close() -> None` | Flush and close; idempotent, releases the handle even if flush fails |
+| `header`, `allocated_page_count`, `closed` | Inspect metadata/status; header is an immutable snapshot |
+| `pages_read`, `pages_written`, `pages_allocated` | Read-only per-manager session counters |
+| `reset_counters() -> None` | Reset session counters, with no file I/O or metadata changes |
+
+The manager owns an unbuffered handle and supports `with`; callers must close
+it or use that context manager. Pages are independent in-memory copies: changes
+persist only after an explicit `write_page`. Allocation only appends pages;
+there is no free-page selection, page deallocation, buffer pool, or record-level
+Storage implementation. Short reads/writes are completed in bounded loops.
+
+Counters measure **completed page-sized transfers through this manager's file
+handle**, not OS system-call counts, bytes transferred, or hardware cache misses.
+Every allocation writes one empty page: `pages_written += 1`, then
+`pages_allocated += 1` after the header update succeeds. Repeated reads/writes
+count each complete transfer, even when page contents are unchanged. A fully
+read malformed page counts as a read before decoding fails. Header transfers,
+seeks, flush/close, memory-only Page operations and failed preconditions do not
+count. Incomplete transfers on failure do not count as completed pages. If the
+page append succeeds but its header update fails, the write counts but the
+allocation does not. Counters start at zero on every new manager and are not
+persisted; they remain inspectable after close.
+
+Errors reuse the existing vocabulary: wrong argument types raise
+`InvalidTypeError`; unallocated page ids raise `InvalidReferenceError`; invalid
+headers/pages, inconsistent file lengths, truncated data and exhausted page
+count raise `ValidationError`. Operations on a closed manager raise
+`RuntimeError` (except repeated close and snapshot inspection). OS errors such
+as missing/existing files, permission failures and I/O failures remain native
+`OSError` subclasses. A failed open/create releases its handle.
+
+Only one manager/writer may own a file at a time; concurrency/locking are not
+provided. A seek/write failure closes the handle and propagates the error;
+partial bytes can remain on disk, including an incomplete new file or an
+append without a committed header. There is no rollback, repair or guarantee
+of crash-atomic allocation/rewrites. Flush/fsync does not provide WAL, atomic
+transactions, recovery, or directory-entry durability across crashes. After a
+failed write, a fresh open still validates the file; no automatic repair occurs.
 
 The catalog remains in memory throughout Stage 2. Schema/catalog persistence
-is deferred to a later integration task; reopen tests will explicitly supply
-the same schema. Reopening page bytes will not imply automatic table discovery.
+is deferred to a later integration task; reopen tests explicitly supply a new
+Schema with the same definition. Reopening page bytes does not imply automatic
+table discovery or validation of otherwise compatible but incorrect schemas.
 The versioned format is a baseline, not a crash-recovery or migration protocol.
+
+### Stage 2 verification boundary
+
+The full `Record -> RecordCodec -> Page -> PageManager -> file` pipeline and
+its reverse are tested with temporary files, fresh managers and externally
+reconstructed schemas. Separate interpreter scenarios perform write, read,
+rewrite and final read after the preceding process exits. Only the file path,
+external schema declaration and test phase/settings cross process boundaries;
+no original Record, Page, Catalog, manager or serialized-row object is shared.
+
+Tests cover multiple pages/rows, all-deleted and empty pages, zero-byte rows,
+fragmentation/compaction, reuse after reopen, append after restart, integer
+limits, float special values, Unicode and maximum-sized records. Shared
+malformed slot/header cases exercise both memory and disk loading. Page/file
+geometry errors are rejected by their own layers; malformed row payloads in
+otherwise valid pages are rejected by RecordCodec, not by PageManager.
+
+This establishes normal-close persistence, domain/boundary behavior, resource
+cleanup and measured page transfers. It does not establish crash recovery,
+concurrent access, persisted schemas/catalog, checksum protection, performance
+benchmarks or a concrete record-level Storage implementation. The complete
+criterion-by-criterion evidence is in [the Stage 2 audit](docs/ETAPA_02_AUDIT.md).
 
 ---
 
@@ -638,7 +725,9 @@ mutate storage. Each scan is fresh and closable. Scan-owned resources must be
 released on exhaustion, failure, and `close()`, without closing the borrowed
 storage manager. Callers use `contextlib.closing` or `try/finally` when they
 may stop early. Concurrency, allocation, capacity, file lifetime, and physical
-I/O error details are deferred. No physical implementation is included.
+I/O details for concrete record-level organizations remain deferred. The
+PageManager primitives described above are implemented, but no concrete
+record-level `Storage` implementation is included.
 
 ---
 
@@ -1114,7 +1203,7 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 Latest completed stage:
 
-> **Stage 1 — Architecture and data model**
+> **Stage 2 — Pages, records and base persistence**
 
 Overall Part 1 roadmap:
 
@@ -1140,21 +1229,27 @@ Implemented so far:
 - 296 additional tests for golden bytes, boundaries, malformed data, header
   geometry, and integration with the catalog without file access;
 - Stage 2 tasks 2.7–2.11: immutable SlotEntry and an in-memory Page supporting
-  empty-page reconstruction, byte insertion/read/deletion and free-slot reuse;
+  byte insertion/read/deletion and free-slot reuse;
 - 190 additional tests for slots/pages, capacity/error atomicity, corruption,
   RecordCodec/Page integration without I/O and page-layer dependency checks.
-  All 886 current tests pass with warnings treated as errors; compileall and
+- Stage 2 tasks 2.12–2.16: explicit compaction, complete Page reconstruction,
+  FileHeader, PageManager and page-I/O counters, with 181 additional tests.
+- Stage 2 tasks 2.17–2.20 and closure: expanded restart/boundary tests, separate
+  process end-to-end integration and a 47-criterion audit, with 88 more tests.
+  All 1155 current tests pass with warnings treated as errors; compileall and
   pip check also pass (Windows, Python 3.12.4, pytest 8.4.2).
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
 limits of verification are recorded in [the audit](docs/ETAPA_01_AUDIT.md).
 
-**Stage 2 is in progress**; tasks 2.2–2.11 are complete after the user's explicit
-request for the page-local block. See `ETAPA_02.md` for verified progress. The
-next task is 2.12 (compaction). Full reconstruction of populated pages (2.13),
-FileHeader and PageManager remain pending. There is no disk persistence yet,
-and Stage 2 is not complete.
+**Stage 2 is formally complete**, audited on 2026-08-31 against all 47 criteria
+in `ETAPA_02.md`, with 1155 passing tests. Evidence and limits are recorded in
+[the Stage 2 audit](docs/ETAPA_02_AUDIT.md). No production engine changes were
+needed for the final testing/closure block; existing work was preserved.
+**Stage 3 has not started.** Remain at this completed boundary until the user
+explicitly requests advancing. No `ETAPA_03.md`, Heap File or Sequential File
+implementation was added. Part 1 as a whole is not complete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 

@@ -1,7 +1,7 @@
 """Version-1 binary layout and geometry, independent of records and file I/O.
 
-The file format remains a design declaration, without file I/O. Sizes always
-derive from explicit-endian formats; page and slot geometry share these checks.
+Sizes derive from explicit-endian formats. Files, pages and slots share these
+checks; this module does not perform file I/O.
 """
 
 from collections.abc import Sequence
@@ -55,6 +55,24 @@ def _validate_uint(name: str, value: int, maximum: int) -> None:
         raise InvalidTypeError(f"{name} must be a built-in int")
     if not 0 <= value <= maximum:
         raise ValidationError(f"{name} must be between 0 and {maximum}")
+
+
+def validate_file_header(
+    *, magic: bytes, version: int, page_size: int, allocated_page_count: int,
+) -> None:
+    """Validate v1 file metadata, independently of a file's physical length."""
+    require_bytes(magic)
+    if magic != FILE_MAGIC:
+        raise ValidationError("Invalid database file signature")
+    for name, value in (
+        ("version", version), ("page_size", page_size),
+        ("allocated_page_count", allocated_page_count),
+    ):
+        _validate_uint(name, value, UINT32_MAX)
+    if version != FORMAT_VERSION:
+        raise ValidationError(f"Unsupported file format version: {version}")
+    if page_size != PAGE_SIZE:
+        raise ValidationError(f"Unsupported page size: {page_size}; expected {PAGE_SIZE}")
 
 
 def validate_slot_layout(*, offset: int, length: int, status: int) -> None:

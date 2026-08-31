@@ -1,8 +1,10 @@
-"""Rows, binary codecs, in-memory pages, and the abstract storage contract."""
+"""Rows, codecs, slotted pages, physical page I/O and the storage contract."""
 
 from engine.storage.base import Storage
+from engine.storage.file_header import FileHeader
 from engine.storage.page import Page
 from engine.storage.page_header import PageHeader
+from engine.storage.page_manager import PageManager
 from engine.storage.record import Record
 from engine.storage.record_codec import RecordCodec
 from engine.storage.rid import RID
@@ -11,4 +13,5 @@ from engine.storage.value_codec import ValueCodec
 
 __all__ = [
     "RID", "Record", "Storage", "ValueCodec", "RecordCodec", "PageHeader", "SlotEntry", "Page",
+    "FileHeader", "PageManager",
 ]

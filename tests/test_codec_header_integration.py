@@ -1,6 +1,6 @@
 """Stage 2's in-memory binary/page block integrates with Stage 1 without I/O.
 
-This is NOT the complete Stage 2 persistence test: no PageManager exists yet.
+This guard remains separate from the complete Stage 2 disk-pipeline tests.
 """
 
 from dataclasses import asdict

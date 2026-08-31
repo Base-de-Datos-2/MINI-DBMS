@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **1.3** — aligned with `PLAN.md` and `ETAPA_02.md`.
+> Context version: **1.5** — aligned with `PLAN.md` and the completed `ETAPA_02.md`.
 
 ## Purpose
 
@@ -315,16 +315,18 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest completed stage:
 
-> **Stage 1 — Architecture and data model**
+> **Stage 2 — Pages, records and base persistence**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
-**Stage 2 is in progress.** Tasks 2.2–2.6 are complete and verified. The user
-subsequently authorized tasks 2.7–2.11: SlotEntry, the empty in-memory Page,
-insertion, slot lookup, and page-local deletion. Do not extend this block to
-compaction (2.12), complete reconstruction of populated pages (2.13), FileHeader,
-PageManager or disk I/O without a further request. Tasks 2.7–2.11 are now
-complete and verified; the next pending task is 2.12. Stage 2 is not complete.
+**Stage 2 was formally closed on 2026-08-31**, following the user's explicit
+request for tasks 2.17–2.20 and the closure audit. All 47 Definition of Done
+criteria are satisfied, with 1155 passing tests. Evidence and verification
+limits are recorded in `docs/ETAPA_02_AUDIT.md`.
+**Stage 3 has not started.** Remain at the completed Stage 2 boundary until the
+user explicitly requests advancing; closure alone does not authorize Stage 3.
+No Heap File, file-level free-space selection, indexes, buffer pool, WAL or
+concurrency was added. Do not create `ETAPA_03.md` merely because Stage 2 closed.
 
 Current detailed stage specification:
 
@@ -347,7 +349,7 @@ Stage 1 includes, at the planning level:
 - base domain errors;
 - Stage 1 unit/integration tests.
 
-Do not implement Stage 2 or later work merely to make the project appear more complete.
+Do not implement later-stage work merely to make the project appear more complete.
 
 Do not skip stages unless explicitly instructed.
 

@@ -12,17 +12,22 @@ un motor de base de datos propio, comenzando por la Parte 1 relacional.
 anteriores, con pruebas unitarias, de interfaces, de comportamiento mediante
 dobles, de integración y de arquitectura. El cierre se verificó con 400 pruebas.
 
-**Etapa 2 en curso, tareas 2.2–2.11 completas:** diseño físico documentado,
+**Etapa 2 completa y auditada (2026-08-31):** diseño físico documentado,
 constantes e invariantes binarios, codecs, `PageHeader`, `SlotEntry` y `Page`
 en memoria con inserción, lectura, eliminación y reutilización de slots.
-**886 pruebas pasan**: las 696 anteriores y 190 nuevas. Aún no hay compactación,
-reconstrucción de páginas con registros ni persistencia en disco.
+Ya existen compactación explícita, reconstrucción completa de páginas,
+`FileHeader`, `PageManager` y contadores de E/S. Las páginas se guardan y
+recuperan después de cerrar y reabrir archivos. El recorrido completo de
+`Record` hasta disco y de vuelta se verifica también en procesos independientes,
+con esquemas externos, varias páginas, slots eliminados y reescrituras.
+**1155 pruebas pasan**: las 1067 anteriores y 88 adicionales para este cierre.
 
-El cierre anterior está registrado en [la auditoría de la Etapa 1](docs/ETAPA_01_AUDIT.md).
-El avance actual se registra en [ETAPA_02.md](ETAPA_02.md). La Etapa 2 y la
-Parte 1 del proyecto todavía no están completas.
+Los cierres están registrados en [la auditoría de la Etapa 1](docs/ETAPA_01_AUDIT.md)
+y [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md). Los 47 criterios de
+[ETAPA_02.md](ETAPA_02.md) se cumplen. **La Etapa 3 no está iniciada y la
+Parte 1 del proyecto sigue pendiente.**
 
-Todavía no existen almacenamiento en archivos, índices físicos, consultas SQL, transacciones,
+Todavía no existen Heap File, Paged Sequential File, índices físicos, consultas SQL, transacciones,
 API ejecutable ni interfaz gráfica. Los directorios correspondientes reservan
 su ubicación; no representan funcionalidades implementadas.
 
@@ -94,7 +99,8 @@ assert catalog.get_indexes("students") == (index,)
 
 Este ejemplo trabaja únicamente con registros y metadatos en memoria. No crea
 una tabla en disco, no construye un índice B+ ni ejecuta SQL. El RID es un valor
-conceptual: todavía no existe un archivo que asigne o valide esa ubicación.
+conceptual elegido por el ejemplo: no implica que esa página esté asignada.
+`PageManager`, descrito más abajo, asigna y valida las páginas de un archivo.
 
 ### Reglas del modelo
 
@@ -143,12 +149,12 @@ en int64. `FLOAT` admite NaN e infinitos: el codec normaliza NaN y conserva los
 infinitos y el cero con signo. Los operadores SQL definirán sus propias reglas
 más adelante. Un esquema vacío admite un registro con una secuencia vacía.
 
-### Formato físico y codecs (Etapa 2 parcial)
+### Formato físico y codecs (Etapa 2)
 
 Se adoptó un formato v1 de páginas de **4096 bytes**, little-endian y directorio
 de slots. Este tamaño es una decisión del proyecto, no un requisito oficial.
-`PageHeader` ocupa 12 bytes y `SlotEntry`, 5 bytes. El formato futuro de archivo
-reserva una cabecera inicial de 20 bytes. Las constantes e invariantes están
+`PageHeader` ocupa 12 bytes y `SlotEntry`, 5 bytes. `FileHeader` es una cabecera
+inicial de archivo de 20 bytes. Las constantes e invariantes están
 centralizadas en `engine/storage/binary.py`.
 
 ```python
@@ -178,7 +184,7 @@ assert ValueCodec.encode(DataType.BOOLEAN, True) == b"\x01"
 - El codec no impone la capacidad de una página. `Page` rechaza
   registros de más de 4079 bytes; no se han adoptado páginas de desbordamiento.
 
-La política adoptada exige conservar RIDs vivos al implementar compactación.
+La compactación conserva los RIDs vivos.
 La reutilización de slots eliminados ya existe: un RID antiguo no garantiza
 identidad histórica. El catálogo seguirá en memoria durante la Etapa 2, y el
 llamador aportará el esquema al recuperar registros.
@@ -203,11 +209,14 @@ slot_id = page.insert(payload)  # payload se obtiene del ejemplo de RecordCodec.
 rid = RID(page.page_id, slot_id)
 assert RecordCodec.deserialize(schema, page.read(rid.slot_id)) == record
 assert len(page.serialize()) == 4096
+assert Page.deserialize(page.serialize()).read(slot_id) == payload
 
 free_before = page.free_space()
 page.delete(slot_id)
 assert not page.slots[slot_id].is_active
 assert page.free_space() == free_before  # El hueco aún no se recupera.
+page.compact()
+assert page.free_space() == free_before + len(payload)
 assert page.insert(payload) == slot_id  # Reutiliza la entrada del directorio.
 ```
 
@@ -216,20 +225,143 @@ assert page.insert(payload) == slot_id  # Reutiliza la entrada del directorio.
   el slot libre de menor posición. Admite registros de cero bytes.
 - `free_space()` informa solo del espacio contiguo. Eliminar no mueve registros,
   no recorta el directorio ni aumenta este espacio; conserva los bytes antiguos
-  como huecos hasta la futura compactación. No es un borrado seguro de bytes.
+  como huecos hasta llamar a `compact()`. No es un borrado seguro de bytes.
 - Reutilizar un slot evita su coste de directorio, pero requiere espacio contiguo
   para el nuevo payload. Una página llena puede seguir rechazando registros
-  no vacíos después de eliminar uno; recuperar ese hueco corresponde a 2.12.
+  no vacíos después de eliminar uno. `compact()` recupera esos huecos, pero
+  `insert()` no la invoca automáticamente.
+- `compact() -> None` mueve los bytes activos, actualiza offsets y conserva
+  todos los `slot_id`, incluidos los eliminados. Nunca recorta el directorio.
+  Ordena el empaquetado por posición de slot y rellena con ceros la zona no
+  utilizada del nuevo buffer. Es idempotente, no un borrado seguro en disco.
 - Los argumentos incorrectos generan `InvalidTypeError`. Los slots inexistentes
   y libres/eliminados generan `InvalidReferenceError`, con mensajes distintos;
   los metadatos corruptos y la falta de espacio generan `ValidationError`.
   Una segunda eliminación falla. Los fallos de validación no modifican la página.
 - `header`, `slots`, los registros leídos y los bytes serializados son snapshots
   inmutables. Las operaciones validan estados, contadores, límites y solapamientos.
-- `serialize()` conserva los 4096 bytes del estado actual. Por ahora,
-  `deserialize()` reconstruye **solo páginas sin slots asignados**. Si hay slots,
-  incluso todos eliminados, lanza `NotImplementedError`: la reconstrucción completa
-  se implementará en 2.13. No se descartan registros silenciosamente.
+- `serialize()` conserva los 4096 bytes del estado actual. `deserialize()`
+  reconstruye páginas vacías, activas, fragmentadas, eliminadas y compactadas,
+  validando toda la geometría y creando un buffer independiente. Conserva
+  también los bytes no utilizados; no compacta ni descarta filas implícitamente.
+
+### Archivos de páginas y contadores de E/S
+
+`FileHeader` es inmutable: firma `b"MINIDB\x00\x00"`, versión 1, tamaño de página
+4096 y cantidad de páginas asignadas (uint32). Su serialización `<8sIII` ocupa
+exactamente 20 bytes. `PageManager` centraliza la dirección física:
+`20 + page_id * 4096`, con páginas numeradas desde cero.
+
+Este ejemplo usa un archivo temporal, eliminado automáticamente al terminar:
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from engine.storage import PageManager
+
+with TemporaryDirectory() as directory:
+    path = Path(directory) / "demo.db"
+    with PageManager.create(path) as manager:
+        page_id = manager.allocate_page()
+        page = manager.read_page(page_id)
+        slot_id = page.insert(b"registro de ejemplo")
+        manager.write_page(page)  # Modificar Page por sí solo no guarda en disco.
+        manager.flush()
+        assert manager.pages_read == 1
+        assert manager.pages_written == 2  # Página vacía asignada + reescritura.
+        assert manager.pages_allocated == 1
+
+    with PageManager.open(path) as reopened:
+        assert reopened.allocated_page_count == 1
+        assert reopened.pages_read == 0  # Contadores de una nueva sesión.
+        recovered_page = reopened.read_page(page_id)
+        assert recovered_page.read(slot_id) == b"registro de ejemplo"
+```
+
+- `create(path)` crea exclusivamente un archivo nuevo: nunca sobrescribe uno
+  existente ni crea directorios padre. `open(path)` exige que exista y no lo
+  trunca. Se aceptan rutas de texto o `Path`. El constructor
+  `PageManager(path, create=False)` equivale a abrir un archivo existente.
+- Al abrir se validan cabecera y longitud exacta del archivo, sin cargar todas
+  las páginas. `read_page` devuelve una copia independiente y comprueba la
+  geometría y que su `page_id` coincida con la posición física.
+- `allocate_page()` agrega una página vacía al final y actualiza la cabecera.
+  `write_page(page)` solo reescribe páginas ya asignadas. No busca espacio libre
+  entre páginas, no es Heap File y no implementa aún el contrato `Storage`.
+- `flush()` vacía el handle y solicita sincronización mediante `os.fsync`.
+  `close()` hace flush y cierra; es idempotente y libera el handle incluso si
+  falla la sincronización. Usa `with` o cierra explícitamente. Las operaciones
+  posteriores al cierre generan `RuntimeError`; los metadatos y contadores
+  siguen disponibles para consulta.
+- `pages_read`, `pages_written` y `pages_allocated` son propiedades de solo
+  lectura. `reset_counters()` las pone a cero sin modificar el archivo ni su
+  cantidad de páginas. No se guardan entre sesiones.
+- Se cuentan transferencias **completas de páginas** por el handle del gestor,
+  no lecturas físicas del hardware ni fallos de caché del sistema operativo.
+  No cuentan cabeceras, seeks, flush/cierre, cambios en memoria ni validaciones
+  fallidas. Leer dos veces cuenta dos lecturas: no existe caché de páginas.
+- Una página totalmente leída pero corrupta cuenta como lectura. Una
+  transferencia parcial fallida no cuenta como página completa. Si se escribe
+  la página nueva pero falla la actualización de cabecera, cuenta una escritura
+  y ninguna asignación exitosa. Las transferencias cortas se completan en bucles.
+- Tipos incorrectos generan `InvalidTypeError`; páginas no asignadas,
+  `InvalidReferenceError`; bytes corruptos, truncamientos, tamaños incoherentes
+  o límite de páginas agotado, `ValidationError`. Los errores del sistema de
+  archivos conservan su tipo nativo, por ejemplo `FileExistsError`,
+  `FileNotFoundError` y `OSError`.
+- Un fallo de escritura cierra el gestor y propaga el error. Puede dejar bytes
+  parciales o un archivo nuevo incompleto; no hay rollback ni reparación
+  automática. Flush/fsync no garantiza asignaciones atómicas ante una caída.
+  Se admite un solo propietario/escritor por archivo; no hay protección de
+  concurrencia, buffer pool, WAL ni recuperación ante fallos.
+
+El catálogo y los esquemas siguen en memoria. Reabrir páginas no descubre
+tablas automáticamente; el consumidor debe aportar el esquema a `RecordCodec`.
+
+### Ejemplo completo de persistencia de registros
+
+Solo el archivo y el RID pasan de la escritura a la lectura; el lector crea un
+esquema nuevo a partir de información que aporta la aplicación. En este ejemplo,
+el directorio temporal y su archivo se eliminan al terminar:
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from engine.catalog import Column, DataType, Schema
+from engine.storage import PageManager, Record, RecordCodec, RID
+
+
+def write_example(path):
+    schema = Schema([
+        Column("id", DataType.INTEGER), Column("name", DataType.VARCHAR),
+    ])
+    with PageManager.create(path) as manager:
+        page_id = manager.allocate_page()
+        page = manager.read_page(page_id)
+        row = Record(schema, [1, "Lucía 😀"])
+        slot_id = page.insert(RecordCodec.serialize(row))
+        manager.write_page(page)
+    return RID(page_id, slot_id)  # No devuelve el Record, Schema, Page ni gestor.
+
+
+with TemporaryDirectory() as directory:
+    path = Path(directory) / "records.db"
+    rid = write_example(path)
+    external_schema = Schema([
+        Column("id", DataType.INTEGER), Column("name", DataType.VARCHAR),
+    ])
+    with PageManager.open(path) as reader:
+        payload = reader.read_page(rid.page_id).read(rid.slot_id)
+        recovered = RecordCodec.deserialize(external_schema, payload)
+        assert recovered.values == (1, "Lucía 😀")
+```
+
+Las pruebas de reinicio ejecutan escritura, lectura, reescritura y lectura final
+en cuatro procesos separados por escenario, fuera del repositorio y con la
+instalación editable. El esquema se proporciona en cada proceso; no se guardan
+objetos Python ni un catálogo auxiliar. Se comprueban páginas fragmentadas y
+compactadas, RIDs vivos, slots libres, valores Unicode/NaN/infinitos y contadores.
+Esto demuestra persistencia tras cierre normal, no recuperación tras una caída.
 
 ### Metadatos y catálogo
 
@@ -267,7 +399,7 @@ Se importan desde `engine.errors`:
 | `ValidationError` | `ValueError` | Validaciones del modelo, valores fuera del rango binario, bytes malformados o geometría inválida |
 | `SchemaError` | `ValueError` | Nombre de columna vacío o columnas duplicadas |
 | `DuplicateError` | `ValueError` | Tabla/índice duplicado o segundo índice agrupado |
-| `InvalidReferenceError` | `KeyError` | Índice desconocido, slot inexistente o libre/eliminado; base para referencias inexistentes |
+| `InvalidReferenceError` | `KeyError` | Índice desconocido, página no asignada, slot inexistente o libre/eliminado; base para referencias inexistentes |
 | `UnknownTableError` | `KeyError` | Tabla inexistente |
 | `UnknownColumnError` | `KeyError` | Columna inexistente, incluso al registrar un índice |
 | `ColumnPositionError` | `IndexError` | Posición fuera del esquema |
@@ -340,7 +472,7 @@ probar el cumplimiento de estas reglas de comportamiento y recursos.
 engine/
   errors.py      # Errores compartidos, sin dependencias de otros componentes
   catalog/       # Tipos, esquemas, metadatos y catálogo en memoria
-  storage/       # Modelo, contrato Storage, codecs y páginas en memoria; sin disco
+  storage/       # Modelo, contrato Storage, codecs, páginas y PageManager físico
   indexes/       # Index y OrderedIndex abstractos; sin B+ ni hashing físicos
   operators/     # Operator abstracto; sin operadores concretos
   query/         # Reservado: parser, planificador y ejecutor
@@ -351,7 +483,7 @@ tests/
   doubles.py     # Implementaciones mínimas solo para pruebas; no son el motor
   conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
   catalog/       # Pruebas del modelo implementado
-  storage/       # Modelo, contrato Storage, formatos, codecs, cabeceras, slots y Page
+  storage/       # Modelo, contratos, codecs, páginas, archivos y fallos de E/S
   indexes/       # Contratos de igualdad/rangos mediante dobles
   operators/     # Ciclo de vida, agotamiento y liberación de recursos
   test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
@@ -359,6 +491,9 @@ tests/
   test_architecture.py  # Dependencias e importaciones aisladas
   test_catalog_record_integration.py  # Integración sin acceso a disco
   test_codec_header_integration.py    # Catálogo, codecs, slots y páginas sin archivos
+  test_stage2_persistence_pipeline.py # Recorrido completo y procesos independientes
+  page_corruption.py                 # Casos compartidos de corrupción de metadatos
+  helpers/stage2_restart.py           # Escenario de prueba; no es un algoritmo del motor
 benchmarks/      # Reservado para experimentos
 data/            # Reservado para datos
 docs/            # Evidencia de auditoría y documentación adicional
@@ -375,6 +510,8 @@ depende del almacenamiento, del parser, de una API ni de la interfaz gráfica.
 de estos componentes realiza acceso a disco. Los codecs conocen tipos/esquemas;
 `Page`, `SlotEntry`, `PageHeader` y los validadores de geometría no conocen
 registros lógicos ni tipos SQL. Page recibe bytes, no objetos Record.
+`PageManager` conoce páginas y cabecera de archivo, pero no registros, esquemas,
+codecs ni organizaciones como Heap File. Es el propietario del acceso a disco.
 Las demás capas se implementarán progresivamente según el plan.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
@@ -393,6 +530,7 @@ En Windows, desde la raíz:
 .\.venv\Scripts\python.exe -m pytest tests/test_contracts.py tests/test_errors.py -q
 .\.venv\Scripts\python.exe -m pytest tests/test_catalog_record_integration.py tests/test_architecture.py -q
 .\.venv\Scripts\python.exe -m pytest tests/test_codec_header_integration.py -q
+.\.venv\Scripts\python.exe -m pytest tests/storage/test_persistence.py tests/storage/test_malformed_files.py tests/test_stage2_persistence_pipeline.py -q -W error
 .\.venv\Scripts\python.exe -m pytest -ra -W error
 .\.venv\Scripts\python.exe -m compileall -q engine api tests
 .\.venv\Scripts\python.exe -m pip check
@@ -403,12 +541,15 @@ En Linux/macOS, sustituye `.\.venv\Scripts\python.exe` por `.venv/bin/python`.
 Las pruebas de importación requieren la instalación editable indicada arriba:
 ejecutan intérpretes aislados desde fuera del repositorio para detectar
 dependencias del directorio actual o de módulos precargados por pytest.
-Las pruebas de arquitectura leen fuentes; las de integración bloquean las
+Las pruebas de arquitectura leen fuentes; las de integración **sin disco** bloquean las
 aperturas de archivos únicamente durante las operaciones del modelo, contratos,
-codecs, cabeceras, slots y páginas bajo prueba.
+codecs, cabeceras, slots y páginas bajo prueba. Las pruebas de `PageManager`
+usan archivos temporales de pytest y mantienen ese acceso separado del modelo.
+Las de persistencia e integración completa usan archivos temporales reales;
+las de procesos independientes no comparten objetos del escritor con el lector.
 
 La verificación actual se ejecutó en Windows con Python 3.12.4 y pytest 8.4.2:
-886 pruebas aprobadas, sin omisiones, xfails ni advertencias con `-W error`.
+1155 pruebas aprobadas, sin omisiones, xfails ni advertencias con `-W error`.
 `compileall` y `pip check` también pasan. Las implementaciones físicas futuras deberán
 añadir sus propias pruebas de conformidad, persistencia y concurrencia.
 
@@ -418,15 +559,14 @@ añadir sus propias pruebas de conformidad, persistencia y concurrencia.
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md): arquitectura y decisiones estables.
 - [PLAN.md](PLAN.md): las diez etapas de la Parte 1.
 - [ETAPA_01.md](ETAPA_01.md): etapa de fundamentos, cerrada y auditada.
-- [ETAPA_02.md](ETAPA_02.md): etapa vigente; tareas 2.2–2.11 completadas.
+- [ETAPA_02.md](ETAPA_02.md): etapa de persistencia, cerrada y auditada.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-La Definition of Done de `ETAPA_01.md` está satisfecha y marcada por completo.
-Consulta [la auditoría de cierre](docs/ETAPA_01_AUDIT.md) para ver la evidencia
-por criterio, los comandos ejecutados y los límites de la validación.
+Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
+[la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
+criterio, los comandos ejecutados y los límites de la validación.
 
-Este bloque se detiene después de **eliminación local (2.11)**. El siguiente
-paso es **compactación (2.12)**, cuando se solicite continuar.
-No se implementaron compactación, reconstrucción de páginas con slots (2.13),
-`FileHeader`, `PageManager` ni acceso a disco. La Definition of Done de la
-Etapa 2 sigue incompleta.
+Este bloque se detiene en el **cierre formal de la Etapa 2**. El siguiente paso,
+solo cuando se autorice, es preparar el plan detallado de Etapa 3 para Heap File
+y Paged Sequential File sobre estas primitivas. No se creó `ETAPA_03.md` ni se
+implementaron algoritmos de esa etapa.

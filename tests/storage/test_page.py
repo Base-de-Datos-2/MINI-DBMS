@@ -11,6 +11,7 @@ from engine.storage.binary import (
     MAX_RECORD_SIZE, MAX_SLOTS, PAGE_HEADER_SIZE, PAGE_HEADER_STRUCT, PAGE_SIZE,
     SLOT_ACTIVE, SLOT_FREE, SLOT_SIZE, SLOT_STRUCT,
 )
+from tests.page_corruption import INVALID_PAGE_HEADER_FIELDS, INVALID_SLOT_FIELDS
 
 
 def populated_page():
@@ -86,14 +87,20 @@ def test_empty_page_round_trip_preserves_opaque_unused_bytes():
 
 
 @pytest.mark.parametrize("delete", [False, True])
-def test_reconstruction_of_pages_with_slots_is_explicitly_deferred_to_2_13(delete):
+def test_reconstruction_preserves_active_or_deleted_slots(delete):
     page = Page(0)
     slot_id = page.insert(b"row")
     if delete:
         page.delete(slot_id)
-    # Do not silently reconstruct such a buffer as an empty page and lose rows.
-    with pytest.raises(NotImplementedError, match="2.13"):
-        Page.deserialize(page.serialize())
+    recovered = Page.deserialize(page.serialize())
+    assert recovered.header == page.header
+    assert recovered.slots == page.slots
+    assert recovered.serialize() == page.serialize()
+    if delete:
+        with pytest.raises(InvalidReferenceError, match="free/deleted"):
+            recovered.read(slot_id)
+    else:
+        assert recovered.read(slot_id) == b"row"
 
 
 def test_insert_has_correct_header_directory_and_payload_bytes():
@@ -285,7 +292,7 @@ def test_first_free_slot_is_reused_regardless_of_deletion_order():
     assert page.read(2) == b"c"
 
 
-def test_deleting_a_full_page_leaves_a_hole_until_future_compaction():
+def test_deleting_a_full_page_leaves_a_hole_until_explicit_compaction():
     page = Page(0)
     page.insert(b"x" * MAX_RECORD_SIZE)
     page.delete(0)
@@ -322,13 +329,8 @@ def test_zero_length_records_consume_directory_capacity_and_can_be_deleted():
     assert len(page.serialize()) == PAGE_SIZE
 
 
-@pytest.mark.parametrize(
-    "fields",
-    [(4091, 5, 2), (4091, 5, 0), (0, 1, 1), (4096, 1, 1),
-     (4000, 65535, 1), (4000, 5, 1), (17, 1, 1), (4000, 0, 1),
-     (0, 0, 0)],
-)
-@pytest.mark.parametrize("operation", ["read", "delete", "insert", "serialize"])
+@pytest.mark.parametrize("fields", INVALID_SLOT_FIELDS)
+@pytest.mark.parametrize("operation", ["read", "delete", "insert", "serialize", "compact", "deserialize"])
 def test_corrupt_slot_metadata_is_rejected_before_read_or_mutation(fields, operation):
     page = populated_page()
     # Deliberate raw-buffer corruption; public APIs expose no mutable buffer.
@@ -337,30 +339,40 @@ def test_corrupt_slot_metadata_is_rejected_before_read_or_mutation(fields, opera
     with pytest.raises(ValidationError):
         if operation == "insert":
             page.insert(b"more")
-        elif operation == "serialize":
-            page.serialize()
+        elif operation in {"serialize", "compact"}:
+            getattr(page, operation)()
+        elif operation == "deserialize":
+            Page.deserialize(corrupted)
         else:
             getattr(page, operation)(1)  # Even a different slot cannot mask corruption.
     assert bytes(page._data) == corrupted
 
 
-def test_overlapping_active_slots_are_rejected():
+@pytest.mark.parametrize("operation", ["read", "compact", "deserialize"])
+def test_overlapping_active_slots_are_rejected(operation):
     page = populated_page()
     page._data[17:22] = SLOT_STRUCT.pack(4092, 4, SLOT_ACTIVE)
     with pytest.raises(ValidationError, match="overlap"):
-        page.read(0)
+        if operation == "read":
+            page.read(0)
+        elif operation == "compact":
+            page.compact()
+        else:
+            Page.deserialize(bytes(page._data))
 
 
-@pytest.mark.parametrize(
-    "fields",
-    [(7, 2, 21, 4087, 2), (7, 2, 22, 21, 2), (7, 2, 22, 4097, 2),
-     (7, 2, 22, 4087, 1), (7, 0, 12, 4087, 0)],
-)
-def test_corrupt_header_is_not_treated_as_a_missing_record(fields):
+@pytest.mark.parametrize("fields", INVALID_PAGE_HEADER_FIELDS)
+@pytest.mark.parametrize("operation", ["read", "compact", "deserialize"])
+def test_corrupt_header_is_not_treated_as_a_missing_record(fields, operation):
     page = populated_page()
     page._data[:12] = PAGE_HEADER_STRUCT.pack(*fields)
     with pytest.raises(ValidationError):
-        page.read(0)
+        if operation == "read":
+            page.read(0)
+        elif operation == "compact":
+            page.compact()
+        else:
+            Page.deserialize(bytes(page._data))
 
 
 def test_truncated_internal_buffer_is_rejected_instead_of_returning_short_payload():

@@ -1,4 +1,4 @@
-"""Stage 1 audit: dependency direction, cycles and fresh installed imports.
+"""Stage 1/2 audit: dependency direction, page I/O ownership and fresh imports.
 
 Only these inspection tests read source files/start interpreters. They are
 separate from the no-file-I/O model/contract integration scenarios.
@@ -79,6 +79,11 @@ def test_page_layer_does_not_import_records_codecs_or_catalog():
         "engine.storage.binary": {"engine.errors"},
         "engine.storage.slot_entry": {"engine.errors", "engine.storage.binary"},
         "engine.storage.page_header": {"engine.errors", "engine.storage.binary"},
+        "engine.storage.file_header": {"engine.errors", "engine.storage.binary"},
+        "engine.storage.page_manager": {
+            "engine.errors", "engine.storage.binary", "engine.storage.file_header",
+            "engine.storage.page",
+        },
         "engine.storage.page": {
             "engine.errors", "engine.storage.binary", "engine.storage.page_header",
             "engine.storage.slot_entry",
@@ -93,10 +98,20 @@ def test_page_layer_does_not_import_records_codecs_or_catalog():
         assert engine_imports == expected, (module, engine_imports)
 
 
+def test_raw_file_access_dependencies_are_confined_to_page_manager():
+    raw_io_modules = {"os", "io", "pathlib", "mmap", "tempfile"}
+    for module, (path, tree) in engine_sources().items():
+        if module.startswith("engine.storage") and module != "engine.storage.page_manager":
+            imported_roots = {name.split(".")[0] for name in imported_modules(module, path, tree)}
+            assert not imported_roots & raw_io_modules, module
+
+
 @pytest.mark.parametrize(
     "first_module",
     ["engine.errors", "engine.catalog.schema", "engine.catalog",
-     "engine.storage", "engine.indexes", "engine.operators"],
+     "engine.storage", "engine.indexes", "engine.operators",
+     "engine.storage.page_manager", "engine.storage.file_header",
+     "engine.storage.page", "engine.storage.record_codec"],
 )
 def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
     # -I removes cwd/PYTHONPATH influence: the README's editable installation
@@ -105,7 +120,7 @@ def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_
     forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
     if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
         forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
-    elif first_module == "engine.storage":
+    elif first_module.startswith("engine.storage"):
         forbidden += ["engine.indexes", "engine.operators"]
     elif first_module == "engine.indexes":
         forbidden += ["engine.operators"]

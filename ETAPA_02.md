@@ -1,6 +1,6 @@
 # ETAPA_02.md
 
-> Context version: **1.3** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and the completed `ETAPA_01.md`.
+> Context version: **1.5** — formally closed; aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and the completed `ETAPA_01.md`.
 
 ## Stage 2 — Pages, Records, and Base Persistence
 
@@ -12,7 +12,9 @@
 
 ## Implementation status (2026-08-31)
 
-- Stage 2 is in progress by explicit user request; tasks 2.2–2.11 are complete.
+- **Stage 2 is formally complete**, following the explicit request to implement
+  tasks 2.17–2.20 and audit closure. All 47 Definition of Done criteria below
+  are satisfied. Evidence: [Stage 2 closure audit](docs/ETAPA_02_AUDIT.md).
 - Repository inspection (2.1) confirmed the existing model/contracts and no
   physical storage implementation. Baseline: 400 passing tests.
 - Physical format v1 (2.2) is adopted in `PROJECT_CONTEXT.md`: 4096-byte
@@ -30,18 +32,34 @@
 - Completed with tests: SlotEntry (2.7), empty Page including its byte
   reconstruction (2.8), insertion (2.9), slot lookup (2.10), and local deletion
   (2.11). Page stores opaque bytes, validates geometry and reuses free slots.
-- Current validation: **886 tests pass** with `-W error`, including 190 new
-  tests in `test_slot_entry.py`, `test_page.py`, and the extended integration /
-  architecture tests. `compileall` and `pip check` also pass (Windows,
-  Python 3.12.4, pytest 8.4.2).
-- Deletion frees a directory entry but does not recover its payload hole yet.
-  Reuse requires enough contiguous bytes; it avoids the 5-byte new-slot cost.
-- Serialization preserves the complete 4096-byte in-memory frame, but
-  `Page.deserialize` currently supports only zero-slot pages. Populated or
-  all-deleted pages raise NotImplementedError until task 2.13, not silent loss.
-- Next task: **2.12 — page compaction**. Full populated-page reconstruction
-  (2.13), FileHeader, PageManager and disk persistence remain pending. Stage 2
-  is not complete; do not infer persistence from in-memory operations.
+- The second block added 190 tests and passed the complete suite of 886 tests.
+- Completed with tests: explicit compaction (2.12), complete Page reconstruction
+  (2.13), immutable 20-byte FileHeader (2.14), PageManager (2.15), and session
+  counters for completed page reads/writes/allocations (2.16, not deferred).
+- Deletion still leaves a payload hole. Calling `compact()` recovers holes
+  without renumbering slots; insertion never compacts automatically. Complete
+  round-trips preserve active/deleted/compacted states and every frame byte.
+- PageManager exclusively creates files, validates header/length on open,
+  appends pages, validates allocated ids and reads/rewrites pages. It owns an
+  unbuffered handle, supports `with`, and uses flush/fsync on flush/close.
+  It does not select free pages or implement a record-level Storage contract.
+- The 2.12–2.16 block passed **1067 tests** with `-W error` (181 additional tests).
+  New files: `test_page_compaction.py`, `test_file_header.py`,
+  `test_page_manager.py`, `test_page_manager_io.py` under `tests/storage/`;
+  existing page and architecture tests were extended. Coverage includes RID
+  stability, full page reconstruction, multi-page close/reopen, corruption,
+  short transfers, failed writes, resource closure and actual I/O accounting.
+  `compileall` and `pip check` also pass (Windows, Python 3.12.4, pytest 8.4.2).
+- Completed: persistence/restart verification (2.17), expanded malformed-file
+  and boundary tests (2.18), full Record/codec/Page/file integration (2.19),
+  consolidated documentation (2.20), and formal closure audit.
+- Closure validation: **1155 tests pass** with `-W error`, 88 more than the
+  previous block. Ten isolated import scenarios and eight independent pipeline
+  subprocesses pass. `compileall`, `pip check` and whitespace checks pass.
+  No production engine changes were needed in this final block.
+- **Stage 3 has not started.** Remain at the completed Stage 2 boundary until
+  the user authorizes the next stage. No `ETAPA_03.md`, Heap File or Sequential
+  File implementation was added; Part 1 is not complete.
 
 ---
 
@@ -841,8 +859,8 @@ Slot metadata can be persisted and used to locate records safely.
 # 13. Task 2.8 — Implement the empty `Page`
 
 **Completed:** valid zero-slot Page, 4084 free bytes, fixed 4096-byte
-serialization and empty-page reconstruction. Full populated-page decoding is
-explicitly reserved for 2.13.
+serialization and empty-page reconstruction. Full populated-page decoding was
+subsequently completed in 2.13.
 
 ## Objective
 
@@ -1022,7 +1040,8 @@ Any active record inside a page can be retrieved by stable `slot_id`.
 
 **Completed:** mark FREE with zero offset/length and decrement the live count;
 retain slot positions, free-space bounds and payload holes. Double deletion is
-an InvalidReferenceError. Compaction/recovery of holes remains task 2.12.
+an InvalidReferenceError. Hole recovery is a separate explicit operation,
+subsequently implemented in 2.12.
 
 ## Objective
 
@@ -1077,6 +1096,11 @@ The Page layer can remove a record without depending on Heap File or Sequential 
 ---
 
 # 17. Task 2.12 — Implement page compaction if required by the adopted layout
+
+**Completed:** `Page.compact()` packs live bytes into a new frame, updates
+offsets/free-space end, and preserves all slot ids, tombstones and live RIDs.
+It is explicit, deterministic and idempotent; `insert` retains its previous
+contiguous-space behavior. Tests verify recovered capacity and safe slot reuse.
 
 ## Objective
 
@@ -1144,6 +1168,10 @@ If the chosen page design does not require an explicit compaction operation, doc
 
 # 18. Task 2.13 — Implement complete Page serialization/deserialization
 
+**Completed:** `Page.deserialize` reuses full header/slot/range validation and
+reconstructs empty, active, fragmented, all-deleted and compacted pages without
+losing any frame bytes. Corrupt counts, states, bounds and overlaps are rejected.
+
 ## Objective
 
 Persist every piece of information required to reconstruct a Page.
@@ -1200,6 +1228,10 @@ A complete in-memory Page survives a byte-level round trip without losing logica
 ---
 
 # 19. Task 2.14 — Implement `FileHeader`
+
+**Completed:** immutable FileHeader uses the adopted `<8sIII` 20-byte layout,
+signature `MINIDB\x00\x00`, version 1, page size 4096 and uint32 page count.
+Tests check exact bytes, field boundaries, immutability and malformed headers.
 
 ## Objective
 
@@ -1259,6 +1291,13 @@ A database file can identify its format and core physical parameters after reope
 ---
 
 # 20. Task 2.15 — Implement `PageManager`
+
+**Completed:** exclusive create, non-truncating open, append-only allocation,
+validated page read/rewrite, flush/fsync, idempotent close and context-manager
+ownership. Basic multi-page reopen tests pass. Pages are detached copies and
+require `write_page` to persist changes; no Heap File page-selection policy.
+Native OS errors propagate; write failures close the handle and may leave
+partial data. No rollback, crash recovery or concurrent ownership is promised.
 
 ## Objective
 
@@ -1342,6 +1381,14 @@ Pages can be allocated, persisted, read, rewritten, flushed, closed, and reopene
 
 # 21. Task 2.16 — Add basic physical I/O counters
 
+**Completed, not deferred:** read-only `pages_read`, `pages_written` and
+`pages_allocated`, plus `reset_counters()`. Counts are per-manager completed
+page transfers, not hardware cache misses or individual system calls. Headers,
+flushes and failed preconditions do not count. Allocation counts one page write
+and one successful allocation; a failed header update counts only the completed
+page write. Fully transferred but corrupt reads count; partial failed transfers
+do not. Tests verify those rules with real temporary files and fault injection.
+
 ## Objective
 
 Prepare low-cost instrumentation that later benchmarks and execution plans can reuse.
@@ -1393,6 +1440,12 @@ This task may be deferred only if the project explicitly chooses to instrument I
 ---
 
 # 22. Task 2.17 — Add persistence and restart tests
+
+**Completed:** `tests/storage/test_persistence.py` and the pipeline scenarios
+recover records through new managers and externally recreated schemas. They
+cover multiple pages, deleted/all-deleted slots, empty-schema records, special
+float/Unicode values, capacity boundaries, compaction/reuse after reopen and
+appending after restart. No original writer objects are used for recovery.
 
 ## Objective
 
@@ -1455,6 +1508,13 @@ Persisted state is recoverable from disk by a fresh process-equivalent object gr
 
 # 23. Task 2.18 — Add malformed-file and boundary tests
 
+**Completed:** `tests/storage/test_malformed_files.py` adds populated-file
+truncation boundaries, signature/version/page-size/count mismatches, invalid
+page/slot access and disk-loading corruption checks. The page-memory and file
+tests reuse cases from `tests/page_corruption.py`; existing tests are retained.
+Valid page geometry with malformed row bytes is rejected at the codec layer in
+the pipeline tests. OS failures retain their documented native exception types.
+
 ## Objective
 
 Fail predictably when physical data is invalid.
@@ -1508,6 +1568,13 @@ Physical-storage failures produce controlled domain errors instead of silent cor
 ---
 
 # 24. Task 2.19 — Add the Stage 2 end-to-end integration test
+
+**Completed:** `tests/test_stage2_persistence_pipeline.py` runs two scenarios,
+fragmented and compacted, each through four independent Python processes:
+write, read, rewrite and final read. `tests/helpers/stage2_restart.py` uses the
+real catalog/model, codecs, Page and PageManager with an external schema
+declaration supplied for every process. It verifies recovered values and types,
+live RIDs, deleted slots, append/rewrite persistence and real I/O counters.
 
 ## Objective
 
@@ -1595,6 +1662,12 @@ One integration test proves the full Stage 1 → Stage 2 persistence pipeline.
 ---
 
 # 25. Task 2.20 — Update architecture documentation
+
+**Completed:** stable format, compaction, reconstruction, PageManager ownership,
+normal-close persistence, error/counter semantics and verification limits are
+consolidated in `PROJECT_CONTEXT.md`. README includes an executed complete
+persistence example and verification commands. Coordination documents and
+`docs/ETAPA_02_AUDIT.md` record closure without starting Stage 3.
 
 ## Objective
 
@@ -1755,29 +1828,19 @@ Exact commit boundaries may differ.
 
 # 29. Recommended validation commands
 
-If the project uses pytest:
+Use the configured virtual environment from the repository root (Windows):
 
-```bash
-pytest tests/storage -q
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests/storage -q -W error
+.\.venv\Scripts\python.exe -m pytest tests/test_stage2_persistence_pipeline.py tests/test_architecture.py -q -W error
+.\.venv\Scripts\python.exe -m pytest -ra -W error
+.\.venv\Scripts\python.exe -m compileall -q engine api tests
+.\.venv\Scripts\python.exe -m pip check
 ```
 
-Then:
-
-```bash
-pytest tests/integration -q
-```
-
-At the end of the stage:
-
-```bash
-pytest -q
-```
-
-Optional syntax/import check:
-
-```bash
-python -m compileall engine
-```
+On Linux/macOS use `.venv/bin/python`. The repository's integration tests live
+directly under `tests/`, not in a `tests/integration` directory. Isolated imports
+and subprocess restart tests require the editable installation in README.
 
 Also verify persistence with tests that use temporary files/directories rather than writing test artifacts into the repository.
 
@@ -1821,44 +1884,44 @@ Stage 2 is complete only when all applicable items are satisfied.
 [x] read by slot_id
 [x] page-local deletion
 [x] free-space accounting
-[ ] compaction if required by adopted design
+[x] compaction if required by adopted design
 [x] exact PAGE_SIZE serialization
-[ ] Page deserialization
+[x] Page deserialization
 [x] page invariant validation
 ```
 
 ## File persistence
 
 ```text
-[ ] FileHeader
-[ ] create database file
-[ ] open database file
-[ ] allocate page
-[ ] write page
-[ ] read page
-[ ] rewrite page
-[ ] flush
-[ ] close
-[ ] reopen
-[ ] multiple-page persistence
+[x] FileHeader
+[x] create database file
+[x] open database file
+[x] allocate page
+[x] write page
+[x] read page
+[x] rewrite page
+[x] flush
+[x] close
+[x] reopen
+[x] multiple-page persistence
 ```
 
 ## Reliability
 
 ```text
-[ ] invalid page ids are rejected
+[x] invalid page ids are rejected
 [x] oversized records are rejected cleanly
-[ ] malformed/truncated files are handled
+[x] malformed/truncated files are handled
 [x] corrupted slot/header data is detected where practical
 ```
 
 ## Integration
 
 ```text
-[ ] Stage 1 Record -> bytes -> Page -> disk works
-[ ] disk -> Page -> bytes -> Stage 1 Record works
-[ ] a fresh PageManager can reopen and recover data
-[ ] all relevant tests pass
+[x] Stage 1 Record -> bytes -> Page -> disk works
+[x] disk -> Page -> bytes -> Stage 1 Record works
+[x] a fresh PageManager can reopen and recover data
+[x] all relevant tests pass
 ```
 
 ## Documentation
@@ -1871,14 +1934,13 @@ Stage 2 is complete only when all applicable items are satisfied.
 
 Only after this checklist is satisfied should the project move to Stage 3.
 
-Partial verification note (tasks 2.2–2.11): all 886 currently implemented tests
-pass. The checked Page invariants and corruption cases apply to in-memory
-frames, not to a completed disk loader. Page deserialization remains unchecked
-because only zero-slot pages can be reconstructed. Free-space accounting means
-the contiguous gap plus correct directory charges; hole recovery still needs
-compaction. Allocated-page checks, full reconstruction and disk integration
-remain pending. The current RecordCodec/Page integration test does not satisfy
-task 2.19 or the complete-stage persistence checklist.
+**Formal closure (2026-08-31):** all 47 criteria above are satisfied, backed by
+1155 passing tests and the [criterion-by-criterion audit](docs/ETAPA_02_AUDIT.md).
+Independent-process recovery now verifies the complete Record/codec/Page/disk
+pipeline. The no-file-I/O model tests remain separate from physical persistence
+tests. This is normal-close persistence, not crash recovery, concurrency or
+persisted schema/catalog support. All tasks 2.1–2.20 are complete; Stage 3 remains
+not started and requires explicit user authorization.
 
 ---
 

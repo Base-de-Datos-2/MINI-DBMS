@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **1.3** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and `ETAPA_02.md`.
+> Context version: **1.5** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and the completed `ETAPA_02.md`.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1313,7 +1313,7 @@ Part 1 is complete only when:
 
 ```text
 [x] Stage 1 complete
-[ ] Stage 2 complete
+[x] Stage 2 complete
 [ ] Stage 3 complete
 [ ] Stage 4 complete
 [ ] Stage 5 complete
@@ -1332,7 +1332,7 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest completed stage:
 
-> **Stage 1 — Architecture and Data Model**
+> **Stage 2 — Pages, Records, and Base Persistence**
 
 Current detailed stage document:
 
@@ -1344,12 +1344,18 @@ domain errors, test-only behavioral examples, expanded integration, and
 architecture/import checks. Its closure suite passed with 400 tests.
 Evidence: [Stage 1 closure audit](docs/ETAPA_01_AUDIT.md).
 
-**Stage 2 is in progress.** Tasks 2.2–2.6 established the format, codecs and
+**Stage 2 is formally complete (2026-08-31).** Tasks 2.2–2.6 established the format, codecs and
 PageHeader. The subsequent authorized block completes 2.7–2.11: SlotEntry,
 the empty Page and page-local insertion, lookup, deletion and free-slot reuse.
-Verified progress is tracked in `ETAPA_02.md`, with 886 passing tests overall.
-Next: compaction (2.12). Complete reconstruction of populated pages (2.13),
-FileHeader and PageManager remain pending.
-Stage 2 is not complete and disk persistence is not implemented yet.
+The next authorized block completes 2.12–2.16: explicit compaction, complete
+Page reconstruction, FileHeader, PageManager and page-I/O counters. Physical
+pages now persist across close/reopen. Verified progress is tracked in
+`ETAPA_02.md`. Tasks 2.17–2.20 add complete Record/disk integration, independent
+process restart tests, expanded malformed-file/boundary coverage and final
+documentation. All 47 Stage 2 criteria are satisfied; the closure suite passes
+1155 tests. Evidence: [Stage 2 closure audit](docs/ETAPA_02_AUDIT.md).
+**Stage 3 is not started.** Its detailed planning and implementation require
+an explicit user request; no `ETAPA_03.md` or Stage 3 file organization was added.
+Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

@@ -21,7 +21,7 @@ class Page:
     """Own a private page buffer; expose immutable metadata/byte snapshots.
 
     Insert uses contiguous free space and the first free slot, if any. Delete
-    releases that slot but leaves its payload as a hole until future compaction.
+    releases that slot but leaves its payload as a hole until explicit compact().
     Live slots never move or change id. A reused deleted id names a new record.
     This class is not Storage: it handles bytes/slot ids, not Records/RIDs.
     """
@@ -160,18 +160,36 @@ class Page:
         self._inspect(self._data)
         return bytes(self._data)
 
+    def compact(self) -> None:
+        """Repack live payloads, retaining every directory position and live RID.
+
+        The directory is never shortened, even when all records were deleted.
+        Packing follows slot order and zero-fills unused bytes in the new frame;
+        it is deterministic, not a secure erase of any existing disk contents.
+        Validation failure leaves the original buffer unchanged.
+        """
+        header, slots = self._inspect(self._data)
+        updated = bytearray(PAGE_SIZE)
+        free_end = PAGE_SIZE
+        for slot_id, slot in enumerate(slots):
+            if slot.is_active:
+                free_end -= slot.length
+                offset = free_end if slot.length else PAGE_SIZE
+                updated[offset:offset + slot.length] = self._data[
+                    slot.offset:slot.offset + slot.length
+                ]
+                slot = replace(slot, offset=offset)
+            start = PAGE_HEADER_SIZE + slot_id * SLOT_SIZE
+            updated[start:start + SLOT_SIZE] = slot.serialize()
+        updated[:PAGE_HEADER_SIZE] = replace(header, free_space_end=free_end).serialize()
+        self._inspect(updated)
+        self._data = updated
+
     @classmethod
     def deserialize(cls, payload: bytes) -> "Page":
-        """Reconstruct an empty page only (task 2.8), preserving unused bytes.
-
-        Pages with any allocated slots, even all-deleted ones, require task
-        2.13's full reconstruction API and currently raise NotImplementedError.
-        This limited round-trip is not a persistence implementation.
-        """
+        """Reconstruct an independent, fully validated page, preserving all bytes."""
         validate_page_buffer(payload)
-        header = PageHeader.deserialize(payload[:PAGE_HEADER_SIZE])
-        if header.slot_count:
-            raise NotImplementedError("Reconstructing pages with slots is reserved for task 2.13")
+        header, _ = cls._inspect(payload)
         page = cls(header.page_id)
         page._data = bytearray(payload)
         return page
