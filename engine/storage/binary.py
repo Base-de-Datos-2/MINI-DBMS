@@ -1,7 +1,7 @@
 """Version-1 binary layout and geometry, independent of records and file I/O.
 
-Slot/file formats define the adopted design only; their objects and algorithms
-are implemented in later tasks. Sizes always derive from explicit-endian formats.
+The file format remains a design declaration, without file I/O. Sizes always
+derive from explicit-endian formats; page and slot geometry share these checks.
 """
 
 from collections.abc import Sequence
@@ -55,6 +55,25 @@ def _validate_uint(name: str, value: int, maximum: int) -> None:
         raise InvalidTypeError(f"{name} must be a built-in int")
     if not 0 <= value <= maximum:
         raise ValidationError(f"{name} must be between 0 and {maximum}")
+
+
+def validate_slot_layout(*, offset: int, length: int, status: int) -> None:
+    """Validate one v1 slot; directory/free-area overlap needs page context.
+
+    FREE slots have zero offset/length. An ACTIVE empty payload uses the
+    canonical end-of-page offset and must not be confused with a FREE slot.
+    """
+    _validate_uint("slot offset", offset, UINT16_MAX)
+    _validate_uint("slot length", length, UINT16_MAX)
+    _validate_uint("slot status", status, SLOT_ACTIVE)
+    if status == SLOT_FREE:
+        if offset != 0 or length != 0:
+            raise ValidationError("A free slot must have zero offset and length")
+        return
+    if length == 0 and offset != PAGE_SIZE:
+        raise ValidationError("An active empty slot must use the end-of-page offset")
+    if offset < PAGE_HEADER_SIZE + SLOT_SIZE or offset + length > PAGE_SIZE:
+        raise ValidationError("Active slot range is outside the page payload capacity")
 
 
 def validate_page_buffer(payload: bytes) -> None:

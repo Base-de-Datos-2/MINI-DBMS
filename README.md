@@ -12,16 +12,17 @@ un motor de base de datos propio, comenzando por la Parte 1 relacional.
 anteriores, con pruebas unitarias, de interfaces, de comportamiento mediante
 dobles, de integración y de arquitectura. El cierre se verificó con 400 pruebas.
 
-**Etapa 2 en curso, tareas 2.2–2.6 completas:** diseño físico documentado,
-constantes e invariantes binarios, `ValueCodec`, `RecordCodec` y `PageHeader`.
-**696 pruebas pasan**, incluidas las 400 anteriores y 296 nuevas. Este bloque
-trabaja con bytes en memoria; no implementa páginas completas ni persistencia.
+**Etapa 2 en curso, tareas 2.2–2.11 completas:** diseño físico documentado,
+constantes e invariantes binarios, codecs, `PageHeader`, `SlotEntry` y `Page`
+en memoria con inserción, lectura, eliminación y reutilización de slots.
+**886 pruebas pasan**: las 696 anteriores y 190 nuevas. Aún no hay compactación,
+reconstrucción de páginas con registros ni persistencia en disco.
 
 El cierre anterior está registrado en [la auditoría de la Etapa 1](docs/ETAPA_01_AUDIT.md).
 El avance actual se registra en [ETAPA_02.md](ETAPA_02.md). La Etapa 2 y la
 Parte 1 del proyecto todavía no están completas.
 
-Todavía no existen almacenamiento físico, índices físicos, consultas SQL, transacciones,
+Todavía no existen almacenamiento en archivos, índices físicos, consultas SQL, transacciones,
 API ejecutable ni interfaz gráfica. Los directorios correspondientes reservan
 su ubicación; no representan funcionalidades implementadas.
 
@@ -146,8 +147,8 @@ más adelante. Un esquema vacío admite un registro con una secuencia vacía.
 
 Se adoptó un formato v1 de páginas de **4096 bytes**, little-endian y directorio
 de slots. Este tamaño es una decisión del proyecto, no un requisito oficial.
-`PageHeader` ocupa 12 bytes. Los formatos futuros reservan 5 bytes por slot y
-20 bytes de cabecera al inicio del archivo. Las constantes e invariantes están
+`PageHeader` ocupa 12 bytes y `SlotEntry`, 5 bytes. El formato futuro de archivo
+reserva una cabecera inicial de 20 bytes. Las constantes e invariantes están
 centralizadas en `engine/storage/binary.py`.
 
 ```python
@@ -174,15 +175,61 @@ assert ValueCodec.encode(DataType.BOOLEAN, True) == b"\x01"
   truncamientos y bytes sobrantes; no se detecta toda alteración de datos válidos.
 - Las APIs binarias reciben `bytes`. Tipos incorrectos producen
   `InvalidTypeError`; datos malformados o fuera de rango, `ValidationError`.
-- El codec no impone la capacidad de una página. La futura `Page` rechazará
+- El codec no impone la capacidad de una página. `Page` rechaza
   registros de más de 4079 bytes; no se han adoptado páginas de desbordamiento.
 
-La política adoptada conserva RIDs vivos al compactar, pero permite reutilizar
-slots eliminados; un RID antiguo no garantiza identidad histórica. Estas
-operaciones todavía no están implementadas. El catálogo seguirá en memoria
-durante la Etapa 2, y el llamador aportará el esquema al recuperar registros.
+La política adoptada exige conservar RIDs vivos al implementar compactación.
+La reutilización de slots eliminados ya existe: un RID antiguo no garantiza
+identidad histórica. El catálogo seguirá en memoria durante la Etapa 2, y el
+llamador aportará el esquema al recuperar registros.
 Consulta [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md#physical-format-v1) para los
 campos, límites, políticas y responsabilidades del formato.
+
+### Slots y página en memoria
+
+`SlotEntry(offset, length, status)` es inmutable. El estado es `0` (libre) o
+`1` (activo), ambos enteros exactos, no booleanos. Un slot libre exige offset y
+longitud cero; un registro activo vacío usa offset 4096 y longitud cero. El
+`slot_id` es la posición en el directorio, no un campo adicional de la entrada.
+
+```python
+from engine.storage import Page
+
+page = Page(page_id=0)  # Solo memoria; no asigna ni abre archivos.
+assert page.free_space() == 4084
+assert Page.deserialize(page.serialize()).header == page.header  # Página vacía.
+
+slot_id = page.insert(payload)  # payload se obtiene del ejemplo de RecordCodec.
+rid = RID(page.page_id, slot_id)
+assert RecordCodec.deserialize(schema, page.read(rid.slot_id)) == record
+assert len(page.serialize()) == 4096
+
+free_before = page.free_space()
+page.delete(slot_id)
+assert not page.slots[slot_id].is_active
+assert page.free_space() == free_before  # El hueco aún no se recupera.
+assert page.insert(payload) == slot_id  # Reutiliza la entrada del directorio.
+```
+
+- `insert(bytes) -> slot_id` coloca bytes opacos desde el final de la zona libre.
+  Si necesita una entrada nueva, también descuenta 5 bytes. Reutiliza primero
+  el slot libre de menor posición. Admite registros de cero bytes.
+- `free_space()` informa solo del espacio contiguo. Eliminar no mueve registros,
+  no recorta el directorio ni aumenta este espacio; conserva los bytes antiguos
+  como huecos hasta la futura compactación. No es un borrado seguro de bytes.
+- Reutilizar un slot evita su coste de directorio, pero requiere espacio contiguo
+  para el nuevo payload. Una página llena puede seguir rechazando registros
+  no vacíos después de eliminar uno; recuperar ese hueco corresponde a 2.12.
+- Los argumentos incorrectos generan `InvalidTypeError`. Los slots inexistentes
+  y libres/eliminados generan `InvalidReferenceError`, con mensajes distintos;
+  los metadatos corruptos y la falta de espacio generan `ValidationError`.
+  Una segunda eliminación falla. Los fallos de validación no modifican la página.
+- `header`, `slots`, los registros leídos y los bytes serializados son snapshots
+  inmutables. Las operaciones validan estados, contadores, límites y solapamientos.
+- `serialize()` conserva los 4096 bytes del estado actual. Por ahora,
+  `deserialize()` reconstruye **solo páginas sin slots asignados**. Si hay slots,
+  incluso todos eliminados, lanza `NotImplementedError`: la reconstrucción completa
+  se implementará en 2.13. No se descartan registros silenciosamente.
 
 ### Metadatos y catálogo
 
@@ -220,7 +267,7 @@ Se importan desde `engine.errors`:
 | `ValidationError` | `ValueError` | Validaciones del modelo, valores fuera del rango binario, bytes malformados o geometría inválida |
 | `SchemaError` | `ValueError` | Nombre de columna vacío o columnas duplicadas |
 | `DuplicateError` | `ValueError` | Tabla/índice duplicado o segundo índice agrupado |
-| `InvalidReferenceError` | `KeyError` | Índice desconocido; base para referencias inexistentes |
+| `InvalidReferenceError` | `KeyError` | Índice desconocido, slot inexistente o libre/eliminado; base para referencias inexistentes |
 | `UnknownTableError` | `KeyError` | Tabla inexistente |
 | `UnknownColumnError` | `KeyError` | Columna inexistente, incluso al registrar un índice |
 | `ColumnPositionError` | `IndexError` | Posición fuera del esquema |
@@ -293,7 +340,7 @@ probar el cumplimiento de estas reglas de comportamiento y recursos.
 engine/
   errors.py      # Errores compartidos, sin dependencias de otros componentes
   catalog/       # Tipos, esquemas, metadatos y catálogo en memoria
-  storage/       # RID, Record, Storage abstracto, codecs y PageHeader; sin Page ni disco
+  storage/       # Modelo, contrato Storage, codecs y páginas en memoria; sin disco
   indexes/       # Index y OrderedIndex abstractos; sin B+ ni hashing físicos
   operators/     # Operator abstracto; sin operadores concretos
   query/         # Reservado: parser, planificador y ejecutor
@@ -304,14 +351,14 @@ tests/
   doubles.py     # Implementaciones mínimas solo para pruebas; no son el motor
   conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
   catalog/       # Pruebas del modelo implementado
-  storage/       # Modelo, contrato Storage, formatos, codecs y PageHeader
+  storage/       # Modelo, contrato Storage, formatos, codecs, cabeceras, slots y Page
   indexes/       # Contratos de igualdad/rangos mediante dobles
   operators/     # Ciclo de vida, agotamiento y liberación de recursos
   test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
   test_errors.py     # Errores propios y compatibilidad con excepciones anteriores
   test_architecture.py  # Dependencias e importaciones aisladas
   test_catalog_record_integration.py  # Integración sin acceso a disco
-  test_codec_header_integration.py    # Catálogo, codecs y metadatos sin archivos
+  test_codec_header_integration.py    # Catálogo, codecs, slots y páginas sin archivos
 benchmarks/      # Reservado para experimentos
 data/            # Reservado para datos
 docs/            # Evidencia de auditoría y documentación adicional
@@ -326,7 +373,8 @@ El catálogo actual utiliza solamente la biblioteca estándar de Python. No
 depende del almacenamiento, del parser, de una API ni de la interfaz gráfica.
 `Record` depende de `Schema` y `DataType`; `RID` no depende del catálogo. Ninguno
 de estos componentes realiza acceso a disco. Los codecs conocen tipos/esquemas;
-`PageHeader` y los validadores de geometría no conocen registros ni tipos SQL.
+`Page`, `SlotEntry`, `PageHeader` y los validadores de geometría no conocen
+registros lógicos ni tipos SQL. Page recibe bytes, no objetos Record.
 Las demás capas se implementarán progresivamente según el plan.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
@@ -357,10 +405,10 @@ ejecutan intérpretes aislados desde fuera del repositorio para detectar
 dependencias del directorio actual o de módulos precargados por pytest.
 Las pruebas de arquitectura leen fuentes; las de integración bloquean las
 aperturas de archivos únicamente durante las operaciones del modelo, contratos,
-codecs y cabeceras bajo prueba.
+codecs, cabeceras, slots y páginas bajo prueba.
 
 La verificación actual se ejecutó en Windows con Python 3.12.4 y pytest 8.4.2:
-696 pruebas aprobadas, sin omisiones, xfails ni advertencias con `-W error`.
+886 pruebas aprobadas, sin omisiones, xfails ni advertencias con `-W error`.
 `compileall` y `pip check` también pasan. Las implementaciones físicas futuras deberán
 añadir sus propias pruebas de conformidad, persistencia y concurrencia.
 
@@ -370,14 +418,15 @@ añadir sus propias pruebas de conformidad, persistencia y concurrencia.
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md): arquitectura y decisiones estables.
 - [PLAN.md](PLAN.md): las diez etapas de la Parte 1.
 - [ETAPA_01.md](ETAPA_01.md): etapa de fundamentos, cerrada y auditada.
-- [ETAPA_02.md](ETAPA_02.md): etapa vigente; tareas 2.2–2.6 completadas.
+- [ETAPA_02.md](ETAPA_02.md): etapa vigente; tareas 2.2–2.11 completadas.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 La Definition of Done de `ETAPA_01.md` está satisfecha y marcada por completo.
 Consulta [la auditoría de cierre](docs/ETAPA_01_AUDIT.md) para ver la evidencia
 por criterio, los comandos ejecutados y los límites de la validación.
 
-Este bloque se detiene después de **PageHeader (2.6)**. El siguiente paso es
-**SlotEntry / directorio de slots (2.7)**, cuando se solicite continuar.
-No se implementaron `SlotEntry`, `Page`, `FileHeader`, `PageManager` ni acceso
-a disco. La Definition of Done de la Etapa 2 sigue incompleta.
+Este bloque se detiene después de **eliminación local (2.11)**. El siguiente
+paso es **compactación (2.12)**, cuando se solicite continuar.
+No se implementaron compactación, reconstrucción de páginas con slots (2.13),
+`FileHeader`, `PageManager` ni acceso a disco. La Definition of Done de la
+Etapa 2 sigue incompleta.

@@ -1,6 +1,6 @@
 # ETAPA_02.md
 
-> Context version: **1.2** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and the completed `ETAPA_01.md`.
+> Context version: **1.3** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and the completed `ETAPA_01.md`.
 
 ## Stage 2 — Pages, Records, and Base Persistence
 
@@ -12,7 +12,7 @@
 
 ## Implementation status (2026-08-31)
 
-- Stage 2 is in progress by explicit user request, limited to tasks 2.2–2.6.
+- Stage 2 is in progress by explicit user request; tasks 2.2–2.11 are complete.
 - Repository inspection (2.1) confirmed the existing model/contracts and no
   physical storage implementation. Baseline: 400 passing tests.
 - Physical format v1 (2.2) is adopted in `PROJECT_CONTEXT.md`: 4096-byte
@@ -21,17 +21,27 @@
   no NULL, reusable deleted RIDs, and an in-memory catalog during Stage 2.
 - Completed with tests: binary constants and geometry checks (2.3), ValueCodec
   (2.4), RecordCodec (2.5), and immutable PageHeader (2.6).
-- Validation: 296 new tests pass; the complete suite passes **696 tests** with
-  `-W error` (Windows, Python 3.12.4, pytest 8.4.2). `compileall` and `pip check`
-  also pass. Existing model/contract tests remain unchanged and pass.
+- The first block added 296 tests; its complete suite passed 696 tests.
 - New tests live in `tests/storage/test_binary.py`, `test_value_codec.py`,
   `test_record_codec.py`, `test_page_header.py`, and
   `tests/test_codec_header_integration.py`. They cover fixed expected bytes,
   numeric/Unicode boundaries, NaN/infinities, malformed/truncated buffers,
   overlap/bounds checks, and integration with file-opening APIs blocked.
-- SlotEntry, Page, FileHeader, PageManager and disk persistence remain pending.
-  Stage 2 is not complete; do not infer persistence from byte round-trips.
-- Next task: **2.7 — SlotEntry / slot directory**, outside this completed block.
+- Completed with tests: SlotEntry (2.7), empty Page including its byte
+  reconstruction (2.8), insertion (2.9), slot lookup (2.10), and local deletion
+  (2.11). Page stores opaque bytes, validates geometry and reuses free slots.
+- Current validation: **886 tests pass** with `-W error`, including 190 new
+  tests in `test_slot_entry.py`, `test_page.py`, and the extended integration /
+  architecture tests. `compileall` and `pip check` also pass (Windows,
+  Python 3.12.4, pytest 8.4.2).
+- Deletion frees a directory entry but does not recover its payload hole yet.
+  Reuse requires enough contiguous bytes; it avoids the 5-byte new-slot cost.
+- Serialization preserves the complete 4096-byte in-memory frame, but
+  `Page.deserialize` currently supports only zero-slot pages. Populated or
+  all-deleted pages raise NotImplementedError until task 2.13, not silent loss.
+- Next task: **2.12 — page compaction**. Full populated-page reconstruction
+  (2.13), FileHeader, PageManager and disk persistence remain pending. Stage 2
+  is not complete; do not infer persistence from in-memory operations.
 
 ---
 
@@ -781,6 +791,9 @@ The page header contains enough information to reconstruct page state from disk.
 
 # 12. Task 2.7 — Implement `SlotEntry`
 
+**Completed:** immutable five-byte entries with strict field/state validation,
+canonical active-empty versus free encodings, and byte round-trip tests.
+
 ## Objective
 
 Represent one entry in the page slot directory.
@@ -826,6 +839,10 @@ Slot metadata can be persisted and used to locate records safely.
 ---
 
 # 13. Task 2.8 — Implement the empty `Page`
+
+**Completed:** valid zero-slot Page, 4084 free bytes, fixed 4096-byte
+serialization and empty-page reconstruction. Full populated-page decoding is
+explicitly reserved for 2.13.
 
 ## Objective
 
@@ -885,6 +902,9 @@ A valid empty page can be created, serialized, and reconstructed.
 ---
 
 # 14. Task 2.9 — Implement record insertion into a page
+
+**Completed:** byte payloads, first-free-slot reuse, directory/payload accounting,
+oversized/full-page rejection without mutation, and active zero-byte records.
 
 ## Objective
 
@@ -951,6 +971,9 @@ Variable-sized record payloads can coexist safely inside one fixed-size page.
 
 # 15. Task 2.10 — Implement record lookup by slot
 
+**Completed:** immutable byte results, distinct unknown/free-slot error messages
+and rejection of corrupt metadata/counts/ranges before exposing payload bytes.
+
 ## Objective
 
 Retrieve serialized bytes using a slot identifier.
@@ -996,6 +1019,10 @@ Any active record inside a page can be retrieved by stable `slot_id`.
 ---
 
 # 16. Task 2.11 — Implement page-local deletion
+
+**Completed:** mark FREE with zero offset/length and decrement the live count;
+retain slot positions, free-space bounds and payload holes. Double deletion is
+an InvalidReferenceError. Compaction/recovery of holes remains task 2.12.
 
 ## Objective
 
@@ -1788,16 +1815,16 @@ Stage 2 is complete only when all applicable items are satisfied.
 
 ```text
 [x] PageHeader
-[ ] SlotEntry / slot directory
-[ ] empty Page
-[ ] variable-length record insertion
-[ ] read by slot_id
-[ ] page-local deletion
-[ ] free-space accounting
+[x] SlotEntry / slot directory
+[x] empty Page
+[x] variable-length record insertion
+[x] read by slot_id
+[x] page-local deletion
+[x] free-space accounting
 [ ] compaction if required by adopted design
-[ ] exact PAGE_SIZE serialization
+[x] exact PAGE_SIZE serialization
 [ ] Page deserialization
-[ ] page invariant validation
+[x] page invariant validation
 ```
 
 ## File persistence
@@ -1820,9 +1847,9 @@ Stage 2 is complete only when all applicable items are satisfied.
 
 ```text
 [ ] invalid page ids are rejected
-[ ] oversized records are rejected cleanly
+[x] oversized records are rejected cleanly
 [ ] malformed/truncated files are handled
-[ ] corrupted slot/header data is detected where practical
+[x] corrupted slot/header data is detected where practical
 ```
 
 ## Integration
@@ -1844,11 +1871,14 @@ Stage 2 is complete only when all applicable items are satisfied.
 
 Only after this checklist is satisfied should the project move to Stage 3.
 
-Partial verification note (tasks 2.2–2.6): all 696 currently implemented tests
-pass. Full Page invariants, slot validation, allocated-page checks, oversized
-insertion rejection and the disk round-trip remain unchecked because those
-components do not exist yet. The initial in-memory integration test does not
-satisfy task 2.19 or the complete-stage integration checklist.
+Partial verification note (tasks 2.2–2.11): all 886 currently implemented tests
+pass. The checked Page invariants and corruption cases apply to in-memory
+frames, not to a completed disk loader. Page deserialization remains unchecked
+because only zero-slot pages can be reconstructed. Free-space accounting means
+the contiguous gap plus correct directory charges; hole recovery still needs
+compaction. Allocated-page checks, full reconstruction and disk integration
+remain pending. The current RecordCodec/Page integration test does not satisfy
+task 2.19 or the complete-stage persistence checklist.
 
 ---
 

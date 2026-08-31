@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **1.2** — aligned with `PLAN.md` and `ETAPA_02.md`.
+> Context version: **1.3** — aligned with `PLAN.md` and `ETAPA_02.md`.
 
 ## Project identity
 
@@ -450,7 +450,7 @@ All multibyte fields use little-endian, standard sizes, and no native padding
 |---|---|---|
 | Page | 4096 bytes | header, slot directory, contiguous free area, payload area |
 | PageHeader | `<IHHHH` / 12 bytes | page_id, slot_count, free_space_start, free_space_end, active_record_count |
-| Slot (planned) | `<HHB` / 5 bytes | offset, length, status (0 free, 1 active) |
+| SlotEntry | `<HHB` / 5 bytes | offset, length, status (0 free, 1 active) |
 | File header (planned) | `<8sIII` / 20 bytes | magic, version, page_size, allocated_page_count |
 
 The directory grows from byte 12 toward higher offsets; record bytes grow
@@ -467,13 +467,13 @@ Required numeric and geometric invariants:
 - zero slots implies `free_space_end == 4096`;
 - live payload ranges lie in `[free_space_end, 4096]`, never overlap the
   header/directory/free area or each other; adjacent ranges and holes are valid;
-- zero-byte records (empty schema) are valid; their planned canonical slot
+- zero-byte records (empty schema) are valid; their canonical slot
   offset is 4096 and they occupy no payload bytes;
 - a serialized complete page must have exactly 4096 bytes.
 
 An empty page has 4084 contiguous free bytes. A new slot costs 5 bytes, so a
-record in an otherwise empty page can occupy at most 4079 bytes. Future Page
-insertion must reject oversized payloads; overflow pages are not adopted.
+record in an otherwise empty page can occupy at most 4079 bytes. Page insertion
+rejects oversized payloads; overflow pages are not adopted.
 Codecs enforce value framing limits, not page capacity. Header free space is
 only `free_space_end - free_space_start`, not total reclaimable fragmented
 space. Checking geometry is not proof that a page id has been allocated.
@@ -481,24 +481,82 @@ space. Checking geometry is not proof that a page id has been allocated.
 `PageHeader` is an immutable validated snapshot with an empty-page default.
 It serializes/deserializes exactly its 12 bytes, not a complete page. Shared
 validators check buffer size and geometry; optional active payload ranges
-allow overlap checks without knowing records or slot objects. Full page/slot
-validation remains the responsibility of their later implementations.
+allow overlap checks without knowing records or slot objects. Page now parses
+its slot directory and supplies all active ranges to these shared validators.
 
-### RID lifetime and space reuse (policy for the upcoming Page)
+### Implemented SlotEntry and in-memory Page (tasks 2.7–2.11)
+
+`SlotEntry(offset=0, length=0, status=0)` is an immutable value, exported with
+`Page` from `engine.storage`. Its slot id is its position in the directory, not
+an extra stored field. Exact built-in integers are required; status must be
+`SLOT_FREE` (0) or `SLOT_ACTIVE` (1), never a bool. Free slots must have zero
+offset and length. Active empty payloads use `(4096, 0, 1)`. Other active ranges
+must fit after at least one directory entry; Page applies the actual directory
+and free-space bounds. `is_active` exposes the state; `serialize/deserialize`
+preserve all fields in exactly five bytes and validate incoming metadata.
+
+`Page(page_id)` owns one private 4096-byte buffer. Metadata and payload bytes
+have a single authoritative representation in that buffer. Page knows no
+Schema, Record, codec, SQL, file organization, or file I/O. Public access exposes
+immutable snapshots only: `header`, `slots`, and `read(slot_id)` results.
+
+| API | Behavior |
+|---|---|
+| `page_id`, `slot_count`, `active_record_count` | Validated metadata properties |
+| `free_space()` | Contiguous gap, before charging a new 5-byte directory entry |
+| `insert(payload: bytes) -> int` | First free slot or append; consumes payload plus directory cost when needed |
+| `read(slot_id: int) -> bytes` | Snapshot of one active payload, including valid empty bytes |
+| `delete(slot_id: int) -> None` | Mark free and decrease active count; retain directory and payload holes |
+| `serialize() -> bytes` | Validated 4096-byte snapshot of header, directory, payload and unused bytes |
+| `deserialize(payload: bytes) -> Page` | Empty-page reconstruction only in this block; preserves unused bytes |
+
+All directory entries and live ranges are checked before exposing payloads or
+changing state: per-slot validity, active-count agreement, free-area bounds,
+and nonoverlap. Invalid inputs, insufficient contiguous space and corrupt
+metadata leave the buffer unchanged. Updates are assembled and validated on a
+bounded page-sized copy before replacing the current buffer. This guarantees
+local error atomicity, not transactions, thread safety or crash recovery.
+
+Error mapping reuses the existing domain vocabulary:
+
+- wrong Python argument types: `InvalidTypeError`;
+- unknown/out-of-range slot ids (including negative integers):
+  `InvalidReferenceError` with an `Unknown slot_id` message;
+- free/deleted slots, including repeated deletion: `InvalidReferenceError`
+  with a distinct `free/deleted` message;
+- oversized payloads, insufficient contiguous space, malformed metadata,
+  bad counts or overlapping ranges: `ValidationError`.
+
+Page-wide corruption is checked before resolving a correctly typed slot id;
+it is not masked as a missing-record error. No new error hierarchy was needed.
+Valid-looking byte changes cannot be detected without additional checksums.
+
+Task 2.8 includes reconstruction of pages with **zero allocated slots**.
+`Page.deserialize` explicitly raises `NotImplementedError` for pages with any
+slots, even all-deleted ones; full reconstruction belongs to task 2.13. It never
+silently discards records. Serialization of current in-memory states already
+preserves their entire frame, but this is not a completed general round-trip
+or disk persistence feature.
+
+### RID lifetime and space reuse
 
 Live `RID(page_id, slot_id)` values survive page-local compaction. Compaction
 moves bytes and updates offsets, never renumbers slots or moves rows across
-pages. Deletion will mark the entry free (offset and length reset to zero),
-decrement the active count, and leave a reclaimable hole until compaction.
-Slot entries are retained. Insertion may reuse the first free slot before
-appending one; it still needs payload capacity. Compaction may reclaim holes
-without changing the identity of live slots.
+pages; that algorithm remains pending in task 2.12. Deletion now marks the
+entry free (offset and length reset to zero), decrements the active count, and
+leaves a reclaimable hole until compaction. It does not securely erase bytes.
+Slot entries and free-space boundaries are retained, even after all records
+are deleted. Insertion reuses the first free slot before appending one, but it
+still needs contiguous payload capacity. It does not reuse holes or compact
+automatically. A full page with a deleted record can therefore reject a new
+nonempty payload until 2.12; an empty payload can reuse a slot at zero byte cost.
+Future compaction will recover holes without changing live slot identities.
 
 An eliminated RID is invalidated, but its pair can subsequently identify a
 new row when its slot is reused. No generation counter or historical identity
 guarantee is provided. Future storage/index integration must remove old index
-references before making a deleted slot reusable. This policy does not modify
-the existing logical RID class or implement allocation/deletion yet.
+references before making a deleted slot reusable. The logical RID class is
+unchanged; this block provides page-local slots, not file-level page allocation.
 
 ### Primitive and record encoding
 
@@ -1080,19 +1138,23 @@ Implemented so far:
 - Stage 2 tasks 2.2–2.6: documented physical format v1, centralized binary
   constants/geometry checks, ValueCodec, RecordCodec, and immutable PageHeader;
 - 296 additional tests for golden bytes, boundaries, malformed data, header
-  geometry, and integration with the catalog without file access. All 696
-  current tests pass with warnings treated as errors; compileall and pip check
-  also pass (Windows, Python 3.12.4, pytest 8.4.2).
+  geometry, and integration with the catalog without file access;
+- Stage 2 tasks 2.7–2.11: immutable SlotEntry and an in-memory Page supporting
+  empty-page reconstruction, byte insertion/read/deletion and free-slot reuse;
+- 190 additional tests for slots/pages, capacity/error atomicity, corruption,
+  RecordCodec/Page integration without I/O and page-layer dependency checks.
+  All 886 current tests pass with warnings treated as errors; compileall and
+  pip check also pass (Windows, Python 3.12.4, pytest 8.4.2).
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
 limits of verification are recorded in [the audit](docs/ETAPA_01_AUDIT.md).
 
-**Stage 2 is in progress**, explicitly authorized on 2026-08-31 for tasks
-2.2–2.6 only: physical design, binary constants/invariants, primitive and record
-codecs, and PageHeader. See `ETAPA_02.md` for verified progress. SlotEntry, Page,
-FileHeader and PageManager are not part of this implementation block. There is
-no disk persistence yet, and Stage 2 is not complete.
+**Stage 2 is in progress**; tasks 2.2–2.11 are complete after the user's explicit
+request for the page-local block. See `ETAPA_02.md` for verified progress. The
+next task is 2.12 (compaction). Full reconstruction of populated pages (2.13),
+FileHeader and PageManager remain pending. There is no disk persistence yet,
+and Stage 2 is not complete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 

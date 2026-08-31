@@ -73,6 +73,26 @@ def test_engine_explicit_module_dependency_graph_has_no_cycles():
     assert set(TopologicalSorter(graph).static_order()) == sources.keys()
 
 
+def test_page_layer_does_not_import_records_codecs_or_catalog():
+    sources = engine_sources()
+    allowed = {
+        "engine.storage.binary": {"engine.errors"},
+        "engine.storage.slot_entry": {"engine.errors", "engine.storage.binary"},
+        "engine.storage.page_header": {"engine.errors", "engine.storage.binary"},
+        "engine.storage.page": {
+            "engine.errors", "engine.storage.binary", "engine.storage.page_header",
+            "engine.storage.slot_entry",
+        },
+    }
+    for module, expected in allowed.items():
+        path, tree = sources[module]
+        engine_imports = {
+            imported for imported in imported_modules(module, path, tree)
+            if imported == "engine" or imported.startswith("engine.")
+        }
+        assert engine_imports == expected, (module, engine_imports)
+
+
 @pytest.mark.parametrize(
     "first_module",
     ["engine.errors", "engine.catalog.schema", "engine.catalog",

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **1.2** — aligned with `PLAN.md` and `ETAPA_02.md`.
+> Context version: **1.3** — aligned with `PLAN.md` and `ETAPA_02.md`.
 
 ## Purpose
 
@@ -319,11 +319,12 @@ Latest completed stage:
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
-**Stage 2 is in progress.** On 2026-08-31 the user explicitly authorized tasks
-2.2–2.6: physical design, constants/invariants, primitive and record codecs,
-and PageHeader. Do not extend this block to SlotEntry, Page, FileHeader,
-PageManager or disk I/O without a further request. Tasks 2.2–2.6 are complete
-and verified; the next pending task is 2.7. Stage 2 is not complete.
+**Stage 2 is in progress.** Tasks 2.2–2.6 are complete and verified. The user
+subsequently authorized tasks 2.7–2.11: SlotEntry, the empty in-memory Page,
+insertion, slot lookup, and page-local deletion. Do not extend this block to
+compaction (2.12), complete reconstruction of populated pages (2.13), FileHeader,
+PageManager or disk I/O without a further request. Tasks 2.7–2.11 are now
+complete and verified; the next pending task is 2.12. Stage 2 is not complete.
 
 Current detailed stage specification:
 
