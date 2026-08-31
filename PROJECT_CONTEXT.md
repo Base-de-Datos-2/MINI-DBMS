@@ -311,10 +311,9 @@ The initial model lives in `engine/catalog/types.py` and
   are rejected. `schema.index_of(name)` returns a column's position.
 - `schema.columns`, `len(schema)`, and iteration expose ordered metadata.
   Equality of columns and schemas compares their definitions, including order.
-- Current validation uses `TypeError` for incorrect argument types,
-  `ValueError` for invalid definitions, `KeyError` for unknown names, and
-  `IndexError` for out-of-range positions, with descriptive messages. A general
-  engine domain-error hierarchy remains a later Stage 1 task.
+- Explicit validation uses domain errors from `engine.errors`, preserving
+  compatibility with `TypeError`, `ValueError`, `KeyError`, and `IndexError`
+  and the existing descriptive messages. See the error policy below.
 
 These classes are independent from storage, SQL parsing, API, and frontend code.
 Record-value validation is implemented separately by `Record`, as described
@@ -347,8 +346,9 @@ Implemented in `engine/storage/record.py`, with public imports of `Record` and
 - `record["column_name"]` is the single named-value access API. Names use
   `Schema.index_of` and its exact-name validation. Position/slice access is not
   added; the ordered `values` tuple remains available.
-- Wrong argument/value types raise `TypeError`; wrong value counts raise
-  `ValueError`. There is no page, RID, file, or index ownership inside a record.
+- Wrong argument/value types raise `InvalidTypeError` (a `TypeError`); wrong
+  value counts raise `ValidationError` (a `ValueError`). There is no page, RID,
+  file, or index ownership inside a record.
 
 ---
 
@@ -380,14 +380,46 @@ records, nodes, buckets, or physical storage configuration.
   metadata is immutable. Callers cannot mutate the internal dictionaries via
   query results. Catalog instances own independent state.
 - An existing table without indexes returns `()`. Unknown tables, indexes, and
-  referenced columns raise `KeyError`; duplicates and conflicting clustered
-  definitions raise `ValueError`; wrong argument types raise `TypeError`.
+  referenced columns raise domain subclasses of `KeyError`; duplicates and
+  conflicting clustered definitions raise `DuplicateError` (a `ValueError`);
+  wrong argument types raise `InvalidTypeError` (a `TypeError`).
 - Persistence, row storage, removal of metadata, and concurrency protection
-  are not implemented. The general domain-error hierarchy is still pending.
+  are not implemented.
 
 The catalog depends only on metadata/schema/types, never on storage. These
 objects are exported from `engine.catalog`. An integration test covers schema,
 record, RID, metadata, and catalog operations while file-opening APIs are blocked.
+
+---
+
+## Implemented Stage 1 domain errors
+
+`engine/errors.py` is dependency-free. All explicit validation errors in the
+model and catalog derive from `DatabaseError` and retain the previous built-in
+exception category and message. There is no wrapper that hides the original
+table/column reference failure.
+
+| Domain error | Built-in compatibility | Current use |
+|---|---|---|
+| `InvalidTypeError` | `TypeError` | Wrong argument or row-value types |
+| `ValidationError` | `ValueError` | Blank metadata names, negative RID components, wrong row length, clustered hash metadata |
+| `SchemaError` | `ValueError` | Blank column names and duplicate schema columns |
+| `DuplicateError` | `ValueError` | Duplicate table/index names or a second clustered definition |
+| `InvalidReferenceError` | `KeyError` | Unknown index names; base for named reference failures |
+| `UnknownTableError` | `KeyError` | Unknown table lookups and index table references |
+| `UnknownColumnError` | `KeyError` | Schema/record lookups and index column references |
+| `ColumnPositionError` | `IndexError` | Numeric column positions outside a schema |
+
+`SchemaError` and `DuplicateError` specialize `ValidationError`.
+`UnknownTableError` and `UnknownColumnError` specialize `InvalidReferenceError`.
+Contracts also use `InvalidReferenceError` for missing RIDs/key-RID pairs,
+without adding an exception class for each future storage/index structure.
+Wrongly typed schema inputs use `InvalidTypeError`, not `SchemaError`.
+
+Native Enum construction, frozen-dataclass assignment, tuple mutation, and
+Python comparison errors retain their native exceptions. They are not wrapped
+as engine errors. Operator lifecycle misuse is specified as `RuntimeError`;
+no additional operator error hierarchy exists before concrete operators.
 
 ---
 
@@ -417,6 +449,59 @@ scan()
 ```
 
 Concrete organizations may expose additional operations.
+
+The implemented boundary is the `Storage` ABC in `engine/storage/base.py`,
+exported from `engine.storage`. It has exactly four abstract operations:
+
+- `insert(record: Record) -> RID`: duplicate row values are allowed. A concrete
+  storage has a fixed schema; a different ordered schema raises `SchemaError`.
+- `read(rid: RID) -> Record`: absent/deleted locations raise
+  `InvalidReferenceError`, never a `None` row.
+- `delete(rid: RID) -> None`: absent/deleted locations also raise
+  `InvalidReferenceError`; no silent deletion of missing rows.
+- `scan() -> Generator[tuple[RID, Record], None, None]`: stream each live row
+  together with its physical reference once. Empty scans yield nothing; no
+  common ordering is imposed on different storage organizations.
+
+Non-Record/non-RID inputs raise `InvalidTypeError`; validation failures do not
+mutate storage. Each scan is fresh and closable. Scan-owned resources must be
+released on exhaustion, failure, and `close()`, without closing the borrowed
+storage manager. Callers use `contextlib.closing` or `try/finally` when they
+may stop early. Concurrency, allocation, capacity, file lifetime, and physical
+I/O error details are deferred. No physical implementation is included.
+
+---
+
+## Implemented index contracts
+
+`engine/indexes/base.py` defines `Index[Key]` and its `OrderedIndex[Key]`
+specialization, exported from `engine.indexes`.
+
+- `Index.insert(key, rid) -> None` adds an association. Multiple RIDs per key
+  are allowed; repeating the same pair is a no-op.
+- `Index.search(key) -> Generator[RID, None, None]` streams matching RIDs once
+  each, with unspecified order. No match is an empty generator.
+- `Index.delete(key, rid) -> None` removes only that pair. An absent pair raises
+  `InvalidReferenceError`. These operations do not create/delete storage rows
+  or resolve RIDs through a storage manager.
+- Only `OrderedIndex` requires `range_search(lower=None, upper=None, *,
+  include_lower=True, include_upper=True) -> Generator[RID, None, None]`.
+  `None` is an unbounded endpoint, not a NULL key. Results follow ascending
+  native Python key order; ties have no prescribed RID order. Both endpoints
+  are inclusive by default. Equal bounds with an excluded endpoint yield
+  nothing; an inverted interval raises `ValidationError`.
+
+Concrete indexes configure one exact built-in key type (`int`, `float`, `bool`,
+or `str`); coercion and bool/int mixing are rejected with `InvalidTypeError`.
+Range inclusion flags require exact bools. NaN is rejected as an index key/bound
+with `ValidationError`, because it lacks reflexive equality; infinity is valid.
+This is an index-contract decision, not a new restriction on `Record` values
+or a definition of future SQL NULL/NaN semantics.
+
+Search generators have the same cleanup obligations as storage scans. Argument
+errors may appear during the first iteration, so callers must also protect
+consumption. Mutations during iteration are not specified. No B+ nodes, hash
+buckets, physical indexes, or range requirement for Extendible Hashing exist.
 
 ---
 
@@ -521,6 +606,27 @@ Join
 ```
 
 This keeps parsing separate from execution.
+
+`engine/operators/base.py` now supplies the `Operator` ABC, exported from
+`engine.operators`. It is a contract only, with no concrete TableScan or other
+operator:
+
+- `open() -> None` starts from the beginning. Instances start closed; opening
+  an already open/exhausted run raises `RuntimeError`. Reopening after close
+  starts a new run. A failed open must release partially acquired resources.
+- `next() -> Record | None` yields rows with one output schema per run.
+  Exhaustion returns `None` repeatedly, not `StopIteration`; empty-schema rows
+  remain valid results. Calling while closed raises `RuntimeError`.
+- `close() -> None` is idempotent, including before open or after failures. It
+  releases owned children, scan/search generators, and temporary resources,
+  not borrowed storage/index managers. Cleanup must attempt all releases even
+  if one fails.
+
+Consumers must use `try/finally` around the full run, including `open`, and
+close on exhaustion, early exit, or failure. An execution error requires
+closing before another run. The ABCs enforce required methods, not lifecycle,
+validation, or resource semantics: later implementations need conformance
+tests for those documented rules. There is no common stateful executor here.
 
 ---
 
@@ -833,12 +939,15 @@ Implemented so far:
 - minimal packaging/test configuration, Git exclusions, and introductory README;
 - `DataType`, `Column`, `Schema`, `RID`, and `Record`;
 - `TableMetadata`, minimal `IndexMetadata`/`IndexType`, and in-memory `Catalog`;
-- passing unit tests and model/catalog integration without disk access.
+- abstract `Storage`, `Index`/`OrderedIndex`, and `Operator` contracts;
+- minimal domain errors integrated without changing existing validation rules;
+- passing unit/interface tests and model/catalog integration without disk access.
 
-Next pending task: **1.10 — Contracts** in `ETAPA_01.md`, followed by the
-domain-error hierarchy and final Stage 1 validation. The required model/catalog
-integration test already exists. Reserved directories do not imply implemented
-components, and no physical persistence has been introduced.
+Tasks 1.10 and 1.11 of `ETAPA_01.md` are implemented. Next is the final Stage 1
+integration/Definition-of-Done review; the existing model/catalog integration
+test is already passing. This change does not declare Stage 1 closed or start
+Stage 2. Reserved directories do not imply implemented components, and no
+physical persistence has been introduced.
 
 Stage 1 must not be considered complete until the Definition of Done in `ETAPA_01.md` is satisfied.
 

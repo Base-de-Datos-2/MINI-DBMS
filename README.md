@@ -7,7 +7,9 @@ un motor de base de datos propio, comenzando por la Parte 1 relacional.
 
 **Etapa 1 en desarrollo:** estructura del repositorio, configuración Python,
 `DataType`, `Column`, `Schema`, `RID`, `Record`, metadatos de tablas/índices y
-`Catalog` en memoria, con pruebas unitarias y de integración del modelo.
+`Catalog` en memoria. Ya existen los contratos abstractos de almacenamiento,
+índices y operadores, y errores de dominio compatibles con las validaciones
+anteriores, con pruebas unitarias, de interfaces y de integración del modelo.
 
 Todavía no existen almacenamiento físico, índices físicos, consultas SQL, transacciones,
 API ejecutable ni interfaz gráfica. Los directorios correspondientes reservan
@@ -97,10 +99,10 @@ conceptual: todavía no existe un archivo que asigne o valide esa ubicación.
   cero. No admite posiciones negativas, booleanos ni slices.
 - `index_of(nombre)` devuelve la posición; `columns`, `len(schema)` e iteración
   permiten inspeccionar el esquema.
-- Se utilizan `TypeError` para tipos de argumento incorrectos, `ValueError`
-  para definiciones inválidas, `KeyError` para nombres desconocidos e
-  `IndexError` para posiciones fuera de rango. La jerarquía general de errores
-  del motor sigue pendiente.
+- Las validaciones explícitas utilizan errores de `engine.errors`, derivados
+  de `DatabaseError`, que siguen siendo capturables como `TypeError`,
+  `ValueError`, `KeyError` o `IndexError`, según el caso. Se conservan los
+  mensajes y las reglas anteriores.
 
 ### RID y registros
 
@@ -156,14 +158,92 @@ registro con una secuencia vacía.
 - Cada catálogo tiene su propio estado en memoria. No hay persistencia, gestión
   de filas, eliminación de metadatos ni protección concurrente todavía.
 
+### Errores de dominio
+
+Se importan desde `engine.errors`:
+
+| Error | Compatible con | Caso |
+|---|---|---|
+| `InvalidTypeError` | `TypeError` | Argumento o valor con tipo incorrecto |
+| `ValidationError` | `ValueError` | Nombre de metadatos vacío, RID negativo, cantidad de valores incorrecta o hash agrupado |
+| `SchemaError` | `ValueError` | Nombre de columna vacío o columnas duplicadas |
+| `DuplicateError` | `ValueError` | Tabla/índice duplicado o segundo índice agrupado |
+| `InvalidReferenceError` | `KeyError` | Índice desconocido; base para referencias inexistentes |
+| `UnknownTableError` | `KeyError` | Tabla inexistente |
+| `UnknownColumnError` | `KeyError` | Columna inexistente, incluso al registrar un índice |
+| `ColumnPositionError` | `IndexError` | Posición fuera del esquema |
+
+Todos derivan de `DatabaseError`. `SchemaError` y `DuplicateError` derivan
+además de `ValidationError`; los errores de tabla/columna desconocida derivan
+de `InvalidReferenceError`. Los errores propios de Python al construir un enum,
+modificar un objeto inmutable o manipular una tupla no se envuelven.
+
+### Contratos abstractos
+
+```python
+from engine.storage import Storage
+from engine.indexes import Index, OrderedIndex
+from engine.operators import Operator
+```
+
+Son clases abstractas (`ABC`): no se pueden instanciar sin implementar sus
+métodos. No contienen algoritmos físicos ni operadores concretos.
+
+- `Storage`: `insert(record) -> RID`, `read(rid) -> Record`,
+  `delete(rid) -> None` y `scan()`. El almacenamiento tendrá un esquema fijo;
+  insertar un registro de otro esquema genera `SchemaError`. Leer o eliminar
+  un RID ausente/eliminado genera `InvalidReferenceError`. `scan()` entrega
+  pares `(RID, Record)` vivos, sin imponer un orden común.
+- `Index`: `insert(key, rid) -> None`, `search(key)` y
+  `delete(key, rid) -> None`. Admite varios RIDs por clave; repetir exactamente
+  el mismo par al insertar no hace nada. Eliminar un par inexistente genera
+  `InvalidReferenceError`. No inserta ni elimina registros del almacenamiento.
+- `OrderedIndex` añade `range_search(lower=None, upper=None, *,
+  include_lower=True, include_upper=True)`. `None` significa sin límite;
+  los extremos son inclusivos por defecto y los resultados siguen el orden
+  ascendente de las claves. Un intervalo invertido genera `ValidationError`.
+  Extendible Hashing no está obligado a implementar este contrato ordenado.
+- `Operator`: `open()`, `next() -> Record | None` y `close()`.
+  `None` indica agotamiento, incluso en llamadas posteriores; un registro vacío
+  sigue siendo un resultado válido. `next()` sin abrir o después de cerrar, y
+  `open()` sobre una ejecución ya abierta, generan `RuntimeError`. Cerrar es
+  idempotente; reabrir después de cerrar inicia otra ejecución desde el principio.
+
+Las claves de un índice tendrán un único tipo incorporado exacto, sin
+conversiones ni mezcla `bool`/`int`. Se rechaza NaN como clave o límite con
+`ValidationError`; los infinitos están permitidos. Esto **no cambia** la
+validación de valores de `Record`.
+
+`scan()`, `search()` y `range_search()` devuelven generadores cerrables y no
+exigen cargar todos los resultados en memoria. Sin coincidencias no producen
+elementos. Deben liberar sus recursos al agotarse, fallar o cerrarse; sus
+errores pueden aparecer durante la iteración. Para abandonar un recorrido
+anticipadamente, el consumidor puede usar:
+
+```python
+from contextlib import closing
+
+# storage será una implementación concreta de una etapa posterior.
+with closing(storage.scan()) as rows:
+    for rid, record in rows:
+        process(rid, record)
+```
+
+El consumidor de un operador debe envolver **toda** la ejecución, incluido
+`open()`, en `try/finally` y llamar siempre a `close()`. El operador cierra sus
+recorridos y operadores hijos propios, no los gestores de almacenamiento o
+índices prestados. Las ABC exigen métodos; las implementaciones futuras deberán
+probar el cumplimiento de estas reglas de comportamiento y recursos.
+
 ## Organización
 
 ```text
 engine/
+  errors.py      # Errores compartidos, sin dependencias de otros componentes
   catalog/       # Tipos, esquemas, metadatos y catálogo en memoria
-  storage/       # RID y Record; páginas y archivos aún pendientes
-  indexes/       # Reservado: B+ y Extendible Hashing
-  operators/     # Reservado: operadores relacionales
+  storage/       # RID, Record y Storage abstracto; sin páginas ni archivos
+  indexes/       # Index y OrderedIndex abstractos; sin B+ ni hashing físicos
+  operators/     # Operator abstracto; sin operadores concretos
   query/         # Reservado: parser, planificador y ejecutor
   transactions/  # Reservado: transacciones y concurrencia
 api/             # Paquete reservado; aún sin servidor
@@ -173,6 +253,8 @@ tests/
   storage/       # Pruebas de RID y Record
   indexes/       # Reservado
   operators/     # Reservado
+  test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
+  test_errors.py     # Errores propios y compatibilidad con excepciones anteriores
   test_catalog_record_integration.py  # Integración sin acceso a disco
 benchmarks/      # Reservado para experimentos
 data/            # Reservado para datos
@@ -197,6 +279,7 @@ En Windows, desde la raíz:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/catalog -q
 .\.venv\Scripts\python.exe -m pytest tests/storage -q
+.\.venv\Scripts\python.exe -m pytest tests/test_contracts.py tests/test_errors.py -q
 .\.venv\Scripts\python.exe -m pytest -q
 .\.venv\Scripts\python.exe -m compileall -q engine api
 ```
@@ -211,8 +294,9 @@ En Linux/macOS, sustituye `.\.venv\Scripts\python.exe` por `.venv/bin/python`.
 - [ETAPA_01.md](ETAPA_01.md): tareas y criterios de cierre de la etapa vigente.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-La siguiente tarea pendiente es definir los contratos de almacenamiento, índices
-y operadores (tarea 1.10 de `ETAPA_01.md`). La Etapa 1 **no está completa**:
-faltan esos contratos, los errores de dominio y la revisión final de sus criterios
-de cierre. Ya existe una prueba de integración entre esquema, registro,
-metadatos y catálogo, que prohíbe acceso a disco durante las operaciones.
+Los contratos y los errores de dominio (tareas 1.10 y 1.11 de `ETAPA_01.md`)
+están implementados. El siguiente paso es la revisión final de integración y
+de los criterios de cierre de la Etapa 1. Esta actualización **no declara el
+cierre de la etapa ni inicia la Etapa 2**. Ya existe una prueba de integración
+entre esquema, registro, metadatos y catálogo que prohíbe acceso a disco durante
+las operaciones.

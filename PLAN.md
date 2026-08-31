@@ -1341,8 +1341,10 @@ Current detailed stage document:
 Current implementation progress: repository/package setup, the foundational
 data model (`DataType`, `Column`, `Schema`, `RID`, `Record`), table/index metadata,
 and the in-memory `Catalog` are implemented with passing unit tests and a
-model/catalog integration test. The next task is **1.10 — Contracts** in
-`ETAPA_01.md`. Domain errors and final stage validation also remain pending;
-Stage 1 is not complete.
+model/catalog integration test. Abstract storage, index/ordered-index, and
+operator contracts (1.10) and integrated domain errors (1.11) are now implemented
+with passing interface/error tests. The next work is final Stage 1 integration
+and Definition-of-Done review in `ETAPA_01.md`; this update does not formally
+close Stage 1 or begin Stage 2.
 
 Codex must inspect the repository before assuming which Stage 1 components are already implemented.

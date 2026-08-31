@@ -18,9 +18,12 @@
   (1.8), and the in-memory `Catalog` (1.9).
 - The model/catalog integration test described in 1.12 also exists; it checks
   the implemented components with file-opening APIs blocked.
-- Next pending task: abstract contracts (1.10), then domain errors (1.11) and
-  final stage validation. Stage 1 is not complete. Empty packages and directory
-  markers reserve future locations only.
+- Completed: abstract Storage, Index/OrderedIndex, and Operator contracts
+  (1.10), plus minimal domain errors (1.11) integrated with the current model
+  and catalog. New interface/error tests pass along with all previous tests.
+- Next pending work: final integration/Definition-of-Done review. Stage 1 has
+  not been formally closed. No physical implementation was introduced; empty
+  packages and directory markers still reserve future locations only.
 
 Adopted model and catalog semantics are recorded in `PROJECT_CONTEXT.md`.
 
@@ -1192,16 +1195,16 @@ Stage 1 is complete only when all applicable items are satisfied.
 ## Contracts
 
 ```text
-[ ] Storage contract
-[ ] Index contract
-[ ] Operator contract
+[x] Storage contract
+[x] Index contract
+[x] Operator contract
 ```
 
 ## Domain errors
 
 ```text
-[ ] foundational modules use clear domain errors where useful
-[ ] no unnecessary exception hierarchy was introduced
+[x] foundational modules use clear domain errors where useful
+[x] no unnecessary exception hierarchy was introduced
 ```
 
 ## Quality

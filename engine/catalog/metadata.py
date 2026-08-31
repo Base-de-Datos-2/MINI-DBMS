@@ -4,14 +4,15 @@ from dataclasses import dataclass
 from enum import Enum
 
 from engine.catalog.schema import Schema
+from engine.errors import InvalidTypeError, ValidationError
 
 
 def _validate_name(name: str, label: str) -> None:
     """Apply the same exact-name policy used by Column."""
     if not isinstance(name, str):
-        raise TypeError(f"{label} must be a string")
+        raise InvalidTypeError(f"{label} must be a string")
     if not name.strip():
-        raise ValueError(f"{label} must not be empty or whitespace-only")
+        raise ValidationError(f"{label} must not be empty or whitespace-only")
 
 
 class IndexType(Enum):
@@ -31,7 +32,7 @@ class TableMetadata:
     def __post_init__(self) -> None:
         _validate_name(self.name, "Table name")
         if not isinstance(self.schema, Schema):
-            raise TypeError("Table schema must be a Schema object")
+            raise InvalidTypeError("Table schema must be a Schema object")
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,8 +54,8 @@ class IndexMetadata:
         _validate_name(self.table_name, "Index table_name")
         _validate_name(self.column_name, "Index column_name")
         if not isinstance(self.index_type, IndexType):
-            raise TypeError("Index index_type must be an IndexType member")
+            raise InvalidTypeError("Index index_type must be an IndexType member")
         if type(self.clustered) is not bool:
-            raise TypeError("Index clustered must be a boolean")
+            raise InvalidTypeError("Index clustered must be a boolean")
         if self.clustered and self.index_type is not IndexType.BPLUS:
-            raise ValueError("Only BPLUS index metadata can be clustered")
+            raise ValidationError("Only BPLUS index metadata can be clustered")

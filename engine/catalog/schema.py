@@ -4,6 +4,9 @@ from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 
 from engine.catalog.types import DataType
+from engine.errors import (
+    ColumnPositionError, InvalidTypeError, SchemaError, UnknownColumnError,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,11 +18,11 @@ class Column:
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str):
-            raise TypeError("Column name must be a string")
+            raise InvalidTypeError("Column name must be a string")
         if not self.name.strip():
-            raise ValueError("Column name must not be empty or whitespace-only")
+            raise SchemaError("Column name must not be empty or whitespace-only")
         if not isinstance(self.data_type, DataType):
-            raise TypeError("Column data_type must be a DataType member")
+            raise InvalidTypeError("Column data_type must be a DataType member")
 
 
 @dataclass(frozen=True, slots=True, init=False)
@@ -36,15 +39,15 @@ class Schema:
         if isinstance(columns, (str, bytes, bytearray)) or not isinstance(
             columns, Sequence
         ):
-            raise TypeError("Schema columns must be a sequence of Column objects")
+            raise InvalidTypeError("Schema columns must be a sequence of Column objects")
 
         ordered_columns = tuple(columns)
         names: set[str] = set()
         for column in ordered_columns:
             if not isinstance(column, Column):
-                raise TypeError("Every schema entry must be a Column object")
+                raise InvalidTypeError("Every schema entry must be a Column object")
             if column.name in names:
-                raise ValueError(f"Duplicate column name: {column.name!r}")
+                raise SchemaError(f"Duplicate column name: {column.name!r}")
             names.add(column.name)
 
         object.__setattr__(self, "columns", ordered_columns)
@@ -60,27 +63,29 @@ class Schema:
     def column(self, name_or_position: str | int) -> Column:
         """Look up a column by exact name or non-negative integer position.
 
-        Raises TypeError for unsupported selectors, KeyError for unknown
-        names, and IndexError for positions outside the schema.
+        Raises InvalidTypeError (TypeError) for unsupported selectors,
+        UnknownColumnError (KeyError) for unknown names, and
+        ColumnPositionError (IndexError) for positions outside the schema.
         """
         if isinstance(name_or_position, str):
             return self.columns[self.index_of(name_or_position)]
         if isinstance(name_or_position, bool) or not isinstance(
             name_or_position, int
         ):
-            raise TypeError("Column selector must be a name or integer position")
+            raise InvalidTypeError("Column selector must be a name or integer position")
         if not 0 <= name_or_position < len(self.columns):
-            raise IndexError(f"Column position out of range: {name_or_position}")
+            raise ColumnPositionError(f"Column position out of range: {name_or_position}")
         return self.columns[name_or_position]
 
     def index_of(self, name: str) -> int:
         """Return the zero-based position of an exact column name.
 
-        Raises TypeError for non-string names and KeyError for missing names.
+        Raises InvalidTypeError for non-string names and UnknownColumnError
+        for missing names, compatible with TypeError and KeyError respectively.
         """
         if not isinstance(name, str):
-            raise TypeError("Column name must be a string")
+            raise InvalidTypeError("Column name must be a string")
         for position, column in enumerate(self.columns):
             if column.name == name:
                 return position
-        raise KeyError(f"Unknown column: {name!r}")
+        raise UnknownColumnError(f"Unknown column: {name!r}")

@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from engine.errors import InvalidTypeError, ValidationError
+
 
 @dataclass(frozen=True, slots=True, order=True)
 class RID:
@@ -18,6 +20,6 @@ class RID:
     def __post_init__(self) -> None:
         for name, value in (("page_id", self.page_id), ("slot_id", self.slot_id)):
             if type(value) is not int:
-                raise TypeError(f"RID {name} must be an integer, not a boolean")
+                raise InvalidTypeError(f"RID {name} must be an integer, not a boolean")
             if value < 0:
-                raise ValueError(f"RID {name} must be non-negative")
+                raise ValidationError(f"RID {name} must be non-negative")
