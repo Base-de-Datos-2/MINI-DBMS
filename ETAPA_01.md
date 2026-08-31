@@ -1,39 +1,80 @@
 # ETAPA_01.md
 
-## Etapa 1 — Arquitectura y modelo de datos
+> Context version: **1.1** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and `PLAN.md`.
 
-**Parte:** Base de Datos Relacional  
-**Dependencias:** ninguna  
-**Siguiente etapa:** Etapa 2 — Páginas, registros y persistencia
+## Stage 1 — Architecture and Data Model
 
----
-
-# 1. Propósito
-
-La Etapa 1 establece los contratos y estructuras conceptuales sobre los que se construirá todo el MiniDBMS.
-
-En esta etapa **no se busca almacenar todavía registros completos en páginas binarias**.
-
-El objetivo es conseguir que el sistema pueda representar de manera clara:
-
-- tipos;
-- columnas;
-- esquemas;
-- registros;
-- identificadores físicos;
-- metadata de tablas;
-- catálogo;
-- contratos de almacenamiento;
-- contratos de índices;
-- contratos de operadores.
-
-La Etapa 1 debe reducir la probabilidad de que etapas posteriores tengan que redefinir conceptos fundamentales.
+**Part:** Relational Database  
+**Dependencies:** None  
+**Next stage:** Stage 2 — Pages, Records, and Base Persistence  
+**Roadmap:** `PLAN.md`
 
 ---
 
-# 2. Resultado esperado
+# 1. Purpose
 
-Al terminar esta etapa debería ser posible escribir código conceptual similar a:
+Stage 1 establishes the foundational abstractions and contracts used by the rest of the Mini-DBMS.
+
+It answers:
+
+> **What should be implemented now, before physical storage begins?**
+
+This stage does **not** attempt to persist complete records into binary disk pages.
+
+Its purpose is to define a stable conceptual model for:
+
+- data types;
+- columns;
+- schemas;
+- records;
+- physical record identifiers;
+- table metadata;
+- index metadata;
+- catalog metadata;
+- storage contracts;
+- index contracts;
+- operator contracts;
+- base domain errors.
+
+The goal is to reduce the probability that later stages must redefine fundamental concepts.
+
+---
+
+# 2. Relationship with the project documents
+
+Before implementation, Codex must follow the documentation roles established by `AGENTS.md`.
+
+For Stage 1:
+
+```text
+REQUIREMENTS.md
+    |
+    |  official requirements
+    v
+PROJECT_CONTEXT.md
+    |
+    |  stable architecture decisions
+    v
+PLAN.md
+    |
+    |  Part 1 roadmap
+    v
+ETAPA_01.md
+    |
+    |  detailed Stage 1 work
+    v
+CODE
+```
+
+This stage document must not override official requirements or stable architectural decisions.
+
+If a conflict is found, stop and report it before implementing the conflicting behavior.
+
+---
+
+# 3. Expected outcome
+
+At the end of Stage 1, code conceptually similar to the following should be possible:
 
 ```python
 schema = Schema([
@@ -42,46 +83,47 @@ schema = Schema([
     Column("age", DataType.INTEGER),
 ])
 
-record = Record(schema, [1, "Ana", 21])
+record = Record(
+    schema=schema,
+    values=[1, "Ana", 21],
+)
 
 table = TableMetadata(
     name="students",
     schema=schema,
 )
-```
 
-y:
-
-```python
+catalog = Catalog()
 catalog.register_table(table)
 
-catalog.get_table("students")
+assert catalog.get_table("students").schema == schema
 ```
 
-También debe existir un tipo:
+A physical record identifier should also exist conceptually:
 
 ```python
-RID(page_id=4, slot_id=2)
+rid = RID(page_id=4, slot_id=2)
 ```
 
-aunque todavía no exista un Heap File real que lo produzca.
+even though a real Heap File does not yet exist to generate it.
 
 ---
 
-# 3. Fuentes que Codex debe leer antes de implementar
+# 4. Required reading before implementation
 
-Antes de tocar código:
+Before modifying code:
 
-1. `AGENTS.md`
-2. `REQUIREMENTS.md`
-3. `PROJECT_CONTEXT.md`
-4. `PLAN.md`
-5. `ETAPA_01.md`
-6. repositorio existente
+1. read `AGENTS.md`;
+2. read `REQUIREMENTS.md`;
+3. read `PROJECT_CONTEXT.md`;
+4. read `PLAN.md`;
+5. read `ETAPA_01.md`;
+6. inspect the existing repository;
+7. inspect existing tests.
 
-Codex debe inspeccionar primero si ya existen clases equivalentes.
+Do not create a new abstraction before checking whether an equivalent one already exists.
 
-No crear duplicados como:
+For example, do not create all of these if they represent the same concept:
 
 ```text
 Schema
@@ -89,13 +131,13 @@ TableSchema
 RelationSchema
 ```
 
-si todos representan el mismo concepto.
+Reuse compatible existing code.
 
 ---
 
-# 4. Alcance de la Etapa 1
+# 5. Scope of Stage 1
 
-## Incluye
+## Included
 
 ```text
 DataType
@@ -104,25 +146,27 @@ Schema
 Record
 RID
 TableMetadata
-IndexMetadata (metadata solamente)
+minimal IndexMetadata
 Catalog
-Storage interface
-Index interface
-Operator interface
-errores base
-tests
+Storage contract
+Index contract
+Operator contract
+base domain errors
+unit tests
+Stage 1 integration test
 ```
 
-## No incluye
+## Explicitly not included
 
 ```text
-Page binaria
-PageManager real
+binary Page implementation
+real PageManager
 HeapFile
 PagedSequentialFile
-B+ Tree
-ExtendibleHash
+B+ Tree implementation
+Extendible Hashing implementation
 SQL parser
+AST execution
 Planner
 Executor
 Transactions
@@ -131,15 +175,18 @@ React
 Benchmarks
 ```
 
-Si alguna de esas piezas ya existe en el repositorio, conservarla.
+If later-stage code already exists in the repository:
 
-No extenderla innecesariamente durante esta etapa.
+- preserve it;
+- inspect it;
+- do not delete it;
+- do not extend it unless needed to keep Stage 1 compatible.
 
 ---
 
-# 5. Estructura objetivo inicial
+# 6. Target package organization
 
-Una posible organización:
+A possible Stage 1 organization is:
 
 ```text
 engine/
@@ -173,39 +220,37 @@ tests/
 └── operators/
 ```
 
-Esta estructura es orientativa.
+This structure is **illustrative**, not mandatory.
 
-Si el repositorio ya usa otra organización coherente, no migrarla solamente para hacer coincidir los nombres de este documento.
+If the repository already uses a coherent alternative structure, do not reorganize it solely to match this example.
 
 ---
 
-# 6. Tarea 1.1 — Inspeccionar el repositorio
+# 7. Task 1.1 — Inspect the repository
 
-## Objetivo
+## Objective
 
-Determinar el estado real antes de implementar.
+Determine the actual project state before implementation begins.
 
-## Acciones
+## Actions
 
-Codex debe:
+Codex should inspect:
 
-- listar la estructura relevante;
-- buscar clases existentes relacionadas con:
-  - schema;
-  - record;
-  - table;
-  - RID;
-  - catalog;
-  - storage;
-  - indexes;
-  - operators;
-- revisar tests;
-- identificar código que pueda reutilizarse;
-- detectar decisiones ya tomadas.
+- repository structure;
+- schema-related classes;
+- record-related classes;
+- table metadata;
+- RID or equivalent physical identifiers;
+- catalog code;
+- storage abstractions;
+- index abstractions;
+- operator abstractions;
+- existing tests;
+- existing architecture decisions.
 
-## Salida esperada
+## Expected output
 
-Un reporte breve:
+Provide a short report:
 
 ```text
 Existing:
@@ -217,23 +262,26 @@ Missing:
 Potential conflicts:
 - ...
 
-Recommended implementation order:
+Reusable code:
+- ...
+
+Recommended Stage 1 implementation order:
 - ...
 ```
 
-## Restricción
+## Restriction
 
-No modificar código todavía.
+Do not modify code during Task 1.1.
 
 ---
 
-# 7. Tarea 1.2 — Crear/normalizar `DataType`
+# 8. Task 1.2 — Define or normalize `DataType`
 
-## Objetivo
+## Objective
 
-Representar los tipos básicos usados por los esquemas.
+Represent the basic relational data types used by schemas.
 
-## Tipos iniciales recomendados
+## Recommended initial types
 
 ```text
 INTEGER
@@ -242,9 +290,13 @@ BOOLEAN
 VARCHAR
 ```
 
-Estos tipos son una decisión inicial del proyecto, no una exigencia literal del documento oficial.
+These are project-level implementation choices, not literal official requirements.
 
-## Posible interfaz
+Do not add a large type system unless the project requires it.
+
+---
+
+## Possible interface
 
 ```python
 from enum import Enum
@@ -256,17 +308,25 @@ class DataType(Enum):
     VARCHAR = "VARCHAR"
 ```
 
-No es obligatorio copiar esta implementación.
+This is only an example.
 
-## Requisitos
+Reuse an existing equivalent implementation when possible.
 
-- comparación clara;
-- serializable posteriormente;
-- no depender de Lark;
-- no depender de FastAPI;
-- no depender de React.
+---
 
-## Tests
+## Requirements
+
+`DataType` should:
+
+- compare predictably;
+- be suitable for later serialization;
+- remain independent from Lark;
+- remain independent from FastAPI;
+- remain independent from React.
+
+---
+
+## Suggested tests
 
 ```text
 test_integer_type_exists
@@ -275,33 +335,35 @@ test_boolean_type_exists
 test_varchar_type_exists
 ```
 
-Si se implementa parsing desde texto:
+If parsing from text is supported:
 
 ```text
 test_datatype_from_string
 test_invalid_datatype
 ```
 
+---
+
 ## Definition of Done
 
-`DataType` puede ser usado por `Column` y `Schema`.
+`DataType` can be used reliably by `Column` and `Schema`.
 
 ---
 
-# 8. Tarea 1.3 — Implementar `Column`
+# 9. Task 1.3 — Implement `Column`
 
-## Objetivo
+## Objective
 
-Representar metadata de una columna.
+Represent metadata for one table column.
 
-## Campos mínimos recomendados
+## Minimum recommended fields
 
 ```text
 name
 data_type
 ```
 
-Campos futuros posibles:
+Potential future fields may include:
 
 ```text
 nullable
@@ -309,11 +371,13 @@ length
 primary_key
 ```
 
-Pero no agregarlos si todavía no son necesarios.
+Do not add them yet unless existing code or current requirements need them.
 
-Evitar diseñar un sistema completo de constraints en esta etapa.
+Avoid building a full constraint system in Stage 1.
 
-## Posible uso
+---
+
+## Example
 
 ```python
 Column(
@@ -322,12 +386,16 @@ Column(
 )
 ```
 
-## Validaciones mínimas
+---
 
-- nombre no vacío;
-- tipo válido.
+## Minimum validation
 
-## Tests
+- column name must not be empty;
+- data type must be valid.
+
+---
+
+## Suggested tests
 
 ```text
 test_create_column
@@ -337,13 +405,19 @@ test_column_has_type
 
 ---
 
-# 9. Tarea 1.4 — Implementar `Schema`
+## Definition of Done
 
-## Objetivo
+A `Column` can be safely included in a `Schema`.
 
-Representar el conjunto ordenado de columnas de una tabla.
+---
 
-## Capacidades mínimas
+# 10. Task 1.4 — Implement `Schema`
+
+## Objective
+
+Represent the ordered set of columns that defines one relational row structure.
+
+## Minimum capabilities
 
 ```text
 columns
@@ -353,7 +427,9 @@ get column by position
 detect duplicate names
 ```
 
-## Ejemplo
+---
+
+## Example
 
 ```python
 schema = Schema([
@@ -362,33 +438,41 @@ schema = Schema([
 ])
 ```
 
-## Comportamiento recomendado
+---
+
+## Recommended behavior
+
+A method such as:
 
 ```python
 schema.column("id")
 ```
 
-debe devolver la metadata correspondiente.
+may return the matching column.
 
-Puede existir:
+A method such as:
 
 ```python
 schema.index_of("id")
 ```
 
-para ayudar a operadores futuros.
+may return the column position.
 
-## Validaciones
+Exact method names are not mandatory.
 
-- no aceptar columnas duplicadas;
-- preservar orden;
-- nombres consistentes.
+---
 
-Definir si los nombres son case-sensitive.
+## Validation
 
-Si todavía no se ha decidido, no introducir normalización silenciosa.
+- preserve column order;
+- reject duplicate column names;
+- handle unknown columns clearly.
 
-## Tests
+Do not silently introduce case normalization unless that behavior has been explicitly decided.
+
+---
+
+## Suggested tests
 
 ```text
 test_schema_preserves_column_order
@@ -400,46 +484,58 @@ test_schema_unknown_column
 
 ---
 
-# 10. Tarea 1.5 — Implementar `RID`
+## Definition of Done
 
-## Objetivo
+`Schema` provides stable ordered column metadata for `Record` and `TableMetadata`.
 
-Representar la dirección física lógica de un registro.
+---
 
-Diseño conceptual:
+# 11. Task 1.5 — Implement `RID`
+
+## Objective
+
+Represent a stable physical record identifier.
+
+Current conceptual design from `PROJECT_CONTEXT.md`:
 
 ```text
 RID(page_id, slot_id)
 ```
 
-## Propiedades recomendadas
+---
 
-- inmutable;
+## Recommended properties
+
+- immutable;
 - comparable;
 - hashable;
-- validable.
+- validated.
 
-Ejemplo posible:
+Example:
 
 ```python
+from dataclasses import dataclass
+
 @dataclass(frozen=True)
 class RID:
     page_id: int
     slot_id: int
 ```
 
-## Validaciones
+---
 
-Recomendación:
+## Recommended validation
 
 ```text
 page_id >= 0
 slot_id >= 0
 ```
 
-Si se necesita un valor sentinel en etapas futuras, documentarlo antes de cambiar esta regla.
+If later stages require a sentinel value, document that decision before changing the invariant.
 
-## Tests
+---
+
+## Suggested tests
 
 ```text
 test_create_rid
@@ -449,113 +545,126 @@ test_rid_rejects_negative_page
 test_rid_rejects_negative_slot
 ```
 
-## Importancia futura
+---
 
-El RID será utilizado especialmente por:
+## Future consumers
+
+The RID is expected to be used by components such as:
 
 ```text
 HeapFile
-B+ unclustered
+unclustered B+
 Extendible Hashing
 IndexScan
 ```
 
 ---
 
-# 11. Tarea 1.6 — Implementar `Record`
+## Definition of Done
 
-## Objetivo
+`RID` is a stable, reusable identifier independent from any specific file implementation.
 
-Representar una fila relacional.
+---
 
-El Record no debe conocer detalles de:
+# 12. Task 1.6 — Implement `Record`
 
-- Page;
-- HeapFile;
-- B+;
-- SQL;
-- HTTP.
+## Objective
 
-## Diseño recomendado
+Represent one relational row according to a `Schema`.
 
-El Record debe mantener:
+`Record` must remain independent from:
+
+- `Page`;
+- `HeapFile`;
+- B+ implementation;
+- SQL parser;
+- HTTP/API code;
+- frontend code.
+
+---
+
+## Recommended model
 
 ```text
 schema
 values
 ```
 
-o una representación equivalente.
-
-Ejemplo:
+Example:
 
 ```python
-Record(
+record = Record(
     schema=schema,
     values=[1, "Ana", 21],
 )
 ```
 
-## Validaciones
+An equivalent representation is acceptable if already present.
 
-Debe verificarse:
+---
+
+## Minimum validation
+
+At minimum:
 
 ```text
 len(values) == len(schema.columns)
 ```
 
-Idealmente también:
+Prefer also validating value compatibility with `DataType`.
 
-```text
-valor compatible con DataType
-```
+Keep Stage 1 validation understandable and deterministic.
 
-pero esta validación puede mantenerse simple en la primera versión.
+---
 
-## Compatibilidad de tipos
+## Recommended Python compatibility policy
 
-Ejemplo conceptual:
+Conceptually:
 
 ```text
 INTEGER -> int
-FLOAT   -> float/int según política
+FLOAT   -> float, optionally int according to explicit policy
 BOOLEAN -> bool
 VARCHAR -> str
 ```
 
-La coerción automática agresiva debe evitarse.
+Avoid aggressive implicit coercion.
 
-Por ejemplo:
+For example:
 
 ```text
 "123"
 ```
 
-no debería convertirse silenciosamente a:
+should not silently become:
 
 ```text
 123
 ```
 
-sin una regla explícita.
+unless the project explicitly adopts that rule.
 
-## Acceso
+---
 
-Recomendación:
+## Column access
+
+One of these styles is sufficient:
 
 ```python
 record["name"]
 ```
 
-o:
+or:
 
 ```python
 record.get("name")
 ```
 
-No es obligatorio implementar ambas.
+Do not implement multiple APIs without need.
 
-## Tests
+---
+
+## Suggested tests
 
 ```text
 test_create_record
@@ -567,26 +676,26 @@ test_record_type_validation
 
 ---
 
-# 12. Tarea 1.7 — Metadata de tabla
+## Definition of Done
 
-## Objetivo
+A `Record` can validate and expose values according to its `Schema` without depending on physical storage.
 
-Representar una tabla sin implementar todavía su almacenamiento físico.
+---
 
-## Tipo recomendado
+# 13. Task 1.7 — Implement `TableMetadata`
 
-```text
-TableMetadata
-```
+## Objective
 
-Campos mínimos:
+Represent a table in the catalog without implementing its physical storage yet.
+
+## Minimum fields
 
 ```text
 name
 schema
 ```
 
-Campos que podrán aparecer después:
+Potential future fields include:
 
 ```text
 storage_type
@@ -595,9 +704,11 @@ primary_key
 indexes
 ```
 
-No introducir todos desde el principio si todavía no se usan.
+Do not add them prematurely.
 
-## Ejemplo
+---
+
+## Example
 
 ```python
 TableMetadata(
@@ -606,7 +717,9 @@ TableMetadata(
 )
 ```
 
-## Tests
+---
+
+## Suggested tests
 
 ```text
 test_create_table_metadata
@@ -616,19 +729,19 @@ test_table_rejects_empty_name
 
 ---
 
-# 13. Tarea 1.8 — Metadata de índices
+## Definition of Done
 
-## Objetivo
+Table identity and schema can be represented independently from Heap File or Sequential File implementations.
 
-Preparar el catálogo para registrar índices sin implementar todavía B+ o Hash.
+---
 
-Posible estructura:
+# 14. Task 1.8 — Implement minimal `IndexMetadata`
 
-```text
-IndexMetadata
-```
+## Objective
 
-Campos posibles:
+Allow the catalog to describe indexes without implementing B+ or Extendible Hashing yet.
+
+## Possible fields
 
 ```text
 name
@@ -638,18 +751,27 @@ index_type
 clustered
 ```
 
-Pero esta tarea debe mantenerse minimalista.
+Keep the first version minimal.
 
-## Tipos futuros
+---
+
+## Possible future index types
 
 ```text
 BPLUS
 EXTENDIBLE_HASH
 ```
 
-No crear nodos B+ ni buckets todavía.
+This task must not create:
 
-## Tests
+- B+ nodes;
+- hash directories;
+- hash buckets;
+- index disk pages.
+
+---
+
+## Suggested tests
 
 ```text
 test_create_index_metadata
@@ -659,42 +781,58 @@ test_index_references_column
 
 ---
 
-# 14. Tarea 1.9 — Implementar `Catalog`
+## Definition of Done
 
-## Objetivo
+The catalog can describe an index definition without depending on an index implementation.
 
-Mantener metadata de tablas e índices.
+---
 
-El catálogo de esta etapa puede ser in-memory.
+# 15. Task 1.9 — Implement `Catalog`
 
-La persistencia del catálogo puede diseñarse en una etapa posterior si no existe todavía una decisión oficial.
+## Objective
 
-## Operaciones mínimas
+Maintain table and minimal index metadata.
+
+The Stage 1 catalog may remain in memory.
+
+Catalog persistence is an unresolved architectural decision unless the repository already establishes it.
+
+---
+
+## Minimum table operations
 
 ```text
 register_table(table)
 get_table(name)
 has_table(name)
 list_tables()
-drop/unregister table (opcional en esta etapa)
 ```
 
-Para índices:
+Dropping/unregistering a table may be deferred unless needed.
+
+---
+
+## Minimum index operations
+
+If `IndexMetadata` is included:
 
 ```text
 register_index(index)
 get_indexes(table)
 ```
 
-si `IndexMetadata` se incluye en la primera versión.
+---
 
-## Validaciones
+## Validation
 
-- no permitir tabla duplicada;
-- no devolver metadata mutable accidentalmente si esto rompe invariantes;
-- comprobar referencias básicas de índices.
+- reject duplicate table registrations;
+- handle unknown table lookup clearly;
+- validate basic index references;
+- avoid accidental mutation that violates catalog invariants.
 
-## Tests
+---
+
+## Suggested tests
 
 ```text
 test_register_table
@@ -708,19 +846,25 @@ test_index_requires_existing_table
 
 ---
 
-# 15. Tarea 1.10 — Definir contratos abstractos
+## Definition of Done
 
-Esta es la última pieza importante de la Etapa 1.
+The catalog can register and resolve table metadata, and optionally minimal index metadata, without depending on physical persistence.
 
-No deben contener implementación real de algoritmos posteriores.
+---
 
-## 15A. Storage interface
+# 16. Task 1.10 — Define abstract contracts
 
-### Objetivo
+These contracts prepare later stages without implementing their algorithms.
 
-Permitir que Heap File y otras organizaciones tengan una interfaz común.
+---
 
-Conceptualmente:
+## 16A. Storage contract
+
+### Objective
+
+Provide a common behavioral boundary for future storage organizations.
+
+Conceptually:
 
 ```python
 class Storage:
@@ -730,7 +874,7 @@ class Storage:
     def scan(self): ...
 ```
 
-Puede utilizarse:
+Possible Python mechanisms:
 
 ```text
 ABC
@@ -738,17 +882,20 @@ Protocol
 duck typing
 ```
 
-según el estilo del repositorio.
+Choose the style that best matches the existing repository.
 
-### No debe
+### Must not do in Stage 1
 
-- abrir archivos reales todavía;
-- crear páginas;
-- implementar Heap File.
+- open real storage files;
+- allocate pages;
+- implement Heap File;
+- implement Paged Sequential File.
 
-## 15B. Index interface
+---
 
-Conceptualmente:
+## 16B. Index contract
+
+Conceptually:
 
 ```python
 class Index:
@@ -757,29 +904,28 @@ class Index:
     def delete(self, key, rid): ...
 ```
 
-Range search puede pertenecer:
+Range search should not be forced onto Extendible Hashing.
 
-- a una interfaz especializada;
-- o al contrato B+ posterior.
-
-No obligar a Extendible Hashing a fingir que soporta rangos.
-
-Una separación válida:
+A specialized ordered-index contract is acceptable:
 
 ```text
 Index
 └── OrderedIndex
 ```
 
-donde:
+with:
 
 ```text
 OrderedIndex.range_search(...)
 ```
 
-## 15C. Operator interface
+The exact hierarchy is an architectural choice.
 
-Conceptualmente:
+---
+
+## 16C. Operator contract
+
+Conceptually:
 
 ```text
 open()
@@ -787,29 +933,37 @@ next()
 close()
 ```
 
-o:
+or an equivalent iterator-based API.
 
-```python
-__iter__()
-```
-
-No implementar TableScan todavía.
-
-## Tests
-
-Para interfaces puras puede no ser necesario testear comportamiento, pero sí comprobar:
-
-- estructura;
-- clases dummy;
-- que implementaciones incompletas sean detectables si se usa ABC.
+Do not implement `TableScan` yet.
 
 ---
 
-# 16. Tarea 1.11 — Errores base
+## Suggested tests
 
-Crear errores solamente cuando aporten claridad.
+Pure interfaces may require only lightweight tests, for example:
 
-Ejemplos:
+- dummy implementation compatibility;
+- abstract-method enforcement if ABC is used;
+- protocol conformance if explicitly testable.
+
+Do not write meaningless tests only to increase test count.
+
+---
+
+## Definition of Done
+
+Future storage, index, and operator implementations have stable contracts to target.
+
+---
+
+# 17. Task 1.11 — Add base domain errors
+
+## Objective
+
+Provide clear domain-specific errors for foundational components.
+
+Potential examples:
 
 ```text
 DatabaseError
@@ -820,23 +974,29 @@ DuplicateTableError
 UnknownColumnError
 ```
 
-No crear una jerarquía enorme.
+Do not create a large exception hierarchy without real use cases.
 
-El objetivo es evitar excepciones genéricas como:
+Prefer meaningful errors over generic patterns such as:
 
-```text
-Exception("bad")
+```python
+raise Exception("bad")
 ```
-
-en módulos centrales.
 
 ---
 
-# 17. Tarea 1.12 — Test de integración de la Etapa 1
+## Definition of Done
 
-Crear por lo menos un test que conecte los componentes.
+Core Stage 1 modules can signal invalid domain operations clearly without overengineering the error system.
 
-Ejemplo conceptual:
+---
+
+# 18. Task 1.12 — Add the Stage 1 integration test
+
+## Objective
+
+Prove that the foundational abstractions work together.
+
+Example:
 
 ```python
 def test_catalog_schema_record_integration():
@@ -845,22 +1005,34 @@ def test_catalog_schema_record_integration():
         Column("name", DataType.VARCHAR),
     ])
 
-    table = TableMetadata("students", schema)
+    table = TableMetadata(
+        name="students",
+        schema=schema,
+    )
 
     catalog = Catalog()
     catalog.register_table(table)
 
-    record = Record(schema, [1, "Ana"])
+    record = Record(
+        schema=schema,
+        values=[1, "Ana"],
+    )
 
     assert catalog.get_table("students").schema == schema
     assert record["name"] == "Ana"
 ```
 
-Este test no debe tocar disco todavía.
+This test must not access disk.
 
 ---
 
-# 18. Orden recomendado de implementación
+## Definition of Done
+
+At least one integration test proves that `Schema`, `Record`, table metadata, and `Catalog` work together.
+
+---
+
+# 19. Recommended implementation order
 
 ```text
 1.1 Inspect repository
@@ -891,94 +1063,100 @@ Este test no debe tocar disco todavía.
         1.9 Catalog
                |
                v
-        1.10 Interfaces
+        1.10 Contracts
                |
                v
-        1.11 Errors
+        1.11 Base Errors
                |
                v
-        1.12 Integration test
+        1.12 Integration Test
 ```
 
-Algunas tareas pueden implementarse juntas si el cambio sigue siendo pequeño.
+Tasks may be grouped into one small change when doing so keeps the implementation clear and reviewable.
 
 ---
 
-# 19. Estrategia de commits para esta etapa
+# 20. Recommended commit strategy
 
-Ejemplo:
+Examples:
 
 ```text
-docs: add part 1 implementation plan
+docs: align stage 1 implementation plan
 
 feat(catalog): add relational data types and columns
 
 feat(catalog): add schema representation
 
-feat(storage): add record identifier
+feat(storage): add RID abstraction
 
 feat(storage): add record model
 
 feat(catalog): add table metadata and catalog
 
-feat(core): add storage and index contracts
+feat(core): add storage index and operator contracts
+
+feat(core): add base domain errors
 
 test(stage1): add architecture model integration tests
 ```
 
-No es obligatorio usar exactamente estos commits.
+Do not create large commits such as:
 
-La idea es mantener cambios revisables.
+```text
+finish database
+```
+
+if the work can be reviewed incrementally.
 
 ---
 
-# 20. Comandos de validación
+# 21. Validation commands
 
-Si se usa pytest:
+If pytest is already the project test framework:
 
 ```bash
 pytest
 ```
 
-Durante desarrollo:
+During development, narrower commands may be used:
 
 ```bash
 pytest tests/catalog -q
 pytest tests/storage -q
 pytest tests/indexes -q
+pytest tests/operators -q
 ```
 
-Al terminar:
+At the end of the stage:
 
 ```bash
 pytest -q
 ```
 
-También se recomienda:
+Optional syntax/import validation:
 
 ```bash
 python -m compileall engine
 ```
 
-si resulta útil para detectar errores de sintaxis/import.
-
-No añadir linters o formatters nuevos sin necesidad si el repositorio no los usa.
+Do not add a new linter/formatter solely for this stage unless the repository already uses it or the user explicitly requests it.
 
 ---
 
-# 21. Definition of Done de la Etapa 1
+# 22. Stage 1 Definition of Done
 
-La Etapa 1 está completa solamente si:
+Stage 1 is complete only when all applicable items are satisfied.
 
-## Arquitectura
+## Architecture
 
 ```text
-[ ] existe una estructura modular razonable
-[ ] no se introdujeron dependencias frontend -> storage
-[ ] no se introdujeron algoritmos de etapas futuras
+[ ] repository structure remains modular
+[ ] no frontend-to-storage dependency was introduced
+[ ] no future-stage algorithm was implemented unnecessarily
+[ ] existing compatible code was reused instead of duplicated
 ```
 
-## Modelo de datos
+## Data model
 
 ```text
 [ ] DataType
@@ -993,64 +1171,89 @@ La Etapa 1 está completa solamente si:
 ```text
 [ ] TableMetadata
 [ ] Catalog
-[ ] metadata de índices si fue incluida
+[ ] minimal IndexMetadata, if adopted in the Stage 1 design
 ```
 
-## Contratos
+## Contracts
 
 ```text
-[ ] Storage interface
-[ ] Index interface
-[ ] Operator interface
+[ ] Storage contract
+[ ] Index contract
+[ ] Operator contract
 ```
 
-## Calidad
+## Domain errors
 
 ```text
-[ ] tests unitarios
-[ ] test de integración
-[ ] todos los tests relevantes pasan
-[ ] no hay código duplicado equivalente
-[ ] documentación actualizada
+[ ] foundational modules use clear domain errors where useful
+[ ] no unnecessary exception hierarchy was introduced
 ```
+
+## Quality
+
+```text
+[ ] relevant unit tests exist
+[ ] Stage 1 integration test exists
+[ ] all relevant tests pass
+[ ] imports are stable
+[ ] no equivalent foundational abstraction was duplicated
+[ ] documentation reflects stable decisions
+```
+
+Only after this checklist is satisfied should the project move to Stage 2.
 
 ---
 
-# 22. Qué NO debe hacerse para declarar la etapa completa
+# 23. What is NOT required to complete Stage 1
 
-No es necesario:
+Stage 1 does not require:
 
 ```text
-[ ] guardar páginas binarias
-[ ] crear Heap File
-[ ] implementar B+
-[ ] implementar Extendible Hash
-[ ] aceptar SELECT
-[ ] crear FastAPI
-[ ] crear React
+[ ] binary page persistence
+[ ] Heap File
+[ ] Paged Sequential File
+[ ] B+ Tree
+[ ] Extendible Hashing
+[ ] SELECT execution
+[ ] Planner
+[ ] Executor
+[ ] transactions
+[ ] FastAPI
+[ ] React
+[ ] benchmarks
 ```
 
-Hacer cualquiera de estas cosas no compensa una base conceptual incompleta.
+Implementing future-stage functionality does not compensate for an incomplete Stage 1 foundation.
 
 ---
 
-# 23. Preguntas que deben resolverse antes de la Etapa 2
+# 24. Decisions to carry into Stage 2
 
-Al terminar la Etapa 1, deben quedar identificadas explícitamente estas decisiones:
+By the end of Stage 1, the following unresolved decisions should at least be identified clearly.
 
-## 23.1 Tamaño de página
+They do not all need to be solved inside Stage 1.
 
-Ejemplo posible:
+---
+
+## 24.1 Final page size
+
+The official assignment requires page-based storage but does not prescribe a particular page size.
+
+Example candidate:
 
 ```text
 4096 bytes
 ```
 
-pero todavía debe aprobarse/documentarse.
+Do not treat that value as official until the project adopts it.
 
-## 23.2 Layout de Page
+Once adopted, record it in `PROJECT_CONTEXT.md`.
 
-Por ejemplo:
+---
+
+## 24.2 Binary page layout
+
+A possible layout may include:
 
 ```text
 PageHeader
@@ -1059,22 +1262,28 @@ FreeSpace
 Records
 ```
 
-## 23.3 Longitud de registros
+The final layout belongs to Stage 2 architecture.
 
-Decidir si la primera versión soportará:
+---
+
+## 24.3 Record-length strategy
+
+The project must decide how the physical layer handles:
 
 ```text
-fixed length
-variable length
+fixed-length records
+variable-length records
 ```
 
-o un esquema unificado.
+or whether one unified slotted-page strategy will support both.
 
-Esto debe ser compatible con los requisitos generales del proyecto y el código previo disponible.
+This decision should consider reusable code already present in the repository.
 
-## 23.4 Formato binario
+---
 
-Debe elegirse una estrategia coherente para:
+## 24.4 Binary encoding
+
+A coherent encoding policy will be needed for:
 
 ```text
 integers
@@ -1084,40 +1293,60 @@ strings
 headers
 ```
 
-## 23.5 Catálogo persistente
-
-Decidir si:
-
-- se persiste desde la Etapa 2;
-- o se mantiene inicialmente separado y se persiste posteriormente.
+Do not design the full serializer inside Stage 1 unless existing code already requires it.
 
 ---
 
-# 24. Prompt recomendado para iniciar la Etapa 1 con Codex
+## 24.5 Catalog persistence
+
+Decide later whether:
+
+- catalog metadata becomes persistent starting in Stage 2;
+- or catalog persistence is introduced in a later integration step.
+
+When the decision becomes stable, record it in `PROJECT_CONTEXT.md`.
+
+---
+
+# 25. Recommended prompt to start Stage 1 with Codex
 
 ```text
-Read AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md and ETAPA_01.md.
+Read AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md,
+and ETAPA_01.md.
 
-Then inspect the entire repository, focusing on existing schema, record,
-RID, catalog, storage-interface, index-interface and operator-interface code.
+Then inspect the repository, focusing on existing implementations related to:
+- DataType
+- Column
+- Schema
+- Record
+- RID
+- TableMetadata
+- IndexMetadata
+- Catalog
+- storage contracts
+- index contracts
+- operator contracts
+- base domain errors
+- relevant tests
 
 Do not modify any files yet.
 
 Report:
-1. which Stage 1 requirements already exist;
+1. which Stage 1 components already exist;
 2. which are missing;
 3. any naming or architectural conflicts;
 4. which existing code should be reused;
-5. a minimal implementation sequence for the missing Stage 1 tasks.
+5. which stable decisions are already present in the codebase;
+6. the smallest safe implementation sequence for the remaining Stage 1 tasks.
 
 Do not implement Stage 2 or later functionality.
 ```
 
 ---
 
-# 25. Prompt recomendado para comenzar a implementar
+# 26. Recommended prompt for the first implementation step
 
-Después de revisar el reporte:
+After reviewing Codex's inspection report:
 
 ```text
 Implement only the first missing task from ETAPA_01.md.
@@ -1125,28 +1354,36 @@ Implement only the first missing task from ETAPA_01.md.
 Reuse existing compatible code.
 Do not implement future-stage functionality.
 
-Add or update the relevant pytest tests.
-Run only the relevant tests first and report the result.
+Add or update only the relevant tests.
+Run the relevant tests and report the result.
+
+If the task requires making a new stable architectural decision,
+state it explicitly so PROJECT_CONTEXT.md can be updated.
 ```
 
 ---
 
-# 26. Condición para pasar a ETAPA 2
+# 27. Condition for moving to Stage 2
 
-Solo pasar a Etapa 2 cuando:
+Move to Stage 2 only when:
 
 ```text
-Stage 1 model
+Stage 1 data model
+      +
+Stage 1 metadata
       +
 Stage 1 contracts
+      +
+Stage 1 base errors
       +
 Stage 1 tests
       +
 stable imports
       +
-documented unresolved decisions
+documented stable decisions
       =
 READY FOR STAGE 2
 ```
 
-La siguiente etapa debe construir sobre estas abstracciones, no reemplazarlas.
+Stage 2 must build on these abstractions rather than replacing them.
+

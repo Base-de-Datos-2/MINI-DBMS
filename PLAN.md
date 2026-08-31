@@ -1,75 +1,111 @@
 # PLAN.md
 
-## Plan de implementación — Parte 1: Base de Datos Relacional
+> Context version: **1.1** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and `ETAPA_01.md`.
 
-**Proyecto:** Minigestor de Base de Datos Multimodal  
-**Curso:** Base de Datos 2 — 2026-2  
-**Alcance de este plan:** Parte 1 — Base de Datos Relacional (Tablas y SQL)
+## Part 1 Implementation Plan — Relational Database
 
----
-
-# 1. Propósito de este documento
-
-Este documento define el orden de trabajo recomendado para completar la Parte 1 sin romper los requisitos académicos ni acoplar prematuramente componentes de etapas futuras.
-
-Debe leerse junto con:
-
-- `REQUIREMENTS.md` — requisitos oficiales del proyecto;
-- `PROJECT_CONTEXT.md` — decisiones técnicas y arquitectura acordada;
-- `AGENTS.md` — reglas de trabajo para Codex;
-- `ETAPA_01.md` — plan detallado de la primera etapa.
-
-La Parte 1 se implementará en **10 etapas secuenciales**.
-
-La regla principal es:
-
-> No avanzar a la siguiente etapa si la etapa actual no tiene una implementación funcional, pruebas suficientes e integración estable con las etapas anteriores.
+**Project:** Multimodal Mini-DBMS  
+**Course:** Base de Datos 2 — 2026-2  
+**Scope:** Part 1 — Relational Database (Tables and SQL)
 
 ---
 
-# 2. Resultado final esperado de la Parte 1
+# 1. Purpose of this document
 
-Al terminar la Parte 1, el sistema debe ser capaz de ejecutar un flujo completo similar a:
+This document defines the implementation roadmap for **Part 1**.
+
+It answers:
+
+> **In what order should Part 1 be implemented?**
+
+It must be read together with the other coordination documents:
+
+- `REQUIREMENTS.md` — official academic requirements;
+- `PROJECT_CONTEXT.md` — stable architectural and technical decisions;
+- `AGENTS.md` — operating instructions for Codex;
+- `ETAPA_XX.md` — detailed plan for the current implementation stage.
+
+This file does **not** replace `REQUIREMENTS.md`.
+
+If this plan conflicts with an official requirement, `REQUIREMENTS.md` takes precedence and the conflict must be reported before implementation continues.
+
+---
+
+# 2. Relationship with the other project documents
+
+The coordination model is:
 
 ```text
-Usuario
-  |
-  v
-Frontend
-  |
-  v
-REST API
-  |
-  v
-SQL Parser
-  |
-  v
-AST
-  |
-  v
-Planner
-  |
-  v
-Physical Plan
-  |
-  v
-Executor
-  |
-  +----------------------+
-  |                      |
-  v                      v
-Indexes              Storage Files
-  |                      |
-  +----------+-----------+
-             |
-             v
-            Pages
-             |
-             v
-            Disk
+REQUIREMENTS.md
+    |
+    |  WHAT must be implemented
+    v
+PROJECT_CONTEXT.md
+    |
+    |  HOW the system is currently designed
+    v
+PLAN.md
+    |
+    |  IN WHAT ORDER Part 1 is implemented
+    v
+ETAPA_XX.md
+    |
+    |  WHAT TO DO NOW
+    v
+CODE
 ```
 
-y soportar, como mínimo:
+`AGENTS.md` governs how Codex should work with all of these documents.
+
+Stable architectural decisions discovered during implementation should be promoted to `PROJECT_CONTEXT.md`.
+
+Detailed stage instructions belong in `ETAPA_XX.md`, not in this roadmap.
+
+---
+
+# 3. Overall objective of Part 1
+
+At the end of Part 1, the system should support a complete flow similar to:
+
+```text
+User
+ |
+ v
+Frontend
+ |
+ v
+REST API
+ |
+ v
+SQL Parser
+ |
+ v
+AST
+ |
+ v
+Planner
+ |
+ v
+Physical Execution Plan
+ |
+ v
+Executor
+ |
+ +----------------------+
+ |                      |
+ v                      v
+Indexes              Storage Files
+ |                      |
+ +----------+-----------+
+            |
+            v
+           Pages
+            |
+            v
+           Disk
+```
+
+At minimum, the implementation must be capable of supporting the required SQL families, for example:
 
 ```sql
 INSERT INTO students VALUES (...);
@@ -90,28 +126,15 @@ DELETE FROM students
 WHERE id = 100;
 ```
 
-Además debe:
-
-- almacenar datos realmente en archivos/páginas;
-- implementar Heap File;
-- implementar Archivo Secuencial Paginado;
-- implementar B+ agrupado;
-- implementar B+ no agrupado;
-- implementar Extendible Hashing;
-- implementar External Sorting con k-way merge;
-- soportar `GROUP BY` y `JOIN` con las estrategias requeridas;
-- soportar transacciones y control de concurrencia;
-- incluir la demostración obligatoria con threads;
-- tener los cuatro paneles del frontend;
-- producir benchmarks reproducibles para 1K, 10K y 100K registros.
+The exact supported syntax is defined by `REQUIREMENTS.md` and later Stage 7 decisions.
 
 ---
 
-# 3. Principios de implementación
+# 4. Core implementation principles
 
-## 3.1 Implementar de abajo hacia arriba
+## 4.1 Build from lower layers upward
 
-Orden conceptual:
+Preferred dependency direction:
 
 ```text
 Disk
@@ -122,7 +145,7 @@ Storage Files
 ↑
 Indexes
 ↑
-Operators
+Relational Operators
 ↑
 Planner / Executor
 ↑
@@ -133,143 +156,181 @@ API
 Frontend
 ```
 
-No comenzar por el frontend.
+Therefore:
 
-No comenzar por SQL antes de disponer de operadores físicos funcionales.
-
-No construir índices antes de tener un sistema de almacenamiento estable.
+- do not start by building the frontend;
+- do not build the SQL engine before physical operators exist;
+- do not build indexes before the storage layer is stable;
+- do not let higher layers manipulate lower-level internals directly.
 
 ---
 
-## 3.2 Una etapa debe dejar artefactos reutilizables
+## 4.2 Preserve modularity
 
-Cada etapa debe producir componentes que sean usados por la siguiente.
+Later parts of the academic project build on Part 1.
 
-Ejemplo:
+Part 1 should therefore expose clear abstractions rather than a single tightly coupled program.
+
+Important layer boundaries are defined in `PROJECT_CONTEXT.md`.
+
+---
+
+## 4.3 Required algorithms must remain visible
+
+Do not replace academic algorithms with an external DBMS or high-level execution library.
+
+Examples of forbidden substitutions are defined in `AGENTS.md`.
+
+Auxiliary libraries are acceptable when they do not replace the algorithm being studied.
+
+---
+
+## 4.4 Each stage must leave reusable artifacts
+
+A stage is useful only if the next stage can build on it.
+
+Example:
 
 ```text
-ETAPA 2
-Page / Record / PageManager
+Stage 2
+Page / Serialization / PageManager
         |
         v
-ETAPA 3
-HeapFile / SequentialFile
+Stage 3
+HeapFile / PagedSequentialFile
         |
-        v
-ETAPA 4 y 5
-B+ / ExtendibleHash
-        |
-        v
-ETAPA 6
-Operators
+        +------------------+
+        |                  |
+        v                  v
+Stage 4                  Stage 5
+B+                       Extendible Hashing
+        \                  /
+         \                /
+          v              v
+             Stage 6
+             Operators
 ```
 
 ---
 
-## 3.3 No reemplazar los algoritmos requeridos
+## 4.5 Tests are part of implementation
 
-No usar otro DBMS para simular el motor.
+For every stage, use the testing rules in `AGENTS.md`.
 
-No delegar a pandas/SQLAlchemy/SQLite/PostgreSQL las operaciones que el proyecto pide implementar.
+A stage should generally include:
 
-Las librerías solo pueden ser auxiliares.
+1. unit tests;
+2. functional tests;
+3. persistence tests when persistence applies;
+4. integration tests with previous stages.
 
----
-
-## 3.4 Tests antes de integración mayor
-
-Para cada módulo:
-
-1. test unitario;
-2. test funcional;
-3. test de persistencia, cuando corresponda;
-4. test de integración con la etapa anterior.
+A stage is not complete simply because the happy path runs once.
 
 ---
 
-# 4. Resumen de las 10 etapas
+# 5. The 10-stage roadmap
 
-| Etapa | Nombre | Resultado principal |
+| Stage | Name | Primary outcome |
 |---|---|---|
-| 1 | Arquitectura y modelo de datos | Contratos y estructuras base |
-| 2 | Páginas, registros y persistencia | Capa física confiable |
-| 3 | Heap + Secuencial Paginado | Organizaciones de archivos requeridas |
-| 4 | B+ Tree | Índices agrupado/no agrupado |
-| 5 | Extendible Hashing | Índice hash dinámico |
-| 6 | Operadores y algoritmos externos | Motor físico de consultas |
-| 7 | Parser, Planner y Executor | SQL funcional |
-| 8 | Transacciones y concurrencia | Acceso concurrente seguro |
-| 9 | API y Frontend | Interfaz completa |
-| 10 | Experimentos e integración | Comparaciones y entrega |
+| 1 | Architecture and Data Model | Stable foundational abstractions |
+| 2 | Pages, Records, and Base Persistence | Reliable physical storage layer |
+| 3 | Heap File and Paged Sequential File | Required file organizations |
+| 4 | B+ Tree | Clustered and unclustered B+ access |
+| 5 | Extendible Hashing | Dynamic hash index |
+| 6 | Relational Operators and External Algorithms | Physical query execution |
+| 7 | SQL Parser, Planner, and Executor | Required SQL execution |
+| 8 | Transactions and Concurrency | Safe concurrent execution |
+| 9 | API and Frontend | Required user interface |
+| 10 | Experiments, Integration, and Delivery | Comparative evidence and final integration |
+
+Stages should normally be completed in this order.
+
+Stages 4 and 5 may be developed in parallel once Stage 3 is stable and the shared interfaces are mature enough.
 
 ---
 
-# 5. ETAPA 1 — Arquitectura y modelo de datos
+# 6. Stage 1 — Architecture and Data Model
 
-Documento detallado:
+Detailed specification:
 
 > `ETAPA_01.md`
 
-## Objetivo
+## Objective
 
-Definir el esqueleto del motor antes de almacenar datos realmente.
+Define the foundational abstractions before implementing physical persistence.
 
-## Componentes principales
+## Main outputs
 
-- estructura de paquetes;
+- repository/module structure;
 - `DataType`;
 - `Column`;
 - `Schema`;
 - `Record`;
 - `RID`;
-- metadata de tablas;
+- `TableMetadata`;
+- minimal `IndexMetadata`;
 - `Catalog`;
-- interfaces/contratos de:
-  - almacenamiento;
-  - índices;
-  - operadores.
+- storage contract;
+- index contract;
+- operator contract;
+- base domain errors;
+- Stage 1 unit and integration tests.
 
-## Resultado
+## Dependencies
 
-La etapa termina cuando puede modelarse una tabla y sus registros sin depender todavía de Heap File, B+, SQL o frontend.
+None.
 
-## Dependencias
+## Explicitly out of scope
 
-Ninguna.
-
-## No incluye
-
-- páginas binarias;
+- binary pages;
+- real `PageManager`;
 - Heap File;
-- índices;
-- parser SQL;
-- frontend.
+- Paged Sequential File;
+- B+ implementation;
+- Extendible Hashing implementation;
+- SQL parser;
+- planner;
+- executor;
+- transactions;
+- API;
+- frontend;
+- benchmarks.
+
+## Completion rule
+
+Stage 1 is complete only when the Definition of Done in `ETAPA_01.md` is satisfied.
 
 ---
 
-# 6. ETAPA 2 — Páginas, registros y persistencia base
+# 7. Stage 2 — Pages, Records, and Base Persistence
 
-## Objetivo
+## Objective
 
-Construir una capa física capaz de serializar datos, escribir páginas y recuperar exactamente la misma información después de cerrar y reabrir el archivo.
+Build the physical layer that can serialize data, write pages, close the process, reopen the file, and recover the same information correctly.
 
-## 6.1 Decisiones que deben quedar explícitas
+---
 
-Antes o durante esta etapa deben documentarse:
+## 7.1 Decisions that must become explicit
 
-- tamaño de página;
-- formato de `PageHeader`;
-- formato de slots;
-- estrategia para registros variables;
-- formato de `FileHeader`;
-- endianness / formato binario;
-- representación de `NULL`, si se soporta.
+Before or during this stage, resolve and document:
 
-No asumir valores que no aparezcan en `PROJECT_CONTEXT.md`.
+- final page size;
+- binary page layout;
+- `PageHeader` format;
+- slot-directory format where applicable;
+- variable-length-record strategy;
+- `FileHeader` format;
+- binary encoding / endianness;
+- `NULL` representation if supported;
+- catalog persistence strategy if needed at this stage.
 
-## 6.2 Componentes
+Once stable, these decisions belong in `PROJECT_CONTEXT.md`.
 
-Posible estructura:
+---
+
+## 7.2 Expected components
+
+Conceptual example:
 
 ```text
 engine/storage/
@@ -280,11 +341,15 @@ engine/storage/
 └── page_manager.py
 ```
 
-## 6.3 Funciones mínimas
+Exact filenames may differ if the repository already has a coherent structure.
+
+---
+
+## 7.3 Minimum capabilities
 
 ### Page
 
-Debe poder:
+Conceptually:
 
 ```text
 insert serialized record
@@ -295,11 +360,9 @@ serialize page
 deserialize page
 ```
 
-La implementación concreta puede variar.
+### Page manager
 
-### PageManager
-
-Debe poder:
+Conceptually:
 
 ```text
 allocate_page()
@@ -309,38 +372,45 @@ flush()
 close()
 ```
 
-## 6.4 Tests obligatorios
+---
 
-- crear una página;
-- insertar un registro;
-- serializar;
-- escribir en disco;
-- cerrar archivo;
-- reabrir;
-- recuperar el mismo registro;
-- manejar múltiples páginas;
-- detectar acceso inválido.
+## 7.4 Minimum tests
 
-## Definition of Done
-
-- persistencia funciona;
-- no depende de HeapFile;
-- page I/O está encapsulado;
-- tests pasan.
+- create a page;
+- insert a record;
+- serialize it;
+- write it to disk;
+- close the file;
+- reopen it;
+- recover the same record;
+- manage multiple pages;
+- reject invalid access cleanly.
 
 ---
 
-# 7. ETAPA 3 — Heap File y Archivo Secuencial Paginado
+## Definition of Done
 
-Esta etapa satisface la sección principal de gestión de archivos.
+- persistence works;
+- page I/O is encapsulated;
+- storage can reopen persisted data;
+- tests pass;
+- no Heap File logic is required to make the page layer work.
 
-## 7A. Heap File
+---
 
-### Objetivo
+# 8. Stage 3 — Heap File and Paged Sequential File
 
-Guardar registros en orden de llegada sobre páginas.
+This stage implements the two required file organizations.
 
-### Operaciones mínimas
+---
+
+## 8A. Heap File
+
+### Objective
+
+Store records in arrival order across disk pages while reusing available free space.
+
+### Minimum operations
 
 ```text
 insert(record) -> RID
@@ -349,42 +419,37 @@ delete(rid)
 scan() -> iterator
 ```
 
-### Requisito clave
+### Required behavior
 
-Debe reutilizar espacio libre.
+Free space must actually be reused.
 
-No basta con agregar indefinidamente al final.
-
-### Estrategia recomendada
-
-Mantener información suficiente para localizar páginas con espacio disponible.
-
-La estrategia puede ser:
+Possible implementations include:
 
 - free list;
 - free-page directory;
-- free-space map simplificado;
+- simplified free-space map.
 
-siempre que realmente reutilice espacio.
+The exact strategy is an architectural decision.
 
-### Tests
+### Minimum tests
 
-- insertar en una página;
-- insertar hasta crear varias páginas;
-- eliminar;
-- volver a insertar;
-- comprobar que se reutiliza el espacio;
-- leer por RID;
-- scan completo;
-- persistencia.
+- one-page insertion;
+- multi-page insertion;
+- deletion;
+- reinsertion into reusable space;
+- read by RID;
+- full scan;
+- persistence after reopen.
 
-## 7B. Archivo Secuencial Paginado
+---
 
-### Objetivo
+## 8B. Paged Sequential File
 
-Mantener registros ordenados por una clave.
+### Objective
 
-### Operaciones mínimas
+Maintain records ordered by a chosen key.
+
+### Minimum operations
 
 ```text
 insert(record)
@@ -394,46 +459,49 @@ scan()
 reorganize()
 ```
 
-### Comportamiento requerido
+### Required behavior
 
-- inserción preserva orden;
-- eliminación lazy;
-- medición de desperdicio;
-- reorganización.
+- ordered insertion;
+- lazy deletion;
+- measurable wasted space;
+- reorganization strategy.
 
-El 30% puede utilizarse como threshold por defecto si se adopta explícitamente.
+The assignment presents more than 30% wasted space as an example trigger. If the project adopts 30% as its default, that decision should be recorded in `PROJECT_CONTEXT.md`.
 
-### Tests
+### Minimum tests
 
-- insertar datos en orden aleatorio;
-- comprobar orden final;
-- insertar entre dos claves existentes;
-- lazy delete;
-- calcular porcentaje desperdiciado;
-- superar threshold;
-- reorganizar;
-- verificar que el orden se conserva.
-
-### Definition of Done de ETAPA 3
-
-Ambas organizaciones:
-
-- funcionan sobre la misma capa de páginas;
-- persisten en disco;
-- tienen tests independientes;
-- pueden compararse posteriormente mediante benchmarks.
+- insert unsorted input;
+- verify final order;
+- insert a key between existing keys;
+- lazy deletion;
+- wasted-space calculation;
+- trigger reorganization;
+- verify ordering after reorganization.
 
 ---
 
-# 8. ETAPA 4 — B+ Tree
+## Definition of Done
 
-## Objetivo
+Both organizations:
 
-Implementar la estructura B+ requerida y utilizarla en modo agrupado y no agrupado.
+- use the Stage 2 page layer;
+- persist data correctly;
+- have independent tests;
+- expose behavior that can later be benchmarked fairly.
 
-## 8.1 B+ Tree genérico
+---
 
-Operaciones mínimas:
+# 9. Stage 4 — B+ Tree
+
+## Objective
+
+Implement the required B+ structure and support both unclustered and clustered behavior.
+
+---
+
+## 9.1 Generic B+ core
+
+Minimum conceptual operations:
 
 ```text
 insert(key, value)
@@ -442,70 +510,72 @@ range_search(low, high)
 delete(key, value?)
 ```
 
-Comportamientos estructurales:
+Expected structural behavior:
 
 - leaf split;
 - internal split;
 - root split;
-- linked leaves;
-- redistribution/merge según el algoritmo de eliminación adoptado;
-- root shrink cuando corresponda.
+- linked leaves for range traversal;
+- redistribution and/or merge according to the chosen deletion algorithm;
+- root shrink when applicable.
 
-## 8.2 B+ no agrupado
+---
 
-Diseño conceptual:
+## 9.2 Unclustered B+
+
+Conceptually:
 
 ```text
 key -> RID
 ```
 
-Los registros permanecen físicamente independientes del orden del índice.
-
-## 8.3 B+ agrupado
-
-La organización física de datos debe reflejar el orden de la clave.
-
-No basta con poner una bandera:
-
-```text
-clustered = True
-```
-
-sobre un índice que sigue apuntando a datos arbitrariamente desordenados.
-
-El diseño exacto debe quedar documentado en `PROJECT_CONTEXT.md`.
-
-## Tests
-
-- inserciones sin split;
-- leaf split;
-- internal split;
-- root split;
-- igualdad;
-- rango;
-- eliminación;
-- redistribución;
-- merge;
-- recorrido de hojas;
-- casos con claves duplicadas si se permiten.
-
-## Definition of Done
-
-- B+ genérico estable;
-- uso no agrupado funcional;
-- uso agrupado funcional;
-- range queries verificadas;
-- persistencia definida/implementada según arquitectura.
+Physical row order remains independent from index order.
 
 ---
 
-# 9. ETAPA 5 — Extendible Hashing
+## 9.3 Clustered B+
 
-## Objetivo
+The physical record organization must meaningfully reflect the clustered key order.
 
-Implementar Hash Dinámico mediante Extendible Hashing.
+Do not implement an ordinary unclustered index and label it `clustered=True`.
 
-## Componentes
+The final physical design must be recorded in `PROJECT_CONTEXT.md`.
+
+---
+
+## 9.4 Minimum tests
+
+- insertion without split;
+- leaf split;
+- internal split;
+- root split;
+- exact lookup;
+- range lookup;
+- deletion;
+- redistribution;
+- merge;
+- leaf traversal;
+- duplicate-key behavior if duplicates are supported.
+
+---
+
+## Definition of Done
+
+- generic B+ behavior is stable;
+- unclustered access works;
+- clustered behavior is physically meaningful;
+- range queries work;
+- persistence behavior is defined consistently with the architecture.
+
+---
+
+# 10. Stage 5 — Extendible Hashing
+
+## Objective
+
+Implement the required dynamic hash index using Extendible Hashing.
+
+## Core concepts
 
 ```text
 Directory
@@ -514,7 +584,7 @@ Bucket
 Local Depth
 ```
 
-## Operaciones mínimas
+## Minimum operations
 
 ```text
 insert(key, rid)
@@ -522,43 +592,45 @@ search(key)
 delete(key, rid)
 ```
 
-## Comportamientos obligatorios
+## Required behavior
 
-- función hash;
-- acceso por bits relevantes;
-- split de bucket;
-- incremento de local depth;
-- doubling del directory cuando sea necesario;
-- actualización correcta de punteros del directory.
+- deterministic hash strategy suitable for persistence;
+- directory lookup using relevant hash bits;
+- bucket split;
+- local-depth update;
+- directory doubling when needed;
+- correct directory-pointer updates.
 
-La contracción del directorio puede implementarse si la arquitectura la contempla, pero no debe desplazar funcionalidades explícitamente requeridas.
+Directory shrinking is optional unless later required by the adopted design.
 
-## Tests
+## Minimum tests
 
-- igualdad;
-- colisiones;
-- bucket lleno;
+- exact lookup;
+- collisions;
+- full bucket;
 - split;
 - directory doubling;
-- múltiples buckets compartidos;
-- delete;
-- persistencia si el diseño de índices es persistente en esta etapa.
+- shared bucket references;
+- deletion;
+- persistence if the index is persisted at this stage.
 
 ## Definition of Done
 
-El índice debe demostrar por qué es apropiado para búsquedas exactas y por qué no es la estructura elegida para rangos.
+The implementation clearly supports equality access and does not pretend to provide ordered range behavior.
 
 ---
 
-# 10. ETAPA 6 — Operadores relacionales y algoritmos externos
+# 11. Stage 6 — Relational Operators and External Algorithms
 
-## Objetivo
+## Objective
 
-Construir la ejecución física antes de conectar SQL.
+Build physical query execution before connecting the SQL parser.
 
-## 10.1 Interfaz de operador
+---
 
-Recomendación conceptual:
+## 11.1 Operator contract
+
+Recommended conceptual interface:
 
 ```text
 open()
@@ -566,11 +638,13 @@ next()
 close()
 ```
 
-o un iterador Python equivalente.
+or an equivalent Python iterator model.
 
-No mezclar sintaxis SQL dentro de los operadores.
+SQL syntax must not be embedded into physical operator implementations.
 
-## 10.2 Operadores mínimos
+---
+
+## 11.2 Minimum operator set
 
 ```text
 TableScan
@@ -582,70 +656,68 @@ Group
 Join
 ```
 
-## 10A. TableScan
+---
 
-Debe recorrer registros activos de una tabla.
+## 11.3 TableScan
 
-Tests:
+Must iterate active records from a table.
 
-- tabla vacía;
-- una página;
-- múltiples páginas;
-- registros eliminados.
+Minimum tests:
 
-## 10B. IndexScan
+- empty table;
+- one page;
+- multiple pages;
+- deleted records.
 
-Debe recuperar registros usando B+ o Hash cuando corresponda.
+---
 
-Tests:
+## 11.4 IndexScan
 
-- igualdad;
-- rango con B+;
-- RID inválido;
-- índice vacío.
+Must retrieve records through B+ or Extendible Hashing when appropriate.
 
-## 10C. Filter
+Minimum tests:
 
-Debe evaluar condiciones soportadas por el subconjunto SQL.
+- equality lookup;
+- B+ range lookup;
+- invalid RID handling;
+- empty index.
 
-Separar:
+---
 
-```text
-expression evaluation
-```
+## 11.5 Filter
 
-de:
+Must evaluate conditions supported by the future SQL subset.
 
-```text
-storage
-```
+Expression evaluation should remain separate from storage.
 
-## 10D. Projection
+---
 
-Selecciona columnas de cada fila.
+## 11.6 Projection
 
-## 10E. External Sort
+Returns selected columns from incoming rows.
 
-### Algoritmo requerido
+---
 
-External Sorting con k-way merge.
+## 11.7 External Sort
 
-Fase 1:
+`ORDER BY` must ultimately use External Sorting with k-way merge.
+
+Conceptual phases:
 
 ```text
-input
+Input
  |
  v
-memory-sized chunks
+Memory-sized chunks
  |
  v
-sort each chunk
+Sort each chunk
  |
  v
-sorted runs on disk
+Sorted runs on disk
 ```
 
-Fase 2:
+then:
 
 ```text
 run1 --\
@@ -654,31 +726,37 @@ run3 ----> k-way merge -> output
 runN ---/
 ```
 
-Debe existir un presupuesto de memoria configurable o una abstracción equivalente que obligue a generar múltiples runs durante pruebas.
+A configurable memory budget or equivalent mechanism should force multi-run behavior during tests.
 
-## 10F. GROUP BY
+---
 
-Implementar una estrategia válida basada en:
+## 11.8 GROUP BY
+
+Must use a strategy satisfying `REQUIREMENTS.md`, based on:
 
 - External Hashing;
-- uso estratégico de índices;
-- o combinación documentada.
+- strategic index use;
+- or a documented combination.
 
-No delegar a pandas.
+Do not delegate the required behavior to pandas.
 
-## 10G. JOIN
+---
 
-Recomendado:
+## 11.9 JOIN
 
-1. Nested Loop Join como baseline;
+Recommended progression:
+
+1. Nested Loop Join as a baseline;
 2. Hash Join;
-3. Index-assisted join cuando sea posible.
+3. index-assisted join when appropriate.
 
-Debe existir por lo menos una estrategia optimizada que satisfaga los requisitos del proyecto.
+At least one optimized strategy must clearly satisfy the official requirement.
 
-## Definition of Done de ETAPA 6
+---
 
-Una consulta física puede construirse manualmente, sin SQL, por ejemplo:
+## Definition of Done
+
+A physical plan can be assembled and executed manually without SQL, for example:
 
 ```text
 Projection(name)
@@ -688,27 +766,29 @@ Filter(age > 20)
 TableScan(students)
 ```
 
-y ejecutarse correctamente.
+---
+
+# 12. Stage 7 — SQL Parser, Planner, and Executor
+
+## Objective
+
+Transform required SQL statements into the Stage 6 physical operators.
 
 ---
 
-# 11. ETAPA 7 — SQL Parser, Planner y Executor
+## 12.1 Grammar
 
-## Objetivo
+Support only the SQL subset required by `REQUIREMENTS.md`.
 
-Transformar SQL en los operadores físicos de la Etapa 6.
+Do not prioritize advanced SQL features over required functionality.
 
-## 11.1 Grammar
+---
 
-Soportar solamente el subconjunto requerido.
+## 12.2 AST
 
-No implementar un estándar SQL completo.
+Build semantic nodes independent from the parser library.
 
-## 11.2 AST
-
-Crear nodos semánticos independientes del parser concreto.
-
-Ejemplo:
+Conceptual example:
 
 ```text
 SelectStatement
@@ -719,30 +799,40 @@ SelectStatement
 └── group_by
 ```
 
-## 11.3 Planner
+---
 
-Inicialmente puede ser rule-based.
+## 12.3 Planner
 
-Ejemplos:
+The initial planner may be rule-based.
+
+Examples:
 
 ```text
-WHERE pk = value + hash index
+Equality predicate + useful hash index
     -> Hash IndexScan
 
-WHERE indexed_key BETWEEN a AND b + B+
+Range predicate + useful B+
     -> B+ RangeScan
 
-sin índice útil
+No useful index
     -> TableScan + Filter
 ```
 
-## 11.4 Executor
+A cost-based optimizer is not required unless the project later adopts one.
 
-Debe ejecutar el physical plan real.
+---
 
-El plan expuesto al frontend debe representar exactamente esos operadores.
+## 12.4 Executor
 
-## SQL mínimo a probar
+The executor must execute the actual physical plan.
+
+The plan shown to the frontend must reflect the operators really used.
+
+---
+
+## Minimum SQL tests
+
+Required families include:
 
 ```sql
 INSERT INTO ...
@@ -777,27 +867,31 @@ DELETE FROM ...
 WHERE ...;
 ```
 
-Además deben existir los JOIN necesarios para demostrar el operador requerido.
-
-## Definition of Done
-
-- parser produce AST;
-- planner produce physical plan;
-- executor produce resultados;
-- índices reales pueden ser elegidos;
-- plan de ejecución refleja el camino real.
+JOIN syntax/coverage must be sufficient to demonstrate the required join implementation.
 
 ---
 
-# 12. ETAPA 8 — Transacciones y concurrencia
+## Definition of Done
 
-## Objetivo
+- parser produces an AST;
+- planner produces a physical plan;
+- executor returns correct results;
+- indexes can be chosen when appropriate;
+- the reported execution plan matches actual execution.
 
-Permitir acceso concurrente seguro.
+---
 
-## 12.1 Transaction Manager
+# 13. Stage 8 — Transactions and Concurrency
 
-Conceptualmente:
+## Objective
+
+Provide safe concurrent access and the mandatory thread-based demonstration.
+
+---
+
+## 13.1 Transaction Manager
+
+Conceptually:
 
 ```text
 Transaction
@@ -806,7 +900,7 @@ Transaction
 └── held locks / metadata
 ```
 
-Estados mínimos posibles:
+Possible states:
 
 ```text
 ACTIVE
@@ -814,84 +908,99 @@ COMMITTED
 ABORTED
 ```
 
-## 12.2 Lock Manager
+Exact semantics are architectural decisions.
 
-Estrategia recomendada:
+---
+
+## 13.2 Lock Manager
+
+Current recommended direction in `PROJECT_CONTEXT.md`:
 
 ```text
 Shared Lock (S)
 Exclusive Lock (X)
 ```
 
-Compatibilidad:
+Compatibility:
 
 | | S | X |
 |---|---:|---:|
-| S | sí | no |
+| S | yes | no |
 | X | no | no |
 
-Una variante simplificada de Strict 2PL es válida si se adopta oficialmente en el contexto.
+A simplified Strict 2PL design is acceptable if formally adopted and documented.
 
-## 12.3 Sintaxis requerida
+---
+
+## 13.3 Required transaction syntax
 
 ```text
 BEGIN TRANSACTION
 END TRANSACTION
 ```
 
-La semántica exacta debe documentarse.
-
-## 12.4 Demostración obligatoria
-
-Crear un test/demo con threads que muestre:
-
-### Escenario inseguro
-
-```text
-T1 y T2
-leen/modifican el mismo dato
-sin protección
--> resultado incorrecto
-```
-
-### Escenario protegido
-
-```text
-T1 adquiere lock
-T2 espera
-T1 termina
-T2 continúa
--> resultado correcto
-```
-
-## Tests
-
-- lectores concurrentes;
-- lector vs escritor;
-- escritores concurrentes;
-- liberación de locks;
-- transacción completa;
-- demo reproducible.
-
-## Definition of Done
-
-La race condition y su solución pueden demostrarse de forma repetible.
+The exact lifecycle semantics must be documented before implementation is considered stable.
 
 ---
 
-# 13. ETAPA 9 — API y Frontend
+## 13.4 Mandatory concurrency demonstration
 
-## Objetivo
+Show both:
 
-Construir la interfaz gráfica obligatoria sin romper la separación de capas.
+### Unsafe execution
 
-## 13.1 API
+```text
+T1 and T2
+read/modify the same data
+without protection
+-> incorrect result
+```
 
-La API envuelve al motor.
+### Protected execution
 
-No implementa storage ni índices.
+```text
+T1 acquires lock
+T2 waits
+T1 completes
+T2 continues
+-> correct result
+```
 
-Ejemplos conceptuales:
+---
+
+## Minimum tests
+
+- multiple readers;
+- reader vs writer;
+- multiple writers;
+- lock release;
+- complete transaction lifecycle;
+- reproducible race-condition demonstration;
+- protected correct execution.
+
+---
+
+## Definition of Done
+
+The race condition and its correction can be demonstrated repeatedly and explained through the implemented concurrency mechanism.
+
+---
+
+# 14. Stage 9 — API and Frontend
+
+## Objective
+
+Expose the engine through the required GUI without violating architectural boundaries.
+
+---
+
+## 14.1 API
+
+The API wraps the DBMS engine.
+
+It must not reimplement storage, indexing, planning, or execution.
+
+Conceptual endpoints may include:
 
 ```text
 GET  /tables
@@ -899,7 +1008,7 @@ GET  /tables/{name}
 POST /query
 ```
 
-La ejecución puede retornar:
+A query response may include:
 
 ```json
 {
@@ -910,11 +1019,13 @@ La ejecución puede retornar:
 }
 ```
 
-El contrato exacto debe definirse cuando se implemente.
+The exact contract should be decided when Stage 9 is implemented.
 
-## 13.2 Frontend
+---
 
-Tecnología recomendada:
+## 14.2 Frontend
+
+Current recommended stack:
 
 ```text
 React
@@ -922,61 +1033,73 @@ TypeScript
 Vite
 ```
 
-### Panel 1 — Archivos
+This is a project decision, not an official requirement.
 
-Debe mostrar:
+---
 
-- tablas;
-- columnas;
-- tipos;
-- metadata útil.
+## Required panel 1 — Files
 
-### Panel 2 — Consultas
+Show:
 
-Debe incluir:
+- loaded tables;
+- columns;
+- types;
+- useful table structure metadata.
 
-- editor SQL;
-- botón ejecutar;
-- feedback de errores.
+---
 
-### Panel 3 — Resultados
+## Required panel 2 — Query
 
-Debe mostrar filas y columnas.
+Provide:
 
-### Panel 4 — Plan de Ejecución
+- SQL editor;
+- execution action;
+- useful error feedback.
 
-Debe visualizar:
+---
 
-- operadores;
-- orden;
-- índice usado;
-- acceso físico relevante.
+## Required panel 3 — Results
 
-No fabricar un plan decorativo.
+Show query output in tabular form.
+
+---
+
+## Required panel 4 — Execution Plan
+
+Show:
+
+- operators;
+- operation order;
+- indexes used;
+- relevant physical access information.
+
+Do not generate a decorative plan disconnected from the executor.
+
+---
 
 ## Definition of Done
 
-Puede ejecutarse una consulta desde la interfaz y observar:
+A user can execute a query from the GUI and observe:
 
 ```text
-consulta
-resultado
-plan real
+query
+result
+actual execution plan
 ```
 
 ---
 
-# 14. ETAPA 10 — Experimentos, integración y entrega
+# 15. Stage 10 — Experiments, Integration, and Delivery
 
-## Objetivo
+## Objective
 
-Demostrar experimentalmente el comportamiento de las estructuras.
+Produce the required comparative evidence and prove that all Part 1 layers work together.
 
-## 14.1 Generador de datasets
+---
 
-Debe ser reproducible.
+## 15.1 Reproducible datasets
 
-Tamaños:
+Required sizes:
 
 ```text
 1,000
@@ -984,11 +1107,13 @@ Tamaños:
 100,000
 ```
 
-Idealmente usar una seed fija cuando exista aleatoriedad.
+Use reproducible generation whenever randomness is involved.
 
-## 14.2 Comparación de archivos
+---
 
-Comparar:
+## 15.2 File-organization comparison
+
+Compare:
 
 ```text
 Heap File
@@ -996,62 +1121,72 @@ vs
 Paged Sequential File
 ```
 
-Medir:
+Measure:
 
-- tiempo de inserción;
-- búsqueda por PK;
-- espacio en disco;
-- tiempo de reorganización.
+- insertion time;
+- primary-key search time;
+- disk space used;
+- reorganization time.
 
-## 14.3 Comparación de índices
+---
 
-Comparar:
+## 15.3 Index comparison
+
+Compare:
 
 ```text
-B+ clustered
-B+ unclustered
+Clustered B+
+Unclustered B+
 Extendible Hashing
 ```
 
-Pruebas:
+Evaluate:
 
-- igualdad;
-- rango;
-- ordenamiento.
+- equality;
+- range;
+- sorting.
 
-Medir:
+Measure:
 
-- construcción;
-- consulta;
-- espacio adicional;
-- inserciones/eliminaciones frecuentes.
+- index construction time;
+- query time;
+- extra disk space;
+- behavior under frequent insertions/deletions.
 
-## 14.4 Metodología
+---
 
-Para evitar benchmarks engañosos:
+## 15.4 Benchmark methodology
 
-- mismo hardware;
-- mismos datasets;
-- misma semilla;
-- repetir consultas;
-- registrar configuración;
-- evitar mezclar generación del dataset con tiempo de consulta;
-- documentar warm-up/caché si afecta los resultados.
+To reduce misleading results:
 
-## 14.5 Presentación
+- use the same hardware;
+- use the same logical datasets;
+- use the same random seed when applicable;
+- separate dataset generation from query timing;
+- repeat measurements;
+- record benchmark configuration;
+- document cache/warm-up behavior when relevant.
 
-Generar:
+Do not fabricate benchmark values.
 
-- CSV/JSON de resultados crudos;
-- gráficas;
-- tabla comparativa;
-- conclusiones.
+---
 
-No escribir primero la conclusión y luego buscar números que la confirmen.
+## 15.5 Experimental outputs
 
-## 14.6 Integración final
+Produce:
 
-Probar:
+- raw CSV/JSON results;
+- charts;
+- comparison tables;
+- conclusions.
+
+Conclusions must follow from the measured results.
+
+---
+
+## 15.6 Final integration
+
+Validate the full path:
 
 ```text
 Frontend
@@ -1062,165 +1197,146 @@ SQL Engine
   ↓
 Operators
   ↓
-Indexes / Files
+Indexes / Storage Files
   ↓
 Pages
   ↓
 Disk
 ```
 
-También probar:
+Also validate:
 
-- reinicio;
-- datos persistentes;
-- creación/carga de tablas;
-- errores SQL;
-- concurrencia;
-- benchmark scripts.
+- restart and persistence;
+- table loading/creation mechanism adopted by the project;
+- SQL error handling;
+- concurrency;
+- benchmark scripts;
+- documentation.
 
 ---
 
-# 15. Dependencias entre etapas
+# 16. Stage dependencies
 
 ```text
-ETAPA 1
-Arquitectura
+Stage 1
+Architecture
     |
     v
-ETAPA 2
+Stage 2
 Pages / Persistence
     |
     v
-ETAPA 3
+Stage 3
 Heap / Sequential
     |
     +----------------+
     |                |
     v                v
-ETAPA 4          ETAPA 5
+Stage 4          Stage 5
 B+               Hash
     |                |
     +-------+--------+
             |
             v
-         ETAPA 6
+         Stage 6
          Operators
             |
             v
-         ETAPA 7
+         Stage 7
         SQL Engine
             |
             v
-         ETAPA 8
+         Stage 8
        Transactions
             |
             v
-         ETAPA 9
+         Stage 9
        API / Frontend
             |
             v
-         ETAPA 10
+         Stage 10
        Experiments
 ```
 
-Etapas 4 y 5 pueden desarrollarse en paralelo si la Etapa 3 está estable y las interfaces fueron definidas correctamente.
-
 ---
 
-# 16. Política de commits recomendada
+# 17. Recommended work cycle with Codex
 
-Ejemplos:
+For every stage:
 
-```text
-docs: add stage 1 architecture plan
-feat(catalog): add schema and column metadata
-feat(storage): add RID abstraction
-test(catalog): add schema validation tests
-feat(storage): add page serialization
-feat(heap): implement free-space reuse
-feat(bplus): support leaf splitting
-fix(hash): update directory refs after bucket split
-```
+## Step 1 — Inspect
 
-Evitar commits gigantes como:
+Use a prompt similar to:
 
 ```text
-finish database
-```
+Read AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md,
+and the current ETAPA_XX.md file.
 
----
-
-# 17. Política de trabajo con Codex
-
-Para cada etapa:
-
-## Paso 1 — Inspección
-
-Pedir:
-
-```text
-Read AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md and the current stage file.
 Inspect the repository.
-Do not modify code.
-Report what already exists and what is missing for this stage.
+Do not modify code yet.
+
+Report what already exists, what is missing for the current stage,
+and any conflicts with the project documentation.
 ```
 
-## Paso 2 — Implementación pequeña
-
-Solicitar un subconjunto:
+## Step 2 — Implement one small task
 
 ```text
-Implement only task X.Y from the current stage.
-Add the required tests.
+Implement only task X.Y from the current stage document.
+
+Reuse existing compatible code.
 Do not implement future-stage functionality.
+
+Add or update the relevant tests.
 ```
 
-## Paso 3 — Validación
-
-Pedir:
+## Step 3 — Validate
 
 ```text
 Run the relevant tests.
+
 Explain any failures.
-Do not change unrelated code.
+Do not modify unrelated code.
 ```
 
-## Paso 4 — Contexto
+## Step 4 — Promote stable decisions
 
-Actualizar `PROJECT_CONTEXT.md` cuando se toma una decisión estable.
+If implementation work resolves a previously open architectural decision, update `PROJECT_CONTEXT.md`.
+
+Do not add temporary debugging details to `PROJECT_CONTEXT.md`.
 
 ---
 
-# 18. Criterio global de finalización de la Parte 1
+# 18. Global completion rule for Part 1
 
-La Parte 1 solo se considera terminada cuando:
+Part 1 is complete only when:
 
 ```text
-[ ] ETAPA 1 completa
-[ ] ETAPA 2 completa
-[ ] ETAPA 3 completa
-[ ] ETAPA 4 completa
-[ ] ETAPA 5 completa
-[ ] ETAPA 6 completa
-[ ] ETAPA 7 completa
-[ ] ETAPA 8 completa
-[ ] ETAPA 9 completa
-[ ] ETAPA 10 completa
+[ ] Stage 1 complete
+[ ] Stage 2 complete
+[ ] Stage 3 complete
+[ ] Stage 4 complete
+[ ] Stage 5 complete
+[ ] Stage 6 complete
+[ ] Stage 7 complete
+[ ] Stage 8 complete
+[ ] Stage 9 complete
+[ ] Stage 10 complete
 ```
 
-y el checklist de `REQUIREMENTS.md` está completamente satisfecho.
+and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 ---
 
-# 19. Estado actual
+# 19. Current status
 
-Estado inicial recomendado:
+Current planned stage:
 
-```text
-Current stage: ETAPA 1
-Next document: ETAPA_01.md
-```
+> **Stage 1 — Architecture and Data Model**
 
-No asumir que el repositorio está vacío.
+Current detailed stage document:
 
-Codex debe inspeccionarlo antes de crear archivos o modificar código.
+> `ETAPA_01.md`
+
+Codex must inspect the repository before assuming which Stage 1 components are already implemented.
+
