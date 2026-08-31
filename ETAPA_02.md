@@ -1,6 +1,6 @@
 # ETAPA_02.md
 
-> Context version: **1.1** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and the completed `ETAPA_01.md`.
+> Context version: **1.2** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and the completed `ETAPA_01.md`.
 
 ## Stage 2 — Pages, Records, and Base Persistence
 
@@ -9,6 +9,29 @@
 **Previous stage:** Stage 1 — Architecture and Data Model  
 **Next stage:** Stage 3 — Heap File and Paged Sequential File  
 **Roadmap:** `PLAN.md`
+
+## Implementation status (2026-08-31)
+
+- Stage 2 is in progress by explicit user request, limited to tasks 2.2–2.6.
+- Repository inspection (2.1) confirmed the existing model/contracts and no
+  physical storage implementation. Baseline: 400 passing tests.
+- Physical format v1 (2.2) is adopted in `PROJECT_CONTEXT.md`: 4096-byte
+  slotted pages, 12-byte PageHeader, 5-byte slots, 20-byte file-header prefix,
+  little-endian, signed int64, binary64 with canonical NaN, strict UTF-8,
+  no NULL, reusable deleted RIDs, and an in-memory catalog during Stage 2.
+- Completed with tests: binary constants and geometry checks (2.3), ValueCodec
+  (2.4), RecordCodec (2.5), and immutable PageHeader (2.6).
+- Validation: 296 new tests pass; the complete suite passes **696 tests** with
+  `-W error` (Windows, Python 3.12.4, pytest 8.4.2). `compileall` and `pip check`
+  also pass. Existing model/contract tests remain unchanged and pass.
+- New tests live in `tests/storage/test_binary.py`, `test_value_codec.py`,
+  `test_record_codec.py`, `test_page_header.py`, and
+  `tests/test_codec_header_integration.py`. They cover fixed expected bytes,
+  numeric/Unicode boundaries, NaN/infinities, malformed/truncated buffers,
+  overlap/bounds checks, and integration with file-opening APIs blocked.
+- SlotEntry, Page, FileHeader, PageManager and disk persistence remain pending.
+  Stage 2 is not complete; do not infer persistence from byte round-trips.
+- Next task: **2.7 — SlotEntry / slot directory**, outside this completed block.
 
 ---
 
@@ -118,16 +141,16 @@ Stage 1 is assumed to be complete.
 Before implementing Stage 2, verify that:
 
 ```text
-[ ] Stage 1 Definition of Done is satisfied
-[ ] Stage 1 tests pass
-[ ] DataType exists
-[ ] Column exists
-[ ] Schema exists
-[ ] Record exists
-[ ] RID exists
-[ ] TableMetadata exists
-[ ] Catalog exists
-[ ] storage/index/operator contracts are stable enough to continue
+[x] Stage 1 Definition of Done is satisfied
+[x] Stage 1 tests pass
+[x] DataType exists
+[x] Column exists
+[x] Schema exists
+[x] Record exists
+[x] RID exists
+[x] TableMetadata exists
+[x] Catalog exists
+[x] storage/index/operator contracts are stable enough to continue
 ```
 
 Because the project has moved to Stage 2, the `Current stage` sections of coordination documents should also point to:
@@ -294,6 +317,10 @@ Do not modify code during Task 2.1.
 ---
 
 # 7. Task 2.2 — Resolve Stage 2 physical-storage decisions
+
+**Completed:** the adopted v1 choices and their rationale are recorded in the
+Page / Physical format v1 section of `PROJECT_CONTEXT.md`. The alternatives
+below are planning context, not unresolved choices or official requirements.
 
 ## Objective
 
@@ -1514,11 +1541,10 @@ original = Record(
 
 payload = record_codec.serialize(original)
 
-page = page_manager.allocate_page()
+page_id = page_manager.allocate_page()
+page = page_manager.read_page(page_id)
 slot_id = page.insert(payload)
 page_manager.write_page(page)
-
-page_id = page.page_id
 
 page_manager.close()
 
@@ -1737,31 +1763,31 @@ Stage 2 is complete only when all applicable items are satisfied.
 ## Architecture decisions
 
 ```text
-[ ] page size is explicitly adopted
-[ ] page layout is documented
-[ ] slot layout is documented
-[ ] record encoding is documented
-[ ] file-header strategy is documented
-[ ] byte order is documented
-[ ] RID stability policy is documented
-[ ] NULL policy is explicit
-[ ] catalog persistence policy is explicit
+[x] page size is explicitly adopted
+[x] page layout is documented
+[x] slot layout is documented
+[x] record encoding is documented
+[x] file-header strategy is documented
+[x] byte order is documented
+[x] RID stability policy is documented
+[x] NULL policy is explicit
+[x] catalog persistence policy is explicit
 ```
 
 ## Serialization
 
 ```text
-[ ] adopted primitive types round-trip correctly
-[ ] VARCHAR framing is deterministic
-[ ] RecordCodec serializes Stage 1 Records
-[ ] RecordCodec reconstructs Records correctly
-[ ] malformed records are rejected
+[x] adopted primitive types round-trip correctly
+[x] VARCHAR framing is deterministic
+[x] RecordCodec serializes Stage 1 Records
+[x] RecordCodec reconstructs Records correctly
+[x] malformed records are rejected
 ```
 
 ## Page
 
 ```text
-[ ] PageHeader
+[x] PageHeader
 [ ] SlotEntry / slot directory
 [ ] empty Page
 [ ] variable-length record insertion
@@ -1811,12 +1837,18 @@ Stage 2 is complete only when all applicable items are satisfied.
 ## Documentation
 
 ```text
-[ ] stable Stage 2 decisions are recorded in PROJECT_CONTEXT.md
-[ ] coordination documents identify Stage 2 correctly
-[ ] no Stage 3 algorithm was implemented unnecessarily
+[x] stable Stage 2 decisions are recorded in PROJECT_CONTEXT.md
+[x] coordination documents identify Stage 2 correctly
+[x] no Stage 3 algorithm was implemented unnecessarily
 ```
 
 Only after this checklist is satisfied should the project move to Stage 3.
+
+Partial verification note (tasks 2.2–2.6): all 696 currently implemented tests
+pass. Full Page invariants, slot validation, allocated-page checks, oversized
+insertion rejection and the disk round-trip remain unchecked because those
+components do not exist yet. The initial in-memory integration test does not
+satisfy task 2.19 or the complete-stage integration checklist.
 
 ---
 

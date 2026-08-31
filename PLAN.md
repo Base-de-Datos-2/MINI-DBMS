@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **1.1** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and `ETAPA_01.md`.
+> Context version: **1.2** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and `ETAPA_02.md`.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1336,16 +1336,19 @@ Latest completed stage:
 
 Current detailed stage document:
 
-> `ETAPA_01.md`
+> `ETAPA_02.md`
 
 Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
 in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
 domain errors, test-only behavioral examples, expanded integration, and
-architecture/import checks. The complete suite passes with 400 tests.
+architecture/import checks. Its closure suite passed with 400 tests.
 Evidence: [Stage 1 closure audit](docs/ETAPA_01_AUDIT.md).
 
-**Stage 2 is not started.** The user explicitly requested stopping at the Stage 1
-closure; no page/persistence work or `ETAPA_02.md` was introduced. Completing
-Stage 1 does not complete Part 1 or authorize automatic work on the next stage.
+**Stage 2 is in progress.** The user explicitly authorized tasks 2.2–2.6 on
+2026-08-31. This block covers physical design, binary constants/invariants,
+primitive/record codecs, and PageHeader only. Verified progress is tracked in
+`ETAPA_02.md`: tasks 2.2–2.6 are complete with 696 passing tests overall.
+SlotEntry, Page, FileHeader and PageManager remain pending.
+Stage 2 is not complete and disk persistence is not implemented yet.
 
-Codex must inspect the repository before assuming which Stage 1 components are already implemented.
+Codex must inspect the repository before assuming which components are already implemented.

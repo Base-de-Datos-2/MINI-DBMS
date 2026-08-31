@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **1.1** — aligned with `PLAN.md` and `ETAPA_01.md`.
+> Context version: **1.2** — aligned with `PLAN.md` and `ETAPA_02.md`.
 
 ## Project identity
 
@@ -263,7 +263,8 @@ If the existing implementation already has an equivalent physical identifier, pr
 Implemented in `engine/storage/rid.py`: `RID` is an immutable, hashable value
 object, ordered lexicographically by `(page_id, slot_id)`. Components must be
 non-negative built-in `int` values; booleans and coercions are rejected. No
-binary upper bound is imposed yet. A RID is relative to a storage file, not
+binary upper bound is imposed by this logical value object. Physical bounds
+are validated by storage components. A RID is relative to a storage file, not
 globally unique across tables, and does not access disk or validate allocation.
 
 ---
@@ -317,7 +318,7 @@ The initial model lives in `engine/catalog/types.py` and
 
 These classes are independent from storage, SQL parsing, API, and frontend code.
 Record-value validation is implemented separately by `Record`, as described
-below. Constraints, serialization, and physical layout remain unimplemented.
+below. Physical encoding belongs to the storage codecs, not these classes.
 
 ---
 
@@ -340,9 +341,9 @@ Implemented in `engine/storage/record.py`, with public imports of `Record` and
   and custom scalar subclasses are not accepted.
 - No implicit conversions are performed, including parsing numeric strings.
   `None`/SQL `NULL` is not supported by the current model.
-- Integer binary limits remain undecided. FLOAT accepts Python float values,
-  including NaN and infinities; future SQL operators and serialization must
-  explicitly address their semantics.
+- Logical integers remain unbounded. FLOAT accepts Python float values,
+  including NaN and infinities. The physical codec rules below do not change
+  Record validation; future SQL operators must define their own semantics.
 - `record["column_name"]` is the single named-value access API. Names use
   `Schema.index_of` and its exact-name validation. Position/slice access is not
   added; the ordered `values` tuple remains available.
@@ -433,7 +434,118 @@ Important note:
 
 Therefore the page size must be a configurable or explicitly documented project decision.
 
-Do not hard-code a size because an earlier discussion suggested one unless the implementation has formally adopted it.
+The project adopts the following version-1 design on 2026-08-31, under the
+user's request for tasks 2.2–2.6. These are project decisions, not additional
+academic requirements. **4096 bytes is now adopted**, not merely proposed:
+it gives a small fixed unit for educational tests and enough space for several
+variable-length rows. Alternative page sizes are not supported by format v1.
+
+### Physical format v1
+
+All multibyte fields use little-endian, standard sizes, and no native padding
+(`struct` prefix `<`). Formats and derived sizes live in
+`engine/storage/binary.py`; no other module owns binary layout constants.
+
+| Structure | Format / size | Fields in byte order |
+|---|---|---|
+| Page | 4096 bytes | header, slot directory, contiguous free area, payload area |
+| PageHeader | `<IHHHH` / 12 bytes | page_id, slot_count, free_space_start, free_space_end, active_record_count |
+| Slot (planned) | `<HHB` / 5 bytes | offset, length, status (0 free, 1 active) |
+| File header (planned) | `<8sIII` / 20 bytes | magic, version, page_size, allocated_page_count |
+
+The directory grows from byte 12 toward higher offsets; record bytes grow
+backward from byte 4096. Page offsets are relative to the page, not the file.
+`slot_count` includes free entries, and slot ids are zero-based directory
+positions. `active_record_count` counts only live entries.
+
+Required numeric and geometric invariants:
+
+- page_id fits uint32; counts, offsets, and lengths fit uint16;
+- `0 <= active_record_count <= slot_count <= 816`;
+- `free_space_start == 12 + slot_count * 5`;
+- `free_space_start <= free_space_end <= 4096`;
+- zero slots implies `free_space_end == 4096`;
+- live payload ranges lie in `[free_space_end, 4096]`, never overlap the
+  header/directory/free area or each other; adjacent ranges and holes are valid;
+- zero-byte records (empty schema) are valid; their planned canonical slot
+  offset is 4096 and they occupy no payload bytes;
+- a serialized complete page must have exactly 4096 bytes.
+
+An empty page has 4084 contiguous free bytes. A new slot costs 5 bytes, so a
+record in an otherwise empty page can occupy at most 4079 bytes. Future Page
+insertion must reject oversized payloads; overflow pages are not adopted.
+Codecs enforce value framing limits, not page capacity. Header free space is
+only `free_space_end - free_space_start`, not total reclaimable fragmented
+space. Checking geometry is not proof that a page id has been allocated.
+
+`PageHeader` is an immutable validated snapshot with an empty-page default.
+It serializes/deserializes exactly its 12 bytes, not a complete page. Shared
+validators check buffer size and geometry; optional active payload ranges
+allow overlap checks without knowing records or slot objects. Full page/slot
+validation remains the responsibility of their later implementations.
+
+### RID lifetime and space reuse (policy for the upcoming Page)
+
+Live `RID(page_id, slot_id)` values survive page-local compaction. Compaction
+moves bytes and updates offsets, never renumbers slots or moves rows across
+pages. Deletion will mark the entry free (offset and length reset to zero),
+decrement the active count, and leave a reclaimable hole until compaction.
+Slot entries are retained. Insertion may reuse the first free slot before
+appending one; it still needs payload capacity. Compaction may reclaim holes
+without changing the identity of live slots.
+
+An eliminated RID is invalidated, but its pair can subsequently identify a
+new row when its slot is reused. No generation counter or historical identity
+guarantee is provided. Future storage/index integration must remove old index
+references before making a deleted slot reusable. This policy does not modify
+the existing logical RID class or implement allocation/deletion yet.
+
+### Primitive and record encoding
+
+| Type | Physical representation | Boundary behavior |
+|---|---|---|
+| INTEGER | `<q`, signed 64-bit | accepts -2**63 through 2**63-1; rejects larger logical ints |
+| FLOAT | `<d`, IEEE-754 binary64 | preserves finite values, signed zero and infinities |
+| BOOLEAN | `<B`, one byte | only 0 and 1 are valid encodings |
+| VARCHAR | `<I` byte-length prefix + strict UTF-8 bytes | at most 2**32-1 encoded bytes; no terminator |
+
+NaN is allowed as a row value. Every NaN is encoded as the canonical quiet NaN
+`00 00 00 00 00 00 f8 7f`; decoding accepts all binary64 NaN patterns. NaN
+payload/sign is not preserved, and tests use `isnan`, not equality. Existing
+index contracts still reject NaN keys. No scalar coercions are introduced.
+UTF-8 preserves Unicode and embedded NUL; lone surrogates and malformed UTF-8
+are rejected. Lengths count bytes, not characters.
+
+`ValueCodec.encode/decode` handles a single value, with exact consumption on
+decode. `decode_from` returns the value and absolute next offset within a byte
+buffer. `RecordCodec.serialize` concatenates values in schema order;
+`deserialize(schema, payload)` reconstructs a Record and rejects missing or
+trailing bytes. Empty records encode to empty bytes. Neither codec owns pages
+or accesses disk. Binary input APIs require immutable `bytes`.
+
+Rows contain no schema, type tags, column count, checksum, or NULL bitmap.
+The caller must supply the matching schema; an incorrect schema with an
+otherwise compatible encoding cannot always be detected. Validation catches
+structural corruption, not arbitrary bit changes to valid values. `None` /
+SQL NULL remains unsupported. Wrong argument/scalar types raise
+`InvalidTypeError`; range, framing, UTF-8, boolean and header/layout failures
+raise `ValidationError`, retaining TypeError/ValueError compatibility.
+
+### File and catalog strategy (not file I/O yet)
+
+Use a 20-byte file-header prefix before the first data page, not a reserved
+metadata page. Its magic is `b"MINIDB\x00\x00"` (8 bytes), format version is 1,
+and page size must equal 4096. The future manager maps a zero-based page id to
+`20 + page_id * 4096`, verifies `page_id < allocated_page_count`, and checks
+file length against the count. File counts fit uint32; therefore the maximum
+allocated id is below the maximum count, even though PageHeader can represent
+any uint32 id. No FileHeader class, allocation, flushing, or recovery is
+implemented in tasks 2.2–2.6.
+
+The catalog remains in memory throughout Stage 2. Schema/catalog persistence
+is deferred to a later integration task; reopen tests will explicitly supply
+the same schema. Reopening page bytes will not imply automatic table discovery.
+The versioned format is a baseline, not a crash-recovery or migration protocol.
 
 ---
 
@@ -952,7 +1064,7 @@ Overall Part 1 roadmap:
 
 Detailed current-stage specification:
 
-> `ETAPA_01.md`
+> `ETAPA_02.md`
 
 Implemented so far:
 
@@ -965,15 +1077,22 @@ Implemented so far:
 - passing unit/interface tests, test-only behavioral examples, expanded
   model/catalog/contract integration without file access during operations,
   and architecture/import regression checks.
+- Stage 2 tasks 2.2–2.6: documented physical format v1, centralized binary
+  constants/geometry checks, ValueCodec, RecordCodec, and immutable PageHeader;
+- 296 additional tests for golden bytes, boundaries, malformed data, header
+  geometry, and integration with the catalog without file access. All 696
+  current tests pass with warnings treated as errors; compileall and pip check
+  also pass (Windows, Python 3.12.4, pytest 8.4.2).
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
 limits of verification are recorded in [the audit](docs/ETAPA_01_AUDIT.md).
 
-**Stage 2 is not started**, as explicitly requested by the user. No physical
-persistence, page layout, or later-stage implementation has been introduced.
-The repository remains at the completed Stage 1 boundary until advancing is
-requested. Reserved directories do not imply implemented components.
+**Stage 2 is in progress**, explicitly authorized on 2026-08-31 for tasks
+2.2–2.6 only: physical design, binary constants/invariants, primitive and record
+codecs, and PageHeader. See `ETAPA_02.md` for verified progress. SlotEntry, Page,
+FileHeader and PageManager are not part of this implementation block. There is
+no disk persistence yet, and Stage 2 is not complete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 
@@ -985,11 +1104,8 @@ When the project advances to a new stage, update this section and point it to th
 
 The following should not be guessed silently:
 
-- final page size;
-- exact binary page layout;
-- exact variable-length-record strategy;
-- binary encoding / endianness and physical record limits;
-- catalog persistence strategy (the Stage 1 catalog remains in memory);
+- eventual catalog/schema persistence format and integration timing (deferred
+  beyond Stage 2; the current catalog remains in memory);
 - exact clustered B+ physical layout;
 - supported comparison operators in `WHERE`;
 - aggregation functions beyond those required by tests/use cases;

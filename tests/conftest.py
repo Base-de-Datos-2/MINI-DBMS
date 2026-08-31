@@ -13,7 +13,7 @@ def no_file_io(monkeypatch):
     @contextmanager
     def guard():
         def forbidden(*args, **kwargs):
-            pytest.fail("Stage 1 model/contract operations must not access files")
+            pytest.fail("Guarded model, contract, and binary operations must not access files")
 
         with monkeypatch.context() as patch:
             patch.setattr(builtins, "open", forbidden)

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **1.1** — aligned with `PLAN.md` and `ETAPA_01.md`.
+> Context version: **1.2** — aligned with `PLAN.md` and `ETAPA_02.md`.
 
 ## Purpose
 
@@ -319,12 +319,15 @@ Latest completed stage:
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
-**Stage 2 has not started.** Remain at the completed Stage 1 boundary until the
-user explicitly requests advancing; closure alone does not authorize Stage 2.
+**Stage 2 is in progress.** On 2026-08-31 the user explicitly authorized tasks
+2.2–2.6: physical design, constants/invariants, primitive and record codecs,
+and PageHeader. Do not extend this block to SlotEntry, Page, FileHeader,
+PageManager or disk I/O without a further request. Tasks 2.2–2.6 are complete
+and verified; the next pending task is 2.7. Stage 2 is not complete.
 
 Current detailed stage specification:
 
-> `ETAPA_01.md`
+> `ETAPA_02.md`
 
 Stage 1 includes, at the planning level:
 

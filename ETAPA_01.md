@@ -8,7 +8,7 @@
 **Dependencies:** None  
 **Status:** Complete — audited 2026-08-31
 
-**Next stage (not started):** Stage 2 — Pages, Records, and Base Persistence
+**Next stage:** Stage 2 — Pages, Records, and Base Persistence (now in progress; see `ETAPA_02.md`)
 
 **Roadmap:** `PLAN.md`
 
@@ -29,9 +29,9 @@
   and dependency/import audits. The full suite passes: 400 tests.
 - **Stage 1 is formally complete**, with all applicable Definition-of-Done
   criteria verified. Evidence: [closure audit](docs/ETAPA_01_AUDIT.md).
-- **Stage 2 has not started**, by explicit user instruction. No physical
-  implementation was introduced; empty packages and directory markers still
-  reserve future locations only.
+- At the Stage 1 closure, Stage 2 had not started, by explicit user instruction.
+  A subsequent request authorized tasks 2.2–2.6; current progress belongs in
+  `ETAPA_02.md`. The 400-test closure evidence above remains historical.
 
 Adopted model and catalog semantics are recorded in `PROJECT_CONTEXT.md`.
 
@@ -1230,8 +1230,8 @@ Checklist verified on 2026-08-31. See [audit evidence](docs/ETAPA_01_AUDIT.md)
 for commands, results, criterion mapping, and validation limits. Test doubles
 demonstrate contract use; they are not physical implementations.
 
-All criteria are satisfied, but the project remains at the completed Stage 1
-boundary. Stage 2 must not start until explicitly requested by the user.
+All criteria were satisfied at closure. The user subsequently authorized the
+first Stage 2 implementation block; see `ETAPA_02.md` for its separate status.
 
 ---
 
