@@ -6,7 +6,10 @@
 
 **Part:** Relational Database  
 **Dependencies:** None  
-**Next stage:** Stage 2 — Pages, Records, and Base Persistence  
+**Status:** Complete — audited 2026-08-31
+
+**Next stage (not started):** Stage 2 — Pages, Records, and Base Persistence
+
 **Roadmap:** `PLAN.md`
 
 ## Implementation status
@@ -21,9 +24,14 @@
 - Completed: abstract Storage, Index/OrderedIndex, and Operator contracts
   (1.10), plus minimal domain errors (1.11) integrated with the current model
   and catalog. New interface/error tests pass along with all previous tests.
-- Next pending work: final integration/Definition-of-Done review. Stage 1 has
-  not been formally closed. No physical implementation was introduced; empty
-  packages and directory markers still reserve future locations only.
+- Completed: behavioral contract examples using test-only doubles, extended
+  integration with file I/O blocked, exception compatibility regression tests,
+  and dependency/import audits. The full suite passes: 400 tests.
+- **Stage 1 is formally complete**, with all applicable Definition-of-Done
+  criteria verified. Evidence: [closure audit](docs/ETAPA_01_AUDIT.md).
+- **Stage 2 has not started**, by explicit user instruction. No physical
+  implementation was introduced; empty packages and directory markers still
+  reserve future locations only.
 
 Adopted model and catalog semantics are recorded in `PROJECT_CONTEXT.md`.
 
@@ -1168,10 +1176,10 @@ Stage 1 is complete only when all applicable items are satisfied.
 ## Architecture
 
 ```text
-[ ] repository structure remains modular
-[ ] no frontend-to-storage dependency was introduced
-[ ] no future-stage algorithm was implemented unnecessarily
-[ ] existing compatible code was reused instead of duplicated
+[x] repository structure remains modular
+[x] no frontend-to-storage dependency was introduced
+[x] no future-stage algorithm was implemented unnecessarily
+[x] existing compatible code was reused instead of duplicated
 ```
 
 ## Data model
@@ -1210,15 +1218,20 @@ Stage 1 is complete only when all applicable items are satisfied.
 ## Quality
 
 ```text
-[ ] relevant unit tests exist
+[x] relevant unit tests exist
 [x] Stage 1 integration test exists
-[ ] all relevant tests pass
-[ ] imports are stable
-[ ] no equivalent foundational abstraction was duplicated
-[ ] documentation reflects stable decisions
+[x] all relevant tests pass
+[x] imports are stable
+[x] no equivalent foundational abstraction was duplicated
+[x] documentation reflects stable decisions
 ```
 
-Only after this checklist is satisfied should the project move to Stage 2.
+Checklist verified on 2026-08-31. See [audit evidence](docs/ETAPA_01_AUDIT.md)
+for commands, results, criterion mapping, and validation limits. Test doubles
+demonstrate contract use; they are not physical implementations.
+
+All criteria are satisfied, but the project remains at the completed Stage 1
+boundary. Stage 2 must not start until explicitly requested by the user.
 
 ---
 

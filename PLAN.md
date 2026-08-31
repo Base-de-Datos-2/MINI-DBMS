@@ -1312,7 +1312,7 @@ Do not add temporary debugging details to `PROJECT_CONTEXT.md`.
 Part 1 is complete only when:
 
 ```text
-[ ] Stage 1 complete
+[x] Stage 1 complete
 [ ] Stage 2 complete
 [ ] Stage 3 complete
 [ ] Stage 4 complete
@@ -1330,7 +1330,7 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 # 19. Current status
 
-Current planned stage:
+Latest completed stage:
 
 > **Stage 1 — Architecture and Data Model**
 
@@ -1338,13 +1338,14 @@ Current detailed stage document:
 
 > `ETAPA_01.md`
 
-Current implementation progress: repository/package setup, the foundational
-data model (`DataType`, `Column`, `Schema`, `RID`, `Record`), table/index metadata,
-and the in-memory `Catalog` are implemented with passing unit tests and a
-model/catalog integration test. Abstract storage, index/ordered-index, and
-operator contracts (1.10) and integrated domain errors (1.11) are now implemented
-with passing interface/error tests. The next work is final Stage 1 integration
-and Definition-of-Done review in `ETAPA_01.md`; this update does not formally
-close Stage 1 or begin Stage 2.
+Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
+in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
+domain errors, test-only behavioral examples, expanded integration, and
+architecture/import checks. The complete suite passes with 400 tests.
+Evidence: [Stage 1 closure audit](docs/ETAPA_01_AUDIT.md).
+
+**Stage 2 is not started.** The user explicitly requested stopping at the Stage 1
+closure; no page/persistence work or `ETAPA_02.md` was introduced. Completing
+Stage 1 does not complete Part 1 or authorize automatic work on the next stage.
 
 Codex must inspect the repository before assuming which Stage 1 components are already implemented.

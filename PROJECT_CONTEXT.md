@@ -630,6 +630,27 @@ tests for those documented rules. There is no common stateful executor here.
 
 ---
 
+## Stage 1 verification boundary
+
+`tests/doubles.py` contains minimal `StorageDouble`, `EqualityIndexDouble`,
+`OrderedIndexDouble`, and `OperatorDouble` examples. They reuse production
+models/contracts but remain exclusively in the test package; only `engine`
+packages are selected for distribution. Their dictionaries, small ordered
+lists, synthetic RIDs, and resource probes do not implement academic physical
+algorithms or prescribe future storage layouts.
+
+Behavioral tests exercise contract validation, equality/ranges, exhaustion,
+reopening, and cleanup on normal/early/error exits. The integration scenarios
+compose catalog, records and the doubles with file-opening APIs blocked during
+operations. Architecture tests separately inspect source dependencies and use
+fresh isolated interpreters to validate public imports without pytest preload.
+
+The contracts' semantics remain unchanged. Tests of these examples are not a
+substitute for conformance tests on future physical implementations, nor evidence
+of persistence, concurrency, or relational query execution.
+
+---
+
 ## External sorting
 
 `ORDER BY` must be supported using External Sorting with k-way merge.
@@ -921,7 +942,7 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 ## Current stage
 
-Current planned stage:
+Latest completed stage:
 
 > **Stage 1 — Architecture and data model**
 
@@ -941,15 +962,18 @@ Implemented so far:
 - `TableMetadata`, minimal `IndexMetadata`/`IndexType`, and in-memory `Catalog`;
 - abstract `Storage`, `Index`/`OrderedIndex`, and `Operator` contracts;
 - minimal domain errors integrated without changing existing validation rules;
-- passing unit/interface tests and model/catalog integration without disk access.
+- passing unit/interface tests, test-only behavioral examples, expanded
+  model/catalog/contract integration without file access during operations,
+  and architecture/import regression checks.
 
-Tasks 1.10 and 1.11 of `ETAPA_01.md` are implemented. Next is the final Stage 1
-integration/Definition-of-Done review; the existing model/catalog integration
-test is already passing. This change does not declare Stage 1 closed or start
-Stage 2. Reserved directories do not imply implemented components, and no
-physical persistence has been introduced.
+**Stage 1 is formally complete**, audited on 2026-08-31 against the entire
+Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
+limits of verification are recorded in [the audit](docs/ETAPA_01_AUDIT.md).
 
-Stage 1 must not be considered complete until the Definition of Done in `ETAPA_01.md` is satisfied.
+**Stage 2 is not started**, as explicitly requested by the user. No physical
+persistence, page layout, or later-stage implementation has been introduced.
+The repository remains at the completed Stage 1 boundary until advancing is
+requested. Reserved directories do not imply implemented components.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 
@@ -964,6 +988,8 @@ The following should not be guessed silently:
 - final page size;
 - exact binary page layout;
 - exact variable-length-record strategy;
+- binary encoding / endianness and physical record limits;
+- catalog persistence strategy (the Stage 1 catalog remains in memory);
 - exact clustered B+ physical layout;
 - supported comparison operators in `WHERE`;
 - aggregation functions beyond those required by tests/use cases;

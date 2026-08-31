@@ -1,5 +1,8 @@
 """Domain classifications and compatibility of the existing validation paths."""
 
+from dataclasses import FrozenInstanceError
+from operator import lt, setitem
+
 import pytest
 
 from engine.catalog import (
@@ -130,3 +133,38 @@ def test_catalog_duplicates_keep_original_definitions(schema):
 
     with pytest.raises(InvalidReferenceError):
         catalog.get_index("other")
+
+
+@pytest.mark.parametrize(
+    ("domain_error", "builtin_error"),
+    [(InvalidTypeError, TypeError), (ValidationError, ValueError),
+     (SchemaError, ValueError), (DuplicateError, ValueError),
+     (InvalidReferenceError, KeyError), (UnknownTableError, KeyError),
+     (UnknownColumnError, KeyError), (ColumnPositionError, IndexError)],
+)
+def test_domain_errors_keep_native_args_messages_and_exception_handlers(domain_error, builtin_error):
+    message = "Unknown name: 'área'"
+    error = domain_error(message)
+    assert error.args == (message,)
+    assert str(error) == str(builtin_error(message))
+    with pytest.raises(builtin_error) as caught:
+        raise error
+    assert caught.value is error
+    with pytest.raises(DatabaseError) as caught:
+        raise error
+    assert caught.value is error
+
+
+@pytest.mark.parametrize(
+    ("operation", "native_error"),
+    [(lambda s: DataType("OTHER"), ValueError),
+     (lambda s: IndexType("OTHER"), ValueError),
+     (lambda s: setattr(s.column(0), "name", "other"), FrozenInstanceError),
+     (lambda s: setitem(s.columns, 0, s.column(0)), TypeError),
+     (lambda s: lt(RID(0, 0), (0, 1)), TypeError)],
+)
+def test_native_python_errors_are_not_reclassified_as_engine_errors(schema, operation, native_error):
+    with pytest.raises(native_error) as caught:
+        operation(schema)
+    assert type(caught.value) is native_error
+    assert not isinstance(caught.value, DatabaseError)

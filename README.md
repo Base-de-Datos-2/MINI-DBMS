@@ -5,11 +5,16 @@ un motor de base de datos propio, comenzando por la Parte 1 relacional.
 
 ## Estado actual
 
-**Etapa 1 en desarrollo:** estructura del repositorio, configuración Python,
+**Etapa 1 completa y auditada (2026-08-31):** estructura del repositorio, configuración Python,
 `DataType`, `Column`, `Schema`, `RID`, `Record`, metadatos de tablas/índices y
 `Catalog` en memoria. Ya existen los contratos abstractos de almacenamiento,
 índices y operadores, y errores de dominio compatibles con las validaciones
-anteriores, con pruebas unitarias, de interfaces y de integración del modelo.
+anteriores, con pruebas unitarias, de interfaces, de comportamiento mediante
+dobles, de integración y de arquitectura. **400 pruebas pasan.**
+
+**La Etapa 2 no está iniciada.** El cierre y sus evidencias están registrados en
+[la auditoría de la Etapa 1](docs/ETAPA_01_AUDIT.md). Completar esta etapa de
+fundamentos no significa haber completado toda la Parte 1 del proyecto.
 
 Todavía no existen almacenamiento físico, índices físicos, consultas SQL, transacciones,
 API ejecutable ni interfaz gráfica. Los directorios correspondientes reservan
@@ -249,16 +254,19 @@ engine/
 api/             # Paquete reservado; aún sin servidor
 frontend/        # Reservado para la interfaz
 tests/
+  doubles.py     # Implementaciones mínimas solo para pruebas; no son el motor
+  conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
   catalog/       # Pruebas del modelo implementado
-  storage/       # Pruebas de RID y Record
-  indexes/       # Reservado
-  operators/     # Reservado
+  storage/       # Pruebas de RID, Record y del contrato Storage
+  indexes/       # Contratos de igualdad/rangos mediante dobles
+  operators/     # Ciclo de vida, agotamiento y liberación de recursos
   test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
   test_errors.py     # Errores propios y compatibilidad con excepciones anteriores
+  test_architecture.py  # Dependencias e importaciones aisladas
   test_catalog_record_integration.py  # Integración sin acceso a disco
 benchmarks/      # Reservado para experimentos
 data/            # Reservado para datos
-docs/            # Reservado para documentación adicional
+docs/            # Evidencia de auditoría y documentación adicional
 ```
 
 Los archivos `.gitkeep` conservan en Git los directorios que aún están vacíos.
@@ -272,6 +280,11 @@ depende del almacenamiento, del parser, de una API ni de la interfaz gráfica.
 de estos componentes realiza acceso a disco. Las demás capas se implementarán
 progresivamente según el plan.
 
+Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
+`OperatorDouble` viven solamente en `tests/`. Usan datos pequeños en memoria
+para comprobar la interacción de los contratos; no son Heap Files, B+, hashing
+ni operadores relacionales de producción. No se empaquetan con el motor.
+
 ## Validación
 
 En Windows, desde la raíz:
@@ -279,12 +292,25 @@ En Windows, desde la raíz:
 ```powershell
 .\.venv\Scripts\python.exe -m pytest tests/catalog -q
 .\.venv\Scripts\python.exe -m pytest tests/storage -q
+.\.venv\Scripts\python.exe -m pytest tests/indexes tests/operators -q
 .\.venv\Scripts\python.exe -m pytest tests/test_contracts.py tests/test_errors.py -q
-.\.venv\Scripts\python.exe -m pytest -q
-.\.venv\Scripts\python.exe -m compileall -q engine api
+.\.venv\Scripts\python.exe -m pytest tests/test_catalog_record_integration.py tests/test_architecture.py -q
+.\.venv\Scripts\python.exe -m pytest -ra -W error
+.\.venv\Scripts\python.exe -m compileall -q engine api tests
+.\.venv\Scripts\python.exe -m pip check
 ```
 
 En Linux/macOS, sustituye `.\.venv\Scripts\python.exe` por `.venv/bin/python`.
+
+Las pruebas de importación requieren la instalación editable indicada arriba:
+ejecutan intérpretes aislados desde fuera del repositorio para detectar
+dependencias del directorio actual o de módulos precargados por pytest.
+Las pruebas de arquitectura leen fuentes; las de integración bloquean las
+aperturas de archivos únicamente durante las operaciones del modelo y contratos.
+
+El cierre se verificó en Windows con Python 3.12.4 y pytest 8.4.2: 400 pruebas
+aprobadas sin omisiones ni xfails. Las implementaciones físicas futuras deberán
+añadir sus propias pruebas de conformidad, persistencia y concurrencia.
 
 ## Documentos de coordinación y siguiente paso
 
@@ -294,9 +320,10 @@ En Linux/macOS, sustituye `.\.venv\Scripts\python.exe` por `.venv/bin/python`.
 - [ETAPA_01.md](ETAPA_01.md): tareas y criterios de cierre de la etapa vigente.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-Los contratos y los errores de dominio (tareas 1.10 y 1.11 de `ETAPA_01.md`)
-están implementados. El siguiente paso es la revisión final de integración y
-de los criterios de cierre de la Etapa 1. Esta actualización **no declara el
-cierre de la etapa ni inicia la Etapa 2**. Ya existe una prueba de integración
-entre esquema, registro, metadatos y catálogo que prohíbe acceso a disco durante
-las operaciones.
+La Definition of Done de `ETAPA_01.md` está satisfecha y marcada por completo.
+Consulta [la auditoría de cierre](docs/ETAPA_01_AUDIT.md) para ver la evidencia
+por criterio, los comandos ejecutados y los límites de la validación.
+
+Por indicación del usuario, el trabajo se detiene en la **Etapa 1 cerrada**.
+No se creó `ETAPA_02.md` ni se implementaron páginas, serialización o persistencia.
+La Etapa 2 solo comenzará cuando se solicite explícitamente.

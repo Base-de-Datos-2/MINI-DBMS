@@ -313,9 +313,14 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 > `PLAN.md`
 
-Current stage:
+Latest completed stage:
 
 > **Stage 1 — Architecture and data model**
+
+Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
+test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
+**Stage 2 has not started.** Remain at the completed Stage 1 boundary until the
+user explicitly requests advancing; closure alone does not authorize Stage 2.
 
 Current detailed stage specification:
 
