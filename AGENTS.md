@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> Context version: **1.1** — aligned with `PLAN.md` and `ETAPA_01.md`.
+
 ## Purpose
 
 This repository implements the academic project **"Minigestor de Base de Datos Multimodal"** for the course **Base de Datos 2 (2026-2)**.
@@ -20,35 +22,88 @@ Before modifying any source file:
 
 1. Read `REQUIREMENTS.md`.
 2. Read `PROJECT_CONTEXT.md`.
-3. Inspect the existing repository structure and current implementation.
+3. Read `PLAN.md`.
 4. Identify the current development stage.
-5. Identify which existing tests cover the affected behavior.
-6. Explain briefly what will be changed before making a broad or architectural modification.
+5. Read the corresponding stage document, for example:
+   - `ETAPA_01.md` for Stage 1;
+   - `ETAPA_02.md` for Stage 2;
+   - and so on when those files exist.
+6. Inspect the existing repository structure and current implementation.
+7. Identify which existing tests cover the affected behavior.
+8. Explain briefly what will be changed before making a broad or architectural modification.
 
 If repository behavior conflicts with the official requirements, preserve the requirements and report the conflict.
+
+Do not assume that the repository is empty. A later-stage component may already exist and must not be deleted merely because the current plan is focused on an earlier stage.
+
+---
+
+## Documentation roles
+
+The repository uses five primary coordination documents.
+
+### `REQUIREMENTS.md`
+
+Contains the official academic requirements.
+
+It defines **WHAT must be implemented**.
+
+### `PROJECT_CONTEXT.md`
+
+Contains stable architectural decisions and the current technical model.
+
+It defines **HOW the system has been designed**.
+
+### `PLAN.md`
+
+Contains the Part 1 implementation roadmap.
+
+It defines **IN WHAT ORDER the system will be implemented**.
+
+### `ETAPA_XX.md`
+
+Contains the detailed plan for the current implementation stage.
+
+It defines **WHAT TO DO NOW**.
+
+### `AGENTS.md`
+
+Contains the operating rules for Codex.
+
+It defines **HOW CODEX SHOULD WORK** in the repository.
 
 ---
 
 ## Source-of-truth rules
 
-Use the following precedence:
-
-### For what the project must implement
+### For official academic requirements
 
 1. `REQUIREMENTS.md`
 2. Original assignment document (`Proyecto_Final.pdf`)
 3. `PROJECT_CONTEXT.md`
-4. Existing code
-5. Assumptions
+4. `PLAN.md` / current `ETAPA_XX.md`
+5. Existing code
+6. Assumptions
 
-### For architectural decisions already made by the team
+### For stable architectural decisions
 
 1. `PROJECT_CONTEXT.md`
 2. Existing tests
 3. Existing code
-4. New assumptions
+4. `PLAN.md` / current `ETAPA_XX.md`
+5. New assumptions
 
-### For how Codex should work in the repository
+### For implementation order
+
+1. `PLAN.md`
+2. Current `ETAPA_XX.md`
+
+### For tasks inside the current stage
+
+1. Current `ETAPA_XX.md`
+2. `PLAN.md`
+
+### For how Codex should work
 
 1. `AGENTS.md`
 
@@ -58,6 +113,22 @@ If a requirement is ambiguous:
 - preserve the simplest implementation compatible with the assignment;
 - state the ambiguity;
 - avoid adding unrelated functionality.
+
+---
+
+## Stage-document rule
+
+Stage documents such as `ETAPA_01.md` are implementation plans.
+
+They must never override:
+
+- official requirements in `REQUIREMENTS.md`;
+- stable architectural decisions in `PROJECT_CONTEXT.md`;
+- operating rules in `AGENTS.md`.
+
+If the current stage document conflicts with one of those sources, stop and report the conflict before implementing the conflicting behavior.
+
+When a design decision made during a stage becomes stable, promote that decision to `PROJECT_CONTEXT.md`.
 
 ---
 
@@ -238,99 +309,48 @@ Do not force an abstraction if the repository already has an equivalent, tested 
 
 ## Development plan
 
-Part 1 is organized into 10 implementation stages.
+Part 1 is implemented through the 10-stage roadmap defined in:
 
-### Stage 1 — Architecture and data model
+> `PLAN.md`
+
+Current stage:
+
+> **Stage 1 — Architecture and data model**
+
+Current detailed stage specification:
+
+> `ETAPA_01.md`
+
+Stage 1 includes, at the planning level:
+
 - repository/module structure;
-- schema representation;
-- supported basic data types;
-- records;
-- RID;
-- catalog/table metadata;
-- abstract storage/index/operator contracts.
+- `DataType`;
+- `Column`;
+- `Schema`;
+- `Record`;
+- `RID`;
+- `TableMetadata`;
+- minimal `IndexMetadata`;
+- `Catalog`;
+- storage contract;
+- index contract;
+- operator contract;
+- base domain errors;
+- Stage 1 unit/integration tests.
 
-### Stage 2 — Pages, records and base persistence
-- page structure;
-- page header;
-- slot metadata where required;
-- serialization/deserialization;
-- page read/write;
-- file metadata;
-- persistence tests.
+Do not implement Stage 2 or later work merely to make the project appear more complete.
 
-### Stage 3 — File organizations
-- Heap File;
-- free-space reuse;
-- Paged Sequential File;
-- ordered insertion;
-- lazy deletion;
-- wasted-space accounting;
-- reorganization strategy.
+Do not skip stages unless explicitly instructed.
 
-### Stage 4 — B+ Tree
-- generic B+ structure;
-- equality search;
-- range search;
-- insertion;
-- splits;
-- deletion;
-- redistribution/merge when required;
-- clustered behavior;
-- unclustered behavior.
+Before moving to the next stage:
 
-### Stage 5 — Extendible Hashing
-- directory;
-- global depth;
-- local depth;
-- buckets;
-- equality lookup;
-- bucket split;
-- directory doubling;
-- insert/delete behavior.
+- the current-stage functionality must exist;
+- relevant tests must pass;
+- integration with previous stages must work;
+- the current `ETAPA_XX.md` Definition of Done must be satisfied;
+- stable decisions discovered during the stage must be reflected in `PROJECT_CONTEXT.md`.
 
-### Stage 6 — Relational operators and external algorithms
-- table scan;
-- index scan;
-- filter;
-- projection;
-- external sort using k-way merge;
-- `GROUP BY`;
-- `JOIN`;
-- external hashing and/or index-based optimization as appropriate.
-
-### Stage 7 — SQL engine
-- SQL grammar;
-- AST;
-- planner;
-- executor;
-- supported SQL subset from `REQUIREMENTS.md`;
-- execution-plan representation.
-
-### Stage 8 — Transactions and concurrency
-- transaction lifecycle;
-- `BEGIN TRANSACTION`;
-- `END TRANSACTION`;
-- lock/concurrency mechanism;
-- safe concurrent access;
-- thread-based race-condition demonstration.
-
-### Stage 9 — API and frontend
-- API wrapper around the engine;
-- Files panel;
-- SQL editor;
-- Results panel;
-- Execution Plan panel.
-
-### Stage 10 — Experiments, integration and delivery
-- required dataset sizes;
-- storage comparisons;
-- index comparisons;
-- plots/tables;
-- conclusions;
-- integration tests;
-- technical documentation.
-
-Do not skip stages merely to make a demo appear complete.
+For the complete descriptions of Stages 2–10, use `PLAN.md`.
 
 ---
 
@@ -477,5 +497,8 @@ Before moving to a later stage:
 - relevant tests pass;
 - the code is integrated with prior stages;
 - no official requirement has been removed;
-- persistence assumptions are explicit;
-- documentation reflects important architectural decisions.
+- persistence assumptions are explicit when persistence applies;
+- documentation reflects important architectural decisions;
+- the current `ETAPA_XX.md` Definition of Done is satisfied.
+
+If any item is not satisfied, remain in the current stage unless the user explicitly changes the implementation plan.

@@ -1,5 +1,7 @@
 # REQUIREMENTS.md
 
+> Context version: **1.1** — aligned with the implementation-document structure without changing the official requirements.
+
 ## Status
 
 This file summarizes the **official project requirements** relevant to the current implementation.
@@ -11,6 +13,23 @@ Primary source:
 This file should contain requirements from the assignment, not personal implementation preferences.
 
 When the instructor clarifies or changes a requirement, update this file.
+
+---
+
+## Relationship with implementation documents
+
+This file is the source of truth for **official academic requirements**.
+
+The following files have different purposes:
+
+- `PROJECT_CONTEXT.md` records architectural and technical decisions;
+- `PLAN.md` defines the implementation roadmap for Part 1;
+- `ETAPA_XX.md` defines the detailed tasks for the current stage;
+- `AGENTS.md` defines how Codex should work in the repository.
+
+`PLAN.md` and `ETAPA_XX.md` may explain how the team intends to satisfy a requirement, but they must not add, remove, weaken or override an official requirement in this file.
+
+If an implementation document conflicts with `REQUIREMENTS.md`, the requirement in this file takes precedence and the conflict must be reported before implementation continues.
 
 ---
 

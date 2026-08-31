@@ -1,5 +1,7 @@
 # PROJECT_CONTEXT.md
 
+> Context version: **1.1** — aligned with `PLAN.md` and `ETAPA_01.md`.
+
 ## Project identity
 
 **Project:** Minigestor de Base de Datos Multimodal  
@@ -13,6 +15,26 @@ The current implementation focus is:
 > **Part 1 — Relational Database (Tables and SQL)**
 
 The project must remain modular because later parts build on structures created earlier.
+
+---
+
+## Project coordination documents
+
+The repository uses the following documentation structure:
+
+| File | Responsibility |
+|---|---|
+| `REQUIREMENTS.md` | Official academic requirements |
+| `PROJECT_CONTEXT.md` | Stable architectural and technical decisions |
+| `PLAN.md` | Part 1 implementation roadmap |
+| `ETAPA_XX.md` | Detailed implementation plan for the current stage |
+| `AGENTS.md` | Operating instructions for Codex |
+
+These documents have different responsibilities and should not be collapsed into one source.
+
+Implementation details discovered while working on a stage should only be promoted to `PROJECT_CONTEXT.md` after they become stable architectural decisions.
+
+`PLAN.md` and `ETAPA_XX.md` organize implementation work; they do not override the official requirements in `REQUIREMENTS.md`.
 
 ---
 
@@ -118,8 +140,10 @@ If the repository already contains a working alternative stack that satisfies th
 mini-dbms/
 |
 ├── AGENTS.md
-├── PROJECT_CONTEXT.md
 ├── REQUIREMENTS.md
+├── PROJECT_CONTEXT.md
+├── PLAN.md
+├── ETAPA_01.md
 ├── README.md
 |
 ├── engine/
@@ -689,11 +713,23 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 ## Current stage
 
-Initial repository context version:
+Current planned stage:
 
 > **Stage 1 — Architecture and data model**
 
-If the repository already contains code from later stages, do not delete it. First inspect and determine the actual implementation status.
+Overall Part 1 roadmap:
+
+> `PLAN.md`
+
+Detailed current-stage specification:
+
+> `ETAPA_01.md`
+
+Stage 1 must not be considered complete until the Definition of Done in `ETAPA_01.md` is satisfied.
+
+If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
+
+When the project advances to a new stage, update this section and point it to the corresponding `ETAPA_XX.md`.
 
 ---
 
