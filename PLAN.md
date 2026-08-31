@@ -1338,8 +1338,11 @@ Current detailed stage document:
 
 > `ETAPA_01.md`
 
-Current implementation progress: repository/package setup and `DataType`,
-`Column`, and `Schema` are implemented with passing unit tests. The next task is
-**1.5 — RID** in `ETAPA_01.md`; Stage 1 remains in progress.
+Current implementation progress: repository/package setup, the foundational
+data model (`DataType`, `Column`, `Schema`, `RID`, `Record`), table/index metadata,
+and the in-memory `Catalog` are implemented with passing unit tests and a
+model/catalog integration test. The next task is **1.10 — Contracts** in
+`ETAPA_01.md`. Domain errors and final stage validation also remain pending;
+Stage 1 is not complete.
 
 Codex must inspect the repository before assuming which Stage 1 components are already implemented.

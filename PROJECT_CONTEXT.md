@@ -260,6 +260,12 @@ This is especially useful for unclustered indexes.
 
 If the existing implementation already has an equivalent physical identifier, preserve it.
 
+Implemented in `engine/storage/rid.py`: `RID` is an immutable, hashable value
+object, ordered lexicographically by `(page_id, slot_id)`. Components must be
+non-negative built-in `int` values; booleans and coercions are rejected. No
+binary upper bound is imposed yet. A RID is relative to a storage file, not
+globally unique across tables, and does not access disk or validate allocation.
+
 ---
 
 ## Schema
@@ -311,8 +317,8 @@ The initial model lives in `engine/catalog/types.py` and
   engine domain-error hierarchy remains a later Stage 1 task.
 
 These classes are independent from storage, SQL parsing, API, and frontend code.
-Record-value validation, constraints, serialization, and physical layout have
-not been implemented or decided by these schema definitions.
+Record-value validation is implemented separately by `Record`, as described
+below. Constraints, serialization, and physical layout remain unimplemented.
 
 ---
 
@@ -321,6 +327,67 @@ not been implemented or decided by these schema definitions.
 A Record represents one relational row according to a Schema.
 
 The Record abstraction should remain independent from React, FastAPI and parser-specific objects.
+
+Implemented in `engine/storage/record.py`, with public imports of `Record` and
+`RID` from `engine.storage`:
+
+- `Record(schema, values)` requires an existing `Schema` and a sequence whose
+  length exactly matches the number of columns. Empty schemas accept empty rows.
+- Values are copied into an immutable tuple. The record and its schema reference
+  cannot be reassigned through the public API.
+- Validation accepts exact built-in Python types: `INTEGER -> int`,
+  `FLOAT -> float`, `BOOLEAN -> bool`, and `VARCHAR -> str`. In particular,
+  booleans are not integers, integers are not automatically promoted to floats,
+  and custom scalar subclasses are not accepted.
+- No implicit conversions are performed, including parsing numeric strings.
+  `None`/SQL `NULL` is not supported by the current model.
+- Integer binary limits remain undecided. FLOAT accepts Python float values,
+  including NaN and infinities; future SQL operators and serialization must
+  explicitly address their semantics.
+- `record["column_name"]` is the single named-value access API. Names use
+  `Schema.index_of` and its exact-name validation. Position/slice access is not
+  added; the ordered `values` tuple remains available.
+- Wrong argument/value types raise `TypeError`; wrong value counts raise
+  `ValueError`. There is no page, RID, file, or index ownership inside a record.
+
+---
+
+## Implemented table/index metadata and catalog decisions
+
+`engine/catalog/metadata.py` defines immutable `TableMetadata(name, schema)`
+and `IndexMetadata(name, table_name, column_name, index_type, clustered=False)`.
+They follow the exact, nonblank name policy of `Column`, and carry no paths,
+records, nodes, buckets, or physical storage configuration.
+
+- `IndexType` is a separate enum (`BPLUS`, `EXTENDIBLE_HASH`). `index_type`
+  requires an enum member, not a string; `clustered` requires a built-in bool.
+- Only BPLUS metadata may be marked clustered. This declares a future physical
+  organization; it does not implement clustering or an index.
+- Standalone index metadata validates its own fields. Table/column existence is
+  checked by the catalog at registration time.
+
+`engine/catalog/catalog.py` implements an in-memory `Catalog`:
+
+- Table operations: `register_table`, `get_table`, `has_table`, `list_tables`.
+- Index operations: `register_index`, `get_index`, `get_indexes(table_name)`.
+- Table names are unique within a catalog. Index names are also catalog-wide
+  unique, even across tables. Table and index namespaces are independent.
+- At most one clustered B+ definition is registered per table. Differently
+  named unclustered/hash definitions may coexist, including on the same column.
+- Registration checks all invariants before changing state. Failed operations
+  neither overwrite existing definitions nor reserve names.
+- Listing methods return tuple snapshots in registration order; returned
+  metadata is immutable. Callers cannot mutate the internal dictionaries via
+  query results. Catalog instances own independent state.
+- An existing table without indexes returns `()`. Unknown tables, indexes, and
+  referenced columns raise `KeyError`; duplicates and conflicting clustered
+  definitions raise `ValueError`; wrong argument types raise `TypeError`.
+- Persistence, row storage, removal of metadata, and concurrency protection
+  are not implemented. The general domain-error hierarchy is still pending.
+
+The catalog depends only on metadata/schema/types, never on storage. These
+objects are exported from `engine.catalog`. An integration test covers schema,
+record, RID, metadata, and catalog operations while file-opening APIs are blocked.
 
 ---
 
@@ -764,11 +831,14 @@ Implemented so far:
 
 - planned directories and Python package initialization;
 - minimal packaging/test configuration, Git exclusions, and introductory README;
-- `DataType`, `Column`, and `Schema`, with passing unit tests.
+- `DataType`, `Column`, `Schema`, `RID`, and `Record`;
+- `TableMetadata`, minimal `IndexMetadata`/`IndexType`, and in-memory `Catalog`;
+- passing unit tests and model/catalog integration without disk access.
 
-Next pending model task: **1.5 — RID** in `ETAPA_01.md`. `Record`, table/index
-metadata, `Catalog`, contracts, domain errors, and the full Stage 1 integration
-test remain pending. Reserved directories do not imply implemented components.
+Next pending task: **1.10 — Contracts** in `ETAPA_01.md`, followed by the
+domain-error hierarchy and final Stage 1 validation. The required model/catalog
+integration test already exists. Reserved directories do not imply implemented
+components, and no physical persistence has been introduced.
 
 Stage 1 must not be considered complete until the Definition of Done in `ETAPA_01.md` is satisfied.
 

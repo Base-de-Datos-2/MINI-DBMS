@@ -13,12 +13,16 @@
 
 - Completed: repository inspection (1.1), initial directory/package structure,
   Python/test configuration, Git exclusions, and introductory README.
-- Completed with unit tests: `DataType` (1.2), `Column` (1.3), and `Schema` (1.4).
-- Next pending task: `RID` (1.5).
-- Tasks 1.5-1.12 remain pending; Stage 1 is not complete. Empty packages and
-  directory markers reserve future locations only.
+- Completed with unit tests: `DataType` (1.2), `Column` (1.3), `Schema` (1.4),
+  `RID` (1.5), `Record` (1.6), `TableMetadata` (1.7), minimal `IndexMetadata`
+  (1.8), and the in-memory `Catalog` (1.9).
+- The model/catalog integration test described in 1.12 also exists; it checks
+  the implemented components with file-opening APIs blocked.
+- Next pending task: abstract contracts (1.10), then domain errors (1.11) and
+  final stage validation. Stage 1 is not complete. Empty packages and directory
+  markers reserve future locations only.
 
-Adopted schema semantics are recorded in `PROJECT_CONTEXT.md`.
+Adopted model and catalog semantics are recorded in `PROJECT_CONTEXT.md`.
 
 ---
 
@@ -1173,16 +1177,16 @@ Stage 1 is complete only when all applicable items are satisfied.
 [x] DataType
 [x] Column
 [x] Schema
-[ ] Record
-[ ] RID
+[x] Record
+[x] RID
 ```
 
 ## Metadata
 
 ```text
-[ ] TableMetadata
-[ ] Catalog
-[ ] minimal IndexMetadata, if adopted in the Stage 1 design
+[x] TableMetadata
+[x] Catalog
+[x] minimal IndexMetadata, if adopted in the Stage 1 design
 ```
 
 ## Contracts
@@ -1204,7 +1208,7 @@ Stage 1 is complete only when all applicable items are satisfied.
 
 ```text
 [ ] relevant unit tests exist
-[ ] Stage 1 integration test exists
+[x] Stage 1 integration test exists
 [ ] all relevant tests pass
 [ ] imports are stable
 [ ] no equivalent foundational abstraction was duplicated
