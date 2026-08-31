@@ -1338,5 +1338,8 @@ Current detailed stage document:
 
 > `ETAPA_01.md`
 
-Codex must inspect the repository before assuming which Stage 1 components are already implemented.
+Current implementation progress: repository/package setup and `DataType`,
+`Column`, and `Schema` are implemented with passing unit tests. The next task is
+**1.5 — RID** in `ETAPA_01.md`; Stage 1 remains in progress.
 
+Codex must inspect the repository before assuming which Stage 1 components are already implemented.

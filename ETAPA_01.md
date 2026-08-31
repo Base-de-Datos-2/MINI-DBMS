@@ -9,6 +9,17 @@
 **Next stage:** Stage 2 — Pages, Records, and Base Persistence  
 **Roadmap:** `PLAN.md`
 
+## Implementation status
+
+- Completed: repository inspection (1.1), initial directory/package structure,
+  Python/test configuration, Git exclusions, and introductory README.
+- Completed with unit tests: `DataType` (1.2), `Column` (1.3), and `Schema` (1.4).
+- Next pending task: `RID` (1.5).
+- Tasks 1.5-1.12 remain pending; Stage 1 is not complete. Empty packages and
+  directory markers reserve future locations only.
+
+Adopted schema semantics are recorded in `PROJECT_CONTEXT.md`.
+
 ---
 
 # 1. Purpose
@@ -1159,9 +1170,9 @@ Stage 1 is complete only when all applicable items are satisfied.
 ## Data model
 
 ```text
-[ ] DataType
-[ ] Column
-[ ] Schema
+[x] DataType
+[x] Column
+[x] Schema
 [ ] Record
 [ ] RID
 ```
@@ -1386,4 +1397,3 @@ READY FOR STAGE 2
 ```
 
 Stage 2 must build on these abstractions rather than replacing them.
-

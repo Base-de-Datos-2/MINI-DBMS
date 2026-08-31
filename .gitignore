@@ -1,0 +1,26 @@
+# Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Local configuration and editor/OS files
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Future frontend dependencies and generated datasets/results
+node_modules/
+/data/generated/
+/benchmarks/results/
+/tmp/

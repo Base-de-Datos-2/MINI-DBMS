@@ -112,6 +112,10 @@ These are project decisions, not official assignment requirements.
 ### Engine
 Python 3
 
+The initial Python package requires Python 3.11 or newer. The engine currently
+uses only the standard library; pytest is an optional test dependency and
+setuptools is the build backend, declared in `pyproject.toml`.
+
 ### Parser
 Lark
 
@@ -278,6 +282,37 @@ VARCHAR
 ```
 
 Do not expand the type system until required.
+
+---
+
+## Implemented Stage 1 schema decisions
+
+The initial model lives in `engine/catalog/types.py` and
+`engine/catalog/schema.py`, with public imports from `engine.catalog`.
+
+- `DataType` is an `Enum` with explicit textual values `INTEGER`, `FLOAT`,
+  `BOOLEAN`, and `VARCHAR`. These identifiers do not prescribe a binary encoding.
+- `Column(name, data_type)` is immutable and requires a string name and a
+  `DataType` member. No implicit type conversion is performed.
+- Empty and whitespace-only names are rejected. Otherwise names are preserved
+  exactly, including case and surrounding whitespace. Lookup and duplicate
+  detection are case-sensitive; there is no SQL identifier normalization yet.
+- `Schema(columns)` accepts a sequence of `Column` objects and snapshots it as
+  an immutable tuple in declaration order. Empty schemas are allowed. Duplicate
+  names and non-column entries are rejected.
+- `schema.column(name_or_position)` supports exact names and zero-based,
+  non-negative integer positions. Booleans, slices, and other selector types
+  are rejected. `schema.index_of(name)` returns a column's position.
+- `schema.columns`, `len(schema)`, and iteration expose ordered metadata.
+  Equality of columns and schemas compares their definitions, including order.
+- Current validation uses `TypeError` for incorrect argument types,
+  `ValueError` for invalid definitions, `KeyError` for unknown names, and
+  `IndexError` for out-of-range positions, with descriptive messages. A general
+  engine domain-error hierarchy remains a later Stage 1 task.
+
+These classes are independent from storage, SQL parsing, API, and frontend code.
+Record-value validation, constraints, serialization, and physical layout have
+not been implemented or decided by these schema definitions.
 
 ---
 
@@ -724,6 +759,16 @@ Overall Part 1 roadmap:
 Detailed current-stage specification:
 
 > `ETAPA_01.md`
+
+Implemented so far:
+
+- planned directories and Python package initialization;
+- minimal packaging/test configuration, Git exclusions, and introductory README;
+- `DataType`, `Column`, and `Schema`, with passing unit tests.
+
+Next pending model task: **1.5 — RID** in `ETAPA_01.md`. `Record`, table/index
+metadata, `Catalog`, contracts, domain errors, and the full Stage 1 integration
+test remain pending. Reserved directories do not imply implemented components.
 
 Stage 1 must not be considered complete until the Definition of Done in `ETAPA_01.md` is satisfied.
 
