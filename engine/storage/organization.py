@@ -419,6 +419,11 @@ class OrganizationFile:
         return self._manager.allocated_page_count
 
     @property
+    def file_size(self) -> int:
+        self._require_open()
+        return self._manager.file_size
+
+    @property
     def pages_read(self) -> int:
         self._require_open()
         return self._manager.pages_read

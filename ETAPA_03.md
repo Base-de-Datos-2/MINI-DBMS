@@ -1,6 +1,6 @@
 # ETAPA_03.md
 
-> Context version: **1.5** - aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and active Stage 3 tasks 3.1-3.21.
+> Context version: **1.6** - aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and the completed Stage 3 audit.
 
 ## Stage 3 - Heap File and Paged Sequential File
 
@@ -9,7 +9,7 @@
 **Previous stage:** Stage 2 - Pages, Records, and Base Persistence  
 **Next stage:** Stage 4 - B+ Tree  
 **Roadmap:** `PLAN.md`
-**Status:** Active as of 2026-09-02; Tasks 3.1-3.21 complete; Task 3.22 pending.
+**Status:** Formally complete as of 2026-09-02; Tasks 3.1-3.25 and all 50 Definition of Done criteria pass. Evidence: `docs/ETAPA_03_AUDIT.md`.
 
 ---
 
@@ -1374,6 +1374,11 @@ test_sequential_reorganization_survives_restart
 
 # 28. Task 3.22 - Add operation-level error and boundary tests
 
+**Status: complete (2026-09-02).** Existing error coverage was mapped against
+every requested case. Missing sequential counter-corruption and malformed
+reorganization-candidate cases were added; the established domain/native errors
+were sufficient, so no new exception hierarchy was introduced.
+
 ## Objective
 
 Ensure both organizations fail predictably instead of corrupting persisted data.
@@ -1409,6 +1414,12 @@ Do not create a large exception hierarchy without demonstrated value.
 ---
 
 # 29. Task 3.23 - Preserve measurement readiness
+
+**Status: complete (2026-09-02).** Both organizations expose actual file size
+and PageManager transfer counters for externally timed operations.
+`reorganize()` returns immutable `ReorganizationMetrics` aggregating real I/O,
+elapsed time and before/after sizes across its internal manager sessions. No
+final benchmark or machine-dependent performance assertion was added.
 
 ## Objective
 
@@ -1447,6 +1458,11 @@ test_file_size_can_be_observed_after_flush
 ---
 
 # 30. Task 3.24 - Add Stage 3 end-to-end integration tests
+
+**Status: complete (2026-09-02).** Independent Heap, Sequential and
+same-dataset scenarios now verify multipage persistence, reuse/tombstones,
+ordered search/reorganization, equal active logical multisets, different
+physical behavior and absence of shared mutable file state.
 
 ## Objective
 
@@ -1503,6 +1519,11 @@ test_stage3_same_dataset_logical_equivalence
 ---
 
 # 31. Task 3.25 - Update architecture and stage documentation
+
+**Status: complete (2026-09-02).** Stable organization, error,
+instrumentation, replacement, integration and RID decisions are consolidated in
+`PROJECT_CONTEXT.md`, the README and coordination documents. The closure
+evidence is recorded in `docs/ETAPA_03_AUDIT.md`; Stage 4 remains unstarted.
 
 ## Objective
 
@@ -1805,8 +1826,8 @@ Stage 3 is complete only when all applicable items below are satisfied.
 [x] both organizations use RecordCodec
 [x] both expose records/RIDs needed by later indexes
 [x] Stage 2 I/O counters remain accurate if adopted
-[ ] the same logical dataset can be stored in both organizations
-[ ] all relevant unit, functional, persistence, and integration tests pass
+[x] the same logical dataset can be stored in both organizations
+[x] all relevant unit, functional, persistence, and integration tests pass
 [x] stable Stage 3 decisions are recorded in PROJECT_CONTEXT.md
 [x] no Stage 4 or later algorithm was implemented unnecessarily
 ```

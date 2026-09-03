@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **1.9** — aligned with `PLAN.md` and active `ETAPA_03.md` tasks 3.1–3.21.
+> Context version: **2.0** — aligned with `PLAN.md` and the formally completed `ETAPA_03.md`.
 
 ## Project identity
 
@@ -626,7 +626,7 @@ pages and the expected file end. Page ids must be exact built-in ints, with
 | `write_page(page) -> None` | Validate and rewrite one already allocated page; never allocate implicitly |
 | `flush() -> None` | Flush the handle and call `os.fsync` to request synchronization |
 | `close() -> None` | Flush and close; idempotent, releases the handle even if flush fails |
-| `path`, `header`, `allocated_page_count`, `closed` | Inspect path/metadata/status; header is an immutable snapshot |
+| `path`, `file_size`, `header`, `allocated_page_count`, `closed` | Inspect path/physical size/metadata/status; header is an immutable snapshot |
 | `pages_read`, `pages_written`, `pages_allocated` | Read-only per-manager session counters |
 | `reset_counters() -> None` | Reset session counters, with no file I/O or metadata changes |
 | replacement helpers | Create a unique sibling name, discard an uncommitted candidate, or atomically commit a prevalidated candidate |
@@ -656,6 +656,8 @@ and same-directory `os.replace` occurs after closing the Windows handle. The
 manager reopens the destination after success or after a failed replacement;
 that reopen starts a new per-manager I/O-counter session. These helpers do not
 validate organization records—the caller must validate the candidate first.
+`file_size` validates and reports the real current byte length using the owned
+handle without incrementing page-transfer counters.
 
 Errors reuse the existing vocabulary: wrong argument types raise
 `InvalidTypeError`; unallocated page ids raise `InvalidReferenceError`; invalid
@@ -884,6 +886,22 @@ the in-memory `Catalog` or its table/index registry.
   no RID map; earlier sequential RIDs are invalid under the adopted policy.
 - Fresh-object tests cover tombstones and waste before restart, continued
   insertion, explicit reorganization, and a second compact ordered reopen.
+- `ReorganizationMetrics` is the immutable result of a successful explicit
+  rewrite. It reports real `perf_counter` elapsed seconds, physical sizes before
+  and after, and aggregate page reads/writes/allocations across the source scan,
+  candidate build and candidate validation. Header transfers, flush and
+  `os.replace` are not mislabeled as page transfers. Because commit reopens the
+  destination, the active `PageManager` then begins a new counter session; the
+  returned metrics retain the completed operation's totals.
+- Ordinary insertion and search remain measurable externally by bracketing the
+  call with `perf_counter`, resetting/reading the existing counters and reading
+  `file_size`. No benchmark timing or estimated cost is embedded in the engine.
+- Stage 3 boundary coverage reuses the existing domain errors. No new exception
+  hierarchy was needed: invalid types, validations/reorganization candidates,
+  references and native filesystem failures retain their established mappings.
+- End-to-end tests persist the same records independently in Heap and Sequential,
+  prove equal active multisets, and retain their different physical scan/access
+  behavior without shared mutable file state.
 
 ---
 
@@ -1447,8 +1465,12 @@ Implemented so far:
   two-/three-way splits and suffix shifting.
 - Stage 3 tasks 3.17–3.21: added durable lazy deletion, byte-exact waste
   measurement, the strict threshold predicate, validated compact file
-  replacement and a complete fresh-restart lifecycle. The current suite has
-  1274 passing tests.
+  replacement and a complete fresh-restart lifecycle.
+- Stage 3 tasks 3.22–3.25 and closure: audited operation boundaries, added
+  measured reorganization results and physical file-size access, verified both
+  organizations with the same persisted dataset, consolidated documentation and
+  satisfied all 50 Definition of Done criteria. The closure suite has 1284
+  passing tests.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -1458,11 +1480,10 @@ limits of verification are recorded in [the audit](docs/ETAPA_01_AUDIT.md).
 in `ETAPA_02.md`, with 1155 passing tests. Evidence and limits are recorded in
 [the Stage 2 audit](docs/ETAPA_02_AUDIT.md). No production engine changes were
 needed for the final testing/closure block; existing work was preserved.
-**Stage 3 is active.** Tasks 3.1–3.21 are complete; Task 3.22 onward remains
-pending. Both organization cores are functional, but operation-level boundary
-coverage, measurement readiness, cross-organization integration, documentation
-consolidation and the formal Stage 3 audit are not complete. Part 1 as a whole
-is not complete.
+**Stage 3 is formally complete**, audited on 2026-09-02 against all 50 criteria
+in `ETAPA_03.md`, with 1284 passing tests. Evidence and limits are recorded in
+[the Stage 3 audit](docs/ETAPA_03_AUDIT.md). **Stage 4 has not started**; no B+
+implementation was added by this closure. Part 1 as a whole is not complete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 

@@ -113,6 +113,7 @@ def test_raw_file_access_dependencies_are_confined_to_page_manager():
      "engine.storage.page_manager", "engine.storage.file_header",
      "engine.storage.page", "engine.storage.record_codec",
      "engine.storage.organization", "engine.storage.heap_file",
+     "engine.storage.metrics",
      "engine.storage.sequential_ordering",
      "engine.storage.paged_sequential_file"],
 )

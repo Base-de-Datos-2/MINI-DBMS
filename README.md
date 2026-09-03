@@ -26,16 +26,17 @@ Los cierres están registrados en [la auditoría de la Etapa 1](docs/ETAPA_01_AU
 y [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md). Los 47 criterios de
 [ETAPA_02.md](ETAPA_02.md) se cumplen.
 
-**Etapa 3 activa (2026-09-02), tareas 3.1–3.21 completas:** `HeapFile` ya permite
+**Etapa 3 completa y auditada (2026-09-02):** `HeapFile` permite
 insertar registros en varias páginas, leerlos por RID, eliminarlos, reutilizar
 slots/huecos, recorrer registros activos de forma perezosa y continuar después
 de cerrar y reabrir con objetos nuevos. `PagedSequentialFile` ya persiste su
 clave, ordena inserciones arbitrarias mediante redistribución de páginas,
 recorre y busca con duplicados estables, elimina mediante tombstones, mide el
-desperdicio y reorganiza mediante un reemplazo compacto validado. Todavía faltan
-las tareas de robustez, integración y cierre de la Etapa 3. Tampoco existen
-índices físicos, consultas SQL, transacciones, API ejecutable ni interfaz
-gráfica. La Parte 1 sigue pendiente.
+desperdicio y reorganiza mediante un reemplazo compacto validado. Las pruebas
+de cierre comparan ambas organizaciones con el mismo dataset y verifican sus
+archivos independientes. Los 50 criterios de la Etapa 3 se cumplen. La Etapa 4
+no ha comenzado; todavía no existen índices físicos, consultas SQL,
+transacciones, API ejecutable ni interfaz gráfica. La Parte 1 sigue pendiente.
 
 ## Requisitos e instalación
 
@@ -376,9 +377,11 @@ with PagedSequentialFile.create(path, schema, "id") as ordered:
     current_rid = next(ordered.search(2))[0]
     ordered.delete(current_rid)
     assert ordered.wasted_space_ratio() > 0.0
-    ordered.reorganize()
+    metrics = ordered.reorganize()
     assert ordered.deleted_record_count == 0
     assert ordered.wasted_space_ratio() == 0.0
+    assert metrics.pages_read > 0
+    assert metrics.file_size_after == ordered.file_size
 ```
 
 El comparador rechaza conversiones implícitas y NaN, y usa el mismo orden para
@@ -390,6 +393,8 @@ invalidados según la política documentada. La eliminación solo marca el slot
 `FREE`, pero no la capacidad ordinaria sin usar. `should_reorganize()` aplica
 `ratio > threshold` sin escribir. `reorganize()` crea, valida y sincroniza un
 archivo hermano compacto antes de pedir a `PageManager` el reemplazo físico.
+La métrica devuelta conserva tiempo, E/S agregada y tamaños reales de esa
+operación aunque el gestor reabierto inicie una nueva sesión de contadores.
 
 ### Ejemplo completo de persistencia de registros
 
@@ -624,7 +629,7 @@ Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
 La verificación actual se ejecutó en Windows con Python 3.12.4 y pytest 8.4.2:
-1274 pruebas aprobadas, sin omisiones ni xfails. `compileall` y `pip check`
+1284 pruebas aprobadas, sin omisiones ni xfails. `compileall` y `pip check`
 también pasan. Las operaciones físicas restantes deberán añadir sus propias
 pruebas de conformidad, persistencia y concurrencia.
 
@@ -636,12 +641,12 @@ pruebas de conformidad, persistencia y concurrencia.
 - [ETAPA_01.md](ETAPA_01.md): etapa de fundamentos, cerrada y auditada.
 - [ETAPA_02.md](ETAPA_02.md): etapa de persistencia, cerrada y auditada.
 - [ETAPA_03.md](ETAPA_03.md): etapa de organizaciones de archivo, activa.
+- [Auditoría de la Etapa 3](docs/ETAPA_03_AUDIT.md): evidencia de cierre.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
 [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
 criterio, los comandos ejecutados y los límites de la validación.
 
-La **Etapa 3 está activa** y las tareas 3.1–3.21 están completas. El siguiente
-paso es la tarea 3.22: ampliar errores y límites operativos, sin iniciar ninguna
-etapa posterior.
+La **Etapa 3 está completa y auditada**. La Etapa 4 —B+ Tree— no se ha iniciado
+y requiere una solicitud explícita antes de avanzar.

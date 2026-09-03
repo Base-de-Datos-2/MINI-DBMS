@@ -19,6 +19,7 @@ def test_create_and_reopen_header_only_file(tmp_path):
     with PageManager.create(path) as manager:
         assert not manager.closed
         assert manager.path == path.absolute()
+        assert manager.file_size == path.stat().st_size
         assert manager.header == FileHeader()
         assert manager.allocated_page_count == 0
         assert path.read_bytes() == FileHeader().serialize()
@@ -26,6 +27,7 @@ def test_create_and_reopen_header_only_file(tmp_path):
     assert manager.closed
     with PageManager.open(str(path)) as reopened:
         assert reopened.path == path.absolute()
+        assert reopened.file_size == path.stat().st_size
         assert reopened.header == FileHeader()
         assert counters(reopened) == (0, 0, 0)
 
@@ -305,7 +307,8 @@ def test_close_is_idempotent_and_reopen_requires_a_new_manager(tmp_path):
     assert manager.closed
     operations = [manager.allocate_page, lambda: manager.read_page(0),
                   lambda: manager.write_page(Page(0)), manager.flush,
-                  manager.reset_counters, manager.__enter__]
+                  manager.reset_counters, lambda: manager.file_size,
+                  manager.temporary_replacement_path, manager.__enter__]
     for operation in operations:
         with pytest.raises(RuntimeError, match="closed"):
             operation()

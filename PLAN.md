@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **1.9** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and active `ETAPA_03.md` tasks 3.1–3.21.
+> Context version: **2.0** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and the formally completed `ETAPA_03.md`.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1358,12 +1358,13 @@ pages now persist across close/reopen. Verified progress is tracked in
 process restart tests, expanded malformed-file/boundary coverage and final
 documentation. All 47 Stage 2 criteria are satisfied; the closure suite passes
 1155 tests. Evidence: [Stage 2 closure audit](docs/ETAPA_02_AUDIT.md).
-**Stage 3 is active (2026-09-02).** Tasks 3.1–3.21 are complete: HeapFile is
-persistent, and PagedSequentialFile now covers ordered insertion/search/scan,
-durable lazy deletion, the documented wasted-space ratio, strict threshold
-policy, validated physical reorganization and fresh restart cycles. The suite
-passes 1274 tests. Task 3.22, operation-level errors and boundaries, is the next
-pending task.
+**Stage 3 is formally complete (2026-09-02).** Tasks 3.1–3.25, all 50
+Definition of Done criteria, operation boundaries, measurement readiness and
+same-dataset integration are complete. HeapFile and PagedSequentialFile persist
+through fresh restarts and expose their documented physical behavior. The
+closure suite passes 1284 tests. Evidence: [Stage 3 closure
+audit](docs/ETAPA_03_AUDIT.md). Stage 4 has not started and requires a separate
+user request.
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **1.9** — aligned with `PLAN.md` and active `ETAPA_03.md` tasks 3.1–3.21.
+> Context version: **2.0** — aligned with `PLAN.md` and the formally completed `ETAPA_03.md`.
 
 ## Purpose
 
@@ -315,7 +315,7 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest completed stage:
 
-> **Stage 2 — Pages, records and base persistence**
+> **Stage 3 — Heap File and Paged Sequential File**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -323,15 +323,17 @@ test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
 request for tasks 2.17–2.20 and the closure audit. All 47 Definition of Done
 criteria are satisfied, with 1155 passing tests. Evidence and verification
 limits are recorded in `docs/ETAPA_02_AUDIT.md`.
-**Stage 3 is active as of 2026-09-02.** Tasks 3.1–3.21 are complete. HeapFile is
-persistent and complete for the current stage. PagedSequentialFile now has its
-ordering contract, lifecycle, ordered insertion/search/scan, lazy deletion,
-waste policy, explicit physical reorganization and fresh-restart validation.
-Stage 3 boundary/error, measurement-readiness, cross-organization integration,
-documentation and closure tasks remain; indexes, buffer pool, WAL and
-concurrency have not been implemented. Do not skip the remaining Stage 3 tasks.
+**Stage 3 was formally closed on 2026-09-02.** All 50 Definition of Done
+criteria are satisfied, with 1284 passing tests. HeapFile and
+PagedSequentialFile are persistent, independently tested, integration-tested
+with the same logical dataset, and ready for later measurement. Evidence and
+verification limits are recorded in `docs/ETAPA_03_AUDIT.md`.
+**Stage 4 has not started.** Remain at the completed Stage 3 boundary until the
+user explicitly requests advancing; closure alone does not authorize B+ Tree
+work. No B+ nodes, clustered/unclustered indexes, buffer pool, WAL or
+concurrency were added.
 
-Current detailed stage specification:
+Latest completed detailed stage specification:
 
 > `ETAPA_03.md`
 

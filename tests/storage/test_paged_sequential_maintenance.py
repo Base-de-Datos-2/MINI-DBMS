@@ -1,10 +1,19 @@
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
 from engine.catalog import Column, DataType, Schema
-from engine.errors import InvalidReferenceError, InvalidTypeError
-from engine.storage import PagedSequentialFile, Record, RecordCodec, RID
+from engine.errors import InvalidReferenceError, InvalidTypeError, ValidationError
+from engine.storage import (
+    OrganizationMetadata,
+    Page,
+    PageManager,
+    PagedSequentialFile,
+    Record,
+    RecordCodec,
+    RID,
+)
 from engine.storage.binary import FILE_HEADER_SIZE, PAGE_SIZE, SLOT_SIZE
 
 
@@ -276,6 +285,57 @@ def test_failed_atomic_replace_reopens_unchanged_original(
         assert not sequential.closed
         assert [record.values[0] for _, record in sequential.scan()] == [1, 2]
         sequential.flush()
+        assert path.read_bytes() == original
+        assert not list(path.parent.glob(f".{path.name}.*.replacement"))
+
+
+def test_open_rejects_sequential_record_counter_corruption(tmp_path, schema):
+    path = tmp_path / "ordered.db"
+    with PagedSequentialFile.create(path, schema, "id") as sequential:
+        sequential.insert(_row(schema, 1, "row"))
+
+    with PageManager.open(path) as manager:
+        metadata_page = manager.read_page(0)
+        metadata = OrganizationMetadata.deserialize(metadata_page.read(0))
+        corrupted = replace(
+            metadata,
+            active_record_count=0,
+            deleted_record_count=1,
+        )
+        replacement_page = Page(0)
+        replacement_page.insert(corrupted.serialize())
+        manager.write_page(replacement_page)
+
+    with pytest.raises(ValidationError, match="active-record count"):
+        PagedSequentialFile.open(path, schema, "id")
+
+
+def test_corrupted_reorganization_candidate_never_replaces_original(
+    tmp_path, schema, monkeypatch
+):
+    path = tmp_path / "ordered.db"
+    with PagedSequentialFile.create(path, schema, "id") as sequential:
+        sequential.insert(_row(schema, 1, "row"))
+        sequential.flush()
+        original = path.read_bytes()
+        write_candidate = sequential._write_compact_replacement
+
+        def write_then_truncate(temporary_path):
+            result = write_candidate(temporary_path)
+            candidate = Path(temporary_path)
+            candidate.write_bytes(candidate.read_bytes()[:-1])
+            return result
+
+        monkeypatch.setattr(
+            sequential,
+            "_write_compact_replacement",
+            write_then_truncate,
+        )
+        with pytest.raises(ValidationError, match="length mismatch"):
+            sequential.reorganize()
+
+        assert not sequential.closed
+        assert [record.values[0] for _, record in sequential.scan()] == [1]
         assert path.read_bytes() == original
         assert not list(path.parent.glob(f".{path.name}.*.replacement"))
 

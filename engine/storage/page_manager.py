@@ -73,6 +73,13 @@ class PageManager:
         return self._header.allocated_page_count
 
     @property
+    def file_size(self) -> int:
+        """Return the validated physical file size without changing counters."""
+
+        self._require_open()
+        return self._check_file_size()
+
+    @property
     def closed(self) -> bool:
         return self._file.closed
 
@@ -164,13 +171,14 @@ class PageManager:
         # Also used with page_count to compute the expected end of the file.
         return FILE_HEADER_SIZE + page_id * PAGE_SIZE
 
-    def _check_file_size(self) -> None:
+    def _check_file_size(self) -> int:
         expected = self._physical_offset(self.allocated_page_count)
         actual = os.fstat(self._file.fileno()).st_size
         if actual != expected:
             raise ValidationError(
                 f"Database file length mismatch: expected {expected} bytes, found {actual}"
             )
+        return actual
 
     def _require_allocated(self, page_id: int) -> None:
         if type(page_id) is not int:

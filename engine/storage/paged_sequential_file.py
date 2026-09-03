@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from contextlib import closing
 from dataclasses import replace
+from time import perf_counter
 
 from engine.catalog import DataType, Schema
 from engine.errors import (
@@ -17,6 +18,7 @@ from engine.errors import (
 
 from .base import Storage
 from .binary import MAX_RECORD_SIZE, PAGE_SIZE, SLOT_SIZE
+from .metrics import ReorganizationMetrics
 from .organization import OrganizationFile, OrganizationMetadata, OrganizationType
 from .page import Page
 from .record import Record, RecordValue
@@ -426,7 +428,7 @@ class PagedSequentialFile(OrganizationFile, Storage):
     def _write_compact_replacement(
         self,
         path: object,
-    ) -> OrganizationMetadata:
+    ) -> tuple[OrganizationMetadata, tuple[int, int, int]]:
         """Build and flush a compact candidate while the source stays open."""
 
         placeholder = replace(
@@ -469,18 +471,32 @@ class PagedSequentialFile(OrganizationFile, Storage):
             )
             replacement._store_metadata(compact_metadata)
             replacement.flush()
-            return compact_metadata
+            replacement_io = (
+                replacement.pages_read,
+                replacement.pages_written,
+                replacement.pages_allocated,
+            )
+            return compact_metadata, replacement_io
         finally:
             replacement.close()
 
-    def reorganize(self) -> None:
+    def reorganize(self) -> ReorganizationMetrics:
         self._require_open()
+        started_at = perf_counter()
+        file_size_before = self.file_size
+        source_io_before = (
+            self.pages_read,
+            self.pages_written,
+            self.pages_allocated,
+        )
         schema = self._metadata.schema
         key_column = self._ordering.key_column
         temporary_path = self._manager.temporary_replacement_path()
         committed = False
         try:
-            compact_metadata = self._write_compact_replacement(temporary_path)
+            compact_metadata, replacement_io = self._write_compact_replacement(
+                temporary_path
+            )
 
             # Validate the complete candidate, including ordered Record decoding,
             # before releasing or replacing the source handle.
@@ -493,11 +509,42 @@ class PagedSequentialFile(OrganizationFile, Storage):
                     )
                 if candidate.wasted_space_ratio() != 0.0:
                     raise ValidationError("Compact sequential file retains waste")
+                validation_io = (
+                    candidate.pages_read,
+                    candidate.pages_written,
+                    candidate.pages_allocated,
+                )
+
+            source_io_after = (
+                self.pages_read,
+                self.pages_written,
+                self.pages_allocated,
+            )
+            source_io = tuple(
+                after - before
+                for before, after in zip(source_io_before, source_io_after)
+            )
+            if any(value < 0 for value in source_io):
+                raise ValidationError(
+                    "Source I/O counters changed incompatibly during reorganization"
+                )
 
             self._manager.commit_replacement(temporary_path)
             committed = True
             self._metadata = compact_metadata
             self._ordering = SequentialOrdering(schema, key_column)
+            total_io = tuple(
+                sum(values)
+                for values in zip(source_io, replacement_io, validation_io)
+            )
+            return ReorganizationMetrics(
+                elapsed_seconds=perf_counter() - started_at,
+                pages_read=total_io[0],
+                pages_written=total_io[1],
+                pages_allocated=total_io[2],
+                file_size_before=file_size_before,
+                file_size_after=self.file_size,
+            )
         finally:
             if not committed:
                 self._manager.discard_replacement(temporary_path)
