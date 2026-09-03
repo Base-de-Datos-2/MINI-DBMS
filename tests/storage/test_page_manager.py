@@ -18,12 +18,14 @@ def test_create_and_reopen_header_only_file(tmp_path):
     path = tmp_path / "database.db"
     with PageManager.create(path) as manager:
         assert not manager.closed
+        assert manager.path == path.absolute()
         assert manager.header == FileHeader()
         assert manager.allocated_page_count == 0
         assert path.read_bytes() == FileHeader().serialize()
         assert counters(manager) == (0, 0, 0)
     assert manager.closed
     with PageManager.open(str(path)) as reopened:
+        assert reopened.path == path.absolute()
         assert reopened.header == FileHeader()
         assert counters(reopened) == (0, 0, 0)
 
@@ -316,6 +318,42 @@ def test_context_manager_closes_on_exception_without_suppressing_it(tmp_path):
         with PageManager.create(tmp_path / "database.db") as manager:
             raise RuntimeError("caller failed")
     assert manager.closed
+
+
+def test_commit_validated_sibling_replacement_reopens_same_manager(tmp_path):
+    path = tmp_path / "database.db"
+    manager = PageManager.create(path)
+    manager.allocate_page()
+    original_page = Page(0)
+    original_page.insert(b"original")
+    manager.write_page(original_page)
+
+    candidate_path = manager.temporary_replacement_path()
+    with PageManager.create(candidate_path) as candidate:
+        candidate.allocate_page()
+        replacement_page = Page(0)
+        replacement_page.insert(b"replacement")
+        candidate.write_page(replacement_page)
+
+    manager.commit_replacement(candidate_path)
+
+    assert not manager.closed
+    assert manager.path == path.absolute()
+    assert manager.read_page(0).read(0) == b"replacement"
+    assert not candidate_path.exists()
+    manager.close()
+
+
+def test_replacement_helpers_reject_unrelated_paths(tmp_path):
+    path = tmp_path / "database.db"
+    unrelated = tmp_path / "unrelated.db"
+    unrelated.write_bytes(b"keep")
+    with PageManager.create(path) as manager:
+        with pytest.raises(ValidationError, match="sibling replacement"):
+            manager.commit_replacement(unrelated)
+        with pytest.raises(ValidationError, match="sibling replacement"):
+            manager.discard_replacement(unrelated)
+        assert unrelated.read_bytes() == b"keep"
 
 
 def test_flush_calls_fsync_and_close_releases_handle_even_if_fsync_fails(tmp_path, monkeypatch):

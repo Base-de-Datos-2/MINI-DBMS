@@ -391,6 +391,25 @@ def test_pages_with_equal_ids_still_own_independent_memory():
     assert second.active_record_count == 1
 
 
+def test_clone_with_page_id_preserves_exact_layout_payloads_and_source():
+    page = Page(7)
+    first = page.insert(b"first")
+    second = page.insert(b"second")
+    page.delete(first)
+    before = page.serialize()
+
+    clone = page.clone_with_page_id(11)
+
+    assert page.page_id == 7
+    assert page.serialize() == before
+    assert clone.page_id == 11
+    assert clone.slot_count == page.slot_count
+    assert clone.active_record_count == page.active_record_count
+    assert clone.slots == page.slots
+    assert clone.read(second) == b"second"
+    assert clone.serialize()[4:] == before[4:]
+
+
 def test_deterministic_mixed_operations_match_a_small_test_only_model():
     rng = random.Random(20260831)
     page = Page(2)

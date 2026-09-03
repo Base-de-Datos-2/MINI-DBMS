@@ -3,6 +3,7 @@
 from dataclasses import replace
 import os
 from pathlib import Path
+from uuid import uuid4
 
 from engine.errors import InvalidReferenceError, InvalidTypeError, ValidationError
 from engine.storage.binary import FILE_HEADER_SIZE, PAGE_SIZE, UINT32_MAX
@@ -31,10 +32,11 @@ class PageManager:
             raise InvalidTypeError("path must be a text path, not bytes")
         if type(create) is not bool:
             raise InvalidTypeError("create must be a bool")
+        self._path = Path(path).absolute()
         self._pages_read = 0
         self._pages_written = 0
         self._pages_allocated = 0
-        self._file = Path(path).open("x+b" if create else "r+b", buffering=0)
+        self._file = self._path.open("x+b" if create else "r+b", buffering=0)
         try:
             if create:
                 self._header = FileHeader()
@@ -61,6 +63,12 @@ class PageManager:
         return self._header
 
     @property
+    def path(self) -> Path:
+        """Return the stable absolute path owned by this manager."""
+
+        return self._path
+
+    @property
     def allocated_page_count(self) -> int:
         return self._header.allocated_page_count
 
@@ -84,6 +92,68 @@ class PageManager:
         """Reset this open manager's session metrics, without touching the file."""
         self._require_open()
         self._pages_read = self._pages_written = self._pages_allocated = 0
+
+    def temporary_replacement_path(self) -> Path:
+        """Return a unique, uncreated sibling path for a validated rewrite."""
+
+        self._require_open()
+        return self._path.with_name(
+            f".{self._path.name}.{uuid4().hex}.replacement"
+        )
+
+    def _validate_replacement_path(self, path: object) -> Path:
+        if not isinstance(path, (str, os.PathLike)):
+            raise InvalidTypeError("replacement path must be a string or text PathLike")
+        if not isinstance(os.fspath(path), str):
+            raise InvalidTypeError("replacement path must be text, not bytes")
+        candidate = Path(path).absolute()
+        expected_prefix = f".{self._path.name}."
+        if (
+            candidate.parent != self._path.parent
+            or not candidate.name.startswith(expected_prefix)
+            or not candidate.name.endswith(".replacement")
+            or candidate == self._path
+        ):
+            raise ValidationError("Invalid sibling replacement path")
+        return candidate
+
+    def discard_replacement(self, path: object) -> None:
+        """Remove an uncommitted sibling candidate, if one exists."""
+
+        candidate = self._validate_replacement_path(path)
+        candidate.unlink(missing_ok=True)
+
+    def _adopt_reopened_handle(self, reopened: "PageManager") -> None:
+        self._path = reopened._path
+        self._file = reopened._file
+        self._header = reopened._header
+        self._pages_read = reopened._pages_read
+        self._pages_written = reopened._pages_written
+        self._pages_allocated = reopened._pages_allocated
+
+    def commit_replacement(self, path: object) -> None:
+        """Atomically replace this file with a prevalidated sibling candidate.
+
+        The current handle is closed before the same-directory ``os.replace``
+        required by Windows. If close or replacement fails, the unchanged
+        destination is reopened before the original exception is propagated.
+        A successful commit also reopens this manager as a new I/O session.
+        """
+
+        self._require_open()
+        candidate = self._validate_replacement_path(path)
+        destination = self._path
+        try:
+            self.close()
+        except BaseException:
+            self._adopt_reopened_handle(type(self).open(destination))
+            raise
+        try:
+            os.replace(candidate, destination)
+        except BaseException:
+            self._adopt_reopened_handle(type(self).open(destination))
+            raise
+        self._adopt_reopened_handle(type(self).open(destination))
 
     def _require_open(self) -> None:
         if self.closed:

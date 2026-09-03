@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **1.7** — aligned with `PLAN.md` and active `ETAPA_03.md` tasks 3.1–3.11.
+> Context version: **1.9** — aligned with `PLAN.md` and active `ETAPA_03.md` tasks 3.1–3.21.
 
 ## Project identity
 
@@ -626,9 +626,10 @@ pages and the expected file end. Page ids must be exact built-in ints, with
 | `write_page(page) -> None` | Validate and rewrite one already allocated page; never allocate implicitly |
 | `flush() -> None` | Flush the handle and call `os.fsync` to request synchronization |
 | `close() -> None` | Flush and close; idempotent, releases the handle even if flush fails |
-| `header`, `allocated_page_count`, `closed` | Inspect metadata/status; header is an immutable snapshot |
+| `path`, `header`, `allocated_page_count`, `closed` | Inspect path/metadata/status; header is an immutable snapshot |
 | `pages_read`, `pages_written`, `pages_allocated` | Read-only per-manager session counters |
 | `reset_counters() -> None` | Reset session counters, with no file I/O or metadata changes |
+| replacement helpers | Create a unique sibling name, discard an uncommitted candidate, or atomically commit a prevalidated candidate |
 
 The manager owns an unbuffered handle and supports `with`; callers must close
 it or use that context manager. Pages are independent in-memory copies: changes
@@ -647,6 +648,14 @@ count. Incomplete transfers on failure do not count as completed pages. If the
 page append succeeds but its header update fails, the write counts but the
 allocation does not. Counters start at zero on every new manager and are not
 persisted; they remain inspectable after close.
+
+`PageManager.path` is the stable absolute path owned by the handle. Physical
+file replacement also remains inside this layer: a unique uncreated sibling
+path is generated, only that validated sibling may be discarded or committed,
+and same-directory `os.replace` occurs after closing the Windows handle. The
+manager reopens the destination after success or after a failed replacement;
+that reopen starts a new per-manager I/O-counter session. These helpers do not
+validate organization records—the caller must validate the candidate first.
 
 Errors reuse the existing vocabulary: wrong argument types raise
 `InvalidTypeError`; unallocated page ids raise `InvalidReferenceError`; invalid
@@ -829,6 +838,53 @@ the in-memory `Catalog` or its table/index registry.
   not WAL or crash recovery; failure must never continue through a partially
   validated replacement.
 
+### Implemented Paged Sequential behavior (Tasks 3.12–3.21)
+
+- `SequentialOrdering` is the single key-extraction/comparison contract.
+  `INTEGER`, `FLOAT`, `BOOLEAN` and `VARCHAR` require their exact built-in
+  Python type. It supplies ascending three-way comparison and stable insertion
+  positions after existing equals; FLOAT NaN is rejected and infinities remain
+  valid.
+- `PagedSequentialFile` persists and validates its key column, duplicate policy
+  and reorganization threshold in page 0. Empty create/open/search/scan, common
+  lifecycle, optional external-schema/key validation and read by current RID
+  are implemented.
+- Active scan reads one page at a time and checks the nondecreasing invariant
+  while decoding through `RecordCodec`. It skips FREE slots and yields physical
+  `(RID, Record)` pairs. Exact-key search uses that ordered stream and terminates
+  when it reaches a greater key; it is intentionally not an index.
+- Ordered insertion locates the first page containing a greater key, inserts
+  after all existing equals, and rebuilds only the target page when it fits. If
+  needed, it partitions the target into multiple ordered pages, appends the
+  required capacity and shifts the physical suffix right from the end.
+  `Page.clone_with_page_id` changes only the page identity while preserving
+  slots, holes and payload bytes during those shifts. All allocation and I/O
+  remain in `PageManager`.
+- A structural insertion can change RIDs in the rebuilt target and shifted
+  suffix, exactly as established by the sequential RID invalidation policy.
+  The RID returned for the new row is its exact location in the completed
+  mutation.
+- `delete(rid)` marks exactly one current slot FREE through `Page.delete`,
+  updates active/deleted metadata and performs no compaction or automatic
+  reorganization. Search and scan already skip that durable tombstone. Ordered
+  insertion deliberately retains the target page's aggregate payload holes and
+  FREE-slot count, rather than silently reclaiming sequential deletion waste.
+- Per page, payload holes are `PAGE_SIZE - free_space_end - sum(active slot
+  lengths)`. `wasted_space_ratio()` adds those holes and
+  `free_slot_count * SLOT_SIZE` across data pages, then divides by
+  `data_page_count * PAGE_SIZE`; ordinary contiguous unused capacity is absent
+  from the numerator and an empty file yields `0.0`.
+- `should_reorganize()` only evaluates `ratio > persisted threshold`. It never
+  writes or invokes `reorganize()`, and deletion does not consult it.
+- `reorganize()` streams active ordered records into compact pages in a sibling
+  file, writes zero-deletion metadata, flushes and fully validates the candidate,
+  then asks `PageManager` to replace and reopen the original path. Candidate
+  build and pre-commit replacement failures leave the original object usable
+  and remove the temporary file. The result has zero policy waste and returns
+  no RID map; earlier sequential RIDs are invalid under the adopted policy.
+- Fresh-object tests cover tombstones and waste before restart, continued
+  insertion, explicit reorganization, and a second compact ordered reopen.
+
 ---
 
 ## Storage abstractions
@@ -861,10 +917,10 @@ Non-Record/non-RID inputs raise `InvalidTypeError`; validation failures do not
 mutate storage. Each scan is fresh and closable. Scan-owned resources must be
 released on exhaustion, failure, and `close()`, without closing the borrowed
 storage manager. Callers use `contextlib.closing` or `try/finally` when they
-may stop early. Concurrency remains deferred. The active Stage 3 `HeapFile`
-implements this complete contract over `PageManager`, its persisted schema and
-its rebuildable free-space tracker. The Paged Sequential implementation remains
-pending.
+may stop early. Concurrency remains deferred. `HeapFile` implements the complete
+contract over `PageManager`, its persisted schema and its rebuildable free-space
+tracker. `PagedSequentialFile` now implements the complete Storage contract plus
+exact-key search, waste-policy inspection and explicit physical reorganization.
 
 ---
 
@@ -1385,7 +1441,14 @@ Implemented so far:
   in-memory Heap free-space directory.
 - Stage 3 tasks 3.7–3.11: implemented Heap insertion, read, delete/reuse and lazy
   physical scan, then verified multi-page persistence and continued insertion
-  through two fresh reopen cycles. The current suite has 1229 passing tests.
+  through two fresh reopen cycles.
+- Stage 3 tasks 3.12–3.16: added the shared sequential comparator, persisted
+  lifecycle, ordered scan, exact-key search and direct page redistribution with
+  two-/three-way splits and suffix shifting.
+- Stage 3 tasks 3.17–3.21: added durable lazy deletion, byte-exact waste
+  measurement, the strict threshold predicate, validated compact file
+  replacement and a complete fresh-restart lifecycle. The current suite has
+  1274 passing tests.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -1395,9 +1458,11 @@ limits of verification are recorded in [the audit](docs/ETAPA_01_AUDIT.md).
 in `ETAPA_02.md`, with 1155 passing tests. Evidence and limits are recorded in
 [the Stage 2 audit](docs/ETAPA_02_AUDIT.md). No production engine changes were
 needed for the final testing/closure block; existing work was preserved.
-**Stage 3 is active.** Tasks 3.1–3.11 are complete; Task 3.12 onward remains
-pending. Heap is functional, while the Paged Sequential implementation does
-not exist yet. Part 1 as a whole is not complete.
+**Stage 3 is active.** Tasks 3.1–3.21 are complete; Task 3.22 onward remains
+pending. Both organization cores are functional, but operation-level boundary
+coverage, measurement readiness, cross-organization integration, documentation
+consolidation and the formal Stage 3 audit are not complete. Part 1 as a whole
+is not complete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 

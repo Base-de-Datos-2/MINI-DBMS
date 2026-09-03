@@ -1,6 +1,6 @@
 # ETAPA_03.md
 
-> Context version: **1.3** - aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and active Stage 3 tasks 3.1-3.11.
+> Context version: **1.5** - aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, `PLAN.md`, and active Stage 3 tasks 3.1-3.21.
 
 ## Stage 3 - Heap File and Paged Sequential File
 
@@ -9,7 +9,7 @@
 **Previous stage:** Stage 2 - Pages, Records, and Base Persistence  
 **Next stage:** Stage 4 - B+ Tree  
 **Roadmap:** `PLAN.md`
-**Status:** Active as of 2026-09-02; Tasks 3.1-3.11 complete; Task 3.12 pending.
+**Status:** Active as of 2026-09-02; Tasks 3.1-3.21 complete; Task 3.22 pending.
 
 ---
 
@@ -916,6 +916,10 @@ test_heap_can_continue_inserting_after_restart
 
 # 18. Task 3.12 - Define the sequential ordering contract
 
+**Status: complete (2026-09-02).** `SequentialOrdering` supplies exact-type key
+extraction, one ascending comparator, stable equal-key insertion and explicit
+NaN rejection for every sequential operation.
+
 ## Objective
 
 Create one deterministic comparison contract before implementing the sequential algorithms.
@@ -954,6 +958,10 @@ test_comparator_is_consistent
 ---
 
 # 19. Task 3.13 - Implement the `PagedSequentialFile` skeleton
+
+**Status: complete (2026-09-02).** Empty create/open, persisted key metadata,
+schema/key/organization validation, lifecycle, empty scan/search and the
+`Storage` shape are implemented.
 
 ## Objective
 
@@ -997,6 +1005,9 @@ test_open_with_incompatible_schema_is_rejected
 
 # 20. Task 3.14 - Implement ordered active-record scan
 
+**Status: complete (2026-09-02).** Scan streams physical pages, skips FREE
+slots, exposes `(RID, Record)` and validates nondecreasing key order.
+
 ## Objective
 
 Yield all active records in nondecreasing key order according to the adopted physical strategy.
@@ -1035,6 +1046,10 @@ test_sequential_scan_yields_each_active_record_once
 
 # 21. Task 3.15 - Implement exact-key search
 
+**Status: complete (2026-09-02).** Ordered search handles empty/missing and
+first/middle/last keys, returns every stable duplicate and stops after a greater
+key without introducing an index.
+
 ## Objective
 
 Use the ordered organization to find active records with a requested key.
@@ -1071,6 +1086,10 @@ test_search_after_reopen
 ---
 
 # 22. Task 3.16 - Implement ordered insertion
+
+**Status: complete (2026-09-02).** Arbitrary input is placed by the common
+comparator. Target pages are rebuilt or split, later pages shift right through
+`PageManager`, and the exact resulting RID is returned.
 
 ## Objective
 
@@ -1118,6 +1137,11 @@ test_insert_rejects_oversized_record
 
 # 23. Task 3.17 - Implement lazy deletion
 
+**Status: complete (2026-09-02).** `delete(rid)` persists a FREE tombstone,
+updates both record counters, rejects repeated deletion and never compacts or
+calls reorganization implicitly. Ordered insertion retains pending tombstone
+waste instead of silently reclaiming it.
+
 ## Objective
 
 Make a record logically absent without immediately rebuilding the sequential file.
@@ -1154,6 +1178,10 @@ test_lazy_delete_does_not_trigger_unrequested_rebuild
 ---
 
 # 24. Task 3.18 - Implement wasted-space measurement
+
+**Status: complete (2026-09-02).** The implementation sums payload holes and
+five bytes for every FREE slot across data pages, divides by allocated data-page
+bytes, excludes ordinary unused capacity and produces the same result on reopen.
 
 ## Objective
 
@@ -1195,6 +1223,10 @@ test_waste_ratio_rejects_invalid_metadata
 
 # 25. Task 3.19 - Implement the reorganization policy
 
+**Status: complete (2026-09-02).** `should_reorganize()` performs the documented
+strict `ratio > threshold` comparison. Policy checks and searches are read-only;
+neither deletion nor insertion invokes the physical rewrite automatically.
+
 ## Objective
 
 Decide when reorganization is needed without mixing the decision with the physical rewrite algorithm.
@@ -1233,6 +1265,12 @@ test_invalid_threshold_is_rejected
 ---
 
 # 26. Task 3.20 - Implement physical reorganization
+
+**Status: complete (2026-09-02).** Active rows stream into a compact sibling
+file, which is flushed and validated before `PageManager` performs a
+same-directory atomic replacement and reopens its handle. Tombstones disappear,
+order and duplicates remain, prior RIDs receive no remapping, and tested
+pre-commit failures leave the original usable.
 
 ## Objective
 
@@ -1293,6 +1331,10 @@ test_reorganized_file_survives_reopen
 ---
 
 # 27. Task 3.21 - Validate sequential persistence and restart behavior
+
+**Status: complete (2026-09-02).** A fresh-object lifecycle now covers unsorted
+variable-length input, duplicate search, durable tombstones/waste, continued
+insertion, explicit reorganization and a second compact ordered reopen.
 
 ## Objective
 
@@ -1727,21 +1769,21 @@ Stage 3 is complete only when all applicable items below are satisfied.
 ## Paged Sequential File
 
 ```text
-[ ] ordering key is persisted and validated
-[ ] comparator and duplicate-key policy are explicit
-[ ] arbitrary insertion order produces an ordered active scan
-[ ] insertion before, after, and between existing keys works
-[ ] insertion across pages works
-[ ] exact-key search works
-[ ] lazy deletion works
-[ ] deleted records are excluded from normal search and scan
-[ ] wasted-space formula is documented and tested
-[ ] reorganization threshold behavior is explicit
-[ ] reorganize() preserves every active record exactly once
-[ ] reorganize() removes logically deleted records
-[ ] ordering remains valid after reorganization
-[ ] RID remapping/invalidation behavior is implemented and documented
-[ ] sequential state persists across fresh reopen operations
+[x] ordering key is persisted and validated
+[x] comparator and duplicate-key policy are explicit
+[x] arbitrary insertion order produces an ordered active scan
+[x] insertion before, after, and between existing keys works
+[x] insertion across pages works
+[x] exact-key search works
+[x] lazy deletion works
+[x] deleted records are excluded from normal search and scan
+[x] wasted-space formula is documented and tested
+[x] reorganization threshold behavior is explicit
+[x] reorganize() preserves every active record exactly once
+[x] reorganize() removes logically deleted records
+[x] ordering remains valid after reorganization
+[x] RID remapping/invalidation behavior is implemented and documented
+[x] sequential state persists across fresh reopen operations
 ```
 
 ## Reliability
@@ -1752,16 +1794,16 @@ Stage 3 is complete only when all applicable items below are satisfied.
 [x] incompatible key/schema metadata is rejected
 [x] oversized records are rejected cleanly
 [x] stale free-space information cannot corrupt pages
-[ ] reorganization failures are handled according to the adopted strategy
+[x] reorganization failures are handled according to the adopted strategy
 [x] all record/page/file counts remain consistent
 ```
 
 ## Integration and future readiness
 
 ```text
-[ ] both organizations use the same Stage 2 Page/PageManager layer
-[ ] both organizations use RecordCodec
-[ ] both expose records/RIDs needed by later indexes
+[x] both organizations use the same Stage 2 Page/PageManager layer
+[x] both organizations use RecordCodec
+[x] both expose records/RIDs needed by later indexes
 [x] Stage 2 I/O counters remain accurate if adopted
 [ ] the same logical dataset can be stored in both organizations
 [ ] all relevant unit, functional, persistence, and integration tests pass

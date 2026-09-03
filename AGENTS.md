@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **1.7** — aligned with `PLAN.md` and active `ETAPA_03.md` tasks 3.1–3.11.
+> Context version: **1.9** — aligned with `PLAN.md` and active `ETAPA_03.md` tasks 3.1–3.21.
 
 ## Purpose
 
@@ -323,11 +323,13 @@ test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
 request for tasks 2.17–2.20 and the closure audit. All 47 Definition of Done
 criteria are satisfied, with 1155 passing tests. Evidence and verification
 limits are recorded in `docs/ETAPA_02_AUDIT.md`.
-**Stage 3 is active as of 2026-09-02.** Tasks 3.1–3.11 are complete. The
-repository now has a persistent multi-page HeapFile with insert/read/delete,
-streaming scan, free-space reuse and fresh-instance restart coverage. Paged
-Sequential File, indexes, buffer pool, WAL and concurrency have not been
-implemented. Do not skip the remaining Stage 3 tasks.
+**Stage 3 is active as of 2026-09-02.** Tasks 3.1–3.21 are complete. HeapFile is
+persistent and complete for the current stage. PagedSequentialFile now has its
+ordering contract, lifecycle, ordered insertion/search/scan, lazy deletion,
+waste policy, explicit physical reorganization and fresh-restart validation.
+Stage 3 boundary/error, measurement-readiness, cross-organization integration,
+documentation and closure tasks remain; indexes, buffer pool, WAL and
+concurrency have not been implemented. Do not skip the remaining Stage 3 tasks.
 
 Current detailed stage specification:
 

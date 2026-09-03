@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **1.7** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and active `ETAPA_03.md` tasks 3.1–3.11.
+> Context version: **1.9** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and active `ETAPA_03.md` tasks 3.1–3.21.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1358,11 +1358,11 @@ pages now persist across close/reopen. Verified progress is tracked in
 process restart tests, expanded malformed-file/boundary coverage and final
 documentation. All 47 Stage 2 criteria are satisfied; the closure suite passes
 1155 tests. Evidence: [Stage 2 closure audit](docs/ETAPA_02_AUDIT.md).
-**Stage 3 is active (2026-09-02).** Tasks 3.1–3.11 are complete: in addition to
-the organization metadata and lifecycle, HeapFile now supports persistent
-multi-page insertion, read by RID, deletion, local compaction/free-slot reuse,
-physical-order streaming scan and continuation after fresh reopen. The suite
-passes 1229 tests. Task 3.12, the sequential ordering contract, is the next
+**Stage 3 is active (2026-09-02).** Tasks 3.1–3.21 are complete: HeapFile is
+persistent, and PagedSequentialFile now covers ordered insertion/search/scan,
+durable lazy deletion, the documented wasted-space ratio, strict threshold
+policy, validated physical reorganization and fresh restart cycles. The suite
+passes 1274 tests. Task 3.22, operation-level errors and boundaries, is the next
 pending task.
 Part 1 is not complete.
 

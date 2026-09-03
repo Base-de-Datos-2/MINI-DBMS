@@ -160,6 +160,20 @@ class Page:
         self._inspect(self._data)
         return bytes(self._data)
 
+    def clone_with_page_id(self, page_id: int) -> "Page":
+        """Return an exact independent page image with a new physical identity.
+
+        Slots, payload offsets, holes and unused bytes are preserved. File
+        organizations use this when shifting pages; the original Page and its
+        page_id remain unchanged.
+        """
+
+        header, _ = self._inspect(self._data)
+        updated = self._data.copy()
+        updated[:PAGE_HEADER_SIZE] = replace(header, page_id=page_id).serialize()
+        self._inspect(updated)
+        return self.deserialize(bytes(updated))
+
     def compact(self) -> None:
         """Repack live payloads, retaining every directory position and live RID.
 

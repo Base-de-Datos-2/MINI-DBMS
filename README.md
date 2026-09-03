@@ -26,11 +26,14 @@ Los cierres están registrados en [la auditoría de la Etapa 1](docs/ETAPA_01_AU
 y [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md). Los 47 criterios de
 [ETAPA_02.md](ETAPA_02.md) se cumplen.
 
-**Etapa 3 activa (2026-09-02), tareas 3.1–3.11 completas:** `HeapFile` ya permite
+**Etapa 3 activa (2026-09-02), tareas 3.1–3.21 completas:** `HeapFile` ya permite
 insertar registros en varias páginas, leerlos por RID, eliminarlos, reutilizar
 slots/huecos, recorrer registros activos de forma perezosa y continuar después
-de cerrar y reabrir con objetos nuevos. El directorio de espacio se reconstruye
-al abrir. Todavía no se implementa Paged Sequential File. Tampoco existen
+de cerrar y reabrir con objetos nuevos. `PagedSequentialFile` ya persiste su
+clave, ordena inserciones arbitrarias mediante redistribución de páginas,
+recorre y busca con duplicados estables, elimina mediante tombstones, mide el
+desperdicio y reorganiza mediante un reemplazo compacto validado. Todavía faltan
+las tareas de robustez, integración y cierre de la Etapa 3. Tampoco existen
 índices físicos, consultas SQL, transacciones, API ejecutable ni interfaz
 gráfica. La Parte 1 sigue pendiente.
 
@@ -359,6 +362,35 @@ es un índice ni se persiste por separado. `scan()` lee una página de datos cad
 vez, omite slots eliminados y produce `(RID, Record)` en orden físico. Reutilizar
 un slot puede hacer que un RID eliminado pase a identificar un registro nuevo.
 
+### Paged Sequential File (Etapa 3)
+
+```python
+from engine.storage import PagedSequentialFile, Record
+
+with PagedSequentialFile.create(path, schema, "id") as ordered:
+    ordered.insert(Record(schema, [3]))
+    ordered.insert(Record(schema, [1]))
+    ordered.insert(Record(schema, [2]))
+    assert [row.values[0] for _, row in ordered.scan()] == [1, 2, 3]
+    assert [row.values[0] for _, row in ordered.search(2)] == [2]
+    current_rid = next(ordered.search(2))[0]
+    ordered.delete(current_rid)
+    assert ordered.wasted_space_ratio() > 0.0
+    ordered.reorganize()
+    assert ordered.deleted_record_count == 0
+    assert ordered.wasted_space_ratio() == 0.0
+```
+
+El comparador rechaza conversiones implícitas y NaN, y usa el mismo orden para
+insertar, recorrer y buscar. Una división crea páginas adyacentes y desplaza el
+sufijo físico mediante `PageManager`; no existe un B+ oculto. Como una inserción
+estructural puede mover registros, los RIDs secuenciales anteriores quedan
+invalidados según la política documentada. La eliminación solo marca el slot
+`FREE`; la razón de desperdicio cuenta huecos de payload y bytes de entradas
+`FREE`, pero no la capacidad ordinaria sin usar. `should_reorganize()` aplica
+`ratio > threshold` sin escribir. `reorganize()` crea, valida y sincroniza un
+archivo hermano compacto antes de pedir a `PageManager` el reemplazo físico.
+
 ### Ejemplo completo de persistencia de registros
 
 Solo el archivo y el RID pasan de la escritura a la lectura; el lector crea un
@@ -592,7 +624,7 @@ Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
 La verificación actual se ejecutó en Windows con Python 3.12.4 y pytest 8.4.2:
-1229 pruebas aprobadas, sin omisiones ni xfails. `compileall` y `pip check`
+1274 pruebas aprobadas, sin omisiones ni xfails. `compileall` y `pip check`
 también pasan. Las operaciones físicas restantes deberán añadir sus propias
 pruebas de conformidad, persistencia y concurrencia.
 
@@ -610,6 +642,6 @@ Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
 [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
 criterio, los comandos ejecutados y los límites de la validación.
 
-La **Etapa 3 está activa** y las tareas 3.1–3.11 están completas. El siguiente
-paso es la tarea 3.12: materializar el contrato común de ordenamiento que usará
-Paged Sequential File, sin iniciar ninguna etapa posterior.
+La **Etapa 3 está activa** y las tareas 3.1–3.21 están completas. El siguiente
+paso es la tarea 3.22: ampliar errores y límites operativos, sin iniciar ninguna
+etapa posterior.
