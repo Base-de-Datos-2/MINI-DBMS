@@ -2,6 +2,8 @@
 
 from engine.storage.base import Storage
 from engine.storage.file_header import FileHeader
+from engine.storage.heap_file import HeapFile, HeapFreeSpaceTracker
+from engine.storage.organization import OrganizationMetadata, OrganizationType
 from engine.storage.page import Page
 from engine.storage.page_header import PageHeader
 from engine.storage.page_manager import PageManager
@@ -13,5 +15,6 @@ from engine.storage.value_codec import ValueCodec
 
 __all__ = [
     "RID", "Record", "Storage", "ValueCodec", "RecordCodec", "PageHeader", "SlotEntry", "Page",
-    "FileHeader", "PageManager",
+    "FileHeader", "PageManager", "OrganizationType", "OrganizationMetadata",
+    "HeapFreeSpaceTracker", "HeapFile",
 ]

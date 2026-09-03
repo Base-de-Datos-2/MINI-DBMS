@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **1.5** — aligned with `PLAN.md` and the completed `ETAPA_02.md`.
+> Context version: **1.7** — aligned with `PLAN.md` and active `ETAPA_03.md` tasks 3.1–3.11.
 
 ## Project identity
 
@@ -694,6 +694,143 @@ criterion-by-criterion evidence is in [the Stage 2 audit](docs/ETAPA_02_AUDIT.md
 
 ---
 
+## Stage 3 file-organization decisions
+
+The following decisions are stable for Heap File and Paged Sequential File.
+They refine the official requirements without changing the Stage 2 binary
+format.
+
+```text
+FILE_OWNERSHIP = one independent paged file per table organization
+ORGANIZATION_METADATA = canonical versioned JSON in page 0, slot 0
+HEAP_INSERTION_ORDER_POLICY = reuse lowest eligible page; append if none fits
+HEAP_FREE_SPACE_STRATEGY = in-memory page-capacity directory; Page verifies fit
+HEAP_FREE_SPACE_PERSISTENCE = rebuild once from data pages on open
+SEQUENTIAL_PHYSICAL_STRATEGY = direct ordered placement and page redistribution
+SEQUENTIAL_KEY_POLICY = configured schema column; common ascending comparator
+DUPLICATE_KEY_POLICY = allowed by default; stable equals; return all matches
+LAZY_DELETE_POLICY = FREE slot tombstone; skip it; no implicit reorganization
+WASTED_SPACE_FORMULA = (payload holes + FREE slot bytes) / (data pages * PAGE_SIZE)
+REORGANIZATION_TRIGGER = explicit rewrite plus > configurable 0.30 predicate
+REORGANIZATION_RID_POLICY = sequential structural changes invalidate old RIDs
+```
+
+### Physical ownership and organization metadata
+
+- Each table organization owns one independent paged file and one
+  `PageManager` handle while open. Sharing one physical file among tables is
+  not adopted.
+- The 20-byte Stage 2 `FileHeader` remains unchanged. Physical page 0 is
+  reserved for one organization-metadata record in slot 0; data pages form the
+  contiguous range beginning at physical page 1. Consequently, Stage 3 data
+  RIDs always have `page_id >= 1`.
+- `OrganizationMetadata` is canonical UTF-8 JSON framed by the ordinary
+  slotted-page format. It persists its own signature/version, organization
+  type, ordered schema, active/deleted slot counts, first data-page ID, data-page
+  count, and the fields required by the selected organization.
+- Sequential metadata additionally persists the key-column name, duplicate-key
+  policy and reorganization threshold. Because direct placement has no
+  auxiliary area, all data pages are primary and no redundant primary-page
+  counter is stored. The key type is derived from the persisted schema rather
+  than duplicated.
+- Opening validates the metadata-page layout, organization type, optional
+  caller-provided schema, contiguous page references, physical page count and
+  record counters. A Heap file cannot be opened as a sequential file.
+- The organization layer never computes raw file offsets. All allocation,
+  reads, writes, synchronization and close operations remain in `PageManager`.
+
+This is schema persistence for an individual storage file, not persistence of
+the in-memory `Catalog` or its table/index registry.
+
+### Common lifecycle
+
+- `create` is exclusive and does not overwrite an existing file; `open` never
+  creates one. Both delegate file ownership to `PageManager`.
+- `flush`, `close`, and context management follow the Stage 2 manager policy.
+  `close` is idempotent, and public operations other than inspecting `closed`
+  raise `RuntimeError` after close.
+- Metadata replacements use a fresh valid page-0 image. Writes are ordered and
+  validated but are not cross-page atomic: buffer pools, WAL and crash recovery
+  remain out of scope.
+- Existing PageManager I/O counters remain observable and count the metadata
+  page and data pages exactly like any other physical page.
+
+### Heap policy
+
+- Heap inserts append a new data page only when no reusable page can fit the
+  serialized record. Otherwise, they reuse the eligible page with the lowest
+  physical page ID. Therefore physical scan order is deterministic by
+  `(page_id, slot_id)` but is not promised to remain strict chronological
+  arrival order after space or slots are reused.
+- `HeapFreeSpaceTracker` is a rebuildable in-memory directory
+  `page_id -> maximum insertable payload bytes after optional local compaction`.
+  It is not persisted. Opening reads each data page once, validates the
+  metadata counters and reconstructs the directory; subsequent insertion
+  selection consults this memory structure instead of scanning the file.
+- The tracker accounts for live payload bytes, existing directory entries and
+  the extra 5-byte slot required when no free slot exists. It only proposes a
+  page. `Page.insert` is always the final fit check; stale observations must be
+  refreshed and selection must continue safely.
+- Page-local compaction and slot reuse keep every other live `slot_id` stable,
+  as established in Stage 2. Reusing a deleted slot gives its RID to a new
+  logical record; old deleted RIDs do not retain historical identity.
+- `HeapFile.insert` validates the fixed schema, serializes through
+  `RecordCodec`, consults only the in-memory directory, verifies/optionally
+  compacts the selected `Page`, and returns its exact physical RID. A new page
+  is allocated only when no tracked page has sufficient reclaimable capacity.
+- `read` accepts only a data-page RID, distinguishes an unknown page, unknown
+  slot and FREE/deleted slot, and propagates `RecordCodec` validation for a
+  malformed active payload. `delete` changes exactly one active slot to FREE,
+  updates both persisted counters and refreshes its free-space entry. Repeating
+  the deletion is an `InvalidReferenceError` and performs no write.
+- Heap scan is lazy and reads one physical data page at a time. It yields every
+  active `(RID, Record)` once in ascending `(page_id, slot_id)` order, skips FREE
+  slots, and never closes its borrowed Heap/PageManager when the generator is
+  closed early.
+- Each successful mutation writes the affected data page and then a fresh,
+  validated metadata-page image. Normal `flush`/`close` persistence is covered;
+  multi-page atomicity and recovery from a process crash between those writes
+  remain explicitly outside the current architecture.
+
+### Paged Sequential policy
+
+- Use direct ordered placement across primary pages with controlled page
+  redistribution/splitting. Do not add an overflow organization or hidden tree
+  index. A normal ordered insertion may move affected records but must not be
+  implemented as a full-file reorganization.
+- The configured key is one exact, case-sensitive column from the persisted
+  schema. All four current `DataType` members are supported. Values use their
+  exact model types and ascending Python ordering; strings use Unicode code-point
+  order and booleans use `False < True`. Floating NaN is rejected as an ordering
+  key; infinities remain ordered. The same comparator must serve insertion,
+  search, scan validation and reorganization.
+- Duplicate keys are allowed by default. New equal keys are placed after
+  existing equal keys, preserving stable order within an equal-key group, and
+  exact-key search returns every active `(RID, Record)` match in physical order.
+- Lazy deletion uses the Stage 2 FREE slot/tombstone state and leaves its payload
+  hole until explicit reorganization. Normal scan/search ignores free slots.
+  Deletion updates metadata and the policy metric but does not trigger an
+  implicit full-file rewrite.
+- Sequential wasted space is
+  `(payload holes + bytes occupied by FREE slot-directory entries) /
+  (data_page_count * PAGE_SIZE)`. Ordinary contiguous unused capacity, including
+  capacity in the last page, is not waste. An empty file has ratio `0.0`.
+- The configurable default reorganization threshold is `0.30`.
+  `should_reorganize()` is true only when the ratio is strictly greater than the
+  threshold. Reorganization is always callable explicitly; policy evaluation
+  does not execute it automatically.
+- Ordered insertion and reorganization may relocate records between pages.
+  Such a structural mutation invalidates earlier sequential RIDs; it does not
+  return a remapping. Future RID-based indexes over this organization must be
+  rebuilt as part of that mutation. Heap RIDs follow the separate stable-page
+  policy above.
+- Reorganization will write a fully validated replacement through the common
+  page layer and then replace the old file. This is a best-effort file rewrite,
+  not WAL or crash recovery; failure must never continue through a partially
+  validated replacement.
+
+---
+
 ## Storage abstractions
 
 A general storage manager should conceptually support operations such as:
@@ -724,10 +861,10 @@ Non-Record/non-RID inputs raise `InvalidTypeError`; validation failures do not
 mutate storage. Each scan is fresh and closable. Scan-owned resources must be
 released on exhaustion, failure, and `close()`, without closing the borrowed
 storage manager. Callers use `contextlib.closing` or `try/finally` when they
-may stop early. Concurrency, allocation, capacity, file lifetime, and physical
-I/O details for concrete record-level organizations remain deferred. The
-PageManager primitives described above are implemented, but no concrete
-record-level `Storage` implementation is included.
+may stop early. Concurrency remains deferred. The active Stage 3 `HeapFile`
+implements this complete contract over `PageManager`, its persisted schema and
+its rebuildable free-space tracker. The Paged Sequential implementation remains
+pending.
 
 ---
 
@@ -1209,9 +1346,13 @@ Overall Part 1 roadmap:
 
 > `PLAN.md`
 
+Current active stage:
+
+> **Stage 3 — Heap File and Paged Sequential File**
+
 Detailed current-stage specification:
 
-> `ETAPA_02.md`
+> `ETAPA_03.md`
 
 Implemented so far:
 
@@ -1236,8 +1377,15 @@ Implemented so far:
   FileHeader, PageManager and page-I/O counters, with 181 additional tests.
 - Stage 2 tasks 2.17–2.20 and closure: expanded restart/boundary tests, separate
   process end-to-end integration and a 47-criterion audit, with 88 more tests.
-  All 1155 current tests pass with warnings treated as errors; compileall and
+  Its 1155-test closure suite passed with warnings treated as errors; compileall and
   pip check also pass (Windows, Python 3.12.4, pytest 8.4.2).
+- Stage 3 tasks 3.1–3.6: inspected the Stage 2 boundary, adopted the organization
+  and RID policies above, added persisted `OrganizationMetadata`, common file
+  lifecycle, an empty `HeapFile` implementing `Storage`, and a rebuildable
+  in-memory Heap free-space directory.
+- Stage 3 tasks 3.7–3.11: implemented Heap insertion, read, delete/reuse and lazy
+  physical scan, then verified multi-page persistence and continued insertion
+  through two fresh reopen cycles. The current suite has 1229 passing tests.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -1247,9 +1395,9 @@ limits of verification are recorded in [the audit](docs/ETAPA_01_AUDIT.md).
 in `ETAPA_02.md`, with 1155 passing tests. Evidence and limits are recorded in
 [the Stage 2 audit](docs/ETAPA_02_AUDIT.md). No production engine changes were
 needed for the final testing/closure block; existing work was preserved.
-**Stage 3 has not started.** Remain at this completed boundary until the user
-explicitly requests advancing. No `ETAPA_03.md`, Heap File or Sequential File
-implementation was added. Part 1 as a whole is not complete.
+**Stage 3 is active.** Tasks 3.1–3.11 are complete; Task 3.12 onward remains
+pending. Heap is functional, while the Paged Sequential implementation does
+not exist yet. Part 1 as a whole is not complete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 
@@ -1261,8 +1409,9 @@ When the project advances to a new stage, update this section and point it to th
 
 The following should not be guessed silently:
 
-- eventual catalog/schema persistence format and integration timing (deferred
-  beyond Stage 2; the current catalog remains in memory);
+- eventual persistence of the complete table/index catalog and its integration
+  timing (organization files now persist their own schema, while `Catalog`
+  remains in memory);
 - exact clustered B+ physical layout;
 - supported comparison operators in `WHERE`;
 - aggregation functions beyond those required by tests/use cases;

@@ -24,12 +24,15 @@ con esquemas externos, varias páginas, slots eliminados y reescrituras.
 
 Los cierres están registrados en [la auditoría de la Etapa 1](docs/ETAPA_01_AUDIT.md)
 y [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md). Los 47 criterios de
-[ETAPA_02.md](ETAPA_02.md) se cumplen. **La Etapa 3 no está iniciada y la
-Parte 1 del proyecto sigue pendiente.**
+[ETAPA_02.md](ETAPA_02.md) se cumplen.
 
-Todavía no existen Heap File, Paged Sequential File, índices físicos, consultas SQL, transacciones,
-API ejecutable ni interfaz gráfica. Los directorios correspondientes reservan
-su ubicación; no representan funcionalidades implementadas.
+**Etapa 3 activa (2026-09-02), tareas 3.1–3.11 completas:** `HeapFile` ya permite
+insertar registros en varias páginas, leerlos por RID, eliminarlos, reutilizar
+slots/huecos, recorrer registros activos de forma perezosa y continuar después
+de cerrar y reabrir con objetos nuevos. El directorio de espacio se reconstruye
+al abrir. Todavía no se implementa Paged Sequential File. Tampoco existen
+índices físicos, consultas SQL, transacciones, API ejecutable ni interfaz
+gráfica. La Parte 1 sigue pendiente.
 
 ## Requisitos e instalación
 
@@ -315,8 +318,46 @@ with TemporaryDirectory() as directory:
   Se admite un solo propietario/escritor por archivo; no hay protección de
   concurrencia, buffer pool, WAL ni recuperación ante fallos.
 
-El catálogo y los esquemas siguen en memoria. Reabrir páginas no descubre
-tablas automáticamente; el consumidor debe aportar el esquema a `RecordCodec`.
+El catálogo sigue en memoria. Un archivo manejado directamente por
+`PageManager` no contiene esquema; el consumidor debe aportarlo a
+`RecordCodec`. Los archivos organizados de la Etapa 3 sí guardan una copia
+ordenada de su propio esquema, pero todavía no persisten el registro completo
+de tablas e índices del `Catalog`.
+
+### Organización de archivo y Heap File (Etapa 3)
+
+Cada organización usa un archivo paginado independiente. La página física 0
+contiene un único `OrganizationMetadata`; las páginas de datos empiezan en 1.
+Esto conserva intactas las cabeceras binarias de la Etapa 2 y permite rechazar
+la apertura con una clase de organización incorrecta.
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from engine.catalog import Column, DataType, Schema
+from engine.storage import HeapFile, OrganizationType, Record
+
+schema = Schema([Column("id", DataType.INTEGER)])
+with TemporaryDirectory() as directory:
+    path = Path(directory) / "students.heap"
+    with HeapFile.create(path, schema) as heap:
+        rid = heap.insert(Record(schema, [1]))
+        assert heap.read(rid).values == (1,)
+        assert heap.metadata.organization_type is OrganizationType.HEAP
+
+    with HeapFile.open(path, schema) as reopened:
+        assert reopened.read(rid).values == (1,)
+        assert list(reopened.scan()) == [(rid, Record(schema, [1]))]
+```
+
+`HeapFreeSpaceTracker` mantiene en memoria, por página, la mayor carga útil que
+podría insertarse después de compactar localmente. Al reabrir, `HeapFile` lee
+una vez cada página de datos, valida los contadores persistidos y reconstruye
+el directorio. La elección usa el menor `page_id` elegible, pero `Page.insert`
+seguirá siendo la autoridad final ante información obsoleta. El seguimiento no
+es un índice ni se persiste por separado. `scan()` lee una página de datos cada
+vez, omite slots eliminados y produce `(RID, Record)` en orden físico. Reutilizar
+un slot puede hacer que un RID eliminado pase a identificar un registro nuevo.
 
 ### Ejemplo completo de persistencia de registros
 
@@ -472,7 +513,7 @@ probar el cumplimiento de estas reglas de comportamiento y recursos.
 engine/
   errors.py      # Errores compartidos, sin dependencias de otros componentes
   catalog/       # Tipos, esquemas, metadatos y catálogo en memoria
-  storage/       # Modelo, contrato Storage, codecs, páginas y PageManager físico
+  storage/       # Modelo, páginas, PageManager, metadatos de organización y Heap inicial
   indexes/       # Index y OrderedIndex abstractos; sin B+ ni hashing físicos
   operators/     # Operator abstracto; sin operadores concretos
   query/         # Reservado: parser, planificador y ejecutor
@@ -483,7 +524,7 @@ tests/
   doubles.py     # Implementaciones mínimas solo para pruebas; no son el motor
   conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
   catalog/       # Pruebas del modelo implementado
-  storage/       # Modelo, contratos, codecs, páginas, archivos y fallos de E/S
+  storage/       # Modelo, codecs, páginas, archivos, organización/Heap y fallos de E/S
   indexes/       # Contratos de igualdad/rangos mediante dobles
   operators/     # Ciclo de vida, agotamiento y liberación de recursos
   test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
@@ -512,7 +553,9 @@ de estos componentes realiza acceso a disco. Los codecs conocen tipos/esquemas;
 registros lógicos ni tipos SQL. Page recibe bytes, no objetos Record.
 `PageManager` conoce páginas y cabecera de archivo, pero no registros, esquemas,
 codecs ni organizaciones como Heap File. Es el propietario del acceso a disco.
-Las demás capas se implementarán progresivamente según el plan.
+`OrganizationMetadata` y `HeapFile` se apoyan en él sin importar `os` ni
+repetir offsets físicos; `HeapFile` conecta además el contrato `Storage` y
+`RecordCodec`. Las demás capas se implementarán progresivamente según el plan.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
 `OperatorDouble` viven solamente en `tests/`. Usan datos pequeños en memoria
@@ -549,9 +592,9 @@ Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
 La verificación actual se ejecutó en Windows con Python 3.12.4 y pytest 8.4.2:
-1155 pruebas aprobadas, sin omisiones, xfails ni advertencias con `-W error`.
-`compileall` y `pip check` también pasan. Las implementaciones físicas futuras deberán
-añadir sus propias pruebas de conformidad, persistencia y concurrencia.
+1229 pruebas aprobadas, sin omisiones ni xfails. `compileall` y `pip check`
+también pasan. Las operaciones físicas restantes deberán añadir sus propias
+pruebas de conformidad, persistencia y concurrencia.
 
 ## Documentos de coordinación y siguiente paso
 
@@ -560,13 +603,13 @@ añadir sus propias pruebas de conformidad, persistencia y concurrencia.
 - [PLAN.md](PLAN.md): las diez etapas de la Parte 1.
 - [ETAPA_01.md](ETAPA_01.md): etapa de fundamentos, cerrada y auditada.
 - [ETAPA_02.md](ETAPA_02.md): etapa de persistencia, cerrada y auditada.
+- [ETAPA_03.md](ETAPA_03.md): etapa de organizaciones de archivo, activa.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
 [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
 criterio, los comandos ejecutados y los límites de la validación.
 
-Este bloque se detiene en el **cierre formal de la Etapa 2**. El siguiente paso,
-solo cuando se autorice, es preparar el plan detallado de Etapa 3 para Heap File
-y Paged Sequential File sobre estas primitivas. No se creó `ETAPA_03.md` ni se
-implementaron algoritmos de esa etapa.
+La **Etapa 3 está activa** y las tareas 3.1–3.11 están completas. El siguiente
+paso es la tarea 3.12: materializar el contrato común de ordenamiento que usará
+Paged Sequential File, sin iniciar ninguna etapa posterior.

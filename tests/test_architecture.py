@@ -1,4 +1,4 @@
-"""Stage 1/2 audit: dependency direction, page I/O ownership and fresh imports.
+"""Stage 1-3 audit: dependency direction, page I/O ownership and fresh imports.
 
 Only these inspection tests read source files/start interpreters. They are
 separate from the no-file-I/O model/contract integration scenarios.
@@ -111,7 +111,8 @@ def test_raw_file_access_dependencies_are_confined_to_page_manager():
     ["engine.errors", "engine.catalog.schema", "engine.catalog",
      "engine.storage", "engine.indexes", "engine.operators",
      "engine.storage.page_manager", "engine.storage.file_header",
-     "engine.storage.page", "engine.storage.record_codec"],
+     "engine.storage.page", "engine.storage.record_codec",
+     "engine.storage.organization", "engine.storage.heap_file"],
 )
 def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
     # -I removes cwd/PYTHONPATH influence: the README's editable installation

@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **1.5** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and the completed `ETAPA_02.md`.
+> Context version: **1.7** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and active `ETAPA_03.md` tasks 3.1–3.11.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1334,9 +1334,13 @@ Latest completed stage:
 
 > **Stage 2 — Pages, Records, and Base Persistence**
 
+Current active stage:
+
+> **Stage 3 — Heap File and Paged Sequential File**
+
 Current detailed stage document:
 
-> `ETAPA_02.md`
+> `ETAPA_03.md`
 
 Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
 in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
@@ -1354,8 +1358,12 @@ pages now persist across close/reopen. Verified progress is tracked in
 process restart tests, expanded malformed-file/boundary coverage and final
 documentation. All 47 Stage 2 criteria are satisfied; the closure suite passes
 1155 tests. Evidence: [Stage 2 closure audit](docs/ETAPA_02_AUDIT.md).
-**Stage 3 is not started.** Its detailed planning and implementation require
-an explicit user request; no `ETAPA_03.md` or Stage 3 file organization was added.
+**Stage 3 is active (2026-09-02).** Tasks 3.1–3.11 are complete: in addition to
+the organization metadata and lifecycle, HeapFile now supports persistent
+multi-page insertion, read by RID, deletion, local compaction/free-slot reuse,
+physical-order streaming scan and continuation after fresh reopen. The suite
+passes 1229 tests. Task 3.12, the sequential ordering contract, is the next
+pending task.
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.
