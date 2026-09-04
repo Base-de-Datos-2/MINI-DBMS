@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **2.0** — aligned with `PLAN.md` and the formally completed `ETAPA_03.md`.
+> Context version: **2.7** — aligned with the formal Stage 4 closure.
 
 ## Project identity
 
@@ -970,8 +970,9 @@ or a definition of future SQL NULL/NaN semantics.
 
 Search generators have the same cleanup obligations as storage scans. Argument
 errors may appear during the first iteration, so callers must also protect
-consumption. Mutations during iteration are not specified. No B+ nodes, hash
-buckets, physical indexes, or range requirement for Extendible Hashing exist.
+consumption. Mutations during iteration are not specified. The persistent B+
+implementation below now conforms to this contract through insertion and range
+access. Hash buckets and a range requirement for Extendible Hashing do not exist.
 
 ---
 
@@ -1036,7 +1037,209 @@ The physical organization of records must reflect the index key ordering suffici
 
 Do not label an ordinary unclustered index as "clustered" only in metadata.
 
-The exact physical design should be documented once implemented.
+The adopted physical design is documented below.
+
+### Adopted Stage 4 B+ core and storage adapters (Tasks 4.1–4.31)
+
+The following decisions are stable as of 2026-09-03:
+
+```text
+BPLUS_CORE_VALUE = repeated deterministic (key, RID) leaf associations
+CLUSTERED_PHYSICAL_MODEL = B+ over PagedSequentialFile using the same key
+UNCLUSTERED_PHYSICAL_MODEL = B+ over HeapFile with independent row order
+SEPARATOR_CONVENTION = right-min, duplicate-aware lower-bound descent
+NODE_CAPACITY_MODEL = fixed entry count derived from worst encoded key size
+KEY_TYPES_AND_ENCODING = all four DataTypes; Stage 2 little endian/UTF-8
+DUPLICATE_KEY_POLICY = allowed by default; exact pair idempotent; RID tie order
+LEAF_LINK_POLICY = persisted forward next-leaf link
+PARENT_NAVIGATION_POLICY = retain the descent path in memory
+LEAF_SPLIT_POLICY = split the ordered overflow at its midpoint; copy right-min
+INTERNAL_SPLIT_POLICY = promote/remove the midpoint separator
+ROOT_GROWTH_POLICY = allocate one new internal root after a root split
+NODE_PAGE_REUSE_POLICY = persistent B+-owned free-node list
+DELETE_SIBLING_POLICY = prefer left donor/merge partner, then right
+ROOT_SHRINK_POLICY = immediately promote the only child; final delete -> empty
+FREE_NODE_ALLOCATION_POLICY = persistent LIFO list before physical append
+BUILD_VALIDITY_POLICY = incomplete marker blocks normal reopen after failure
+UNCLUSTERED_OWNERSHIP = adapter owns B+ tree and borrows the open HeapFile
+CLUSTERED_OWNERSHIP = adapter owns B+ tree and borrows PagedSequentialFile
+CATALOG_RUNTIME_POLICY = Catalog stores immutable definitions, never open trees
+STRUCTURAL_METRICS_POLICY = session-local logical events, reset with I/O metrics
+PERSISTENCE_FLUSH_POLICY = write nodes before header; fsync on flush/close
+RID_CHANGE_MAINTENANCE_POLICY = remove Heap association before slot reuse;
+                                rebuild clustered B+ after Sequential movement
+```
+
+One independent `PageManager` file belongs to each physical B+ index. Its
+ordinary 20-byte `FileHeader` remains unchanged. Physical page 0 stores a
+canonical `BPlusFileHeader` payload in slot 0; B+ node pages start at physical
+page 1. Binary node-page null pointers use `UINT32_MAX`, which PageManager never
+allocates as a page ID; canonical JSON header fields use `null`.
+`node_page_count` is an allocation high-water mark and includes pages on the
+persistent free-node list.
+
+The index header persists index/table/column identity, key type, clustered,
+duplicate and build-completion flags, root and first-leaf pointers, height,
+association count, node page count, free-list head, format version and page size.
+The empty-tree model
+uses null root/first-leaf pointers and height zero; after deletions it may retain
+allocated pages for reuse. Header compatibility checks can reject definition,
+type, format and clustered physical-key mismatches. Catalog persistence remains
+deferred; open runtime ownership deliberately stays outside the in-memory
+Catalog.
+
+All four current types are indexable with their exact built-in Python scalar
+types. Keys reuse Stage 2 encoding, but ordering always uses logical comparison,
+never little-endian byte comparison. FLOAT NaN is rejected; infinities remain
+valid. B+ INTEGER keys must fit signed int64. `VARCHAR` keys are limited to 255
+strict UTF-8 bytes so every fixed-capacity node is serializable. RIDs encode as
+two little-endian uint32 values; this is a physical-codec bound, not a change to
+the unbounded logical `RID` model.
+
+Leaves store repeated `(key, RID)` entries. Keys are nondecreasing and RIDs are
+strictly increasing within an equal-key group, preventing duplicate identical
+associations while giving deterministic ties. Internal right-min separators may
+repeat when one duplicate group spans leaves. Lower-bound descent routes
+separator equality left, after which leaf-link traversal obtains all matches.
+Only `next_leaf` is persisted; mutations retain the ancestor path rather than
+persisting parent pointers.
+
+Each node payload uses one ordinary slotted `Page`, leaving
+`MAX_RECORD_SIZE` bytes inside its sole active slot. Capacity is an entry count
+derived per `DataType` from the worst encoded key size, node-header bytes and
+RID/child-pointer sizes; it is never a hard-coded tree degree. Non-root leaf
+minimum occupancy is half the leaf capacity rounded up. Internal occupancy is
+half the maximum child count rounded up, minus one separator. Root exceptions
+are validated separately. Node payloads have a signature, version, type, entry
+count, physical page identity and leaf-next/reserved pointer followed by typed
+entries and canonical zero padding. `BPlusNodeCodec` keeps this format inside
+the index layer, while `BPlusHeaderPageIO` and `BPlusNodePageIO` delegate all
+allocation and physical transfer to `PageManager`. A metadata or node frame
+always occupies exactly one 4096-byte physical page.
+
+`BPlusTree` owns one manager and supports exclusive `create`, validating
+`open`, `flush`, idempotent `close`, and context management. The only adopted
+empty representation is a null root/first-leaf with height and entry count zero;
+the file still owns page 0 for metadata. The current tree read path validates
+open state, physical node bounds, expected level/node type, child cycles and
+persisted key policy. Descent uses the adopted duplicate-aware lower bound and
+returns the target leaf plus the root-to-parent path for later mutations.
+
+Exact lookup begins with one descent and follows forward leaf links so a
+duplicate group split across pages is complete. Range lookup supports inclusive
+or exclusive bounds and either unbounded end, performs at most one descent,
+then streams leaves in nondecreasing `(key, RID)` order. It rejects inverted
+ranges, NaN, invalid links, cycles, links to internal nodes and cross-leaf order
+violations. A full traversal also checks the persisted association count. These
+queries return fresh generators and do not load the whole index. The core checks
+structural RID encoding; the clustered and unclustered adapters additionally
+resolve existence and key agreement in their borrowed storage.
+
+Insertion orders complete `(key, RID)` pairs, so distinct RIDs of one key are
+deterministic even when the duplicate group spans leaves. Repeating the exact
+pair is a write-free no-op under the Stage 1 contract after the required lookup.
+The persisted uniqueness flag prevents adding a distinct RID for an existing
+key. Exact deletion removes only the requested association, including when a
+duplicate group spans leaves; the final RID removes that logical key while
+leaving other keys untouched.
+For a candidate beyond the lower-bound leaf, the captured path advances like an
+ordered-tree cursor and is checked against `next_leaf`, avoiding persisted
+parent pointers and a repeated root descent.
+
+A non-full insertion reconstructs and writes only its immutable leaf, then
+updates the association count in page 0. An overflowing leaf is combined with
+the new entry, split at the entry midpoint, and linked as
+`left -> new right -> old right`; the new right minimum is copied into the
+parent. A full internal parent promotes and removes its midpoint separator,
+partitions every child exactly once, and propagates the resulting separator by
+walking the captured ancestors in reverse. Splitting the old root allocates
+exactly one additional internal root and increases height exactly once.
+
+Deletion first updates an exact leaf association. If the leaf remains occupied,
+only that leaf and any separator whose represented minimum changed are updated.
+Underflow borrows from a same-parent left sibling when possible, then the right;
+otherwise it merges with the left if present or the right. Internal repair uses
+the same deterministic preference, rotates right-min separators correctly and
+propagates underflow toward the root. Forward leaf links survive every repair.
+
+Released leaf/internal pages are overwritten with persistent `BPlusFreeNode`
+markers chained from `free_node_head_page_id`. Allocation consumes this LIFO
+chain before appending a physical page, while `node_page_count` remains the file
+high-water mark. A zero-key internal root immediately promotes its sole child;
+the old root joins the free list. Deleting the final leaf association returns to
+the canonical null-root/null-first-leaf, height-zero representation and releases
+that leaf. The same pages remain reusable across close/reopen.
+
+`validate_structure()` reads the whole index and checks the root/empty model,
+page ranges, unique reachability, local occupancy, right-min separators, global
+`(key, RID)` order, equal leaf depth, exact structural/forward leaf order,
+entry/height metadata, the acyclic disjoint free list, and complete accounting
+of every allocated node page. It returns observed counts only after all checks
+pass and raises `ValidationError` for malformed state.
+
+`BPlusTree.build_from_storage()` validates the source schema/column, streams the
+borrowed Stage 3 `Storage.scan()`, and incrementally inserts every active RID.
+The header persists `build_complete=False` during construction and changes it to
+true only after success; normal reopen rejects an incomplete build. Real elapsed
+time, source/index I/O deltas, indexed count and final size are exposed through
+`BPlusBuildMetrics` for the live build session without resetting counters.
+
+`BPlusTree.rebuild_from_storage()` constructs and validates a complete sibling
+index, flushes and closes it, and only then asks the existing `PageManager` to
+replace the old index atomically. A failed candidate leaves the old physical
+index in place. The returned `BPlusBuildMetrics` preserves the candidate's
+elapsed time, source/index I/O and final size even though the adopted manager
+starts a fresh counter session after replacement.
+
+`UnclusteredBPlusIndex` binds this shared core to a borrowed `HeapFile` without
+changing Heap order. Contract methods expose key-to-RID access, while
+`search_records()`/`range_records()` resolve through `HeapFile.read()`.
+`insert_record()` and `delete_record()` provide the current deterministic,
+best-effort coordinated path. It removes an index association before making a
+Heap slot reusable and attempts to restore the association if storage deletion
+fails. `rebuild()` repairs externally detected Heap/index inconsistencies.
+Closing the adapter closes only its owned tree, so multiple independent
+unclustered indexes can share the same open HeapFile. Without WAL, a crash
+between the two files can leave a missing/excess association; adapter validation
+detects it and rebuilding is the repair path. A future executor coordinating
+several indexes must invoke every applicable adapter; one adapter does not own
+or discover its siblings.
+
+`ClusteredBPlusIndex` requires `clustered=True`, a borrowed
+`PagedSequentialFile`, the same key column and key type, and an identical
+duplicate policy. Exact/range methods resolve RIDs back to active ordered
+records. Lazy deletion removes the B+ association before creating the
+sequential tombstone. Because ordered insertion and physical reorganization can
+move many live RIDs, the adapter first persists `build_complete=False`, applies
+the storage mutation, then atomically rebuilds every association. A mid-operation
+failure can therefore leave changed storage plus a deliberately unusable index;
+normal reopen rejects it until an explicit rebuild succeeds. This is detection
+and repair, not transaction atomicity or WAL.
+
+`IndexMetadata` now also stores `unique` and an optional `file_path` while
+preserving the `clustered` modality. The Catalog validates names, references,
+one clustered definition per table, and distinct supplied index paths.
+`build_catalog_bplus()` and `open_catalog_bplus()` resolve definitions and
+return an independently owned clustered or unclustered runtime; the Catalog
+never stores those live objects.
+
+`BPlusStructuralMetrics` reports session-local leaf/internal splits,
+redistributions and merges plus root splits/shrinks. Aggregate properties expose
+total node splits, merges and redistributions. `reset_counters()` resets these
+logical counters together with the unchanged real PageManager transfer
+counters. Structural metrics are not persisted and restart at zero on reopen.
+
+Each successful insertion writes all changed/new
+nodes before one final B+ header image publishes the new entry count, page
+high-water mark, root and height. This ordering limits normal-operation
+inconsistency but is not crash atomic; a failed multi-page write can still
+require rebuilding because no rollback or WAL exists.
+
+Every changed node will be written before a header that makes it reachable.
+Root/header changes update page 0 in the same operation sequence; `flush()` and
+`close()` provide the existing fsync guarantee. Cross-page and data/index
+atomicity, crash recovery and concurrent mutation are not claimed before their
+later stages.
 
 ---
 
@@ -1414,7 +1617,7 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 Latest completed stage:
 
-> **Stage 2 — Pages, records and base persistence**
+> **Stage 4 — B+ Tree**
 
 Overall Part 1 roadmap:
 
@@ -1422,11 +1625,11 @@ Overall Part 1 roadmap:
 
 Current active stage:
 
-> **Stage 3 — Heap File and Paged Sequential File**
+> **None — Stage 5 has not started**
 
-Detailed current-stage specification:
+Most recently completed stage specification:
 
-> `ETAPA_03.md`
+> `ETAPA_04.md`
 
 Implemented so far:
 
@@ -1471,6 +1674,18 @@ Implemented so far:
   organizations with the same persisted dataset, consolidated documentation and
   satisfied all 50 Definition of Done criteria. The closure suite has 1284
   passing tests.
+- Stage 4 tasks 4.1–4.31: inspected the completed lower-layer contracts, adopted
+  the B+ physical design, and implemented `BPlusFileHeader`, deterministic
+  key/RID and node codecs, pure leaf/internal models, PageManager-backed page
+  I/O, the persistent empty lifecycle, descent/path capture, exact lookup and
+  ordered linked-leaf range lookup, plus ordered insertion, leaf/internal split
+  propagation and persistent root/height growth. Duplicate-key behavior, exact
+  deletion, leaf/internal redistribution and merge, separator repair and the
+  persistent released-page chain are also implemented. Root shrink/free-page
+  reuse, global validation, restart stress, storage-driven atomic rebuilds with
+  completion metadata/metrics, both Heap and Sequential adapters, RID-change
+  recovery, Catalog integration, structural metrics and end-to-end comparative
+  restart coverage are complete.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -1482,8 +1697,17 @@ in `ETAPA_02.md`, with 1155 passing tests. Evidence and limits are recorded in
 needed for the final testing/closure block; existing work was preserved.
 **Stage 3 is formally complete**, audited on 2026-09-02 against all 50 criteria
 in `ETAPA_03.md`, with 1284 passing tests. Evidence and limits are recorded in
-[the Stage 3 audit](docs/ETAPA_03_AUDIT.md). **Stage 4 has not started**; no B+
-implementation was added by this closure. Part 1 as a whole is not complete.
+[the Stage 3 audit](docs/ETAPA_03_AUDIT.md). **Stage 4 is formally complete and
+audited as of 2026-09-03.** Tasks 4.1–4.31 are complete: inspection evidence is in
+[the Stage 4 baseline report](docs/ETAPA_04_TASK_4_1_INSPECTION.md), and the
+header, codecs, node/page persistence, queries and split-capable insertion
+implement the foundation documented above. Exact deletion and underflow repair
+now cover both leaf and internal nodes. Root shrink/reuse, validation, restart,
+build and both storage modalities are implemented, including RID-change
+rebuilds, Catalog factories and measurement hooks. All 59 Definition of Done
+criteria and 1544 strict-suite tests pass; evidence and limitations are in
+[the Stage 4 audit](docs/ETAPA_04_AUDIT.md). Stage 5 has not started and Part 1
+remains incomplete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 
@@ -1498,7 +1722,6 @@ The following should not be guessed silently:
 - eventual persistence of the complete table/index catalog and its integration
   timing (organization files now persist their own schema, while `Catalog`
   remains in memory);
-- exact clustered B+ physical layout;
 - supported comparison operators in `WHERE`;
 - aggregation functions beyond those required by tests/use cases;
 - exact transaction syntax details beyond the assignment's `BEGIN TRANSACTION` / `END TRANSACTION`;

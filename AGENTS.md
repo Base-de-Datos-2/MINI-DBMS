@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **2.0** — aligned with `PLAN.md` and the formally completed `ETAPA_03.md`.
+> Context version: **2.7** — aligned with the formal Stage 4 closure.
 
 ## Purpose
 
@@ -315,7 +315,7 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest completed stage:
 
-> **Stage 3 — Heap File and Paged Sequential File**
+> **Stage 4 — B+ Tree**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -328,14 +328,18 @@ criteria are satisfied, with 1284 passing tests. HeapFile and
 PagedSequentialFile are persistent, independently tested, integration-tested
 with the same logical dataset, and ready for later measurement. Evidence and
 verification limits are recorded in `docs/ETAPA_03_AUDIT.md`.
-**Stage 4 has not started.** Remain at the completed Stage 3 boundary until the
-user explicitly requests advancing; closure alone does not authorize B+ Tree
-work. No B+ nodes, clustered/unclustered indexes, buffer pool, WAL or
-concurrency were added.
+**Stage 4 was formally closed on 2026-09-03.** Tasks 4.1–4.31 and all 59
+Definition of Done criteria are satisfied, with 1544 tests passing under
+warnings-as-errors. The shared persistent B+ core supports complete mutation,
+validation, restart, page reuse, storage-driven rebuilds and both clustered and
+unclustered adapters. Catalog integration, RID-change recovery and structural
+instrumentation are included. Evidence and limits are recorded in
+`docs/ETAPA_04_AUDIT.md`. Stage 5 has not started. Do not implement Extendible
+Hashing, a buffer pool, WAL, or concurrency without a later explicit request.
 
-Latest completed detailed stage specification:
+Most recently completed stage specification:
 
-> `ETAPA_03.md`
+> `ETAPA_04.md`
 
 Stage 1 includes, at the planning level:
 

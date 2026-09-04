@@ -34,9 +34,24 @@ clave, ordena inserciones arbitrarias mediante redistribución de páginas,
 recorre y busca con duplicados estables, elimina mediante tombstones, mide el
 desperdicio y reorganiza mediante un reemplazo compacto validado. Las pruebas
 de cierre comparan ambas organizaciones con el mismo dataset y verifican sus
-archivos independientes. Los 50 criterios de la Etapa 3 se cumplen. La Etapa 4
-no ha comenzado; todavía no existen índices físicos, consultas SQL,
-transacciones, API ejecutable ni interfaz gráfica. La Parte 1 sigue pendiente.
+archivos independientes. Los 50 criterios de la Etapa 3 se cumplen.
+
+**Etapa 4 completa y auditada (2026-09-03):** están terminadas las tareas 4.1–4.31.
+Existe el diseño persistente B+, `BPlusFileHeader`, codificación determinista de
+claves, RIDs y nodos, E/S mediante `PageManager`, ciclo de vida del árbol vacío,
+descenso con captura de ruta y búsquedas exactas y por rango sobre hojas
+enlazadas. La inserción ordenada ya divide hojas e internos, propaga separadores
+y crea una nueva raíz persistente cuando corresponde. La eliminación exacta
+conserva duplicados, repara separadores, redistribuye o fusiona hojas e internos
+y registra y reutiliza las páginas liberadas. Ya existen reducción de raíz,
+validación estructural, reinicio completo, construcción/reconstrucción atómica
+desde almacenamiento y adaptadores B+ unclustered/clustered sobre HeapFile y
+PagedSequentialFile. También existen integración con metadatos del catálogo,
+contadores estructurales y comparación end-to-end. Los 59 criterios de la
+Definition of Done se cumplen y el cierre está registrado en
+[la auditoría de la Etapa 4](docs/ETAPA_04_AUDIT.md). La Etapa 5 todavía no se
+ha iniciado; tampoco existen consultas SQL, transacciones, API ejecutable o
+interfaz gráfica. La Parte 1 sigue pendiente.
 
 ## Requisitos e instalación
 
@@ -396,6 +411,77 @@ archivo hermano compacto antes de pedir a `PageManager` el reemplazo físico.
 La métrica devuelta conserva tiempo, E/S agregada y tamaños reales de esa
 operación aunque el gestor reabierto inicie una nueva sesión de contadores.
 
+### B+ Tree persistente (Etapa 4, tareas 4.1–4.31)
+
+```python
+from engine.catalog import DataType
+from engine.indexes import (
+    BPlusFileHeader, BPlusKeyCodec, BPlusLeafNode, BPlusRIDCodec, BPlusTree,
+)
+from engine.storage import RID
+
+header = BPlusFileHeader(
+    index_name="idx_students_id",
+    table_name="students",
+    key_column="id",
+    key_type=DataType.INTEGER,
+)
+assert BPlusFileHeader.deserialize(header.serialize()) == header
+
+rid = RID(1, 0)
+assert BPlusRIDCodec.decode(BPlusRIDCodec.encode(rid)) == rid
+assert BPlusKeyCodec.decode(
+    DataType.INTEGER,
+    BPlusKeyCodec.encode(DataType.INTEGER, -10),
+) == -10
+
+leaf = BPlusLeafNode(1, DataType.INTEGER, [7], [rid])
+assert leaf.keys == (7,)
+assert leaf.rids == (rid,)
+
+with BPlusTree.create(
+    "students-id.idx",
+    index_name="idx_students_id",
+    table_name="students",
+    key_column="id",
+    key_type=DataType.INTEGER,
+) as tree:
+    tree.insert(7, rid)
+    assert list(tree.search(7)) == [rid]
+    assert list(tree.range_search()) == [rid]
+```
+
+La cabecera, los nodos y sus enlaces ya tienen representaciones persistentes y
+deterministas. Cada nodo ocupa una página física completa y toda E/S pasa por
+`PageManager`. Una hoja guarda pares repetidos `clave → RID`; los RIDs de claves
+iguales se ordenan para evitar asociaciones idénticas duplicadas. Las
+capacidades se calculan desde el límite físico de la página y el peor tamaño de
+clave; `VARCHAR` admite hasta 255 bytes UTF-8 y NaN no es indexable.
+
+`BPlusTree` puede crear y reabrir el árbol, descender nodos persistidos y
+recorrer hojas enlazadas para búsquedas exactas y rangos con extremos inclusivos,
+exclusivos o abiertos. La inserción reconstruye solamente los nodos inmutables
+afectados, conserva el orden `(clave, RID)`, divide hojas e internos usando sus
+capacidades físicas y crea una nueva raíz al propagar una división hasta arriba.
+Los enlaces son unidireccionales y la navegación hacia padres conserva la ruta
+en memoria. La eliminación borra una asociación exacta, repara mínimos y
+redistribuye o fusiona hojas e internos cuando hay underflow. La raíz se reduce
+y las páginas liberadas se reutilizan desde una lista persistente. El validador
+comprueba el árbol completo. `UnclusteredBPlusIndex` construye/resuelve sobre
+HeapFile sin alterar su orden físico y `ClusteredBPlusIndex` exige un
+PagedSequentialFile ordenado por la misma clave. Cuando una inserción o
+reorganización secuencial mueve RIDs, el adaptador clustered marca el índice
+incompleto y lo reconstruye mediante un archivo candidato validado antes del
+reemplazo. Sin WAL, una falla intermedia puede dejar el almacenamiento cambiado
+y el índice bloqueado hasta reconstruirlo explícitamente.
+
+`IndexMetadata` distingue `clustered`, `unique` y `file_path`; el catálogo
+conserva solo estas definiciones inmutables. Las funciones
+`build_catalog_bplus()`/`open_catalog_bplus()` crean objetos abiertos separados.
+Los contadores estructurales observan divisiones, redistribuciones, fusiones y
+cambios de raíz, mientras las lecturas/escrituras/asignaciones siguen viniendo
+del `PageManager` real.
+
 ### Ejemplo completo de persistencia de registros
 
 Solo el archivo y el RID pasan de la escritura a la lectura; el lector crea un
@@ -629,9 +715,10 @@ Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
 La verificación actual se ejecutó en Windows con Python 3.12.4 y pytest 8.4.2:
-1284 pruebas aprobadas, sin omisiones ni xfails. `compileall` y `pip check`
-también pasan. Las operaciones físicas restantes deberán añadir sus propias
-pruebas de conformidad, persistencia y concurrencia.
+1544 pruebas aprobadas con advertencias tratadas como errores, sin omisiones ni
+xfails. Las operaciones físicas
+restantes deberán añadir sus propias pruebas de conformidad, persistencia y
+concurrencia. `compileall`, `pip check` y la revisión del diff también pasan.
 
 ## Documentos de coordinación y siguiente paso
 
@@ -640,13 +727,19 @@ pruebas de conformidad, persistencia y concurrencia.
 - [PLAN.md](PLAN.md): las diez etapas de la Parte 1.
 - [ETAPA_01.md](ETAPA_01.md): etapa de fundamentos, cerrada y auditada.
 - [ETAPA_02.md](ETAPA_02.md): etapa de persistencia, cerrada y auditada.
-- [ETAPA_03.md](ETAPA_03.md): etapa de organizaciones de archivo, activa.
+- [ETAPA_03.md](ETAPA_03.md): etapa de organizaciones de archivo, cerrada.
 - [Auditoría de la Etapa 3](docs/ETAPA_03_AUDIT.md): evidencia de cierre.
+- [ETAPA_04.md](ETAPA_04.md): etapa B+ cerrada; tareas 4.1–4.31 completas.
+- [Inspección inicial de la Etapa 4](docs/ETAPA_04_TASK_4_1_INSPECTION.md):
+  compatibilidad y extensiones mínimas identificadas antes de programar.
+- [Auditoría de la Etapa 4](docs/ETAPA_04_AUDIT.md): evidencia de sus 59
+  criterios, validación estricta y límites conocidos.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
 [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
 criterio, los comandos ejecutados y los límites de la validación.
 
-La **Etapa 3 está completa y auditada**. La Etapa 4 —B+ Tree— no se ha iniciado
-y requiere una solicitud explícita antes de avanzar.
+Las **Etapas 1–4 están completas y auditadas**. La siguiente etapa planificada
+es **Etapa 5 — Extendible Hashing**, pero todavía no está iniciada ni dispone de
+`ETAPA_05.md`.

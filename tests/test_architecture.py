@@ -1,4 +1,4 @@
-"""Stage 1-3 audit: dependency direction, page I/O ownership and fresh imports.
+"""Stage 1-4 audit: dependency direction, page I/O ownership and fresh imports.
 
 Only these inspection tests read source files/start interpreters. They are
 separate from the no-file-I/O model/contract integration scenarios.
@@ -47,7 +47,9 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         "errors": set(),
         "catalog": {"errors", "catalog"},
         "storage": {"errors", "catalog", "storage"},
-        "indexes": {"errors", "storage", "indexes"},
+        # Physical indexes consume catalog DataType definitions but the catalog
+        # never imports runtime index implementations, so the graph stays acyclic.
+        "indexes": {"errors", "catalog", "storage", "indexes"},
         "operators": {"errors", "catalog", "storage", "indexes", "operators"},
         "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "transactions"},
         "transactions": {"errors", "catalog", "storage", "indexes", "transactions"},

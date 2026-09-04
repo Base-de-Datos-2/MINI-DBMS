@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **2.0** — aligned with `AGENTS.md`, `PROJECT_CONTEXT.md`, `REQUIREMENTS.md`, and the formally completed `ETAPA_03.md`.
+> Context version: **2.7** — aligned with the formal Stage 4 closure.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1314,8 +1314,8 @@ Part 1 is complete only when:
 ```text
 [x] Stage 1 complete
 [x] Stage 2 complete
-[ ] Stage 3 complete
-[ ] Stage 4 complete
+[x] Stage 3 complete
+[x] Stage 4 complete
 [ ] Stage 5 complete
 [ ] Stage 6 complete
 [ ] Stage 7 complete
@@ -1332,15 +1332,15 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest completed stage:
 
-> **Stage 2 — Pages, Records, and Base Persistence**
+> **Stage 4 — B+ Tree**
 
 Current active stage:
 
-> **Stage 3 — Heap File and Paged Sequential File**
+> **None — Stage 5 has not started**
 
-Current detailed stage document:
+Most recently completed stage document:
 
-> `ETAPA_03.md`
+> `ETAPA_04.md`
 
 Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
 in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
@@ -1363,8 +1363,27 @@ Definition of Done criteria, operation boundaries, measurement readiness and
 same-dataset integration are complete. HeapFile and PagedSequentialFile persist
 through fresh restarts and expose their documented physical behavior. The
 closure suite passes 1284 tests. Evidence: [Stage 3 closure
-audit](docs/ETAPA_03_AUDIT.md). Stage 4 has not started and requires a separate
-user request.
+audit](docs/ETAPA_03_AUDIT.md). Stage 4 started by explicit user request on
+2026-09-03. Tasks 4.1–4.30 established the inspected baseline, adopted B+
+architecture, persistent header, deterministic codecs and node formats, and
+implemented PageManager-backed node I/O plus the lifecycle and read path through
+exact and range lookup. Ordered insertion now handles leaf and internal splits,
+propagates them through ancestors and persists root/height growth. Duplicate
+keys, exact association deletion, leaf/internal redistribution and merge,
+separator maintenance and persistent registration of released node pages are
+implemented. Root shrink and persistent LIFO node reuse now restore the canonical
+empty form; a global validator and fresh-restart stress coverage are present.
+Indexes can be built or atomically rebuilt from Stage 3 storage with a durable
+completion marker and real build metrics. The unclustered adapter resolves the
+shared core against an independently ordered HeapFile; the clustered adapter
+uses a key-compatible PagedSequentialFile and rebuilds after RID-changing
+insertion or reorganization. Catalog metadata/factories, structural event
+counters and same-dataset end-to-end restart coverage are complete. Task 4.31
+consolidated the final architecture and documentation. **Stage 4 was formally
+closed on 2026-09-03:** all 59 Definition of Done criteria are satisfied and the
+strict closure suite passes 1544 tests. Evidence: [Stage 4 closure
+audit](docs/ETAPA_04_AUDIT.md). Stage 5 is the next planned stage but has not
+started and has no detailed stage document yet.
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

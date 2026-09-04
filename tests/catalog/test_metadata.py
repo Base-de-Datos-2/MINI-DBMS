@@ -75,12 +75,27 @@ def test_index_metadata_describes_supported_strategies(index_type, clustered):
     assert index.index_type is index_type
     assert index.clustered is clustered
     assert {field.name for field in fields(index)} == {
-        "name", "table_name", "column_name", "index_type", "clustered"
+        "name", "table_name", "column_name", "index_type", "clustered",
+        "unique", "file_path",
     }
 
 
 def test_index_is_unclustered_by_default():
-    assert IndexMetadata("idx", "students", "id", IndexType.BPLUS).clustered is False
+    index = IndexMetadata("idx", "students", "id", IndexType.BPLUS)
+    assert index.clustered is False
+    assert index.unique is False
+    assert index.file_path is None
+    assert index.allow_duplicate_keys is True
+
+
+def test_index_metadata_persists_unique_policy_and_physical_identity():
+    index = IndexMetadata(
+        "idx", "students", "id", IndexType.BPLUS,
+        unique=True, file_path="data/students-id.idx",
+    )
+    assert index.unique is True
+    assert index.allow_duplicate_keys is False
+    assert index.file_path == "data/students-id.idx"
 
 
 @pytest.mark.parametrize("field", ["name", "table_name", "column_name"])
@@ -113,6 +128,23 @@ def test_index_requires_boolean_clustered_flag(clustered):
         IndexMetadata("idx", "students", "id", IndexType.BPLUS, clustered)
 
 
+@pytest.mark.parametrize("unique", [None, 0, 1, "true", []])
+def test_index_requires_boolean_unique_flag(unique):
+    with pytest.raises(TypeError, match="unique must be a boolean"):
+        IndexMetadata(
+            "idx", "students", "id", IndexType.BPLUS, unique=unique
+        )
+
+
+@pytest.mark.parametrize("file_path", ["", " ", 1, b"index", []])
+def test_index_rejects_invalid_optional_file_path(file_path):
+    expected = TypeError if not isinstance(file_path, str) else ValueError
+    with pytest.raises(expected, match="file_path"):
+        IndexMetadata(
+            "idx", "students", "id", IndexType.BPLUS, file_path=file_path
+        )
+
+
 def test_extendible_hash_cannot_be_marked_clustered():
     with pytest.raises(ValueError, match="Only BPLUS"):
         IndexMetadata("idx", "students", "id", IndexType.EXTENDIBLE_HASH, True)
@@ -127,7 +159,8 @@ def test_metadata_preserves_names_exactly(schema):
 @pytest.mark.parametrize(
     ("field", "replacement"),
     [("name", "other"), ("table_name", "other"), ("column_name", "other"),
-     ("index_type", IndexType.EXTENDIBLE_HASH), ("clustered", True)],
+     ("index_type", IndexType.EXTENDIBLE_HASH), ("clustered", True),
+     ("unique", True), ("file_path", "other.idx")],
 )
 def test_index_metadata_is_immutable(field, replacement):
     index = IndexMetadata("idx", "students", "id", IndexType.BPLUS)

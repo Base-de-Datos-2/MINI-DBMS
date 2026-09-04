@@ -1,4 +1,4 @@
-"""Immutable table and index definitions without physical implementations."""
+"""Immutable table and index definitions without open runtime objects."""
 
 from dataclasses import dataclass
 from enum import Enum
@@ -48,6 +48,8 @@ class IndexMetadata:
     column_name: str
     index_type: IndexType
     clustered: bool = False
+    unique: bool = False
+    file_path: str | None = None
 
     def __post_init__(self) -> None:
         _validate_name(self.name, "Index name")
@@ -57,5 +59,15 @@ class IndexMetadata:
             raise InvalidTypeError("Index index_type must be an IndexType member")
         if type(self.clustered) is not bool:
             raise InvalidTypeError("Index clustered must be a boolean")
+        if type(self.unique) is not bool:
+            raise InvalidTypeError("Index unique must be a boolean")
+        if self.file_path is not None:
+            _validate_name(self.file_path, "Index file_path")
         if self.clustered and self.index_type is not IndexType.BPLUS:
             raise ValidationError("Only BPLUS index metadata can be clustered")
+
+    @property
+    def allow_duplicate_keys(self) -> bool:
+        """Translate catalog uniqueness into the index-core convention."""
+
+        return not self.unique

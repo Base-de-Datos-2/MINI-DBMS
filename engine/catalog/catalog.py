@@ -11,7 +11,9 @@ class Catalog:
 
     Table names and index names each have their own catalog-wide namespace.
     Query methods return immutable metadata or tuple snapshots, never the
-    internal dictionaries. Thread safety and persistence are not implemented.
+    internal dictionaries. Open storage/index objects are deliberately not
+    registered here: their ownership belongs to the execution layer. Thread
+    safety and catalog persistence are not implemented.
     """
 
     def __init__(self) -> None:
@@ -63,6 +65,14 @@ class Catalog:
         ):
             raise DuplicateError(
                 f"Table {index.table_name!r} already has a clustered index"
+            )
+        if index.file_path is not None and any(
+            registered.file_path == index.file_path
+            for registered in self._indexes.values()
+            if registered.file_path is not None
+        ):
+            raise DuplicateError(
+                f"Duplicate index file path: {index.file_path!r}"
             )
 
         # Change state only after every validation succeeds.

@@ -159,6 +159,23 @@ def test_clustered_unclustered_and_hash_metadata_can_coexist(catalog):
     assert catalog.get_indexes("students") == indexes
 
 
+def test_index_file_paths_are_unique_without_registering_runtime_objects(catalog):
+    first = IndexMetadata(
+        "first", "students", "id", IndexType.BPLUS,
+        file_path="data/shared.idx",
+    )
+    catalog.register_index(first)
+    with pytest.raises(ValueError, match="Duplicate index file path"):
+        catalog.register_index(
+            IndexMetadata(
+                "second", "students", "name", IndexType.BPLUS,
+                file_path="data/shared.idx",
+            )
+        )
+    assert catalog.get_index("first") is first
+    assert not hasattr(catalog, "_runtime_indexes")
+
+
 def test_names_are_case_sensitive_and_table_index_namespaces_are_separate(catalog, table):
     catalog.register_table(TableMetadata("Students", table.schema))
     first = IndexMetadata("students", "students", "id", IndexType.BPLUS)
