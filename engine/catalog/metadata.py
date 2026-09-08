@@ -71,3 +71,21 @@ class IndexMetadata:
         """Translate catalog uniqueness into the index-core convention."""
 
         return not self.unique
+
+    @property
+    def supports_equality(self) -> bool:
+        """Both Stage 4/5 index families provide exact-key access."""
+
+        return True
+
+    @property
+    def supports_range(self) -> bool:
+        """Only B+ metadata advertises ordered range access."""
+
+        return self.index_type is IndexType.BPLUS
+
+    @property
+    def supports_ordering(self) -> bool:
+        """Hash directory order is not relational key order."""
+
+        return self.index_type is IndexType.BPLUS

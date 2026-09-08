@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **2.7** — aligned with the formal Stage 4 closure.
+> Context version: **2.9** — aligned with the formal Stage 5 closure.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1316,7 +1316,7 @@ Part 1 is complete only when:
 [x] Stage 2 complete
 [x] Stage 3 complete
 [x] Stage 4 complete
-[ ] Stage 5 complete
+[x] Stage 5 complete
 [ ] Stage 6 complete
 [ ] Stage 7 complete
 [ ] Stage 8 complete
@@ -1332,15 +1332,15 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest completed stage:
 
-> **Stage 4 — B+ Tree**
+> **Stage 5 — Extendible Hashing**
 
-Current active stage:
+Next planned stage:
 
-> **None — Stage 5 has not started**
+> **Stage 6 — Relational Operators and External Algorithms (not started)**
 
 Most recently completed stage document:
 
-> `ETAPA_04.md`
+> `ETAPA_05.md`
 
 Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
 in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
@@ -1382,8 +1382,14 @@ counters and same-dataset end-to-end restart coverage are complete. Task 4.31
 consolidated the final architecture and documentation. **Stage 4 was formally
 closed on 2026-09-03:** all 59 Definition of Done criteria are satisfied and the
 strict closure suite passes 1544 tests. Evidence: [Stage 4 closure
-audit](docs/ETAPA_04_AUDIT.md). Stage 5 is the next planned stage but has not
-started and has no detailed stage document yet.
+audit](docs/ETAPA_04_AUDIT.md). **Stage 5 was formally closed on 2026-09-06:**
+all tasks 5.1–5.27 and the 46 mandatory Definition of Done criteria are
+satisfied. The persistent Extendible Hash index now covers deterministic
+formats, exact access/mutation, dynamic growth, validation, restart,
+Heap/Catalog integration and metrics. Its strict closure suite passes 1621
+tests. Evidence: [Stage 5 closure audit](docs/ETAPA_05_AUDIT.md). Optional
+merge/shrink remain deferred as permitted. Stage 6 is planned in `ETAPA_06.md`
+but has not started.
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

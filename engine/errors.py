@@ -40,3 +40,13 @@ class UnknownColumnError(InvalidReferenceError):
 
 class ColumnPositionError(DatabaseError, IndexError):
     """A numeric column position is outside the schema."""
+
+
+# Stage 5 uses distinct errors for the two bounded ways an insertion can stop;
+# both remain ordinary validation failures for existing callers.
+class HashDepthLimitError(ValidationError):
+    """An Extendible Hash insertion reached its persisted maximum depth."""
+
+
+class HashBucketOverflowError(ValidationError):
+    """Hash-equal associations cannot be separated into page-sized buckets."""

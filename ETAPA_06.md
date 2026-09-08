@@ -1,6 +1,7 @@
 # ETAPA_06.md
 
-> Documentation baseline: context v1.1 and the existing stage-document series. This is an implementation plan, not a change to the academic requirements.
+> Documentation baseline: context v2.9 and the formal Stage 5 closure. This is
+> an implementation plan, not a change to the academic requirements.
 
 ## Stage 6 - Relational Operators and External Algorithms
 
@@ -11,7 +12,9 @@
 **Roadmap:** PLAN.md, Section 11  
 **Status:** Planned; no implementation tasks are marked complete.
 
-The user reports that Stage 5 is complete. This document accepts that as the starting point; it does not certify the current code or test results. Task 6.1 verifies the actual repository before implementation.
+Stage 5 is formally complete: all 46 mandatory criteria and 1621 strict-suite
+tests are recorded in `docs/ETAPA_05_AUDIT.md`. Task 6.1 must still inspect the
+actual repository before any Stage 6 implementation begins.
 
 ## 1. Purpose and expected result
 

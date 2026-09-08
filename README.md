@@ -49,9 +49,18 @@ desde almacenamiento y adaptadores B+ unclustered/clustered sobre HeapFile y
 PagedSequentialFile. También existen integración con metadatos del catálogo,
 contadores estructurales y comparación end-to-end. Los 59 criterios de la
 Definition of Done se cumplen y el cierre está registrado en
-[la auditoría de la Etapa 4](docs/ETAPA_04_AUDIT.md). La Etapa 5 todavía no se
-ha iniciado; tampoco existen consultas SQL, transacciones, API ejecutable o
-interfaz gráfica. La Parte 1 sigue pendiente.
+[la auditoría de la Etapa 4](docs/ETAPA_04_AUDIT.md).
+
+**Etapa 5 completa y auditada (2026-09-06):** `ExtendibleHashIndex` implementa
+formatos deterministas, búsqueda/inserción/eliminación exactas, splits,
+duplicación del directorio, reinicio y validación estructural. Puede construirse
+y reconstruirse desde HeapFile; `UnclusteredHashIndex` mantiene mutaciones y las
+fábricas del catálogo despachan, reabren y eliminan archivos físicos. Existen
+métricas reales y pruebas diferenciales. Los 46 criterios obligatorios se
+cumplen con 1621 pruebas estrictas; consulta
+[la auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md). Merge/shrink son opcionales
+y están diferidos. La Etapa 6 no se ha iniciado; tampoco existen SQL,
+transacciones, API ejecutable o interfaz gráfica. La Parte 1 sigue pendiente.
 
 ## Requisitos e instalación
 
@@ -482,6 +491,21 @@ Los contadores estructurales observan divisiones, redistribuciones, fusiones y
 cambios de raíz, mientras las lecturas/escrituras/asignaciones siguen viniendo
 del `PageManager` real.
 
+### Hashing Extensible persistente (Etapa 5 completa)
+
+`ExtendibleHashIndex` implementa acceso exacto `clave -> RID` mediante FNV-1a
+de 64 bits y los bits menos significativos del hash. El directorio puede ocupar
+varias páginas, cada bucket persiste su profundidad local y su capacidad se
+calcula con los bytes serializados de claves completas y RIDs. Una inserción
+puede dividir un bucket, duplicar el directorio y repetir la operación hasta que
+la asociación quepa. Duplicados, unicidad, límite de profundidad y colisiones
+inseparables siguen políticas acotadas y persistidas. La eliminación retira el
+par exacto y conserva buckets vacíos; `validate_structure()` prueba aliases,
+placement, unicidad, contadores y propiedad de páginas. La construcción y
+reconstrucción desde Heap, el mantenimiento de RIDs, el despacho por catálogo y
+las métricas de E/S/estructura completan la etapa. Buddy merge y shrink del
+directorio permanecen opcionalmente diferidos.
+
 ### Ejemplo completo de persistencia de registros
 
 Solo el archivo y el RID pasan de la escritura a la lectura; el lector crea un
@@ -636,8 +660,8 @@ probar el cumplimiento de estas reglas de comportamiento y recursos.
 engine/
   errors.py      # Errores compartidos, sin dependencias de otros componentes
   catalog/       # Tipos, esquemas, metadatos y catálogo en memoria
-  storage/       # Modelo, páginas, PageManager, metadatos de organización y Heap inicial
-  indexes/       # Index y OrderedIndex abstractos; sin B+ ni hashing físicos
+  storage/       # Páginas, PageManager, HeapFile y PagedSequentialFile
+  indexes/       # Contratos, B+ y Hashing Extensible completos hasta Etapa 5
   operators/     # Operator abstracto; sin operadores concretos
   query/         # Reservado: parser, planificador y ejecutor
   transactions/  # Reservado: transacciones y concurrencia
@@ -648,7 +672,7 @@ tests/
   conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
   catalog/       # Pruebas del modelo implementado
   storage/       # Modelo, codecs, páginas, archivos, organización/Heap y fallos de E/S
-  indexes/       # Contratos de igualdad/rangos mediante dobles
+  indexes/       # Contratos y pruebas persistentes de B+ y Hashing Extensible
   operators/     # Ciclo de vida, agotamiento y liberación de recursos
   test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
   test_errors.py     # Errores propios y compatibilidad con excepciones anteriores
@@ -676,9 +700,11 @@ de estos componentes realiza acceso a disco. Los codecs conocen tipos/esquemas;
 registros lógicos ni tipos SQL. Page recibe bytes, no objetos Record.
 `PageManager` conoce páginas y cabecera de archivo, pero no registros, esquemas,
 codecs ni organizaciones como Heap File. Es el propietario del acceso a disco.
-`OrganizationMetadata` y `HeapFile` se apoyan en él sin importar `os` ni
-repetir offsets físicos; `HeapFile` conecta además el contrato `Storage` y
-`RecordCodec`. Las demás capas se implementarán progresivamente según el plan.
+`OrganizationMetadata`, `HeapFile`, `PagedSequentialFile`, B+ y Hashing
+Extensible se apoyan en él sin repetir offsets físicos. Los índices reutilizan
+el codec canónico de claves y mantienen sus algoritmos visibles en
+`engine/indexes`. Las demás capas se implementarán progresivamente según el
+plan.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
 `OperatorDouble` viven solamente en `tests/`. Usan datos pequeños en memoria
@@ -734,12 +760,16 @@ concurrencia. `compileall`, `pip check` y la revisión del diff también pasan.
   compatibilidad y extensiones mínimas identificadas antes de programar.
 - [Auditoría de la Etapa 4](docs/ETAPA_04_AUDIT.md): evidencia de sus 59
   criterios, validación estricta y límites conocidos.
+- [ETAPA_05.md](ETAPA_05.md): guía completa de Extendible Hashing.
+- [Auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md): evidencia de los 46
+  criterios obligatorios, 1621 pruebas y límites conocidos.
+- [ETAPA_06.md](ETAPA_06.md): próxima etapa planificada, todavía no iniciada.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
 [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
 criterio, los comandos ejecutados y los límites de la validación.
 
-Las **Etapas 1–4 están completas y auditadas**. La siguiente etapa planificada
-es **Etapa 5 — Extendible Hashing**, pero todavía no está iniciada ni dispone de
-`ETAPA_05.md`.
+Las **Etapas 1–5 están completas y auditadas**. La **Etapa 6 — Relational
+Operators and External Algorithms** es la siguiente etapa y todavía no se ha
+iniciado.

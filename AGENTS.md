@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **2.7** — aligned with the formal Stage 4 closure.
+> Context version: **2.9** — aligned with the formal Stage 5 closure.
 
 ## Purpose
 
@@ -315,7 +315,7 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest completed stage:
 
-> **Stage 4 — B+ Tree**
+> **Stage 5 — Extendible Hashing**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -334,12 +334,21 @@ warnings-as-errors. The shared persistent B+ core supports complete mutation,
 validation, restart, page reuse, storage-driven rebuilds and both clustered and
 unclustered adapters. Catalog integration, RID-change recovery and structural
 instrumentation are included. Evidence and limits are recorded in
-`docs/ETAPA_04_AUDIT.md`. Stage 5 has not started. Do not implement Extendible
-Hashing, a buffer pool, WAL, or concurrency without a later explicit request.
+`docs/ETAPA_04_AUDIT.md`.
+**Stage 5 was formally closed on 2026-09-06.** Tasks 5.1–5.27 and all 46
+mandatory Definition of Done criteria are satisfied, with 1621 tests passing
+under warnings-as-errors. The persistent Extendible Hash implementation supports
+deterministic routing, dynamic growth, exact deletion, independent validation,
+restart, Heap construction/rebuild and maintenance, Catalog dispatch/drop and
+real metrics. Optional buddy merge and directory shrink are explicitly deferred
+as permitted by the stage guide. Evidence and limitations are recorded in
+`docs/ETAPA_05_AUDIT.md`. Stage 6 is planned but has not started. Do not
+implement relational operators, external algorithms, a buffer pool, WAL or
+concurrency without a later explicit request.
 
 Most recently completed stage specification:
 
-> `ETAPA_04.md`
+> `ETAPA_05.md`
 
 Stage 1 includes, at the planning level:
 

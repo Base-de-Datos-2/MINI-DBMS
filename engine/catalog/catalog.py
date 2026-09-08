@@ -86,6 +86,13 @@ class Catalog:
             raise InvalidReferenceError(f"Unknown index: {name!r}")
         return self._indexes[name]
 
+    def unregister_index(self, name: str) -> IndexMetadata:
+        """Remove and return metadata without touching its physical index file."""
+
+        metadata = self.get_index(name)
+        del self._indexes[name]
+        return metadata
+
     def get_indexes(self, table_name: str) -> tuple[IndexMetadata, ...]:
         """Return a table's definitions in registration order.
 
@@ -96,3 +103,8 @@ class Catalog:
         return tuple(
             index for index in self._indexes.values() if index.table_name == table.name
         )
+
+    def list_indexes(self) -> tuple[IndexMetadata, ...]:
+        """Return all index definitions in registration order."""
+
+        return tuple(self._indexes.values())

@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **2.7** — aligned with the formal Stage 4 closure.
+> Context version: **2.9** — aligned with the formal Stage 5 closure.
 
 ## Project identity
 
@@ -1260,6 +1260,97 @@ This structure is intended primarily for equality access.
 
 It is not a replacement for B+ range access.
 
+### Adopted Stage 5 design
+
+The following persistent and observable decisions are stable as of 2026-09-06:
+
+```text
+HASH_ALGORITHM = FNV-1a, unsigned 64-bit, version 1
+KEY_ENCODING = one-byte DataType tag + canonical Stage 4 scalar bytes
+BIT_SELECTION = least-significant bits (LSB suffix)
+INITIAL_GLOBAL_DEPTH = 1 by default
+MAXIMUM_GLOBAL_DEPTH = persisted per index, at most 20 in format v1
+DIRECTORY_LAYOUT = ordered uint32 bucket references in a linked page chain
+BUCKET_LAYOUT = one page, local depth plus repeated complete (key, RID) entries
+BUCKET_CAPACITY = exact serialized bytes, never an object-count constant
+DUPLICATE_POLICY = Stage 4 policy; exact pair is idempotent
+UNIQUE_POLICY = a second RID for an existing key is rejected
+COLLISION_POLICY = bounded error when full hashes cannot be separated
+DELETE_POLICY = exact pair; empty buckets remain valid
+MERGE_AND_SHRINK_POLICY = optional and explicitly deferred
+PUBLISH_ORDER = new/changed buckets, directory pages, then page-zero header
+```
+
+Each hash index owns one independent `PageManager` file. Physical page 0 stores
+one canonical `HashFileHeader` JSON payload. Directory pages and bucket pages
+start at physical page 1 and may be interleaved as the directory grows. The
+header persists identity, key type, uniqueness, hash algorithm/version/width,
+bit convention, initial/current/maximum depth, directory root and counts,
+bucket/association totals, allocation high-water mark, page size and build
+state. Reopening never depends on unpersisted constructor defaults.
+
+`HashCodec` prefixes the scalar bytes established by `BPlusKeyCodec` with one
+stable `DataType` tag. It also canonicalizes FLOAT `-0.0` and `+0.0` to the
+same hash bytes because they compare equal. Python's randomized `hash()` is
+never used. Directory index `i` is calculated
+as `hash_value & ((1 << global_depth) - 1)`. Hash equality only selects a
+bucket; `HashBucket` stores and compares complete typed keys. FLOAT NaN,
+integer bounds, strict UTF-8 and the 255-byte VARCHAR index-key limit therefore
+remain identical across B+ and Extendible Hashing.
+
+The directory is a real persistent chain. Each directory payload records its
+ordinal, entry count, next page and canonical zero padding; each logical entry
+is a uint32 bucket page ID. LSB doubling appends a copy of the old logical
+directory, preserving every lookup before affected aliases are redirected.
+The format crosses a physical page after 1015 entries and is tested at depth
+10 with 1024 entries.
+
+Each bucket payload records its physical page ID, local depth, association
+count and meaningful byte count. Entries contain a uint16 key length, complete
+canonical key bytes and the Stage 4 two-uint32 RID. Models are immutable and
+canonicalize associations by encoded key and RID. Strict codecs reject invalid
+signatures, versions, lengths, counts, page identities and nonzero padding.
+
+`ExtendibleHashIndex` provides create/open/flush/close, exact search,
+non-growing insertion, bucket splitting, directory doubling, repeated splits,
+duplicate/unique enforcement, exact deletion and bounded collision/depth
+failure. A structural insertion computes its complete topology in memory before
+allocation. New and
+changed buckets are written before the directory and final header image. This
+protects validation/depth/collision rejection from mutation and follows the B+
+normal-operation convention, but it is not crash atomic: WAL and cross-page
+recovery remain deferred.
+
+Creation starts with `2^D` buckets at local depth D. Search reads only the
+directory-chain prefix needed for its one selected entry and then exactly one
+bucket; it never scans unrelated buckets. Open performs a lifecycle-level
+topology check covering reachability, alias counts, depth relationships,
+placement and total associations. Public `validate_structure(deep=True)` also
+reports the observed topology and checks page ownership, orphan pages, unique
+constraints and persisted totals without repairing the file.
+
+Deletion follows the stable `Index` contract: it removes one exact `(key, RID)`
+and returns `None`; a missing pair raises `InvalidReferenceError` without a
+write. Empty buckets remain live and referenced. Buddy merge, directory shrink
+and a hash free list are optional in `ETAPA_05.md` and remain explicitly
+deferred, so hash page allocations are append-only in format v1.
+
+`build_from_storage()` streams active records, leaves failed builds marked
+incomplete and records real build measurements. `rebuild_from_storage()` uses a
+validated sibling candidate and `PageManager.commit_replacement()`. The
+`UnclusteredHashIndex` adapter owns the hash runtime, borrows one `HeapFile`,
+resolves stale RIDs and coordinates record insertion, deletion and replacement
+with best-effort rollback. A replacement can return a new RID because Heap has
+no in-place update contract. Failed rollback marks the index incomplete.
+
+Catalog helpers build/open hash definitions and shared dispatch selects B+ or
+hash from `IndexType`. `IndexMetadata` advertises equality for both families and
+range/ordering only for B+. The Catalog itself remains the established
+in-memory registry; the independent index header persists all restart values.
+`HashBuildMetrics`, `HashStructuralMetrics` and `HashMetrics` expose build cost,
+session-local splits/doublings/associations inspected, typed directory/bucket
+I/O and current durable size. Final 1K/10K/100K benchmarks remain Stage 10 work.
+
 ---
 
 ## Relational operators
@@ -1617,19 +1708,19 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 Latest completed stage:
 
-> **Stage 4 — B+ Tree**
+> **Stage 5 — Extendible Hashing**
 
 Overall Part 1 roadmap:
 
 > `PLAN.md`
 
-Current active stage:
+Next planned stage:
 
-> **None — Stage 5 has not started**
+> **Stage 6 — Relational Operators and External Algorithms (not started)**
 
 Most recently completed stage specification:
 
-> `ETAPA_04.md`
+> `ETAPA_05.md`
 
 Implemented so far:
 
@@ -1686,6 +1777,16 @@ Implemented so far:
   completion metadata/metrics, both Heap and Sequential adapters, RID-change
   recovery, Catalog integration, structural metrics and end-to-end comparative
   restart coverage are complete.
+- Stage 5 Increments A-C: adopted the persistent hash format, added deterministic
+  FNV-1a key hashing, strict header/directory/bucket codecs, a multipage directory,
+  page-sized buckets and the `ExtendibleHashIndex` lifecycle. Exact search,
+  insertion without growth, split with or without doubling, repeated splits,
+  duplicate/unique semantics and bounded collision/depth failure are implemented.
+- Stage 5 Increments D-E and closure: exact deletion keeps empty buckets valid;
+  the independent validator checks complete topology and ownership. Persistent
+  builds/rebuilds, Heap maintenance, Catalog dispatch/drop, capability metadata,
+  typed I/O/build/structural metrics, restart and differential oracle coverage
+  complete all 46 mandatory criteria. Optional merge/shrink remain deferred.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -1706,8 +1807,11 @@ now cover both leaf and internal nodes. Root shrink/reuse, validation, restart,
 build and both storage modalities are implemented, including RID-change
 rebuilds, Catalog factories and measurement hooks. All 59 Definition of Done
 criteria and 1544 strict-suite tests pass; evidence and limitations are in
-[the Stage 4 audit](docs/ETAPA_04_AUDIT.md). Stage 5 has not started and Part 1
-remains incomplete.
+[the Stage 4 audit](docs/ETAPA_04_AUDIT.md). **Stage 5 is formally complete and
+audited as of 2026-09-06.** All 46 mandatory criteria and 1621 strict-suite tests
+pass; evidence and limitations are in
+[the Stage 5 audit](docs/ETAPA_05_AUDIT.md). Stage 6 is planned but not started,
+and Part 1 remains incomplete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 
