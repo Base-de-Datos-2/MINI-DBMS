@@ -1,0 +1,268 @@
+"""Stage 6 increment A: manually assembled pipelines over persisted storage.
+
+These scenarios instantiate the acceptance examples of ETAPA_06 section 11
+that increment A can already satisfy. Sorting, grouping and joins arrive with
+later increments and are not simulated here.
+"""
+
+from contextlib import closing
+
+import pytest
+
+from engine.catalog import Catalog, Column, DataType, Schema, TableMetadata
+from engine.indexes import (
+    ClusteredBPlusIndex,
+    UnclusteredBPlusIndex,
+    UnclusteredHashIndex,
+)
+from engine.operators import (
+    And,
+    ColumnReference,
+    Compare,
+    ComparisonOperator,
+    ExecutionContext,
+    Filter,
+    IndexScan,
+    Projection,
+    TableScan,
+    collect,
+    column,
+    execute,
+)
+from engine.storage import HeapFile, PagedSequentialFile, Record
+from tests.operator_helpers import STUDENTS, STUDENT_ROWS, students
+
+
+def values(rows):
+    return [tuple(row.values) for row in rows]
+
+
+@pytest.fixture
+def database(tmp_path):
+    """Build the shared dataset in both organizations plus all three indexes."""
+
+    heap_path = tmp_path / "students.heap"
+    sequential_path = tmp_path / "students.seq"
+    with HeapFile.create(heap_path, STUDENTS) as heap, PagedSequentialFile.create(
+        sequential_path, STUDENTS, "id"
+    ) as sequential:
+        for record in students(reversed(STUDENT_ROWS)):
+            heap.insert(record)
+            sequential.insert(record)
+        with UnclusteredBPlusIndex.build(
+            tmp_path / "students.bpt",
+            heap=heap,
+            index_name="ix_students_id",
+            table_name="students",
+            key_column="id",
+        ) as bplus, UnclusteredHashIndex.build(
+            tmp_path / "students.hsh",
+            heap=heap,
+            index_name="hx_students_id",
+            table_name="students",
+            key_column="id",
+        ) as hash_index, ClusteredBPlusIndex.build(
+            tmp_path / "students.cbt",
+            sequential=sequential,
+            index_name="cx_students_id",
+            table_name="students",
+            key_column="id",
+        ) as clustered:
+            yield {
+                "heap": heap,
+                "sequential": sequential,
+                "bplus": bplus,
+                "hash": hash_index,
+                "clustered": clustered,
+                "paths": (heap_path, sequential_path),
+            }
+
+
+def test_example_a_filtered_projection_runs_over_real_paged_storage(database):
+    plan = Projection(
+        Filter(
+            TableScan(database["heap"], relation="students"),
+            Compare(column("age"), ComparisonOperator.GREATER, 20),
+        ),
+        ["name", "career"],
+    )
+
+    with ExecutionContext(memory_budget_bytes=8192, label="example-a") as context:
+        rows = collect(plan, context, limit=10)
+
+    assert sorted(values(rows)) == sorted(
+        [("Ana", "CS"), ("Sol", "CS"), ("Omar", "EE")]
+    )
+    assert plan.describe().render().splitlines() == [
+        "Projection(columns=name, career)",
+        "  Filter(predicate=Compare(ColumnValue('age'), '>', Literal(20)))",
+        "    TableScan(relation=students, access=sequential scan)",
+    ]
+
+
+def test_the_reported_plan_names_the_access_path_actually_used(database):
+    over_scan = Filter(
+        TableScan(database["heap"], relation="students"),
+        Compare(column("id"), ComparisonOperator.EQUAL, 3),
+    )
+    over_hash = IndexScan.equality(database["hash"], 3, relation="students")
+    over_bplus = IndexScan.between(database["bplus"], 3, 3, relation="students")
+
+    scan_details = dict(over_scan.describe().children[0].details)
+    hash_details = dict(over_hash.describe().details)
+    bplus_details = dict(over_bplus.describe().details)
+
+    assert scan_details["access"] == "sequential scan"
+    assert hash_details["access"] == "hash equality"
+    assert hash_details["index"] == "UnclusteredHashIndex"
+    assert bplus_details["access"] == "b+ range"
+    assert values(collect(over_scan, limit=5)) == values(collect(over_hash, limit=5))
+    assert values(collect(over_hash, limit=5)) == values(collect(over_bplus, limit=5))
+
+
+def test_a_composed_predicate_narrows_both_organizations_identically(database):
+    predicate = And(
+        Compare(column("career"), ComparisonOperator.EQUAL, "CS"),
+        Compare(column("age"), ComparisonOperator.GREATER_OR_EQUAL, 22),
+    )
+
+    heap_rows = collect(
+        Projection(
+            Filter(TableScan(database["heap"], relation="students"), predicate),
+            ["id"],
+        ),
+        limit=10,
+    )
+    sequential_rows = collect(
+        Projection(
+            Filter(TableScan(database["sequential"], relation="students"), predicate),
+            ["id"],
+        ),
+        limit=10,
+    )
+
+    assert sorted(values(heap_rows)) == [(1,), (3,)]
+    assert sorted(values(heap_rows)) == sorted(values(sequential_rows))
+
+
+def test_only_the_sequential_pipeline_claims_an_ordering(database):
+    heap_plan = Projection(
+        Filter(
+            TableScan(database["heap"], relation="students"),
+            Compare(column("age"), ComparisonOperator.GREATER, 0),
+        ),
+        ["id", "name"],
+    )
+    sequential_plan = Projection(
+        Filter(
+            TableScan(database["sequential"], relation="students"),
+            Compare(column("age"), ComparisonOperator.GREATER, 0),
+        ),
+        ["id", "name"],
+    )
+
+    assert heap_plan.ordering is None
+    assert sequential_plan.ordering == ColumnReference("id", "students")
+    assert [row.values[0] for row in collect(sequential_plan, limit=10)] == [
+        1,
+        2,
+        3,
+        4,
+    ]
+
+
+def test_example_e_close_everything_reopen_and_rerun_the_same_pipeline(tmp_path):
+    heap_path = tmp_path / "rerun.heap"
+    index_path = tmp_path / "rerun.bpt"
+    with HeapFile.create(heap_path, STUDENTS) as heap:
+        for record in students():
+            heap.insert(record)
+        with UnclusteredBPlusIndex.build(
+            index_path,
+            heap=heap,
+            index_name="ix_rerun",
+            table_name="students",
+            key_column="id",
+        ):
+            pass
+
+    def run(budget):
+        fresh_schema = Schema(list(STUDENTS.columns))
+        with HeapFile.open(heap_path, fresh_schema) as heap:
+            with UnclusteredBPlusIndex.open(index_path, heap=heap) as index:
+                plan = Projection(
+                    Filter(
+                        IndexScan.between(index, 2, relation="students"),
+                        Compare(column("career"), ComparisonOperator.EQUAL, "EE"),
+                    ),
+                    ["id", "name"],
+                )
+                with ExecutionContext(memory_budget_bytes=budget) as context:
+                    return values(collect(plan, context, limit=10))
+
+    first = run(8192)
+    second = run(64 * 4096)
+
+    assert first == [(2, "Luis"), (4, "Omar")]
+    assert first == second
+
+
+def test_a_pipeline_runs_twice_from_one_plan_object(database):
+    plan = Projection(
+        Filter(
+            TableScan(database["heap"], relation="students"),
+            Compare(column("career"), ComparisonOperator.EQUAL, "CS"),
+        ),
+        ["name"],
+    )
+
+    first = values(collect(plan, limit=10))
+    second = values(collect(plan, limit=10))
+
+    # The Heap advertises no ordering, so the two runs must agree with each
+    # other and as a multiset, not with the order the rows were inserted in.
+    assert first == second
+    assert sorted(first) == [("Ana",), ("Sol",)]
+    assert plan.statistics.runs == 2
+    assert plan.statistics.rows_emitted == 4
+
+
+def test_abandoning_a_pipeline_early_releases_every_owned_cursor(database):
+    scan = TableScan(database["heap"], relation="students")
+    plan = Projection(Filter(scan, Compare(column("age"), ComparisonOperator.GREATER, 0)), ["name"])
+
+    with closing(execute(plan)) as stream:
+        assert next(stream) is not None
+
+    assert scan.state.value == "CLOSED"
+    assert database["heap"].closed is False
+    assert len(collect(TableScan(database["heap"], relation="students"), limit=10)) == 4
+
+
+def test_the_catalog_describes_the_table_the_pipeline_reads(database):
+    catalog = Catalog()
+    catalog.register_table(TableMetadata("students", STUDENTS))
+
+    metadata = catalog.get_table("students")
+    plan = TableScan(database["heap"], relation=metadata.name)
+
+    assert plan.output_schema == metadata.schema
+    assert plan.layout.relations == ("students",)
+    assert len(collect(plan, limit=10)) == 4
+
+
+def test_execution_context_accounting_survives_a_full_pipeline_run(database):
+    plan = Projection(
+        Filter(
+            TableScan(database["heap"], relation="students"),
+            Compare(column("age"), ComparisonOperator.GREATER, 20),
+        ),
+        ["name"],
+    )
+
+    with ExecutionContext(memory_budget_bytes=8192, label="pipeline") as context:
+        collect(plan, context, limit=10)
+
+        assert context.reserved_bytes == 0
+        assert context.available_bytes == 8192
+        assert context.open_handle_count == 0
