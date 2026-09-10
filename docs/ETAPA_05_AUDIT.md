@@ -1,5 +1,15 @@
 # Auditoría de cierre de la Etapa 5
 
+> Revisión posterior, 2026-09-10: este informe conserva la evidencia histórica
+> del cierre. La revisión encontró diferencias de validación, rollback,
+> instrumentación y trazabilidad; las tareas 5.1–5.7 se revisaron y corrigieron
+> en [el informe del bloque](ETAPA_05_REVIEW_5_1_5_7.md). La revisión de
+> [5.8–5.15](ETAPA_05_REVIEW_5_8_5_15.md) añade evidencia de ciclo de vida,
+> búsquedas, crecimiento y rechazos acotados. Los hallazgos de los
+> bloques posteriores siguen pendientes. La Definition of Done tiene 47
+> criterios; la tabla histórica de 46 filas omitió la fila independiente de
+> aprobación de la suite, cuyo resultado sí aparece en el texto.
+
 Fecha: **2026-09-06**. Alcance: Extendible Hashing persistente, eliminación,
 validación estructural, integración con `HeapFile`/`Catalog` e instrumentación.
 

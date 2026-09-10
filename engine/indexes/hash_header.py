@@ -15,6 +15,7 @@ from .hash_binary import (
     HASH_ALGORITHM_VERSION,
     HASH_BIT_SELECTION,
     HASH_DEFAULT_MAX_GLOBAL_DEPTH,
+    HASH_DIRECTORY_ENTRIES_PER_PAGE,
     HASH_FILE_MAGIC,
     HASH_FORMAT_VERSION,
     HASH_INITIAL_GLOBAL_DEPTH,
@@ -179,6 +180,13 @@ class HashFileHeader:
             raise ValidationError("Hash directory cannot use reserved metadata page 0")
         if self.directory_page_count == 0 or self.bucket_count == 0:
             raise ValidationError("Hash index requires directory and bucket pages")
+        expected_pages = (
+            self.directory_entry_count + HASH_DIRECTORY_ENTRIES_PER_PAGE - 1
+        ) // HASH_DIRECTORY_ENTRIES_PER_PAGE
+        if self.directory_page_count != expected_pages:
+            raise ValidationError("Hash directory page count differs from its packed size")
+        if self.bucket_count > self.directory_entry_count:
+            raise ValidationError("Hash bucket count exceeds directory entry count")
         if self.index_page_count < self.directory_page_count + self.bucket_count:
             raise ValidationError("Hash index page count is too small for its topology")
         if self.directory_first_page_id > self.index_page_count:
@@ -231,6 +239,8 @@ class HashFileHeader:
     @classmethod
     def deserialize(cls, payload: bytes) -> "HashFileHeader":
         require_bytes(payload)
+        if len(payload) > MAX_RECORD_SIZE:
+            raise ValidationError("Hash file header does not fit in page 0")
 
         def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
             result: dict[str, Any] = {}
@@ -251,7 +261,7 @@ class HashFileHeader:
             )
         except ValidationError:
             raise
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
             raise ValidationError("Malformed hash file header") from exc
         if type(document) is not dict:
             raise ValidationError("Hash file header must be a JSON object")

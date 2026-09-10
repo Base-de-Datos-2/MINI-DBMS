@@ -1305,11 +1305,30 @@ directory, preserving every lookup before affected aliases are redirected.
 The format crosses a physical page after 1015 entries and is tested at depth
 10 with 1024 entries.
 
+The v1 directory is packed: every non-final page contains exactly 1015
+entries, and the final page contains the exact remainder (or 1015 when full).
+Only the final page has a null next pointer. The header requires exactly
+`ceil(directory_entry_count / 1015)` directory pages and no more live buckets
+than logical directory entries. `HashDirectoryPage.validate_position()` checks
+the contextual chunk geometry before both concatenation and point lookup, so
+the two paths cannot interpret different physical positions as the same entry.
+Standalone chunk codecs validate local bytes; the owning index supplies the
+total entry count and validates physical links and reachability.
+
 Each bucket payload records its physical page ID, local depth, association
 count and meaningful byte count. Entries contain a uint16 key length, complete
 canonical key bytes and the Stage 4 two-uint32 RID. Models are immutable and
 canonicalize associations by encoded key and RID. Strict codecs reject invalid
 signatures, versions, lengths, counts, page identities and nonzero padding.
+
+Bucket scalar bytes retain the Stage 4 representation, including signed FLOAT
+zero; the type tag and zero normalization above apply to hash input. Bucket
+construction validates keys and RIDs before sorting. Deserialization rejects
+noncanonical association order instead of silently repairing persisted bytes;
+every accepted bucket payload serializes back byte-for-byte. Header decoding
+also enforces the page payload size and translates excessive JSON nesting into
+the existing domain validation error. These checks preserve format version 1
+and the bytes produced by the existing valid writers.
 
 `ExtendibleHashIndex` provides create/open/flush/close, exact search,
 non-growing insertion, bucket splitting, directory doubling, repeated splits,
@@ -1328,6 +1347,23 @@ topology check covering reachability, alias counts, depth relationships,
 placement and total associations. Public `validate_structure(deep=True)` also
 reports the observed topology and checks page ownership, orphan pages, unique
 constraints and persisted totals without repairing the file.
+
+Expected metadata supplied to hash `open()` must have the exact persisted
+field type, so integers do not substitute for Boolean uniqueness flags. Point
+search and insertion validate the selected bucket's page reference and require
+`local_depth <= global_depth`, without inspecting unrelated buckets. An exact
+pair reinsertion remains a no-op even at the association counter limit; only
+new associations consume that counter.
+
+Split/doubling planning precedes allocation and preserves all prior bytes on
+key/RID, uniqueness, collision or depth-limit rejection. The stable publication
+order is new buckets, changed old buckets, directory, then index header;
+doubling the logical directory does not publish it before initialized buckets.
+PageManager closes its handle on physical write failure. If no write completed,
+the prior file can reopen; an incomplete allocation/publication may instead
+leave a file that fails validation and needs reconstruction. No automatic
+rollback of physical writes, crash atomicity or WAL is implied. These bounds
+also apply to the failure cases described by tasks 5.11–5.13.
 
 Deletion follows the stable `Index` contract: it removes one exact `(key, RID)`
 and returns `None`; a missing pair raises `InvalidReferenceError` without a

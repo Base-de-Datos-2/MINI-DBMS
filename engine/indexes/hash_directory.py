@@ -125,6 +125,30 @@ class HashDirectoryPage:
         object.__setattr__(self, "bucket_page_ids", entries)
         object.__setattr__(self, "next_page_id", checked_next)
 
+    def validate_position(self, directory_entry_count: int) -> None:
+        """Check the packed v1 layout against the owning directory's size.
+
+        A standalone chunk codec cannot know the total logical size. Readers
+        must apply this contextual check before concatenation or point lookup.
+        """
+        if type(directory_entry_count) is not int:
+            raise InvalidTypeError("directory_entry_count must be a built-in int")
+        if not 1 <= directory_entry_count <= UINT32_MAX:
+            raise ValidationError("directory_entry_count must be a positive uint32")
+        remaining = directory_entry_count - self.ordinal * HASH_DIRECTORY_ENTRIES_PER_PAGE
+        if remaining <= 0:
+            raise ValidationError("Hash directory page ordinal exceeds its logical size")
+        expected = min(remaining, HASH_DIRECTORY_ENTRIES_PER_PAGE)
+        if len(self.bucket_page_ids) != expected:
+            raise ValidationError(
+                f"Hash directory page {self.ordinal} entry count must be {expected}"
+            )
+        needs_next = remaining > HASH_DIRECTORY_ENTRIES_PER_PAGE
+        if (self.next_page_id is not None) != needs_next:
+            raise ValidationError(
+                f"Hash directory page {self.ordinal} has an invalid terminal link"
+            )
+
 
 class HashDirectoryCodec:
     """Encode a directory chunk as exactly one Page payload."""

@@ -268,7 +268,12 @@ class ExtendibleHashIndex(Index):
                 "allow_duplicate_keys": allow_duplicate_keys,
             }
             for field, value in expected.items():
-                if value is not None and getattr(header, field) != value:
+                if value is None:
+                    continue
+                actual = getattr(header, field)
+                if type(value) is not type(actual):
+                    raise InvalidTypeError(f"Invalid type for expected hash {field}")
+                if actual != value:
                     raise ValidationError(f"Hash index metadata mismatch for {field}")
             index = cls(manager, header)
             index._validate_open_topology()
@@ -507,6 +512,7 @@ class ExtendibleHashIndex(Index):
             page = self._directories.read_page(checked)
             if page.ordinal != expected_ordinal:
                 raise ValidationError("Hash directory page ordinal is incorrect")
+            page.validate_position(self._header.directory_entry_count)
             page_ids.append(checked)
             entries.extend(page.bucket_page_ids)
             next_page_id = page.next_page_id
@@ -537,6 +543,11 @@ class ExtendibleHashIndex(Index):
             page = self._directories.read_page(checked)
             if page.ordinal != expected_ordinal:
                 raise ValidationError("Hash directory page ordinal is incorrect")
+            page.validate_position(self._header.directory_entry_count)
+            if page.next_page_id is not None:
+                self._validate_page_reference(page.next_page_id, "next directory page")
+                if page.next_page_id in visited:
+                    raise ValidationError("Cycle detected in hash directory pages")
             if expected_ordinal == target_ordinal:
                 if offset >= len(page.bucket_page_ids):
                     raise ValidationError("Hash directory lookup offset is missing")
@@ -635,6 +646,21 @@ class ExtendibleHashIndex(Index):
         HashHeaderPageIO.write(self._manager, header)
         self._header = header
 
+    def _read_routed_bucket(self, page_id: int) -> HashBucket:
+        """Validate the selected page without reading unrelated buckets.
+
+        The codec checks type, identity and the absolute depth bound; this
+        check relates local depth to this index's current global depth.
+        """
+        bucket = self._buckets.read_bucket(
+            self._validate_page_reference(page_id, "bucket page")
+        )
+        if bucket.local_depth > self._header.global_depth:
+            raise ValidationError(
+                f"Hash bucket {page_id} local depth exceeds global depth"
+            )
+        return bucket
+
     def search(self, key: RecordValue) -> Generator[RID, None, None]:
         self._require_open()
         checked_key = BPlusKeyCodec.validate(self._header.key_type, key)
@@ -643,9 +669,7 @@ class ExtendibleHashIndex(Index):
         def iterator() -> Generator[RID, None, None]:
             self._require_open()
             bucket_id = self._lookup_bucket_page_id(hash_value)
-            bucket = self._buckets.read_bucket(
-                self._validate_page_reference(bucket_id, "bucket page")
-            )
+            bucket = self._read_routed_bucket(bucket_id)
             self._count_structural("associations_inspected", bucket.entry_count)
             # Routing narrows the read to one bucket; equality is still decided
             # with the complete typed key, never with the hash alone.
@@ -657,8 +681,6 @@ class ExtendibleHashIndex(Index):
         self._require_open()
         checked_key = BPlusKeyCodec.validate(self._header.key_type, key)
         BPlusRIDCodec.encode(rid)
-        if self._header.association_count == HASH_UINT64_MAX:
-            raise ValidationError("Hash association count reached the uint64 limit")
         if HashBucket.serialized_size_for(
             self._header.key_type, ((checked_key, rid),)
         ) > HASH_BUCKET_PAYLOAD_SIZE:
@@ -667,7 +689,7 @@ class ExtendibleHashIndex(Index):
         directory, directory_page_ids = self._read_directory()
         hash_value = HashCodec.hash_key(self._header.key_type, checked_key)
         bucket_id = directory.lookup_bucket(hash_value)
-        bucket = self._buckets.read_bucket(bucket_id)
+        bucket = self._read_routed_bucket(bucket_id)
         self._count_structural("associations_inspected", bucket.entry_count)
         if bucket.contains(checked_key, rid):
             return
@@ -675,6 +697,10 @@ class ExtendibleHashIndex(Index):
             raise DuplicateError(
                 f"Duplicate key is not allowed by this hash index: {checked_key!r}"
             )
+        # Only new associations consume the counter. Exact reinsertion remains
+        # idempotent even at the persisted uint64 boundary.
+        if self._header.association_count == HASH_UINT64_MAX:
+            raise ValidationError("Hash association count reached the uint64 limit")
 
         if bucket.can_fit(checked_key, rid):
             self._buckets.write_bucket(bucket.insert(checked_key, rid))
@@ -815,7 +841,7 @@ class ExtendibleHashIndex(Index):
                     entries,
                 )
             )
-        # New buckets are durable before any old bucket or directory pointer can
+        # New buckets are written before any old bucket or directory pointer can
         # expose them; complete crash atomicity remains deferred until WAL.
         for bucket in sorted(
             materialized,

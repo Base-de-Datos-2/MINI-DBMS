@@ -68,16 +68,18 @@ class HashBucket:
         except (TypeError, ValueError) as exc:
             raise InvalidTypeError("bucket entries must contain (key, RID) pairs") from exc
 
-        # Canonical RID order inside equal keys makes restart results stable while
-        # leaving different hash-key groups in deterministic encoded-key order.
+        # Validate before sorting so invalid RID objects cannot leak comparison
+        # TypeErrors instead of the shared domain errors.
+        for association in checked:
+            _association_size(key_type, association)
+        # The persisted order is encoded key, then RID; it is not logical key
+        # ordering (signed FLOAT zeros may have distinct stored scalar bytes).
         normalized = tuple(
             sorted(
                 checked,
                 key=lambda item: (BPlusKeyCodec.encode(key_type, item[0]), item[1]),
             )
         )
-        for association in normalized:
-            _association_size(key_type, association)
         if len(set(normalized)) != len(normalized):
             raise ValidationError("Hash bucket contains a duplicate key/RID pair")
         if self.serialized_size_for(key_type, normalized) > HASH_BUCKET_PAYLOAD_SIZE:
@@ -223,4 +225,6 @@ class HashBucketCodec:
         bucket = HashBucket(page_id, key_type, local_depth, entries)
         if bucket.used_payload_bytes != used_bytes:
             raise ValidationError("Hash bucket byte count is not canonical")
+        if HashBucketCodec.serialize(bucket) != payload:
+            raise ValidationError("Hash bucket associations are not in canonical order")
         return bucket

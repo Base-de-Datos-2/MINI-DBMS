@@ -10,6 +10,13 @@
 **Next stage:** Stage 6 — Relational Operators and External Algorithms  
 **Roadmap:** PLAN.md
 
+**Focused review (2026-09-10):** Tasks 5.1–5.7 were reviewed and corrected;
+evidence and remaining issues outside this block are recorded in
+[the foundations review](docs/ETAPA_05_REVIEW_5_1_5_7.md).
+Tasks 5.8–5.15 were also reviewed, corrected where necessary and checked against
+their acceptance criteria in [the lifecycle and growth review](docs/ETAPA_05_REVIEW_5_8_5_15.md).
+This review does not re-certify the complete stage's historical closure.
+
 ---
 
 # 1. Purpose
@@ -1600,4 +1607,3 @@ Heap/Paged Sequential storage
 B+ Tree indexes
 Extendible Hash indexes
 ~~~
-
