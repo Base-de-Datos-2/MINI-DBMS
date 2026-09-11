@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **2.9** — aligned with the formal Stage 5 closure.
+> Context version: **2.10** — aligned with the reviewed Stage 5 closure.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1383,11 +1383,14 @@ consolidated the final architecture and documentation. **Stage 4 was formally
 closed on 2026-09-03:** all 59 Definition of Done criteria are satisfied and the
 strict closure suite passes 1544 tests. Evidence: [Stage 4 closure
 audit](docs/ETAPA_04_AUDIT.md). **Stage 5 was formally closed on 2026-09-06:**
-all tasks 5.1–5.27 and the 46 mandatory Definition of Done criteria are
+all tasks 5.1–5.27 and the 47 Definition of Done criteria are
 satisfied. The persistent Extendible Hash index now covers deterministic
 formats, exact access/mutation, dynamic growth, validation, restart,
-Heap/Catalog integration and metrics. Its strict closure suite passes 1621
-tests. Evidence: [Stage 5 closure audit](docs/ETAPA_05_AUDIT.md). Optional
+Heap/Catalog integration and metrics. The original strict closure suite passed
+1621 tests; the four-block review completed on 2026-09-10 passes 1772 tests,
+with corrected rollback, publication, validation and metrics. The 47 criteria
+are interpreted under the stable architecture, including the in-memory Catalog.
+Evidence: [Stage 5 closure audit](docs/ETAPA_05_AUDIT.md). Optional
 merge/shrink remain deferred as permitted. Stage 6 is planned in `ETAPA_06.md`
 but has not started.
 Part 1 is not complete.

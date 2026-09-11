@@ -1,22 +1,24 @@
 # Auditoría de cierre de la Etapa 5
 
-> Revisión posterior, 2026-09-10: este informe conserva la evidencia histórica
-> del cierre. La revisión encontró diferencias de validación, rollback,
-> instrumentación y trazabilidad; las tareas 5.1–5.7 se revisaron y corrigieron
-> en [el informe del bloque](ETAPA_05_REVIEW_5_1_5_7.md). La revisión de
-> [5.8–5.15](ETAPA_05_REVIEW_5_8_5_15.md) añade evidencia de ciclo de vida,
-> búsquedas, crecimiento y rechazos acotados. Los hallazgos de los
-> bloques posteriores siguen pendientes. La Definition of Done tiene 47
-> criterios; la tabla histórica de 46 filas omitió la fila independiente de
-> aprobación de la suite, cuyo resultado sí aparece en el texto.
+> Revisión posterior completada el 2026-09-10. Los cuatro bloques
+> [5.1–5.7](ETAPA_05_REVIEW_5_1_5_7.md),
+> [5.8–5.15](ETAPA_05_REVIEW_5_8_5_15.md),
+> [5.16–5.21](ETAPA_05_REVIEW_5_16_5_21.md) y
+> [5.22–5.27](ETAPA_05_REVIEW_5_22_5_27.md) corrigen los hallazgos y aportan
+> evidencia acumulada. La suite actual pasa **1772 pruebas estrictas**.
+> La matriz se concilia a **47 criterios**: la versión histórica omitía una
+> fila independiente para aprobación de la suite. Las ejecuciones históricas
+> se conservan abajo, sin presentarlas como resultados de la nueva ejecución.
 
 Fecha: **2026-09-06**. Alcance: Extendible Hashing persistente, eliminación,
 validación estructural, integración con `HeapFile`/`Catalog` e instrumentación.
 
-Resultado: **Etapa 5 completa**. Se cumplen los **46 criterios obligatorios** de
-la [Definition of Done](../ETAPA_05.md#39-definition-of-done). La suite completa
-pasa **1621 pruebas con advertencias tratadas como errores**. Las Etapas 1–5
-quedan cerradas y auditadas. **La Etapa 6 está planificada pero no iniciada.**
+Resultado revisado: **Etapa 5 completa bajo las políticas arquitectónicas
+documentadas**. Los **47 criterios** de la
+[Definition of Done](../ETAPA_05.md#39-definition-of-done) están trazados a
+implementación/pruebas. No se afirma persistencia del catálogo global,
+mantenimiento multiíndice automático ni atomicidad con WAL. La Etapa 6 está
+planificada pero no iniciada; la Parte 1 sigue incompleta.
 
 ## Evidencia por criterio
 
@@ -54,22 +56,23 @@ Cada fila corresponde al checklist de `ETAPA_05.md`, en el mismo orden.
 | 28 | Asociaciones en bucket compatible | Rehash completo durante validación profunda | Cumple |
 | 29 | Split no pierde/duplica asociaciones | Redistribución de conjunto anterior más pendiente y pruebas exhaustivas | Cumple |
 | 30 | Ninguna página referenciada se libera | No hay liberación porque merge/shrink son opcionales y diferidos | Cumple |
-| 31 | Validador tras mutaciones | Pruebas deterministas, de reinicio y diferenciales | Cumple |
-| 32 | Construcción desde HeapFile | Scan activo, tombstones excluidos, validación y build state | Cumple |
-| 33 | Catálogo abre/reabre | Fábricas por `IndexType`, `file_path` y header físico autocontenido | Cumple |
-| 34 | Mutaciones de tabla mantienen hash | `UnclusteredHashIndex` coordina insert/delete/update con rollback | Cumple |
+| 31 | Validador tras mutaciones | Diferencial pequeño valida cada operación; integración Heap única/no única valida cada mutación, también tras cuatro reaperturas | Cumple |
+| 32 | Construcción desde HeapFile | Scan activo, tombstones excluidos, validación, flush y build state antes de publicación | Cumple |
+| 33 | Catálogo persiste y reabre el índice | Descriptor físico autocontenido; Catalog/Schema/metadata recreados para despacho, bajo la decisión de catálogo global en memoria | Cumple según arquitectura |
+| 34 | Mutaciones de tabla mantienen hash | Mantenimiento por adaptador; rollback fallido invalida o cierra; búsqueda y apertura comprueban Heap | Cumple según contrato |
 | 35 | Movimiento RID repara asociaciones | Reconstrucción atómica desde candidato hermano validado | Cumple |
 | 36 | Hash no anuncia rango/orden | Capacidades de `IndexMetadata` distinguen B+ y hash | Cumple |
 | 37 | Métricas físicas/estructurales | I/O tipado real, splits, doublings, inspecciones, tamaño y build metrics | Cumple |
-| 38 | Regresión Etapas 1–4 | Suite acumulada de 1621 pruebas sin fallos | Cumple |
+| 38 | Regresión Etapas 1–4 | Suite acumulada actual de 1772 pruebas sin fallos | Cumple |
 | 39 | Unitarias de todas las piezas | Codec, header, directorio, bucket, split, búsqueda y delete | Cumple |
 | 40 | Reinicios destruyen objetos | Dos reaperturas con PageManager/runtime nuevos y mutaciones intermedias | Cumple |
 | 41 | Crecimiento multipágina | Directorio de 1024 entradas en dos páginas | Cumple |
 | 42 | Colisiones deterministas | Hash constante, clave completa, límite y persistencia | Cumple |
-| 43 | Diferencial contra oráculo | Secuencia pseudoaleatoria fija con mapa `clave -> set[RID]` | Cumple |
+| 43 | Diferencial contra oráculo | Semilla fija; todas las claves y estructura comprobadas por operación; integración compara también scan de Heap | Cumple |
 | 44 | Archivos malformados producen error de dominio | `ValidationError` y errores hash especializados | Cumple |
 | 45 | Integración completa tras reinicio | Heap, build, mantenimiento, catálogo, reapertura y validación | Cumple |
-| 46 | No se adelantó Etapa 6+ | Sin operadores concretos, SQL, transacciones, frontend ni benchmarks | Cumple |
+| 46 | Suite configurada completa aprobada | 1772 aprobadas con `-W error`, sin omisiones ni xfails (2026-09-10) | Cumple |
+| 47 | No se adelantó Etapa 6+ | Sin operadores concretos, SQL, transacciones, frontend ni benchmarks | Cumple |
 
 ## Arquitectura final auditada
 
@@ -127,7 +130,7 @@ No modifica el estado persistente.
   fallida conserva las lecturas físicas reales, pero un split/doubling solo se
   cuenta después de publicar su header.
 
-## Verificación ejecutada
+## Verificación histórica ejecutada (2026-09-06)
 
 Entorno: Windows, **Python 3.12.6**, **pytest 8.4.2**, instalación editable local.
 
@@ -162,6 +165,33 @@ Resultados de cierre:
 - El catálogo global sigue en memoria; no se añadió persistencia global fuera
   del alcance arquitectónico heredado.
 - No se ejecutaron benchmarks finales; pertenecen a Etapa 10.
+- El mantenimiento es por adaptador; modificar Heap directamente o por otro
+  índice exige coordinación/reconstrucción. Un RID no tiene generación: la
+  comprobación de clave no identifica una fila histórica si se reciclan tanto
+  el RID como la misma clave. No se promete detección ABA.
+- Invalidar tras fallo es best-effort. Si también falla esa escritura se cierra
+  el runtime y se preservan los errores; no se garantiza una marca durable.
+- Métricas de rebuild describen construcción del candidato, no todo el
+  reemplazo. E/S comienza una nueva sesión al sustituir el gestor; eventos
+  estructurales parten de los del candidato. Véase la revisión 5.22–5.27.
+
+## Verificación posterior (2026-09-10)
+
+```powershell
+$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
+.\.venv\Scripts\python.exe -m pytest -q -W error -p no:cacheprovider
+.\.venv\Scripts\python.exe -m compileall -q engine tests
+.\.venv\Scripts\python.exe -m pip check
+git diff --check
+```
+
+- **1772 pruebas aprobadas en 125,99 s**, sin omisiones ni xfails.
+- Último bloque: **25 casos nuevos**; acumulados de revisiones: 151 sobre los
+  1621 del cierre original (62 + 33 + 31 + 25).
+- `compileall`, `pip check` y revisión de whitespace del diff: correctos.
+- La matriz y el checklist de etapa contienen exactamente 47 criterios. Los
+  puntos condicionados por arquitectura se explican en las filas 33–35 y los
+  límites, sin añadir persistencia global, coordinación multiíndice ni WAL.
 
 ## Estado después del cierre
 

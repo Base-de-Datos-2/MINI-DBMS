@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **2.9** — aligned with the formal Stage 5 closure.
+> Context version: **2.10** — aligned with the reviewed Stage 5 closure.
 
 ## Purpose
 
@@ -335,9 +335,11 @@ validation, restart, page reuse, storage-driven rebuilds and both clustered and
 unclustered adapters. Catalog integration, RID-change recovery and structural
 instrumentation are included. Evidence and limits are recorded in
 `docs/ETAPA_04_AUDIT.md`.
-**Stage 5 was formally closed on 2026-09-06.** Tasks 5.1–5.27 and all 46
-mandatory Definition of Done criteria are satisfied, with 1621 tests passing
-under warnings-as-errors. The persistent Extendible Hash implementation supports
+**Stage 5 was formally closed on 2026-09-06 and reviewed on 2026-09-10.**
+Tasks 5.1–5.27 and all 47 Definition of Done criteria are accounted for under
+the documented architectural policies, with 1772 tests passing under
+warnings-as-errors after the four review blocks. The original closure ran 1621
+tests. The persistent Extendible Hash implementation supports
 deterministic routing, dynamic growth, exact deletion, independent validation,
 restart, Heap construction/rebuild and maintenance, Catalog dispatch/drop and
 real metrics. Optional buddy merge and directory shrink are explicitly deferred

@@ -1,6 +1,6 @@
 # ETAPA_05.md
 
-> Context version: **1.1** — aligned with AGENTS.md, PROJECT_CONTEXT.md, REQUIREMENTS.md, PLAN.md, and the completed ETAPA_01.md through ETAPA_04.md.
+> Context version: **1.2** — acceptance evidence reconciled after the four Stage 5 review blocks.
 
 ## Stage 5 — Extendible Hashing
 
@@ -15,7 +15,16 @@ evidence and remaining issues outside this block are recorded in
 [the foundations review](docs/ETAPA_05_REVIEW_5_1_5_7.md).
 Tasks 5.8–5.15 were also reviewed, corrected where necessary and checked against
 their acceptance criteria in [the lifecycle and growth review](docs/ETAPA_05_REVIEW_5_8_5_15.md).
-This review does not re-certify the complete stage's historical closure.
+Tasks 5.16–5.21 were reviewed and corrected in
+[the deletion, validation and restart review](docs/ETAPA_05_REVIEW_5_16_5_21.md);
+optional merge and shrink remain explicitly deferred.
+Tasks 5.22–5.27 were reviewed and corrected in
+[the final integration review](docs/ETAPA_05_REVIEW_5_22_5_27.md).
+The four-block review is complete: 1772 strict-suite tests pass, and the
+[audit](docs/ETAPA_05_AUDIT.md) reconciles all 47 criteria with the stable
+architecture. Catalog remains an in-memory registry backed by independent
+physical descriptors; maintenance is per adapter, without WAL or automatic
+multi-index coordination. Stage 6 is planned, not started.
 
 ---
 
@@ -1430,78 +1439,78 @@ Stage 5 is complete only when every required item below is true.
 ## Decisions and format
 
 ~~~text
-[ ] deterministic hash algorithm/version is documented
-[ ] canonical key encoding is documented and tested
-[ ] hash width and bit convention are fixed
-[ ] initial and maximum depths are fixed
-[ ] directory and bucket layouts are versioned
-[ ] duplicate, unique, deletion, and collision policies are explicit
-[ ] optional merge/shrink status is explicit
-[ ] stable decisions are in PROJECT_CONTEXT.md
+[x] deterministic hash algorithm/version is documented
+[x] canonical key encoding is documented and tested
+[x] hash width and bit convention are fixed
+[x] initial and maximum depths are fixed
+[x] directory and bucket layouts are versioned
+[x] duplicate, unique, deletion, and collision policies are explicit
+[x] optional merge/shrink status is explicit
+[x] stable decisions are in PROJECT_CONTEXT.md
 ~~~
 
 ## Persistence
 
 ~~~text
-[ ] header stores everything needed to reopen
-[ ] directory size always equals 2^D
-[ ] the directory can span multiple pages
-[ ] bucket local depth persists correctly
-[ ] bucket capacity respects serialized page size
-[ ] malformed/truncated pages are rejected
-[ ] create, open, flush, close, and reopen work
+[x] header stores everything needed to reopen
+[x] directory size always equals 2^D
+[x] the directory can span multiple pages
+[x] bucket local depth persists correctly
+[x] bucket capacity respects serialized page size
+[x] malformed/truncated pages are rejected
+[x] create, open, flush, close, and reopen work
 ~~~
 
 ## API and algorithms
 
 ~~~text
-[ ] insert(key, rid) works with available space
-[ ] search(key) returns all and only matching RIDs
-[ ] delete(key, rid) removes only that association
-[ ] split with d < D works
-[ ] doubling with d == D works
-[ ] repeated splits terminate correctly
-[ ] duplicate/unique behavior matches Stage 4
-[ ] maximum-depth/full-hash collisions are bounded
-[ ] full key comparison follows hash routing
+[x] insert(key, rid) works with available space
+[x] search(key) returns all and only matching RIDs
+[x] delete(key, rid) removes only that association
+[x] split with d < D works
+[x] doubling with d == D works
+[x] repeated splits terminate correctly
+[x] duplicate/unique behavior matches Stage 4
+[x] maximum-depth/full-hash collisions are bounded
+[x] full key comparison follows hash routing
 ~~~
 
 ## Structural integrity
 
 ~~~text
-[ ] every directory entry references a valid bucket
-[ ] every bucket has local_depth <= global_depth
-[ ] bucket alias counts equal 2^(D-d)
-[ ] every association resides in a compatible bucket
-[ ] no split loses or duplicates associations
-[ ] no referenced page is freed
-[ ] the validator passes after every tested mutation
+[x] every directory entry references a valid bucket
+[x] every bucket has local_depth <= global_depth
+[x] bucket alias counts equal 2^(D-d)
+[x] every association resides in a compatible bucket
+[x] no split loses or duplicates associations
+[x] no referenced page is freed
+[x] the validator passes after every tested mutation
 ~~~
 
 ## Integration and observability
 
 ~~~text
-[ ] index builds from an existing HeapFile
-[ ] Catalog persists and reopens it
-[ ] table insert/delete/update maintains it
-[ ] RID movement triggers remap or rebuild when applicable
-[ ] hash capability excludes range/ordering
-[ ] real I/O and structural metrics are available
+[x] index builds from an existing HeapFile
+[x] Catalog persists and reopens it
+[x] table insert/delete/update maintains it
+[x] RID movement triggers remap or rebuild when applicable
+[x] hash capability excludes range/ordering
+[x] real I/O and structural metrics are available
 ~~~
 
 ## Testing and stage boundary
 
 ~~~text
-[ ] all Stage 1–4 tests still pass
-[ ] unit tests cover hash, directory, bucket, split, and delete
-[ ] restart tests recreate all in-memory objects
-[ ] multipage directory growth is tested
-[ ] deterministic collision tests exist
-[ ] differential tests compare against an oracle
-[ ] malformed files produce domain errors
-[ ] the complete integration workflow passes after restart
-[ ] the full configured suite passes
-[ ] no Stage 6, SQL, transaction, frontend, or final benchmark work is mixed in
+[x] all Stage 1–4 tests still pass
+[x] unit tests cover hash, directory, bucket, split, and delete
+[x] restart tests recreate all in-memory objects
+[x] multipage directory growth is tested
+[x] deterministic collision tests exist
+[x] differential tests compare against an oracle
+[x] malformed files produce domain errors
+[x] the complete integration workflow passes after restart
+[x] the full configured suite passes
+[x] no Stage 6, SQL, transaction, frontend, or final benchmark work is mixed in
 ~~~
 
 ---

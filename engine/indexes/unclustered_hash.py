@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from contextlib import closing
 import os
+from typing import NoReturn
 
 from engine.errors import (
     InvalidReferenceError,
@@ -89,7 +90,9 @@ class UnclusteredHashIndex(Index):
             allow_duplicate_keys=allow_duplicate_keys,
         )
         try:
-            return cls(index, heap)
+            runtime = cls(index, heap)
+            runtime.validate_structure()
+            return runtime
         except BaseException:
             index.close()
             raise
@@ -126,11 +129,35 @@ class UnclusteredHashIndex(Index):
         if self.closed:
             raise RuntimeError("Unclustered hash index is closed")
 
+    def _require_ready(self) -> None:
+        self._require_open()
+        if not self._index.header.build_complete:
+            raise ValidationError("Hash index is incomplete; rebuild before use")
+
+    def _rollback_failed(
+        self, message: str, operation_error: BaseException,
+        cleanup_errors: list[BaseException],
+    ) -> NoReturn:
+        errors = [operation_error, *cleanup_errors]
+        try:
+            self._index.mark_incomplete()
+            self._index.flush()
+        except BaseException as marker_error:
+            errors.append(marker_error)
+            # Do not leave an uncertain runtime usable if even invalidation
+            # fails. Retain every cause, including a possible close failure.
+            try:
+                self._index.close()
+            except BaseException as close_error:
+                errors.append(close_error)
+        raise BaseExceptionGroup(message, errors) from operation_error
+
     def _record_for_association(
         self,
         key: RecordValue,
         rid: RID,
     ) -> tuple[RecordValue, Record]:
+        self._require_ready()
         checked_key = BPlusKeyCodec.validate(self.index.key_type, key)
         BPlusRIDCodec.encode(rid)
         record = self.heap.read(rid)
@@ -151,17 +178,23 @@ class UnclusteredHashIndex(Index):
         self.index.delete(checked_key, rid)
 
     def search(self, key: RecordValue) -> Generator[RID, None, None]:
-        self._require_open()
-        return self.index.search(key)
+        matches = self.search_records(key)
+
+        def iterator() -> Generator[RID, None, None]:
+            with closing(matches):
+                for rid, _ in matches:
+                    yield rid
+
+        return iterator()
 
     def search_records(
         self, key: RecordValue
     ) -> Generator[tuple[RID, Record], None, None]:
-        self._require_open()
+        self._require_ready()
         checked_key = BPlusKeyCodec.validate(self.index.key_type, key)
 
         def iterator() -> Generator[tuple[RID, Record], None, None]:
-            self._require_open()
+            self._require_ready()
             with closing(self.index.search(checked_key)) as matches:
                 for rid in matches:
                     _, record = self._record_for_association(checked_key, rid)
@@ -172,7 +205,7 @@ class UnclusteredHashIndex(Index):
     def insert_record(self, record: Record) -> RID:
         """Insert one row and undo it if its hash association cannot be added."""
 
-        self._require_open()
+        self._require_ready()
         rid = self.heap.insert(record)
         try:
             self.index.insert(record[self.key_column], rid)
@@ -181,16 +214,16 @@ class UnclusteredHashIndex(Index):
             try:
                 self.heap.delete(rid)
             except BaseException as cleanup_error:
-                raise ExceptionGroup(
+                self._rollback_failed(
                     "Hash insertion and Heap rollback both failed",
-                    [index_error, cleanup_error],
-                ) from index_error
+                    index_error, [cleanup_error],
+                )
             raise
 
     def delete_record(self, rid: RID) -> None:
         """Remove the association before freeing its referenced Heap slot."""
 
-        self._require_open()
+        self._require_ready()
         BPlusRIDCodec.encode(rid)
         record = self.heap.read(rid)
         key = record[self.key_column]
@@ -201,11 +234,10 @@ class UnclusteredHashIndex(Index):
             try:
                 self.index.insert(key, rid)
             except BaseException as cleanup_error:
-                self.index.mark_incomplete()
-                raise ExceptionGroup(
+                self._rollback_failed(
                     "Heap deletion and hash rollback both failed",
-                    [storage_error, cleanup_error],
-                ) from storage_error
+                    storage_error, [cleanup_error],
+                )
             raise
 
     def update_record(self, rid: RID, record: Record) -> RID:
@@ -215,7 +247,7 @@ class UnclusteredHashIndex(Index):
         RID diferente. La fila original permanece activa hasta que existan la nueva fila y su
         asociación, y cualquier error de limpieza marca el índice como incompleto. """
 
-        self._require_open()
+        self._require_ready()
         if not isinstance(record, Record):
             raise InvalidTypeError("Hash record update requires a Record")
         if record.schema != self.heap.schema:
@@ -259,11 +291,10 @@ class UnclusteredHashIndex(Index):
             except BaseException as exc:
                 cleanup_errors.append(exc)
             if cleanup_errors:
-                self.index.mark_incomplete()
-                raise ExceptionGroup(
+                self._rollback_failed(
                     "Heap/hash update failed and rollback was incomplete",
-                    [operation_error, *cleanup_errors],
-                ) from operation_error
+                    operation_error, cleanup_errors,
+                )
             raise
 
     def rebuild(self) -> HashBuildMetrics:
