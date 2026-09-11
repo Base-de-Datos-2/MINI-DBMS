@@ -43,11 +43,16 @@ class RowSource(ExecutionOperator):
     storage organization and never claims an ordering it does not have.
     """
 
-    __slots__ = ("_rows", "_relation", "_position", "opens", "closes", "fail_at")
+    __slots__ = ("_rows", "_relation", "_position", "opens", "closes", "fail_at",
+                 "_schema")
 
-    def __init__(self, rows, *, relation="rows", fail_at=None, children=()):
+    def __init__(self, rows, *, relation="rows", fail_at=None, children=(),
+                 schema=None):
         self._rows = tuple(rows)
         self._relation = relation
+        # An empty source cannot infer a schema from its rows, so callers that
+        # need one declare it instead of silently inheriting the students one.
+        self._schema = schema
         self._position = 0
         self.opens = 0
         self.closes = 0
@@ -55,7 +60,10 @@ class RowSource(ExecutionOperator):
         super().__init__(children=children)
 
     def _build_layout(self) -> RowLayout:
-        schema = self._rows[0].schema if self._rows else STUDENTS
+        if self._schema is not None:
+            schema = self._schema
+        else:
+            schema = self._rows[0].schema if self._rows else STUDENTS
         return RowLayout(schema, relation=self._relation)
 
     def _open(self) -> None:

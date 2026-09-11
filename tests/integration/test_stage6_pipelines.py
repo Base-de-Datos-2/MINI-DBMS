@@ -5,6 +5,7 @@ that increment A can already satisfy. Sorting, grouping and joins arrive with
 later increments and are not simulated here.
 """
 
+from collections import defaultdict
 from contextlib import closing
 
 import pytest
@@ -17,9 +18,13 @@ from engine.indexes import (
 )
 from engine.operators import (
     And,
+    Avg,
     ColumnReference,
+    Count,
+    ExternalHashGroup,
     ExternalSort,
     SortSpec,
+    Sum,
     Compare,
     ComparisonOperator,
     ExecutionContext,
@@ -31,6 +36,7 @@ from engine.operators import (
     column,
     execute,
 )
+from engine.operators.aggregation import MINIMUM_GROUP_BUDGET_BYTES
 from engine.operators.sorting import MINIMUM_FAN_IN, MINIMUM_SORT_BUDGET_BYTES
 from engine.storage import HeapFile, PagedSequentialFile, Record
 from tests.operator_helpers import STUDENTS, STUDENT_ROWS, students
@@ -337,3 +343,83 @@ def test_sorting_a_heap_scan_reproduces_the_sequential_physical_order(database):
         collect(sequential, limit=10)
     )
     assert sorted_heap.ordering == sequential.ordering
+
+
+def test_example_b_group_then_sort_over_persisted_storage(database):
+    """ETAPA_06 section 11, example B: career counts and averages, sorted."""
+
+    plan = ExternalSort(
+        ExternalHashGroup(
+            TableScan(database["heap"], relation="students"),
+            ["career"],
+            [Count(), Avg("age")],
+        ),
+        SortSpec.ascending("career"),
+    )
+
+    with ExecutionContext(memory_budget_bytes=512 * 4096) as context:
+        rows = collect(plan, context, limit=20)
+
+    assert values(rows) == [("CS", 2, 23.0), ("EE", 2, 21.0)]
+    assert [column.name for column in plan.output_schema] == [
+        "career",
+        "count",
+        "avg_age",
+    ]
+
+
+def test_example_b_at_scale_forces_real_partition_io(tmp_path):
+    schema = Schema(
+        [Column("bucket", DataType.VARCHAR), Column("value", DataType.INTEGER)]
+    )
+    rows = [
+        Record(schema, [f"b{(number * 7919) % 500:04d}", number % 97])
+        for number in range(5000)
+    ]
+    with HeapFile.create(tmp_path / "buckets.heap", schema) as heap:
+        for record in rows:
+            heap.insert(record)
+
+        group = ExternalHashGroup(
+            TableScan(heap, relation="buckets"),
+            ["bucket"],
+            [Count(), Sum("value")],
+            memory_budget_bytes=MINIMUM_GROUP_BUDGET_BYTES,
+            partition_count=2,
+        )
+        plan = ExternalSort(group, SortSpec.ascending("bucket"))
+        output = collect(plan, limit=6000)
+
+    expected = defaultdict(lambda: [0, 0])
+    for record in rows:
+        entry = expected[record.values[0]]
+        entry[0] += 1
+        entry[1] += record.values[1]
+
+    assert values(output) == [
+        (bucket, totals[0], totals[1])
+        for bucket, totals in sorted(expected.items())
+    ]
+    assert len(output) == 500
+    assert group.metrics.kernel_overflows > 0
+    assert group.metrics.repartitions > 0
+    assert group.metrics.temporary_pages_written > 0
+
+
+def test_a_grouped_pipeline_leaves_no_temporary_files_behind(database):
+    group = ExternalHashGroup(
+        TableScan(database["heap"], relation="students"),
+        ["career"],
+        [Count()],
+        memory_budget_bytes=MINIMUM_GROUP_BUDGET_BYTES,
+        partition_count=2,
+    )
+    plan = Projection(group, ["career", "count"])
+
+    with closing(execute(plan)) as stream:
+        assert next(stream) is not None
+        directory = group._workspace.directory
+        assert directory.exists()
+
+    assert not directory.exists()
+    assert database["heap"].closed is False
