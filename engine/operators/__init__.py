@@ -46,6 +46,25 @@ from engine.operators.rows import (
     as_reference,
     validate_identifier,
 )
+from engine.operators.sorting import (
+    DEFAULT_MAX_FAN_IN,
+    MINIMUM_FAN_IN,
+    MINIMUM_SORT_BUDGET_BYTES,
+    BoundSortSpec,
+    ExternalSort,
+    ExternalSortMetrics,
+    SortKey,
+    SortSpec,
+)
+from engine.operators.temp_files import (
+    TemporaryWorkspace,
+    WorkspaceStatistics,
+)
+from engine.operators.temp_stream import (
+    TemporaryRowReader,
+    TemporaryRowWriter,
+    TemporaryRun,
+)
 from engine.operators.scan import (
     EqualitySearch,
     IndexScan,
@@ -59,6 +78,7 @@ from engine.operators.scan import (
 __all__ = [
     "And",
     "BoundExpression",
+    "BoundSortSpec",
     "ColumnReference",
     "ColumnValue",
     "Compare",
@@ -67,6 +87,8 @@ __all__ = [
     "ExecutionContext",
     "ExecutionOperator",
     "Expression",
+    "ExternalSort",
+    "ExternalSortMetrics",
     "Filter",
     "HandleLease",
     "IndexScan",
@@ -84,7 +106,14 @@ __all__ = [
     "ResourceStatistics",
     "RowLayout",
     "RowProvenance",
+    "SortKey",
+    "SortSpec",
     "TableScan",
+    "TemporaryRowReader",
+    "TemporaryRowWriter",
+    "TemporaryRun",
+    "TemporaryWorkspace",
+    "WorkspaceStatistics",
     "as_reference",
     "collect",
     "column",

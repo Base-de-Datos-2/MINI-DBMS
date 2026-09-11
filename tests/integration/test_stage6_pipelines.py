@@ -18,6 +18,8 @@ from engine.indexes import (
 from engine.operators import (
     And,
     ColumnReference,
+    ExternalSort,
+    SortSpec,
     Compare,
     ComparisonOperator,
     ExecutionContext,
@@ -29,6 +31,7 @@ from engine.operators import (
     column,
     execute,
 )
+from engine.operators.sorting import MINIMUM_FAN_IN, MINIMUM_SORT_BUDGET_BYTES
 from engine.storage import HeapFile, PagedSequentialFile, Record
 from tests.operator_helpers import STUDENTS, STUDENT_ROWS, students
 
@@ -266,3 +269,71 @@ def test_execution_context_accounting_survives_a_full_pipeline_run(database):
         assert context.reserved_bytes == 0
         assert context.available_bytes == 8192
         assert context.open_handle_count == 0
+
+
+def test_example_d_forces_real_external_sorting_over_persisted_storage(tmp_path):
+    """ETAPA_06 section 11, example D: prove the spill, do not assume it."""
+
+    schema = Schema(
+        [Column("id", DataType.INTEGER), Column("payload", DataType.VARCHAR)]
+    )
+    rows = [
+        Record(schema, [(number * 7919) % 3000, f"payload-{number:05d}"])
+        for number in range(3000)
+    ]
+    with HeapFile.create(tmp_path / "wide.heap", schema) as heap:
+        for record in rows:
+            heap.insert(record)
+        assert heap.data_page_count > 1
+
+        plan = ExternalSort(
+            TableScan(heap, relation="wide"),
+            SortSpec.ascending("id"),
+            memory_budget_bytes=MINIMUM_SORT_BUDGET_BYTES,
+            max_fan_in=MINIMUM_FAN_IN,
+        )
+        with ExecutionContext(memory_budget_bytes=512 * 4096) as context:
+            output = collect(plan, context, limit=3500)
+
+    metrics = plan.metrics
+    expected = sorted((tuple(row.values) for row in rows), key=lambda row: row[0])
+
+    assert metrics.initial_runs > plan.fan_in
+    assert metrics.merge_passes >= 2
+    assert metrics.max_fan_in <= plan.fan_in
+    assert metrics.temporary_pages_written > 0
+    assert values(output) == expected
+    assert sorted(values(output)) == sorted(tuple(row.values) for row in rows)
+    assert not plan.describe().details[1][1] == "0"
+
+
+def test_a_sorted_pipeline_cleans_up_even_when_abandoned_early(database):
+    plan = Projection(
+        ExternalSort(
+            TableScan(database["heap"], relation="students"),
+            SortSpec.descending("age"),
+            memory_budget_bytes=MINIMUM_SORT_BUDGET_BYTES,
+        ),
+        ["name", "age"],
+    )
+
+    with closing(execute(plan)) as stream:
+        first = next(stream)
+        assert first.values == ("Sol", 24)
+
+    assert database["heap"].closed is False
+    assert plan.state.value == "CLOSED"
+
+
+def test_sorting_a_heap_scan_reproduces_the_sequential_physical_order(database):
+    sorted_heap = ExternalSort(
+        TableScan(database["heap"], relation="students"),
+        SortSpec.ascending("id"),
+        memory_budget_bytes=MINIMUM_SORT_BUDGET_BYTES,
+    )
+    sequential = TableScan(database["sequential"], relation="students")
+
+    assert values(collect(sorted_heap, limit=10)) == values(
+        collect(sequential, limit=10)
+    )
+    assert sorted_heap.ordering == sequential.ordering

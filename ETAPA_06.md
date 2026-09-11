@@ -10,20 +10,21 @@
 **Previous stage:** Stage 5 - Extendible Hashing  
 **Next stage:** Stage 7 - SQL Parser, Planner, and Executor  
 **Roadmap:** PLAN.md, Section 11  
-**Status:** In progress. Increment A (tasks 6.1-6.10) is complete; increments
-B-F are not started.
+**Status:** In progress. Increments A and B (tasks 6.1-6.16) are complete;
+increments C-F are not started.
 
 Stage 5 is formally complete: all 46 mandatory criteria and 1621 strict-suite
 tests are recorded in `docs/ETAPA_05_AUDIT.md`. Task 6.1 inspected the actual
 repository on 2026-09-10 and recorded a 1716-test baseline before any Stage 6
 code was written; see `docs/ETAPA_06_TASK_6_1_INSPECTION.md`.
 
-Verified progress is tracked in `docs/ETAPA_06_INCREMENTO_A.md`: tasks 6.1-6.10
-are implemented and the suite passes 1848 tests with warnings as errors. The
-adopted execution semantics are recorded in
-`docs/ETAPA_06_TASK_6_2_DECISIONS.md`. Stage 6 is **not** closed: external
-sorting, grouping, joins, temporary-file ownership and forced-spill evidence
-remain outstanding.
+Verified progress is tracked per increment: `docs/ETAPA_06_INCREMENTO_A.md`
+covers tasks 6.1-6.10 and `docs/ETAPA_06_INCREMENTO_B.md` covers tasks
+6.11-6.16, where external sorting with k-way merging is demonstrated by forced
+disk spills. The suite passes 1914 tests with warnings as errors. The adopted
+execution semantics are recorded in `docs/ETAPA_06_TASK_6_2_DECISIONS.md`.
+Stage 6 is **not** closed: grouping, joins, skew handling and the closure
+documentation remain outstanding.
 
 ## 1. Purpose and expected result
 
