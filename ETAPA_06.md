@@ -10,8 +10,8 @@
 **Previous stage:** Stage 5 - Extendible Hashing  
 **Next stage:** Stage 7 - SQL Parser, Planner, and Executor  
 **Roadmap:** PLAN.md, Section 11  
-**Status:** In progress. Increments A, B, C and D (tasks 6.1-6.25) are
-complete; increment E is optional and increment F is not started.
+**Status:** In progress. Increments A-E (tasks 6.1-6.26) are complete;
+increment F (tasks 6.27-6.31) is not started.
 
 Stage 5 is formally complete: all 46 mandatory criteria and 1621 strict-suite
 tests are recorded in `docs/ETAPA_05_AUDIT.md`. Task 6.1 inspected the actual
@@ -28,9 +28,11 @@ demonstrated against inputs far larger than its memory grant. All three
 required external algorithms of REQUIREMENTS.md section 5 are therefore
 implemented. The suite passes 2036 tests with warnings as errors. The adopted
 execution semantics are recorded in `docs/ETAPA_06_TASK_6_2_DECISIONS.md`.
-Stage 6 is **not** closed: the consolidation, observability, persistence-limit
-and closure tasks 6.27-6.31 remain outstanding, and task 6.26 stays optional
-because both default external-hashing routes are complete.
+`docs/ETAPA_06_INCREMENTO_E.md` covers the optional task 6.26, whose
+index-assisted routes were added on top of, never instead of, the required
+external-hashing routes. Stage 6 is **not** closed: the consolidation,
+observability, persistence-limit and closure tasks 6.27-6.31 remain
+outstanding.
 
 ## 1. Purpose and expected result
 

@@ -119,7 +119,7 @@ class RangeSearch:
                 raise InvalidTypeError(f"RangeSearch {name} must be a bool")
 
 
-def _index_storage(index: Index) -> Storage:
+def index_storage(index: Index) -> Storage:
     """Return the storage an index adapter resolves its RIDs against."""
 
     for attribute in ("heap", "sequential"):
@@ -167,7 +167,7 @@ class IndexScan(ExecutionOperator):
         self._index = index
         self._search = search
         self._relation = validate_identifier(relation, "IndexScan relation")
-        self._storage = _index_storage(index)
+        self._storage = index_storage(index)
         self._cursor: Generator[tuple[RID, Record], None, None] | None = None
         key_column = getattr(index, "key_column", None)
         self._ordering = (

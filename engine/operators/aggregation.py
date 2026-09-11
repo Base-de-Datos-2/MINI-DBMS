@@ -466,6 +466,46 @@ class Avg(Aggregate):
         return f"Avg({self._column.qualified_name!r})"
 
 
+def build_grouped_layout(
+    source: RowLayout,
+    group_keys: Sequence[ColumnReference],
+    aggregates: Sequence[Aggregate],
+) -> RowLayout:
+    """Build the output layout of grouping: key columns, then aggregates.
+
+    Group-key fields keep the origin of the column they came from, because
+    their values really are those columns' values. Aggregate fields are
+    derived and carry no relation, so a later reference cannot pretend a
+    computed value still belongs to a stored column.
+    """
+
+    if not isinstance(source, RowLayout):
+        raise InvalidTypeError("A grouped layout is built from a RowLayout")
+    fields: list[LayoutField] = []
+    names: list[str] = []
+    for position, reference in enumerate(group_keys):
+        field = source.field(reference)
+        fields.append(
+            LayoutField(position, field.name, field.data_type, field.relation)
+        )
+        names.append(source.published_name(field))
+    bound = tuple(aggregate.bind(source) for aggregate in aggregates)
+    for offset, (aggregate, resolved) in enumerate(zip(aggregates, bound)):
+        fields.append(
+            LayoutField(
+                len(group_keys) + offset, aggregate.alias, resolved.output_type
+            )
+        )
+        names.append(aggregate.alias)
+    duplicated = sorted({name for name in names if names.count(name) > 1})
+    if duplicated:
+        raise ValidationError(
+            "Grouped output would publish the same name twice: "
+            + ", ".join(repr(name) for name in duplicated)
+        )
+    return RowLayout._build(fields, names)
+
+
 class HashGroupKernel:
     """Aggregate one bounded segment of input in memory.
 
@@ -757,33 +797,9 @@ class ExternalHashGroup(ExecutionOperator):
         super().__init__(children=(child,))
 
     def _build_layout(self) -> RowLayout:
-        keys = tuple(as_reference(key) for key in self._group_keys)
-        source = self._child.layout
-        fields: list[LayoutField] = []
-        names: list[str] = []
-        for position, reference in enumerate(keys):
-            field = source.field(reference)
-            fields.append(
-                LayoutField(position, field.name, field.data_type, field.relation)
-            )
-            names.append(source.published_name(field))
-        bound = tuple(
-            aggregate.bind(source) for aggregate in self._aggregate_specs
+        return build_grouped_layout(
+            self._child.layout, self._group_keys, self._aggregate_specs
         )
-        for offset, (aggregate, resolved) in enumerate(
-            zip(self._aggregate_specs, bound)
-        ):
-            fields.append(
-                LayoutField(len(keys) + offset, aggregate.alias, resolved.output_type)
-            )
-            names.append(aggregate.alias)
-        duplicated = sorted({name for name in names if names.count(name) > 1})
-        if duplicated:
-            raise ValidationError(
-                "Grouped output would publish the same name twice: "
-                + ", ".join(repr(name) for name in duplicated)
-            )
-        return RowLayout._build(fields, names)
 
     @property
     def child(self) -> ExecutionOperator:

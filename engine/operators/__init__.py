@@ -2,6 +2,7 @@
 
 from engine.operators.aggregation import (
     Aggregate,
+    build_grouped_layout,
     Avg,
     BoundAggregate,
     Count,
@@ -12,6 +13,12 @@ from engine.operators.aggregation import (
     Max,
     Min,
     Sum,
+)
+from engine.operators.index_strategies import (
+    IndexGroupMetrics,
+    IndexJoinMetrics,
+    IndexNestedLoopJoin,
+    IndexOrderedGroup,
 )
 from engine.operators.join import (
     GraceHashJoin,
@@ -97,6 +104,7 @@ from engine.operators.temp_stream import (
 from engine.operators.scan import (
     EqualitySearch,
     IndexScan,
+    index_storage,
     RangeSearch,
     TableScan,
 )
@@ -132,6 +140,10 @@ __all__ = [
     "HashGroupMetrics",
     "HashJoinKernel",
     "HashPartitioner",
+    "IndexGroupMetrics",
+    "IndexJoinMetrics",
+    "IndexNestedLoopJoin",
+    "IndexOrderedGroup",
     "IndexScan",
     "JoinKey",
     "JoinSpec",
@@ -165,11 +177,13 @@ __all__ = [
     "TemporaryWorkspace",
     "WorkspaceStatistics",
     "as_reference",
+    "build_grouped_layout",
     "collect",
     "column",
     "compare_values",
     "data_type_of",
     "execute",
+    "index_storage",
     "maximum_partition_count",
     "partition_hash",
     "row_footprint_bytes",
