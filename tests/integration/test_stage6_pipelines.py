@@ -23,6 +23,9 @@ from engine.operators import (
     Count,
     ExternalHashGroup,
     ExternalSort,
+    GraceHashJoin,
+    JoinSpec,
+    NestedLoopJoin,
     SortSpec,
     Sum,
     Compare,
@@ -423,3 +426,103 @@ def test_a_grouped_pipeline_leaves_no_temporary_files_behind(database):
 
     assert not directory.exists()
     assert database["heap"].closed is False
+
+
+def test_example_c_preserves_join_multiplicity_over_persisted_storage(tmp_path):
+    """ETAPA_06 section 11, example C, against real paged files."""
+
+    enrollments = Schema(
+        [Column("id", DataType.INTEGER), Column("student_id", DataType.INTEGER)]
+    )
+    with HeapFile.create(tmp_path / "students.heap", STUDENTS) as heap, \
+            HeapFile.create(tmp_path / "enrollments.heap", enrollments) as other:
+        for record in students([(7, "Ana", "CS", 22), (7, "Sol", "CS", 24),
+                                (9, "Luis", "EE", 19)]):
+            heap.insert(record)
+        for number, student in enumerate([7, 7, 7, 10]):
+            other.insert(Record(enrollments, [number, student]))
+
+        spec = JoinSpec.on(("id", "student_id"))
+        grace = GraceHashJoin(
+            TableScan(heap, relation="students"),
+            TableScan(other, relation="enrollments"),
+            spec,
+        )
+        baseline = NestedLoopJoin(
+            TableScan(heap, relation="students"),
+            TableScan(other, relation="enrollments"),
+            spec,
+        )
+
+        hash_rows = collect(grace, limit=100)
+        baseline_rows = collect(baseline, limit=100)
+
+    assert len(hash_rows) == 6
+    assert sorted(values(hash_rows)) == sorted(values(baseline_rows))
+    assert [column.name for column in grace.output_schema] == [
+        "students.id",
+        "name",
+        "career",
+        "age",
+        "enrollments.id",
+        "student_id",
+    ]
+
+
+def test_the_full_stage_six_pipeline_runs_over_paged_storage(tmp_path):
+    """Scan, filter, join, group and sort, assembled by hand without SQL."""
+
+    enrollments = Schema(
+        [Column("id", DataType.INTEGER), Column("student_id", DataType.INTEGER),
+         Column("credits", DataType.INTEGER)]
+    )
+    student_rows = [
+        (number, f"name-{number}", "CS" if number % 2 else "EE", 18 + number % 12)
+        for number in range(400)
+    ]
+    with HeapFile.create(tmp_path / "s.heap", STUDENTS) as heap, \
+            HeapFile.create(tmp_path / "e.heap", enrollments) as other:
+        for record in students(student_rows):
+            heap.insert(record)
+        for number in range(1200):
+            other.insert(
+                Record(enrollments, [number, number % 400, 1 + number % 5])
+            )
+
+        plan = ExternalSort(
+            ExternalHashGroup(
+                GraceHashJoin(
+                    Filter(
+                        TableScan(heap, relation="students"),
+                        Compare(column("age"), ComparisonOperator.GREATER, 20),
+                    ),
+                    TableScan(other, relation="enrollments"),
+                    JoinSpec.on(("id", "student_id")),
+                    memory_budget_bytes=16 * 4096,
+                    partition_count=4,
+                ),
+                [ColumnReference("career", "students")],
+                [Count(), Sum("credits")],
+                memory_budget_bytes=16 * 4096,
+                partition_count=4,
+            ),
+            SortSpec.ascending("career"),
+        )
+        with ExecutionContext(memory_budget_bytes=512 * 4096) as context:
+            output = collect(plan, context, limit=100)
+
+    expected = defaultdict(lambda: [0, 0])
+    for number, name, career, age in student_rows:
+        if age <= 20:
+            continue
+        for enrollment in range(1200):
+            if enrollment % 400 != number:
+                continue
+            entry = expected[career]
+            entry[0] += 1
+            entry[1] += 1 + enrollment % 5
+
+    assert values(output) == [
+        (career, totals[0], totals[1]) for career, totals in sorted(expected.items())
+    ]
+    assert plan.describe().render().splitlines()[0].startswith("ExternalSort")
