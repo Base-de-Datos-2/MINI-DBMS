@@ -6,13 +6,18 @@ from collections.abc import Generator, Sequence
 from dataclasses import dataclass
 
 from engine.catalog import DataType
-from engine.errors import InvalidTypeError, ValidationError
+from engine.errors import (
+    InsufficientBudgetError,
+    InvalidTypeError,
+    OversizedRowError,
+    ValidationError,
+)
 from engine.storage.record import Record, RecordValue
 
 from .base import ExecutionOperator
 from .context import (
-    DEFAULT_BUDGET_BYTES,
     ExecutionContext,
+    operator_context,
     row_footprint_bytes,
     value_footprint_bytes,
 )
@@ -268,7 +273,7 @@ class _JoinOperator(ExecutionOperator):
             if type(memory_budget_bytes) is not int:
                 raise InvalidTypeError("memory_budget_bytes must be an int")
             if memory_budget_bytes < MINIMUM_JOIN_BUDGET_BYTES:
-                raise ValidationError(
+                raise InsufficientBudgetError(
                     f"A join needs at least {MINIMUM_JOIN_BUDGET_BYTES} bytes, "
                     f"got {memory_budget_bytes}"
                 )
@@ -335,21 +340,11 @@ class _JoinOperator(ExecutionOperator):
         return Record(self.output_schema, values)
 
     def _join_context(self, label: str) -> ExecutionContext:
-        parent = self.context
-        budget = self._budget if self._budget is not None else (
-            min(DEFAULT_BUDGET_BYTES, parent.memory_budget_bytes)
-            if parent is not None
-            else DEFAULT_BUDGET_BYTES
-        )
-        if budget < MINIMUM_JOIN_BUDGET_BYTES:
-            raise ValidationError(
-                f"A join was granted {budget} bytes but needs at least "
-                f"{MINIMUM_JOIN_BUDGET_BYTES}"
-            )
-        owned = (
-            ExecutionContext(memory_budget_bytes=budget, label=label)
-            if parent is None
-            else parent.child(budget, label=label)
+        owned = operator_context(
+            self.context,
+            requested=self._budget,
+            minimum=MINIMUM_JOIN_BUDGET_BYTES,
+            label=label,
         )
         self._owned_context = owned
         return owned
@@ -447,7 +442,7 @@ class NestedLoopJoin(_JoinOperator):
             return
         size = row_footprint_bytes(row)
         if context.available_bytes < size:
-            raise ValidationError(
+            raise OversizedRowError(
                 f"A single join row needs {size} bytes but only "
                 f"{context.available_bytes} remain"
             )
@@ -1046,7 +1041,9 @@ class GraceHashJoin(_JoinOperator):
             context.memory_budget_bytes, context.max_open_handles
         )
         if self._partition_count > allowed:
-            raise ValidationError(
+            self._owned_context = None
+            context.close()
+            raise InsufficientBudgetError(
                 f"A fan-out of {self._partition_count} partitions needs more "
                 f"than the granted {context.memory_budget_bytes} bytes allow "
                 f"({allowed})"

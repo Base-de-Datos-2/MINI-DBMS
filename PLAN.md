@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **2.9** — aligned with the formal Stage 5 closure.
+> Context version: **3.0** — aligned with the formal Stage 6 closure.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1317,7 +1317,7 @@ Part 1 is complete only when:
 [x] Stage 3 complete
 [x] Stage 4 complete
 [x] Stage 5 complete
-[ ] Stage 6 complete
+[x] Stage 6 complete
 [ ] Stage 7 complete
 [ ] Stage 8 complete
 [ ] Stage 9 complete
@@ -1332,15 +1332,15 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest completed stage:
 
-> **Stage 5 — Extendible Hashing**
+> **Stage 6 — Relational Operators and External Algorithms**
 
 Next planned stage:
 
-> **Stage 6 — Relational Operators and External Algorithms (not started)**
+> **Stage 7 — SQL Parser, Planner, and Executor (not started)**
 
 Most recently completed stage document:
 
-> `ETAPA_05.md`
+> `ETAPA_06.md`
 
 Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
 in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
@@ -1388,8 +1388,16 @@ satisfied. The persistent Extendible Hash index now covers deterministic
 formats, exact access/mutation, dynamic growth, validation, restart,
 Heap/Catalog integration and metrics. Its strict closure suite passes 1621
 tests. Evidence: [Stage 5 closure audit](docs/ETAPA_05_AUDIT.md). Optional
-merge/shrink remain deferred as permitted. Stage 6 is planned in `ETAPA_06.md`
-but has not started.
+merge/shrink remain deferred as permitted. **Stage 6 was formally closed on
+2026-09-11:** tasks 6.1–6.31 and all 59 Definition of Done criteria are
+satisfied. `ExternalSort`, `ExternalHashGroup` and `GraceHashJoin` implement the
+three required external algorithms of `REQUIREMENTS.md` section 5, each
+demonstrated by forced disk spills; the optional index-assisted routes of task
+6.26 are implemented on top of them. The strict closure suite passes 2196
+tests. Evidence and declared caveats: [Stage 6 closure
+audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not started and `ETAPA_07.md` does
+not exist yet; it must be generated and reconciled with `PROJECT_CONTEXT.md`
+before any SQL work begins.
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

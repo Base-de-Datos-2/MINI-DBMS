@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from dataclasses import dataclass
 
-from engine.errors import InvalidTypeError, ValidationError
+from engine.errors import InvalidTypeError, UnsupportedAccessError, ValidationError
 from engine.indexes.base import Index, OrderedIndex
 from engine.storage.base import Storage
 from engine.storage.paged_sequential_file import PagedSequentialFile
@@ -126,7 +126,7 @@ def index_storage(index: Index) -> Storage:
         storage = getattr(index, attribute, None)
         if isinstance(storage, Storage):
             return storage
-    raise ValidationError(
+    raise UnsupportedAccessError(
         "IndexScan requires an index adapter bound to its storage, such as "
         "UnclusteredBPlusIndex, ClusteredBPlusIndex or UnclusteredHashIndex"
     )
@@ -160,7 +160,7 @@ class IndexScan(ExecutionOperator):
                 "IndexScan requires an EqualitySearch or a RangeSearch"
             )
         if isinstance(search, RangeSearch) and not isinstance(index, OrderedIndex):
-            raise ValidationError(
+            raise UnsupportedAccessError(
                 "This index supports equality access only; a range search "
                 "cannot be served by Extendible Hashing"
             )

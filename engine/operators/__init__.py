@@ -54,6 +54,7 @@ from engine.operators.context import (
     HandleLease,
     MemoryReservation,
     ResourceStatistics,
+    operator_context,
     row_footprint_bytes,
     value_footprint_bytes,
 )
@@ -73,6 +74,7 @@ from engine.operators.expressions import (
     validate_comparable,
 )
 from engine.operators.filter import Filter
+from engine.operators.pipeline import PhysicalPlan, PlanReport, run_plan
 from engine.operators.projection import Projection
 from engine.operators.rows import (
     ColumnReference,
@@ -161,6 +163,8 @@ __all__ = [
     "OperatorStatistics",
     "Or",
     "Partition",
+    "PhysicalPlan",
+    "PlanReport",
     "Projection",
     "RangeSearch",
     "ResourceStatistics",
@@ -185,8 +189,10 @@ __all__ = [
     "execute",
     "index_storage",
     "maximum_partition_count",
+    "operator_context",
     "partition_hash",
     "row_footprint_bytes",
+    "run_plan",
     "validate_comparable",
     "validate_identifier",
     "value_footprint_bytes",

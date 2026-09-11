@@ -5,7 +5,11 @@ from __future__ import annotations
 from collections.abc import Generator, Sequence
 from dataclasses import dataclass
 
-from engine.errors import InvalidTypeError, ValidationError
+from engine.errors import (
+    InvalidTypeError,
+    UnsupportedAccessError,
+    ValidationError,
+)
 from engine.indexes.base import Index, OrderedIndex
 from engine.storage.base import Storage
 from engine.storage.record import Record, RecordValue
@@ -28,7 +32,7 @@ def _require_index_key(index: Index, reference: ColumnReference) -> str:
             "its key column"
         )
     if reference.name != key_column:
-        raise ValidationError(
+        raise UnsupportedAccessError(
             f"This index covers {key_column!r}, not {reference.name!r}; an "
             "index is only usable when it covers the whole access key"
         )
@@ -264,7 +268,7 @@ class IndexOrderedGroup(ExecutionOperator):
         if not isinstance(index, Index):
             raise InvalidTypeError("IndexOrderedGroup requires an Index")
         if not isinstance(index, OrderedIndex):
-            raise ValidationError(
+            raise UnsupportedAccessError(
                 "Ordered grouping requires an ordered index; a hash index "
                 "provides equality access only and yields no group order"
             )

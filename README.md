@@ -59,8 +59,20 @@ fábricas del catálogo despachan, reabren y eliminan archivos físicos. Existen
 métricas reales y pruebas diferenciales. Los 46 criterios obligatorios se
 cumplen con 1621 pruebas estrictas; consulta
 [la auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md). Merge/shrink son opcionales
-y están diferidos. La Etapa 6 no se ha iniciado; tampoco existen SQL,
-transacciones, API ejecutable o interfaz gráfica. La Parte 1 sigue pendiente.
+y están diferidos.
+
+**Etapa 6 completa y auditada (2026-09-11):** `engine/operators/` contiene la
+capa de ejecución física. Hay scans de tabla e índice, filtro y proyección en
+streaming, y los **tres algoritmos externos obligatorios** de la Parte 1:
+`ExternalSort` con mezcla k-way multipasada para `ORDER BY`,
+`ExternalHashGroup` con particionamiento en disco para `GROUP BY` y
+`GraceHashJoin` para `JOIN`, todos demostrados con volcados a disco forzados.
+`NestedLoopJoin` es la línea base de corrección, y las rutas opcionales
+`IndexNestedLoopJoin` e `IndexOrderedGroup` aprovechan los índices de las
+Etapas 4 y 5. Los 59 criterios se cumplen con 2196 pruebas estrictas; consulta
+[la auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md). Todavía no existen SQL,
+planificador, transacciones, API ejecutable ni interfaz gráfica: los planes se
+ensamblan a mano con objetos Python. La Parte 1 sigue pendiente.
 
 ## Requisitos e instalación
 
@@ -506,6 +518,70 @@ reconstrucción desde Heap, el mantenimiento de RIDs, el despacho por catálogo 
 las métricas de E/S/estructura completan la etapa. Buddy merge y shrink del
 directorio permanecen opcionalmente diferidos.
 
+### Operadores relacionales y algoritmos externos (Etapa 6 completa)
+
+Un plan físico se ensambla con objetos Python ya ligados; esta capa no analiza
+SQL ni elige rutas de acceso. Cada operador comprueba columnas y tipos **al
+construirse**, de modo que un plan inválido falla antes de leer una fila.
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from engine.catalog import Column, DataType, Schema
+from engine.operators import (
+    Avg, Compare, ComparisonOperator, Count, ExternalHashGroup,
+    ExternalSort, Filter, SortSpec, TableScan, column, run_plan,
+)
+from engine.storage import HeapFile, Record
+
+schema = Schema([
+    Column("id", DataType.INTEGER), Column("career", DataType.VARCHAR),
+    Column("age", DataType.INTEGER),
+])
+with TemporaryDirectory() as directory:
+    with HeapFile.create(Path(directory) / "students.heap", schema) as heap:
+        for row in [(1, "CS", 22), (2, "EE", 19), (3, "CS", 24), (4, "EE", 23)]:
+            heap.insert(Record(schema, list(row)))
+
+        plan = ExternalSort(
+            ExternalHashGroup(
+                Filter(
+                    TableScan(heap, relation="students"),
+                    Compare(column("age"), ComparisonOperator.GREATER, 20),
+                ),
+                ["career"],
+                [Count(), Avg("age")],
+            ),
+            SortSpec.ascending("career"),
+        )
+        rows, report = run_plan(plan, memory_budget_bytes=64 * 4096, limit=100)
+
+print([tuple(row.values) for row in rows])  # [('CS', 2, 23.0), ('EE', 1, 23.0)]
+print(report.render())
+```
+
+`report.render()` muestra el árbol de operadores **realmente ejecutado**, con
+su ruta de acceso, runs, pasadas de mezcla, particiones y fallbacks medidos,
+además de la memoria máxima reservada y los handles abiertos. Es la base del
+futuro panel de plan de ejecución.
+
+| Operador | Uso |
+|---|---|
+| `TableScan`, `IndexScan` | Leer un `HeapFile`/`PagedSequentialFile` o sondear un índice B+ (igualdad y rango) o hash (solo igualdad) |
+| `Filter`, `Projection` | Seleccionar filas y columnas; la proyección nunca es `DISTINCT` |
+| `ExternalSort` | `ORDER BY` con runs en disco y mezcla k-way acotada |
+| `ExternalHashGroup` | `GROUP BY` con `COUNT`, `SUM`, `MIN`, `MAX` y `AVG` |
+| `GraceHashJoin` | `JOIN` por igualdad con particionamiento de ambas entradas |
+| `NestedLoopJoin` | Línea base de corrección; no es el join optimizado |
+| `IndexNestedLoopJoin`, `IndexOrderedGroup` | Rutas opcionales asistidas por índice |
+
+Reglas clave: no existe NULL en las filas de ejecución; no hay conversión
+implícita entre INTEGER y FLOAT; NaN se rechaza como clave de comparación,
+agrupación u orden. Los archivos temporales pertenecen a un directorio propio
+de cada ejecución y se eliminan al cerrar, incluso tras un error o una parada
+anticipada, sin tocar nunca tablas ni índices. Las decisiones completas están
+en `PROJECT_CONTEXT.md`, sección *Relational operators*.
+
 ### Ejemplo completo de persistencia de registros
 
 Solo el archivo y el RID pasan de la escritura a la lectura; el lector crea un
@@ -591,9 +667,13 @@ Se importan desde `engine.errors`:
 | `UnknownTableError` | `KeyError` | Tabla inexistente |
 | `UnknownColumnError` | `KeyError` | Columna inexistente, incluso al registrar un índice |
 | `ColumnPositionError` | `IndexError` | Posición fuera del esquema |
+| `UnsupportedAccessError` | `ValueError` | Una ruta de acceso no ofrece la capacidad pedida, como un rango sobre un índice hash |
+| `InsufficientBudgetError` | `ValueError` | Presupuesto de memoria o de handles insuficiente para un operador o un plan |
+| `OversizedRowError` | `ValueError` | Una fila supera un límite documentado de memoria o de formato temporal |
+| `CorruptTemporaryError` | `ValueError` | Un archivo temporal de ejecución está truncado, mal enmarcado o tiene otra versión |
 
-Todos derivan de `DatabaseError`. `SchemaError` y `DuplicateError` derivan
-además de `ValidationError`; los errores de tabla/columna desconocida derivan
+Todos derivan de `DatabaseError`. `SchemaError`, `DuplicateError` y los cuatro
+errores de ejecución de la Etapa 6 derivan además de `ValidationError`; los errores de tabla/columna desconocida derivan
 de `InvalidReferenceError`. Los errores propios de Python al construir un enum,
 modificar un objeto inmutable o manipular una tupla no se envuelven.
 
@@ -651,8 +731,9 @@ with closing(storage.scan()) as rows:
 El consumidor de un operador debe envolver **toda** la ejecución, incluido
 `open()`, en `try/finally` y llamar siempre a `close()`. El operador cierra sus
 recorridos y operadores hijos propios, no los gestores de almacenamiento o
-índices prestados. Las ABC exigen métodos; las implementaciones futuras deberán
-probar el cumplimiento de estas reglas de comportamiento y recursos.
+índices prestados. Las ABC exigen métodos; `ExecutionOperator` (Etapa 6)
+implementa estas reglas y sus operadores concretos tienen pruebas propias de
+ciclo de vida, agotamiento y liberación de recursos.
 
 ## Organización
 
@@ -662,7 +743,7 @@ engine/
   catalog/       # Tipos, esquemas, metadatos y catálogo en memoria
   storage/       # Páginas, PageManager, HeapFile y PagedSequentialFile
   indexes/       # Contratos, B+ y Hashing Extensible completos hasta Etapa 5
-  operators/     # Operator abstracto; sin operadores concretos
+  operators/     # Operadores físicos, algoritmos externos y runner de planes
   query/         # Reservado: parser, planificador y ejecutor
   transactions/  # Reservado: transacciones y concurrencia
 api/             # Paquete reservado; aún sin servidor
@@ -673,7 +754,9 @@ tests/
   catalog/       # Pruebas del modelo implementado
   storage/       # Modelo, codecs, páginas, archivos, organización/Heap y fallos de E/S
   indexes/       # Contratos y pruebas persistentes de B+ y Hashing Extensible
-  operators/     # Ciclo de vida, agotamiento y liberación de recursos
+  operators/     # Ciclo de vida, operadores, temporales y algoritmos externos
+  integration/   # Planes completos, persistencia, limpieza y pruebas diferenciales
+  operator_helpers.py  # Fuentes de filas y fixtures de prueba de la Etapa 6
   test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
   test_errors.py     # Errores propios y compatibilidad con excepciones anteriores
   test_architecture.py  # Dependencias e importaciones aisladas
@@ -703,8 +786,12 @@ codecs ni organizaciones como Heap File. Es el propietario del acceso a disco.
 `OrganizationMetadata`, `HeapFile`, `PagedSequentialFile`, B+ y Hashing
 Extensible se apoyan en él sin repetir offsets físicos. Los índices reutilizan
 el codec canónico de claves y mantienen sus algoritmos visibles en
-`engine/indexes`. Las demás capas se implementarán progresivamente según el
-plan.
+`engine/indexes`. Los operadores de `engine/operators` consumen los contratos
+`Storage` e `Index` y los adaptadores de índice sin conocer páginas ni nodos, y
+escriben sus temporales a través de `PageManager`; la gestión de directorios
+temporales vive en esta capa porque la de almacenamiento reserva el acceso a
+archivos para `PageManager`. Las demás capas se implementarán progresivamente
+según el plan.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
 `OperatorDouble` viven solamente en `tests/`. Usan datos pequeños en memoria
@@ -740,9 +827,10 @@ usan archivos temporales de pytest y mantienen ese acceso separado del modelo.
 Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
-La verificación actual se ejecutó en Windows con Python 3.12.4 y pytest 8.4.2:
-1544 pruebas aprobadas con advertencias tratadas como errores, sin omisiones ni
-xfails. Las operaciones físicas
+La verificación de cierre de la Etapa 6 se ejecutó en Linux (WSL2) con Python
+3.11.9 y pytest 8.4.2: **2196 pruebas aprobadas** con advertencias tratadas como
+errores, sin omisiones ni xfails. Las auditorías de etapas anteriores se
+ejecutaron en Windows con Python 3.12.4. Las operaciones físicas
 restantes deberán añadir sus propias pruebas de conformidad, persistencia y
 concurrencia. `compileall`, `pip check` y la revisión del diff también pasan.
 
@@ -763,13 +851,15 @@ concurrencia. `compileall`, `pip check` y la revisión del diff también pasan.
 - [ETAPA_05.md](ETAPA_05.md): guía completa de Extendible Hashing.
 - [Auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md): evidencia de los 46
   criterios obligatorios, 1621 pruebas y límites conocidos.
-- [ETAPA_06.md](ETAPA_06.md): próxima etapa planificada, todavía no iniciada.
+- [ETAPA_06.md](ETAPA_06.md): etapa de operadores y algoritmos externos, cerrada.
+- [Auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md): evidencia de los 59
+  criterios, 2196 pruebas, salvedades declaradas y traspaso a la Etapa 7.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
 [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
 criterio, los comandos ejecutados y los límites de la validación.
 
-Las **Etapas 1–5 están completas y auditadas**. La **Etapa 6 — Relational
-Operators and External Algorithms** es la siguiente etapa y todavía no se ha
-iniciado.
+Las **Etapas 1–6 están completas y auditadas**. La **Etapa 7 — SQL Parser,
+Planner, and Executor** es la siguiente y todavía no se ha iniciado;
+`ETAPA_07.md` aún no existe y debe generarse antes de empezarla.

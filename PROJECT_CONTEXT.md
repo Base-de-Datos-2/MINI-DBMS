@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **2.9** — aligned with the formal Stage 5 closure.
+> Context version: **3.0** — aligned with the formal Stage 6 closure.
 
 ## Project identity
 
@@ -1391,42 +1391,145 @@ I/O and current durable size. Final 1K/10K/100K benchmarks remain Stage 10 work.
 
 ## Relational operators
 
-The engine should expose physical operators independent from SQL syntax.
+Stage 6 implemented the physical execution layer in `engine/operators/`. Plans
+are assembled from bound Python objects; nothing in this layer parses SQL or
+chooses an access path.
 
-Recommended operator set:
+### Lifecycle and rows
 
-```text
-TableScan
-IndexScan
-Filter
-Projection
-ExternalSort
-Group
-Join
+The Stage 1 `Operator` ABC is unchanged. `ExecutionOperator` extends it:
+
+- `open(context=None)` starts a run and opens children first; `next()` returns
+  a `Record` or `None`, never `StopIteration`; `close()` is idempotent on every
+  path. States are `CREATED → OPEN → (EXHAUSTED | FAILED) → CLOSED`, and an
+  exhausted operator stays open until closed. `close()` followed by `open()`
+  starts a fresh run.
+- The output layout is built **during construction**, so an unknown, ambiguous
+  or mistyped column fails while the plan is assembled, not mid-stream.
+- A parent owns and closes its children and cursors. It never closes a
+  borrowed storage file or index.
+- Rows are the existing immutable `Record`. `RowLayout` binds qualified column
+  identity to positions and keeps each field's origin `(relation, column)`
+  separate from its published name, which is what lets a join publish
+  `students.id` and `enrollments.id` while both still resolve. A bare name that
+  matches two origins is rejected as ambiguous.
+- Provenance is `RowProvenance(relation, rid)`. Scans report one entry, joins
+  combine their inputs', grouped rows report none. No RID is ever fabricated.
+- `ordering` returns the column an operator's output is really ascending by,
+  or `None`. Heap scans, hash access, grouping and joins claim none;
+  sequential scans, B+ ranges, ascending sorts and `IndexOrderedGroup` do.
+
+### Value semantics
+
+- **NULL is not supported** anywhere in the row model; literals reject `None`.
+- Comparison is exact-typed with **no numeric coercion**: INTEGER is never
+  compared with FLOAT, and `bool` is never an integer.
+- One function, `compare_values`, orders values for predicates, sort keys,
+  grouping keys and join keys. It reproduces the logical rules of
+  `BPlusKeyCodec.compare` without its indexable-key size limits.
+- NaN is rejected as a comparison, sort, grouping or join key. Infinities are
+  accepted. `-0.0` and `0.0` are the same key.
+- Approved predicate subset: `=`, `<>`, `<`, `<=`, `>`, `>=` between a column
+  and a literal or two same-typed columns, composed with `And`, `Or`, `Not`.
+  No `eval`, `exec` or SQL strings are ever used.
+
+### Operators
+
+| Operator | Kind | Notes |
+|---|---|---|
+| `TableScan` | streaming | Any `Storage`; one fresh cursor per run |
+| `IndexScan` | streaming | `EqualitySearch` on any index; `RangeSearch` on ordered (B+) indexes only |
+| `Filter`, `Projection` | streaming | Projection is never `DISTINCT` |
+| `ExternalSort` | blocking | Runs plus bounded multi-pass k-way merge |
+| `ExternalHashGroup` | blocking | Partition-first hash grouping |
+| `NestedLoopJoin` | blocking | Correctness baseline; not the optimized join |
+| `GraceHashJoin` | blocking | Partitions both inputs |
+| `IndexNestedLoopJoin` | streaming | Optional; probes an inner equality index |
+| `IndexOrderedGroup` | streaming | Optional; B+ traversal, one group state at a time |
+
+Adopted aggregates: `COUNT(*)`, `COUNT(column)`, `SUM`, `MIN`, `MAX`, `AVG`.
+`AVG` keeps `(total, count)` and never averages averages. `SUM` over INTEGER
+refuses to leave the signed 64-bit range. Without NULL, `COUNT(column)` equals
+`COUNT(*)`. A grouped empty input yields no rows; a global aggregate over empty
+input yields `COUNT=0` and a typed zero `SUM`, while global `MIN`, `MAX` and
+`AVG` over empty input raise, because the result is not representable.
+
+Joins are inner equijoins over one or more same-typed pairs, with an optional
+residual predicate. Multiplicity is preserved: `m` and `n` matches give
+`m*n` rows.
+
+### Resources
+
+- `ExecutionContext.memory_budget_bytes` is **accounted working memory**, not a
+  process limit. Rows are charged as their encoded size plus a declared
+  `ROW_OVERHEAD_BYTES` of 128.
+- Each blocking operator receives a nested context through
+  `operator_context`: an explicit request is carved exactly, otherwise it takes
+  **half of what its parent still has available**, never below its own
+  minimum. Children open before parents, so this is what stops the first
+  blocking operator from starving the rest. A plan whose blocking operators
+  cannot all fit is refused before reading any row.
+- Handle leases propagate to every ancestor, so the root context sees and
+  bounds every open temporary file in the plan.
+- Minimum grants: 4224 bytes for a context; 12 237 bytes for a sort, grouping
+  or join, which is what merging two runs requires.
+
+### Temporary files
+
+- `TemporaryWorkspace` owns one `mkdtemp` directory per execution, registers
+  every path it hands out, and deletes only those plus its own directory with
+  `rmdir`, never recursively. A file it did not register is reported as
+  unreclaimed rather than destroyed. Readers are reference-counted, so a
+  discarded run survives until its last reader closes.
+- It lives in `engine/operators/`, not `engine/storage/`, because the
+  architecture suite confines raw file access in the storage layer to
+  `PageManager`.
+- A temporary run is a `PageManager` file: page 0 holds a JSON descriptor with
+  magic, version, schema and counts, and each later page holds one slot with a
+  chunk of a continuous byte stream framed as `uint32 length || payload`. Rows
+  therefore span pages. The per-row maximum is 65 536 bytes. The descriptor is
+  written last, so an unfinished file cannot be read as complete.
+- Reopening a completed temporary file in the same process is supported.
+  Resuming a query after a process crash is not.
+
+### Algorithm parameters
+
+| Parameter | Value |
+|---|---|
+| Sort fan-in | `min(handles − 1, (budget − output buffer) / page buffer, max_fan_in)`, at least 2; default ceiling 8 |
+| Sort stability | Stable: Python's stable chunk sort plus run-index tie-breaking; no sequence column |
+| Final merge | Streamed, not materialized |
+| Partition fan-out | Default 8; bounded by `budget / page − 1` and `handles − 1` |
+| Partition hash | Stage 5 FNV-1a over type-tagged keys, then a local 64-bit avalanche mixed with a per-level seed |
+| Recursion limit | `MAX_PARTITION_LEVEL` = 4 |
+| Grouping fallback | Sort the partition by its key and fold adjacent equal keys |
+| Join fallback | Bounded block nested loop over the same partition files |
+
+The avalanche step is required, not cosmetic: FNV-1a's low bit is the parity
+of its input bytes, so a seed that only prefixed a level byte flipped that bit
+for every key at once and made recursive partitioning send a whole partition
+to one child. The finalizer is local to query execution and does not change the
+persistent Stage 5 format.
+
+### Running a plan and reading its evidence
+
+```python
+from engine.operators import run_plan
+
+rows, report = run_plan(root, memory_budget_bytes=64 * 4096, limit=1000)
+print(report.render())
 ```
 
-This keeps parsing separate from execution.
+`PhysicalPlan` is the context-manager form and adds `verify(columns=...,
+types=..., ordered_by=...)`. A `PlanReport` exposes the descriptor tree plus
+peak reserved bytes, peak open handles and reservation counts. Row counters
+are local to each operator and are never summed across levels; elapsed times
+are inclusive of child work and are never added together. Fallbacks change the
+live descriptors and metrics rather than hiding behind a static label.
 
-`engine/operators/base.py` now supplies the `Operator` ABC, exported from
-`engine.operators`. It is a contract only, with no concrete TableScan or other
-operator:
-
-- `open() -> None` starts from the beginning. Instances start closed; opening
-  an already open/exhausted run raises `RuntimeError`. Reopening after close
-  starts a new run. A failed open must release partially acquired resources.
-- `next() -> Record | None` yields rows with one output schema per run.
-  Exhaustion returns `None` repeatedly, not `StopIteration`; empty-schema rows
-  remain valid results. Calling while closed raises `RuntimeError`.
-- `close() -> None` is idempotent, including before open or after failures. It
-  releases owned children, scan/search generators, and temporary resources,
-  not borrowed storage/index managers. Cleanup must attempt all releases even
-  if one fails.
-
-Consumers must use `try/finally` around the full run, including `open`, and
-close on exhaustion, early exit, or failure. An execution error requires
-closing before another run. The ABCs enforce required methods, not lifecycle,
-validation, or resource semantics: later implementations need conformance
-tests for those documented rules. There is no common stateful executor here.
+Domain errors added for this layer, all subclasses of `ValidationError`:
+`UnsupportedAccessError`, `InsufficientBudgetError`, `OversizedRowError`,
+`CorruptTemporaryError`.
 
 ---
 
@@ -1453,42 +1556,41 @@ of persistence, concurrency, or relational query execution.
 
 ## External sorting
 
-`ORDER BY` must be supported using External Sorting with k-way merge.
-
-Conceptual algorithm:
-
-1. Read chunks that fit in the allowed in-memory working area.
-2. Sort each chunk.
-3. Persist sorted runs.
-4. Merge the runs using a k-way merge.
-
-The implementation should not simply call an in-memory sort on the entire required dataset and call it external sorting.
-
-Using Python's `heapq` inside the merge is acceptable because it does not replace the external-sort algorithm.
+Implemented by `ExternalSort` in Stage 6. Rows are admitted only while the
+granted budget allows; each admitted chunk is sorted in memory and written as a
+run; runs are merged at most `fan_in` at a time with `heapq`, repeating passes
+until one final merge remains, which is streamed. `heapq` and `list.sort` are
+used on bounded chunks and heads only, never on the whole input. The external
+behaviour is demonstrated by forced spills, with more initial runs than fan-in
+and at least two merge passes.
 
 ---
 
 ## GROUP BY
 
-The assignment requires optimized `GROUP BY` using External Hashing and/or strategic index usage.
+Implemented by `ExternalHashGroup` in Stage 6, which satisfies the external
+hashing alternative of the assignment. Rows are partitioned by the complete
+grouping key, then each partition is aggregated with a bounded in-memory kernel
+whose memory follows distinct live groups. An overflowing partition discards
+its tentative state and is repartitioned whole at a deeper level, so nothing is
+double counted. Unsplittable partitions fall back to a bounded sort-based
+aggregation that is counted and reported separately. Output is unordered.
 
-A valid design may begin with in-memory hash aggregation and extend to partitioned/external hashing when data exceeds the configured memory budget.
-
-The final implementation must be able to justify how the required external/index strategy is satisfied.
+The optional `IndexOrderedGroup` groups by traversing a B+ index covering the
+whole grouping key, after verifying the index holds one entry per stored row.
 
 ---
 
 ## JOIN
 
-The assignment requires optimized joins using External Hashing and/or strategic index usage.
-
-Recommended implementations:
-
-- Nested Loop Join as a baseline;
-- Hash Join;
-- index-assisted join when an appropriate index exists.
-
-At least one required optimization path must clearly satisfy the assignment.
+Implemented in Stage 6. `GraceHashJoin` satisfies the external hashing
+alternative: both inputs are partitioned with the same function, the smaller
+side of each pair by stored bytes becomes the build side, and an oversized pair
+is repartitioned on both sides together. Unsplittable skew falls back to a
+bounded block nested loop, counted and reported. `NestedLoopJoin`, which
+spools its inner input once so no rewind is assumed, is the independent
+correctness baseline. The optional `IndexNestedLoopJoin` probes an existing
+single-column equality index.
 
 ---
 
@@ -1744,7 +1846,7 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 Latest completed stage:
 
-> **Stage 5 — Extendible Hashing**
+> **Stage 6 — Relational Operators and External Algorithms**
 
 Overall Part 1 roadmap:
 
@@ -1752,11 +1854,11 @@ Overall Part 1 roadmap:
 
 Next planned stage:
 
-> **Stage 6 — Relational Operators and External Algorithms (not started)**
+> **Stage 7 — SQL Parser, Planner, and Executor (not started; `ETAPA_07.md` does not exist yet)**
 
 Most recently completed stage specification:
 
-> `ETAPA_05.md`
+> `ETAPA_06.md`
 
 Implemented so far:
 
@@ -1823,6 +1925,16 @@ Implemented so far:
   builds/rebuilds, Heap maintenance, Catalog dispatch/drop, capability metadata,
   typed I/O/build/structural metrics, restart and differential oracle coverage
   complete all 46 mandatory criteria. Optional merge/shrink remain deferred.
+- Stage 6 tasks 6.1–6.31: inspected the Stage 5 boundary and recorded explicit
+  execution decisions; implemented the operator lifecycle, qualified row
+  layouts, a resource-accounted execution context, typed predicates, table and
+  index scans, filter and projection; execution-owned temporary files and a
+  paged temporary row stream; `ExternalSort` with bounded multi-pass k-way
+  merging; aggregate state, a bounded hash-group kernel, reusable hash
+  partitioning and `ExternalHashGroup`; `NestedLoopJoin`, a build/probe kernel
+  and `GraceHashJoin`, each with bounded skew fallbacks; the optional
+  `IndexNestedLoopJoin` and `IndexOrderedGroup`; and a manual plan runner with
+  truthful descriptors, measured reports and stable domain errors.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -1846,8 +1958,13 @@ criteria and 1544 strict-suite tests pass; evidence and limitations are in
 [the Stage 4 audit](docs/ETAPA_04_AUDIT.md). **Stage 5 is formally complete and
 audited as of 2026-09-06.** All 46 mandatory criteria and 1621 strict-suite tests
 pass; evidence and limitations are in
-[the Stage 5 audit](docs/ETAPA_05_AUDIT.md). Stage 6 is planned but not started,
-and Part 1 remains incomplete.
+[the Stage 5 audit](docs/ETAPA_05_AUDIT.md). **Stage 6 is formally complete and
+audited as of 2026-09-11.** All 59 Definition of Done criteria and 2196
+strict-suite tests pass; the three required external algorithms of
+`REQUIREMENTS.md` section 5 are demonstrated by forced disk spills. Evidence,
+per-increment reports and four declared caveats are in
+[the Stage 6 audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not started, and
+Part 1 remains incomplete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 
@@ -1862,11 +1979,14 @@ The following should not be guessed silently:
 - eventual persistence of the complete table/index catalog and its integration
   timing (organization files now persist their own schema, while `Catalog`
   remains in memory);
-- supported comparison operators in `WHERE`;
-- aggregation functions beyond those required by tests/use cases;
+- which part of the physical predicate subset the Stage 7 SQL grammar exposes,
+  and how SQL literals map onto the strict, coercion-free value types;
 - exact transaction syntax details beyond the assignment's `BEGIN TRANSACTION` / `END TRANSACTION`;
-- deadlock handling strategy;
-- memory budget used by external algorithms.
+- deadlock handling strategy.
+
+Resolved in Stage 6 and recorded under *Relational operators*: the physical
+comparison subset, the adopted aggregate set, the memory-budget model and its
+minimum grants, and the absence of NULL in execution rows.
 
 When one of these decisions is made, document it here.
 

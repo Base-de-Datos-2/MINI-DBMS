@@ -6,7 +6,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from engine.catalog import DataType, Schema
-from engine.errors import InvalidTypeError, ValidationError
+from engine.errors import (
+    InsufficientBudgetError,
+    InvalidTypeError,
+    ValidationError,
+)
 from engine.indexes.hash_codec import HashCodec
 from engine.storage.record import Record, RecordValue
 from engine.storage.value_codec import ValueCodec
@@ -216,7 +220,7 @@ class HashPartitioner:
                     self._context.max_open_handles,
                 )
                 if self._count > allowed:
-                    raise ValidationError(
+                    raise InsufficientBudgetError(
                         f"A fan-out of {self._count} partitions exceeds the "
                         f"{allowed} the granted resources allow"
                     )

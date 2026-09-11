@@ -5,6 +5,7 @@ from collections.abc import Generator, Sequence
 from contextlib import ExitStack, closing
 from dataclasses import dataclass
 from enum import Enum
+from time import perf_counter
 
 from engine.catalog import Schema
 from engine.errors import InvalidTypeError, SchemaError, ValidationError
@@ -92,26 +93,44 @@ class OperatorStatistics:
 
     These counters describe what actually happened. Estimated costs, when a
     planner eventually produces them, are reported separately.
+
+    ``rows_examined`` and ``rows_emitted`` are **local** to this operator.
+    ``elapsed_seconds`` is **inclusive**: it covers the time spent inside this
+    operator's own ``open`` and ``next``, which includes the child calls they
+    make. Inclusive timings of a parent and a child overlap, so they must
+    never be added together as if they were independent.
     """
 
     runs: int = 0
     rows_examined: int = 0
     rows_emitted: int = 0
+    elapsed_seconds: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
 class OperatorDescriptor:
     """A truthful description of one node of an executed plan.
 
-    ``details`` carries only facts the operator can vouch for, such as the
-    access path it really used. Nothing here is decorative: a descriptor that
-    claims an index must have used that index.
+    Everything here is derived from a real operator instance. ``details``
+    carries only facts the operator can vouch for, such as the access path it
+    actually used, and a fallback route must change what a descriptor says
+    rather than hiding behind a static strategy label.
+
+    ``operator_id`` is a positional path within one plan (``0`` for the root,
+    ``0.1`` for its second input), which is stable for a given plan shape and
+    needs no global registry.
     """
 
     name: str
+    operator_id: str = "0"
+    output_columns: tuple[tuple[str, str], ...] = ()
     details: tuple[tuple[str, str], ...] = ()
     children: tuple["OperatorDescriptor", ...] = ()
     ordered: bool = False
+    ordered_by: str | None = None
+    rows_examined: int = 0
+    rows_emitted: int = 0
+    elapsed_seconds: float = 0.0
 
     def render(self, indent: int = 0) -> str:
         """Render the subtree as indented text for inspection and tests."""
@@ -123,6 +142,13 @@ class OperatorDescriptor:
         for child in self.children:
             lines.append(child.render(indent + 1))
         return "\n".join(lines)
+
+    def walk(self):
+        """Yield this descriptor and every descendant, parents first."""
+
+        yield self
+        for child in self.children:
+            yield from child.walk()
 
 
 class ExecutionOperator(Operator):
@@ -251,19 +277,34 @@ class ExecutionOperator(Operator):
 
         return self.ordering is not None
 
-    def describe(self) -> OperatorDescriptor:
-        """Return a descriptor of this operator and the subtree below it."""
+    def describe(self, operator_id: str = "0") -> OperatorDescriptor:
+        """Return a descriptor of this operator and the subtree below it.
+
+        The description is built from this live instance, so it reports the
+        route that actually ran, including any fallback, rather than a label
+        chosen when the plan was assembled.
+        """
 
         children = tuple(
-            child.describe()
-            for child in self._children
+            child.describe(f"{operator_id}.{position}")
+            for position, child in enumerate(self._children)
             if isinstance(child, ExecutionOperator)
         )
+        ordering = self.ordering
         return OperatorDescriptor(
             name=type(self).__name__,
+            operator_id=operator_id,
+            output_columns=tuple(
+                (column.name, column.data_type.value)
+                for column in self.output_schema
+            ),
             details=self._details(),
             children=children,
-            ordered=self.ordered,
+            ordered=ordering is not None,
+            ordered_by=None if ordering is None else ordering.qualified_name,
+            rows_examined=self._statistics.rows_examined,
+            rows_emitted=self._statistics.rows_emitted,
+            elapsed_seconds=self._statistics.elapsed_seconds,
         )
 
     def open(self, context: ExecutionContext | None = None) -> None:
@@ -277,6 +318,7 @@ class ExecutionOperator(Operator):
         self._provenance = ()
         self._state = OperatorState.OPEN
         self._stack = ExitStack()
+        started = perf_counter()
         try:
             for child in self._children:
                 # Register the close first: a child that fails inside open is
@@ -289,8 +331,10 @@ class ExecutionOperator(Operator):
                     child.open()
             self._open()
         except BaseException:
+            self._statistics.elapsed_seconds += perf_counter() - started
             self.close()
             raise
+        self._statistics.elapsed_seconds += perf_counter() - started
         self._statistics.runs += 1
 
     def next(self) -> Record | None:
@@ -302,12 +346,15 @@ class ExecutionOperator(Operator):
             raise RuntimeError(
                 f"{type(self).__name__} needs an open, non-failed run"
             )
+        started = perf_counter()
         try:
             row = self._next()
         except BaseException:
+            self._statistics.elapsed_seconds += perf_counter() - started
             self._state = OperatorState.FAILED
             self._provenance = ()
             raise
+        self._statistics.elapsed_seconds += perf_counter() - started
         if row is None:
             self._state = OperatorState.EXHAUSTED
             self._provenance = ()

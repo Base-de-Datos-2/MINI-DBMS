@@ -7,14 +7,18 @@ from collections.abc import Generator, Sequence
 from dataclasses import dataclass
 
 from engine.catalog import Column, DataType, Schema
-from engine.errors import InvalidTypeError, ValidationError
+from engine.errors import (
+    InsufficientBudgetError,
+    InvalidTypeError,
+    ValidationError,
+)
 from engine.storage.binary import INTEGER_MAX, INTEGER_MIN
 from engine.storage.record import Record, RecordValue
 
 from .base import ExecutionOperator
 from .context import (
-    DEFAULT_BUDGET_BYTES,
     ExecutionContext,
+    operator_context,
     value_footprint_bytes,
 )
 from .expressions import compare_values, validate_comparable
@@ -768,7 +772,7 @@ class ExternalHashGroup(ExecutionOperator):
             if type(memory_budget_bytes) is not int:
                 raise InvalidTypeError("memory_budget_bytes must be an int")
             if memory_budget_bytes < MINIMUM_GROUP_BUDGET_BYTES:
-                raise ValidationError(
+                raise InsufficientBudgetError(
                     f"ExternalHashGroup needs at least {MINIMUM_GROUP_BUDGET_BYTES} "
                     f"bytes, got {memory_budget_bytes}"
                 )
@@ -826,31 +830,22 @@ class ExternalHashGroup(ExecutionOperator):
         return self._metrics
 
     def _grouping_context(self) -> ExecutionContext:
-        parent = self.context
-        budget = self._budget if self._budget is not None else (
-            min(DEFAULT_BUDGET_BYTES, parent.memory_budget_bytes)
-            if parent is not None
-            else DEFAULT_BUDGET_BYTES
+        owned = operator_context(
+            self.context,
+            requested=self._budget,
+            minimum=MINIMUM_GROUP_BUDGET_BYTES,
+            label="hash-group",
         )
-        if budget < MINIMUM_GROUP_BUDGET_BYTES:
-            raise ValidationError(
-                f"ExternalHashGroup was granted {budget} bytes but needs at "
-                f"least {MINIMUM_GROUP_BUDGET_BYTES}"
-            )
         allowed = maximum_partition_count(
-            budget,
-            parent.max_open_handles if parent is not None else 32,
+            owned.memory_budget_bytes, owned.max_open_handles
         )
         if self._group_keys and self._partition_count > allowed:
-            raise ValidationError(
+            granted = owned.memory_budget_bytes
+            owned.close()
+            raise InsufficientBudgetError(
                 f"A fan-out of {self._partition_count} partitions needs more "
-                f"than the granted {budget} bytes allow ({allowed})"
+                f"than the granted {granted} bytes allow ({allowed})"
             )
-        owned = (
-            ExecutionContext(memory_budget_bytes=budget, label="hash-group")
-            if parent is None
-            else parent.child(budget, label="hash-group")
-        )
         self._owned_context = owned
         return owned
 

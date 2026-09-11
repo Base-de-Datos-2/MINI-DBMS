@@ -5,7 +5,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from engine.catalog import DataType
-from engine.errors import InvalidTypeError, ValidationError
+from engine.errors import (
+    InsufficientBudgetError,
+    InvalidTypeError,
+    OversizedRowError,
+    ValidationError,
+)
 from engine.storage.binary import (
     BOOLEAN_STRUCT,
     FLOAT_STRUCT,
@@ -163,14 +168,24 @@ class MemoryReservation:
 
 
 class HandleLease:
-    """A counted permit to keep one temporary file handle open."""
+    """A counted permit to keep one temporary file handle open.
 
-    __slots__ = ("_context", "_label", "_released")
+    A lease taken on a nested context also holds a lease on every ancestor, so
+    the root context sees, and bounds, every handle open anywhere in the plan.
+    """
 
-    def __init__(self, context: "ExecutionContext", label: str) -> None:
+    __slots__ = ("_context", "_label", "_released", "_parent_lease")
+
+    def __init__(
+        self,
+        context: "ExecutionContext",
+        label: str,
+        parent_lease: "HandleLease | None" = None,
+    ) -> None:
         self._context = context
         self._label = label
         self._released = False
+        self._parent_lease = parent_lease
 
     @property
     def label(self) -> str:
@@ -185,12 +200,16 @@ class HandleLease:
         return self._released
 
     def release(self) -> None:
-        """Return the permit; safe to call repeatedly."""
+        """Return the permit, and the ancestors' permits; safe to repeat."""
 
         if self._released:
             return
         self._released = True
-        self._context._return_handle()
+        try:
+            self._context._return_handle()
+        finally:
+            if self._parent_lease is not None:
+                self._parent_lease.release()
 
     def __enter__(self) -> "HandleLease":
         """Return this lease for use inside a with block."""
@@ -236,6 +255,7 @@ class ExecutionContext:
         "_parent_reservation",
         "_closed",
         "_children",
+        "_parent",
     )
 
     def __init__(
@@ -247,7 +267,7 @@ class ExecutionContext:
     ) -> None:
         budget = _validate_size(memory_budget_bytes, "Memory budget")
         if budget < MINIMUM_BUDGET_BYTES:
-            raise ValidationError(
+            raise InsufficientBudgetError(
                 f"Memory budget must be at least {MINIMUM_BUDGET_BYTES} bytes"
             )
         handles = _validate_size(max_open_handles, "Handle limit")
@@ -264,6 +284,7 @@ class ExecutionContext:
         self._parent_reservation: MemoryReservation | None = None
         self._closed = False
         self._children: list["ExecutionContext"] = []
+        self._parent: "ExecutionContext | None" = None
 
     @property
     def label(self) -> str:
@@ -327,7 +348,7 @@ class ExecutionContext:
         self._require_open()
         if size > self.available_bytes:
             self._statistics.reservations_refused += 1
-            raise ValidationError(
+            raise InsufficientBudgetError(
                 f"{self._label}: cannot reserve {size} bytes; "
                 f"{self.available_bytes} of {self._budget} remain"
             )
@@ -365,7 +386,7 @@ class ExecutionContext:
 
         size = row_footprint_bytes(record)
         if size > self._budget:
-            raise ValidationError(
+            raise OversizedRowError(
                 f"{self._label}: a single row needs {size} bytes but the budget "
                 f"is {self._budget}"
             )
@@ -378,14 +399,19 @@ class ExecutionContext:
         if not isinstance(label, str) or not label.strip():
             raise ValidationError("Handle label must be a non-empty string")
         if self._open_handles >= self._max_open_handles:
-            raise ValidationError(
+            raise InsufficientBudgetError(
                 f"{self._label}: handle limit of {self._max_open_handles} reached"
             )
+        # The ancestor lease is taken first: if the pipeline as a whole is at
+        # its ceiling, this context must not count a handle it cannot open.
+        parent_lease = (
+            self._parent.acquire_handle(label) if self._parent is not None else None
+        )
         self._open_handles += 1
         self._statistics.handles_opened += 1
         if self._open_handles > self._statistics.peak_open_handles:
             self._statistics.peak_open_handles = self._open_handles
-        return HandleLease(self, label)
+        return HandleLease(self, label, parent_lease)
 
     def child(
         self,
@@ -404,7 +430,7 @@ class ExecutionContext:
         self._require_open()
         budget = _validate_size(memory_budget_bytes, "Child memory budget")
         if budget < MINIMUM_BUDGET_BYTES:
-            raise ValidationError(
+            raise InsufficientBudgetError(
                 f"A nested budget must be at least {MINIMUM_BUDGET_BYTES} bytes"
             )
         reservation = self.reserve(budget, f"child:{label}")
@@ -422,6 +448,7 @@ class ExecutionContext:
             reservation.release()
             raise
         child._parent_reservation = reservation
+        child._parent = self
         self._children.append(child)
         self._statistics.children_created += 1
         return child
@@ -460,3 +487,52 @@ class ExecutionContext:
         """Close the context on every exit path."""
 
         self.close()
+
+
+def operator_context(
+    parent: ExecutionContext | None,
+    *,
+    requested: int | None,
+    minimum: int,
+    label: str,
+) -> ExecutionContext:
+    """Give one blocking operator its own nested budget without starving others.
+
+    An explicit request is carved exactly. Without one, the operator takes
+    **half of what its parent still has available**, never less than its own
+    minimum. Children open before their parents, so a rule of "take the whole
+    parent budget" lets the first blocking operator to open starve every one
+    opened after it; halving the remainder leaves room for the rest of the
+    chain while still giving each operator a real grant.
+
+    Refusing up front, before any row is read, is deliberate: a plan whose
+    simultaneous blocking operators cannot all fit must fail cleanly rather
+    than discover it halfway through a spill.
+    """
+
+    if type(minimum) is not int or minimum < MINIMUM_BUDGET_BYTES:
+        raise ValidationError("An operator minimum must be a valid budget")
+    if requested is not None and type(requested) is not int:
+        raise InvalidTypeError("A requested budget must be an int")
+    if parent is None:
+        budget = DEFAULT_BUDGET_BYTES if requested is None else requested
+        if budget < minimum:
+            raise InsufficientBudgetError(
+                f"{label} needs at least {minimum} bytes, got {budget}"
+            )
+        return ExecutionContext(memory_budget_bytes=budget, label=label)
+    if not isinstance(parent, ExecutionContext):
+        raise InvalidTypeError("parent must be an ExecutionContext")
+    available = parent.available_bytes
+    budget = requested if requested is not None else max(minimum, available // 2)
+    if budget < minimum:
+        raise InsufficientBudgetError(
+            f"{label} needs at least {minimum} bytes, got {budget}"
+        )
+    if budget > available:
+        raise InsufficientBudgetError(
+            f"{label} needs {budget} bytes but its parent {parent.label!r} has "
+            f"only {available} of {parent.memory_budget_bytes} left; the "
+            "blocking operators of this plan do not fit simultaneously"
+        )
+    return parent.child(budget, label=label)

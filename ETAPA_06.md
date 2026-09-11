@@ -10,29 +10,20 @@
 **Previous stage:** Stage 5 - Extendible Hashing  
 **Next stage:** Stage 7 - SQL Parser, Planner, and Executor  
 **Roadmap:** PLAN.md, Section 11  
-**Status:** In progress. Increments A-E (tasks 6.1-6.26) are complete;
-increment F (tasks 6.27-6.31) is not started.
+**Status:** **Complete — formally closed on 2026-09-11.** All tasks 6.1-6.31
+and all 59 Definition of Done criteria are satisfied.
 
-Stage 5 is formally complete: all 46 mandatory criteria and 1621 strict-suite
-tests are recorded in `docs/ETAPA_05_AUDIT.md`. Task 6.1 inspected the actual
-repository on 2026-09-10 and recorded a 1716-test baseline before any Stage 6
-code was written; see `docs/ETAPA_06_TASK_6_1_INSPECTION.md`.
+The closure evidence, criterion by criterion, is in `docs/ETAPA_06_AUDIT.md`,
+with one report per increment: `docs/ETAPA_06_INCREMENTO_A.md` through
+`docs/ETAPA_06_INCREMENTO_F.md`, plus the task 6.1 inspection and the task 6.2
+decisions. The strict suite passes 2196 tests with warnings as errors, from a
+1716-test baseline inherited from Stages 1-5. The three required external
+algorithms of REQUIREMENTS.md section 5 are implemented and demonstrated by
+forced disk spills. Task 6.26 was implemented as an optional addition on top of
+the required external-hashing routes, never instead of them.
 
-Verified progress is tracked per increment: `docs/ETAPA_06_INCREMENTO_A.md`
-covers tasks 6.1-6.10, `docs/ETAPA_06_INCREMENTO_B.md` covers tasks 6.11-6.16,
-where external sorting with k-way merging is demonstrated by forced disk
-spills, and `docs/ETAPA_06_INCREMENTO_C.md` covers tasks 6.17-6.21, where
-external hash grouping is demonstrated by real partition I/O, and
-`docs/ETAPA_06_INCREMENTO_D.md` covers tasks 6.22-6.25, where GraceHashJoin is
-demonstrated against inputs far larger than its memory grant. All three
-required external algorithms of REQUIREMENTS.md section 5 are therefore
-implemented. The suite passes 2036 tests with warnings as errors. The adopted
-execution semantics are recorded in `docs/ETAPA_06_TASK_6_2_DECISIONS.md`.
-`docs/ETAPA_06_INCREMENTO_E.md` covers the optional task 6.26, whose
-index-assisted routes were added on top of, never instead of, the required
-external-hashing routes. Stage 6 is **not** closed: the consolidation,
-observability, persistence-limit and closure tasks 6.27-6.31 remain
-outstanding.
+Stage 7 has not started. `ETAPA_07.md` does not exist yet and must be generated
+and reconciled with the current PROJECT_CONTEXT.md before any SQL work begins.
 
 ## 1. Purpose and expected result
 

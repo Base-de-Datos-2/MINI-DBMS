@@ -7,14 +7,19 @@ from dataclasses import dataclass
 import heapq
 
 from engine.catalog import DataType
-from engine.errors import InvalidTypeError, ValidationError
+from engine.errors import (
+    InsufficientBudgetError,
+    InvalidTypeError,
+    OversizedRowError,
+    ValidationError,
+)
 from engine.storage.record import Record, RecordValue
 
 from .base import ExecutionOperator
 from .context import (
-    DEFAULT_BUDGET_BYTES,
     MINIMUM_BUDGET_BYTES,
     ExecutionContext,
+    operator_context,
     row_footprint_bytes,
 )
 from .expressions import validate_comparable
@@ -276,7 +281,7 @@ class ExternalSort(ExecutionOperator):
             if type(memory_budget_bytes) is not int:
                 raise InvalidTypeError("memory_budget_bytes must be an int")
             if memory_budget_bytes < MINIMUM_SORT_BUDGET_BYTES:
-                raise ValidationError(
+                raise InsufficientBudgetError(
                     f"ExternalSort needs at least {MINIMUM_SORT_BUDGET_BYTES} "
                     f"bytes to merge {MINIMUM_FAN_IN} runs, got "
                     f"{memory_budget_bytes}"
@@ -336,21 +341,12 @@ class ExternalSort(ExecutionOperator):
         return self._ordering
 
     def _sorting_context(self) -> ExecutionContext:
-        parent = self.context
-        budget = self._budget if self._budget is not None else (
-            min(DEFAULT_BUDGET_BYTES, parent.memory_budget_bytes)
-            if parent is not None
-            else DEFAULT_BUDGET_BYTES
+        owned = operator_context(
+            self.context,
+            requested=self._budget,
+            minimum=MINIMUM_SORT_BUDGET_BYTES,
+            label="external-sort",
         )
-        if budget < MINIMUM_SORT_BUDGET_BYTES:
-            raise ValidationError(
-                f"ExternalSort was granted {budget} bytes but needs at least "
-                f"{MINIMUM_SORT_BUDGET_BYTES} to merge {MINIMUM_FAN_IN} runs"
-            )
-        if parent is None:
-            owned = ExecutionContext(memory_budget_bytes=budget, label="external-sort")
-        else:
-            owned = parent.child(budget, label="external-sort")
         self._owned_context = owned
         return owned
 
@@ -363,7 +359,7 @@ class ExternalSort(ExecutionOperator):
         by_memory = (context.memory_budget_bytes - CHUNK_PAYLOAD_SIZE) // per_reader
         fan_in = min(by_handles, by_memory, self._max_fan_in)
         if fan_in < MINIMUM_FAN_IN and run_count > 1:
-            raise ValidationError(
+            raise InsufficientBudgetError(
                 f"Merging {run_count} runs needs a fan-in of at least "
                 f"{MINIMUM_FAN_IN}; the granted resources allow {fan_in}"
             )
@@ -403,7 +399,7 @@ class ExternalSort(ExecutionOperator):
                 size = row_footprint_bytes(row)
                 if context.available_bytes < size:
                     if not chunk:
-                        raise ValidationError(
+                        raise OversizedRowError(
                             f"A single row needs {size} bytes but only "
                             f"{context.available_bytes} remain in the sort budget"
                         )
@@ -414,7 +410,7 @@ class ExternalSort(ExecutionOperator):
                     chunk_reservation.release()
                     chunk_reservation = context.reserve(0, "sort-chunk")
                     if context.available_bytes < size:
-                        raise ValidationError(
+                        raise OversizedRowError(
                             f"A single row needs {size} bytes, more than the "
                             "sort budget can ever admit"
                         )

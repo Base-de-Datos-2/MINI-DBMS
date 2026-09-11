@@ -7,7 +7,9 @@ import json
 
 from engine.catalog import Column, DataType, Schema
 from engine.errors import (
+    CorruptTemporaryError,
     InvalidTypeError,
+    OversizedRowError,
     SchemaError,
     ValidationError,
 )
@@ -90,22 +92,22 @@ def _decode_descriptor(payload: bytes) -> tuple[Schema, int, int]:
     try:
         document = json.loads(payload.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise ValidationError("Temporary stream descriptor is not valid JSON") from error
+        raise CorruptTemporaryError("Temporary stream descriptor is not valid JSON") from error
     if type(document) is not dict:
-        raise ValidationError("Temporary stream descriptor must be a JSON object")
+        raise CorruptTemporaryError("Temporary stream descriptor must be a JSON object")
     if document.get("magic") != TEMPORARY_MAGIC:
-        raise ValidationError("File is not a temporary row stream")
+        raise CorruptTemporaryError("File is not a temporary row stream")
     if document.get("version") != TEMPORARY_VERSION:
-        raise ValidationError(
+        raise CorruptTemporaryError(
             f"Unsupported temporary stream version: {document.get('version')!r}"
         )
     columns_document = document.get("schema")
     if type(columns_document) is not list:
-        raise ValidationError("Temporary stream schema must be encoded as a list")
+        raise CorruptTemporaryError("Temporary stream schema must be encoded as a list")
     columns: list[Column] = []
     for descriptor in columns_document:
         if type(descriptor) is not list or len(descriptor) != 2:
-            raise ValidationError(
+            raise CorruptTemporaryError(
                 "Each temporary schema column must be a [name, type] pair"
             )
         name, type_name = descriptor
@@ -120,7 +122,9 @@ def _decode_descriptor(payload: bytes) -> tuple[Schema, int, int]:
     for name in ("row_count", "byte_length"):
         value = document.get(name)
         if type(value) is not int or value < 0:
-            raise ValidationError(f"Temporary stream {name} must be a non-negative int")
+            raise CorruptTemporaryError(
+                f"Temporary stream {name} must be a non-negative int"
+            )
     return Schema(columns), document["row_count"], document["byte_length"]
 
 
@@ -202,7 +206,7 @@ class TemporaryRowWriter:
             raise SchemaError("Row schema differs from the temporary stream schema")
         payload = RecordCodec.serialize(record)
         if len(payload) > MAX_TEMPORARY_ROW_BYTES:
-            raise ValidationError(
+            raise OversizedRowError(
                 f"Execution row of {len(payload)} bytes exceeds the temporary "
                 f"maximum of {MAX_TEMPORARY_ROW_BYTES} bytes"
             )
@@ -308,7 +312,7 @@ class TemporaryRowReader:
                     "Persisted temporary schema differs from its run descriptor"
                 )
             if row_count != run.row_count or byte_length != run.byte_length:
-                raise ValidationError(
+                raise CorruptTemporaryError(
                     "Persisted temporary counts differ from their run descriptor"
                 )
             self._schema = schema
@@ -359,22 +363,22 @@ class TemporaryRowReader:
             raise RuntimeError("A closed temporary reader cannot produce rows")
         if not self._fill(ROW_LENGTH_SIZE):
             if self._buffer:
-                raise ValidationError(
+                raise CorruptTemporaryError(
                     "Temporary stream ends inside a row length prefix"
                 )
             if self._rows_read != self._run.row_count:
-                raise ValidationError(
+                raise CorruptTemporaryError(
                     f"Temporary stream ended after {self._rows_read} rows but its "
                     f"descriptor declares {self._run.row_count}"
                 )
             return None
         (length,) = VARCHAR_LENGTH_STRUCT.unpack_from(self._buffer, 0)
         if length > MAX_TEMPORARY_ROW_BYTES:
-            raise ValidationError(
+            raise CorruptTemporaryError(
                 f"Temporary row length {length} exceeds the supported maximum"
             )
         if not self._fill(ROW_LENGTH_SIZE + length):
-            raise ValidationError(
+            raise CorruptTemporaryError(
                 "Temporary stream ends inside a row payload; the file is truncated"
             )
         payload = bytes(self._buffer[ROW_LENGTH_SIZE:ROW_LENGTH_SIZE + length])
@@ -382,7 +386,7 @@ class TemporaryRowReader:
         self._rows_read += 1
         self._bytes_read += ROW_LENGTH_SIZE + length
         if self._rows_read > self._run.row_count:
-            raise ValidationError(
+            raise CorruptTemporaryError(
                 "Temporary stream holds more rows than its descriptor declares"
             )
         return RecordCodec.deserialize(self._schema, payload)
