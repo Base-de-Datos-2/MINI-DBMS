@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **3.0** — aligned with the formal Stage 6 closure.
+> Context version: **3.0** — aligned with the reviewed Stage 5 closure and the formal Stage 6 closure.
 
 ## Purpose
 
@@ -335,21 +335,23 @@ validation, restart, page reuse, storage-driven rebuilds and both clustered and
 unclustered adapters. Catalog integration, RID-change recovery and structural
 instrumentation are included. Evidence and limits are recorded in
 `docs/ETAPA_04_AUDIT.md`.
-**Stage 5 was formally closed on 2026-09-06.** Tasks 5.1–5.27 and all 46
-mandatory Definition of Done criteria are satisfied, with 1621 tests passing
-under warnings-as-errors. The persistent Extendible Hash implementation supports
+**Stage 5 was formally closed on 2026-09-06 and reviewed on 2026-09-10.**
+Tasks 5.1–5.27 and all 47 Definition of Done criteria are accounted for under
+the documented architectural policies, with 1772 tests passing under
+warnings-as-errors after the four review blocks. The original closure ran 1621
+tests. The persistent Extendible Hash implementation supports
 deterministic routing, dynamic growth, exact deletion, independent validation,
 restart, Heap construction/rebuild and maintenance, Catalog dispatch/drop and
 real metrics. Optional buddy merge and directory shrink are explicitly deferred
 as permitted by the stage guide. Evidence and limitations are recorded in
 `docs/ETAPA_05_AUDIT.md`.
 **Stage 6 was formally closed on 2026-09-11.** Tasks 6.1–6.31 and all 59
-Definition of Done criteria are satisfied, with 2196 tests passing under
-warnings-as-errors. `engine/operators/` provides the physical execution layer:
+Definition of Done criteria are satisfied, with 2252 tests passing under
+warnings-as-errors after integrating the reviewed Stage 5. `engine/operators/` provides the physical execution layer:
 scans, filter, projection, `ExternalSort`, `ExternalHashGroup`,
 `NestedLoopJoin`, `GraceHashJoin`, the optional index-assisted routes, and the
 `PhysicalPlan` runner with truthful descriptors and measured reports. Evidence
-and four declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 has
+and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 has
 not started. Do not implement the SQL parser, planner, executor, a buffer pool,
 WAL or concurrency without a later explicit request, and generate
 `ETAPA_07.md` before any Stage 7 work.

@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **3.0** — aligned with the formal Stage 6 closure.
+> Context version: **3.0** — aligned with the reviewed Stage 5 closure and the formal Stage 6 closure.
 
 ## Project identity
 
@@ -1350,7 +1350,7 @@ constraints and persisted totals without repairing the file.
 
 Expected metadata supplied to hash `open()` must have the exact persisted
 field type, so integers do not substitute for Boolean uniqueness flags. Point
-search and insertion validate the selected bucket's page reference and require
+search, insertion and deletion validate the selected bucket's page reference and require
 `local_depth <= global_depth`, without inspecting unrelated buckets. An exact
 pair reinsertion remains a no-op even at the association counter limit; only
 new associations consume that counter.
@@ -1369,7 +1369,19 @@ Deletion follows the stable `Index` contract: it removes one exact `(key, RID)`
 and returns `None`; a missing pair raises `InvalidReferenceError` without a
 write. Empty buckets remain live and referenced. Buddy merge, directory shrink
 and a hash free list are optional in `ETAPA_05.md` and remain explicitly
-deferred, so hash page allocations are append-only in format v1.
+deferred, so hash page allocations are append-only in format v1. Deletion
+validates the next association count before writing the modified bucket; a
+corrupt zero counter cannot cause an entry to be erased before rejection.
+Existing empty buckets can accept new entries without allocating pages, but
+this capacity reuse is not page deallocation or free-list reuse.
+
+Structural validation revalidates the active header, rereads physical metadata
+page 0 and requires both descriptors to agree, including with `deep=False`.
+It groups directory aliases in one pass instead of rescanning the directory
+for every bucket. A successful validation reads the header and each owned
+directory/bucket page once, with no writes; those reads are included in physical
+I/O counters. Deep validation checks placement and uniqueness independently of
+point lookup. Diagnostics identify affected metadata, pages or associations.
 
 `build_from_storage()` streams active records, leaves failed builds marked
 incomplete and records real build measurements. `rebuild_from_storage()` uses a
@@ -1379,13 +1391,54 @@ resolves stale RIDs and coordinates record insertion, deletion and replacement
 with best-effort rollback. A replacement can return a new RID because Heap has
 no in-place update contract. Failed rollback marks the index incomplete.
 
+Builders flush the completed hash before returning or publishing new Catalog
+metadata. If final flushing fails, they attempt to mark the build incomplete
+and close it; no Catalog publication occurs. This is best-effort invalidation,
+not guaranteed durability when the operating system rejects further writes.
+
+The Heap adapter validates current key/RID correspondence for both `search()`
+and `search_records()`; the raw hash core remains storage-independent. Adapter
+reopening also verifies complete coverage against the newly opened Heap.
+Failed insert/delete/update rollback attempts to persist the incomplete marker.
+Queries and mutations through an incomplete adapter are blocked, while explicit
+`rebuild()` remains available. If invalidation itself fails, the adapter closes
+the hash and raises a group containing operation, rollback and invalidation
+errors rather than hiding the original failure. Reconstruction from Heap may
+require first resolving duplicate keys in a unique index's source.
+
+Maintenance is per adapter, not an automatic table-wide multi-index service.
+Callers must coordinate other indexes or rebuild them after external changes.
+Heap slot reuse does not carry a generation number: a reused RID with the same
+indexed key cannot identify historical row identity. Bypassing maintenance
+requires rebuilding before index use; checking the current key is not an ABA
+detector. Heap has no file-wide RID-remap/reorganization operation; a replaced
+or externally relocated source must be supplied explicitly for reconstruction.
+
 Catalog helpers build/open hash definitions and shared dispatch selects B+ or
 hash from `IndexType`. `IndexMetadata` advertises equality for both families and
 range/ordering only for B+. The Catalog itself remains the established
 in-memory registry; the independent index header persists all restart values.
 `HashBuildMetrics`, `HashStructuralMetrics` and `HashMetrics` expose build cost,
 session-local splits/doublings/associations inspected, typed directory/bucket
-I/O and current durable size. Final 1K/10K/100K benchmarks remain Stage 10 work.
+I/O and current durable size. Creation preserves its typed directory/bucket
+allocation and write counters in the returned runtime. Typed reads follow
+PageManager's actual completed transfers, including reads whose outer page
+frame or hash payload is subsequently rejected as corrupt; rejection before a
+transfer is not a read. Page-zero I/O and allocation frame initialization are
+included in aggregate counters, not misattributed as typed payload writes.
+Counters remain session-local and resettable, not persisted lifetime totals.
+`HashBuildMetrics` freezes construction time (including the final flush), source
+reads and index I/O up to builder return. It survives `reset_counters()` but is
+not restored by reopening. `rebuild()` returns the candidate's construction
+snapshot, not a measurement of the complete validation/replace/reopen workflow.
+Replacement starts a fresh PageManager/typed-I/O session; structural counters
+describe the candidate's construction and then subsequent mutations. To compare
+whole rebuild latency, the caller must time `rebuild()` externally. Aggregate
+page counters exclude file-header transfers and flush calls, as in Stage 2/B+;
+failed operations retain completed physical transfers, whereas splits/doublings
+count only after topology publication succeeds. Validation and adapter Heap
+reads are real work and must be excluded from query-only timing deliberately.
+Final 1K/10K/100K benchmarks remain Stage 10 work.
 
 ---
 
@@ -1924,7 +1977,8 @@ Implemented so far:
   the independent validator checks complete topology and ownership. Persistent
   builds/rebuilds, Heap maintenance, Catalog dispatch/drop, capability metadata,
   typed I/O/build/structural metrics, restart and differential oracle coverage
-  complete all 46 mandatory criteria. Optional merge/shrink remain deferred.
+  complete all 47 criteria under the documented architectural policies.
+  Optional merge/shrink remain deferred.
 - Stage 6 tasks 6.1–6.31: inspected the Stage 5 boundary and recorded explicit
   execution decisions; implemented the operator lifecycle, qualified row
   layouts, a resource-accounted execution context, typed predicates, table and
@@ -1956,15 +2010,16 @@ build and both storage modalities are implemented, including RID-change
 rebuilds, Catalog factories and measurement hooks. All 59 Definition of Done
 criteria and 1544 strict-suite tests pass; evidence and limitations are in
 [the Stage 4 audit](docs/ETAPA_04_AUDIT.md). **Stage 5 is formally complete and
-audited as of 2026-09-06.** All 46 mandatory criteria and 1621 strict-suite tests
-pass; evidence and limitations are in
+audited as of 2026-09-06, with the four-block review completed on 2026-09-10.**
+All 47 criteria are accounted for under the stable architecture; the updated
+strict suite passes 1772 tests (original closure: 1621). Evidence and limits are in
 [the Stage 5 audit](docs/ETAPA_05_AUDIT.md). **Stage 6 is formally complete and
-audited as of 2026-09-11.** All 59 Definition of Done criteria and 2196
-strict-suite tests pass; the three required external algorithms of
-`REQUIREMENTS.md` section 5 are demonstrated by forced disk spills. Evidence,
-per-increment reports and four declared caveats are in
-[the Stage 6 audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not started, and
-Part 1 remains incomplete.
+audited as of 2026-09-11.** All 59 Definition of Done criteria and 2252
+strict-suite tests pass after integrating the reviewed Stage 5; the three
+required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
+by forced disk spills. Evidence, per-increment reports and the declared
+caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not
+started, and Part 1 remains incomplete.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 

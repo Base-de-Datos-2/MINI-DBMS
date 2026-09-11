@@ -16,8 +16,9 @@ and all 59 Definition of Done criteria are satisfied.
 The closure evidence, criterion by criterion, is in `docs/ETAPA_06_AUDIT.md`,
 with one report per increment: `docs/ETAPA_06_INCREMENTO_A.md` through
 `docs/ETAPA_06_INCREMENTO_F.md`, plus the task 6.1 inspection and the task 6.2
-decisions. The strict suite passes 2196 tests with warnings as errors, from a
-1716-test baseline inherited from Stages 1-5. The three required external
+decisions. The strict suite passes 2252 tests with warnings as errors: 1772
+from the reviewed Stages 1-5 plus 480 added by Stage 6. (The closure ran 2196
+before the Stage 5 review blocks 5.16-5.27 were merged from main.) The three required external
 algorithms of REQUIREMENTS.md section 5 are implemented and demonstrated by
 forced disk spills. Task 6.26 was implemented as an optional addition on top of
 the required external-hashing routes, never instead of them.

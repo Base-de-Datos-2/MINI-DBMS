@@ -92,10 +92,13 @@ class HashDirectoryPageIO:
             raise InvalidTypeError("directory page_id must be a built-in int")
         if page_id == _HEADER_PAGE_ID:
             raise ValidationError("Hash directory cannot use metadata page 0")
-        physical_page = self._manager.read_page(page_id)
-        # A completed physical transfer counts even when strict decoding later
-        # identifies corruption in the payload.
-        self.pages_read += 1
+        reads_before = self._manager.pages_read
+        try:
+            physical_page = self._manager.read_page(page_id)
+        finally:
+            # PageManager can complete a transfer then reject its outer Page
+            # frame. Count that read, but not a rejection before any transfer.
+            self.pages_read += self._manager.pages_read - reads_before
         return HashDirectoryCodec.deserialize(
             _payload(physical_page, "hash directory")
         )
@@ -142,9 +145,11 @@ class HashBucketPageIO:
             raise InvalidTypeError("bucket page_id must be a built-in int")
         if page_id == _HEADER_PAGE_ID:
             raise ValidationError("Hash bucket cannot use metadata page 0")
-        physical_page = self._manager.read_page(page_id)
-        # Keep typed counters aligned with PageManager on malformed page reads.
-        self.pages_read += 1
+        reads_before = self._manager.pages_read
+        try:
+            physical_page = self._manager.read_page(page_id)
+        finally:
+            self.pages_read += self._manager.pages_read - reads_before
         bucket = HashBucketCodec.deserialize(
             self._key_type,
             _payload(physical_page, "hash bucket"),

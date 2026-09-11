@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **3.0** — aligned with the formal Stage 6 closure.
+> Context version: **3.0** — aligned with the reviewed Stage 5 closure and the formal Stage 6 closure.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1383,21 +1383,24 @@ consolidated the final architecture and documentation. **Stage 4 was formally
 closed on 2026-09-03:** all 59 Definition of Done criteria are satisfied and the
 strict closure suite passes 1544 tests. Evidence: [Stage 4 closure
 audit](docs/ETAPA_04_AUDIT.md). **Stage 5 was formally closed on 2026-09-06:**
-all tasks 5.1–5.27 and the 46 mandatory Definition of Done criteria are
+all tasks 5.1–5.27 and the 47 Definition of Done criteria are
 satisfied. The persistent Extendible Hash index now covers deterministic
 formats, exact access/mutation, dynamic growth, validation, restart,
-Heap/Catalog integration and metrics. Its strict closure suite passes 1621
-tests. Evidence: [Stage 5 closure audit](docs/ETAPA_05_AUDIT.md). Optional
+Heap/Catalog integration and metrics. The original strict closure suite passed
+1621 tests; the four-block review completed on 2026-09-10 passes 1772 tests,
+with corrected rollback, publication, validation and metrics. The 47 criteria
+are interpreted under the stable architecture, including the in-memory Catalog.
+Evidence: [Stage 5 closure audit](docs/ETAPA_05_AUDIT.md). Optional
 merge/shrink remain deferred as permitted. **Stage 6 was formally closed on
 2026-09-11:** tasks 6.1–6.31 and all 59 Definition of Done criteria are
 satisfied. `ExternalSort`, `ExternalHashGroup` and `GraceHashJoin` implement the
 three required external algorithms of `REQUIREMENTS.md` section 5, each
 demonstrated by forced disk spills; the optional index-assisted routes of task
-6.26 are implemented on top of them. The strict closure suite passes 2196
-tests. Evidence and declared caveats: [Stage 6 closure
-audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not started and `ETAPA_07.md` does
-not exist yet; it must be generated and reconciled with `PROJECT_CONTEXT.md`
-before any SQL work begins.
+6.26 are implemented on top of them. The strict closure suite passes
+2252 tests after integrating the reviewed Stage 5. Evidence and declared
+caveats: [Stage 6 closure audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not
+started and `ETAPA_07.md` does not exist yet; it must be generated and
+reconciled with `PROJECT_CONTEXT.md` before any SQL work begins.
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

@@ -6,7 +6,8 @@ tareas **6.1 a 6.31** de [ETAPA_06.md](../ETAPA_06.md).
 Resultado: **Etapa 6 completa.** Se cumplen los **59 criterios** de la
 [Definition of Done](../ETAPA_06.md#13-definition-of-done); tres de ellos llevan
 una salvedad declarada que no impide el cumplimiento y se explica abajo. La
-suite completa pasa **2196 pruebas con advertencias tratadas como errores**.
+suite completa pasa **2252 pruebas con advertencias tratadas como errores**,
+ya integrada la revisión de la Etapa 5 fusionada desde `main`.
 **La Etapa 7 no se ha iniciado.**
 
 ## Informes por incremento
@@ -41,7 +42,7 @@ Cada fila corresponde al checklist de la sección 13, en el mismo orden.
 
 | N.º | Criterio | Evidencia revisada | Resultado |
 |---:|---|---|---|
-| 1 | Se comprobó la Etapa 5 contra el repositorio real | [Inspección 6.1](ETAPA_06_TASK_6_1_INSPECTION.md): 1716 pruebas reproducidas en entorno nuevo | Cumple, con salvedad A |
+| 1 | Se comprobó la Etapa 5 contra el repositorio real | [Inspección 6.1](ETAPA_06_TASK_6_1_INSPECTION.md): 1716 pruebas reproducidas en entorno nuevo; revisión 5.16–5.27 integrada después y verificada con la suite completa (ver A) | Cumple |
 | 2 | Se reportaron los fallos de la línea base anterior | No hubo ninguno: 1716 aprobadas, sin omisiones | Cumple |
 | 3 | Las decisiones de la sección 6 son explícitas y están aprobadas | [Decisiones 6.2](ETAPA_06_TASK_6_2_DECISIONS.md), promovidas a `PROJECT_CONTEXT.md` | Cumple, con salvedad B |
 | 4 | Un ciclo de vida y una convención de agotamiento compartidos | `ExecutionOperator`; `next()` devuelve `None`, nunca `StopIteration`; `test_lifecycle.py` | Cumple |
@@ -126,7 +127,7 @@ Cada fila corresponde al checklist de la sección 13, en el mismo orden.
 | 53 | Memoria máxima, espacio temporal y handles observables | `PlanReport` y métricas por operador | Cumple, con salvedad D |
 | 54 | Las pruebas diferenciales preservan la semántica de multiset | Comparación con `Counter`, nunca con conjuntos | Cumple |
 | 55 | Presupuestos válidos distintos dan resultados equivalentes | `test_results_are_independent_of_the_valid_memory_budget` | Cumple |
-| 56 | Pasan las pruebas de la Etapa 6 y de las anteriores | 2196 aprobadas | Cumple |
+| 56 | Pasan las pruebas de la Etapa 6 y de las anteriores | 2252 aprobadas, incluida la Etapa 5 revisada | Cumple |
 | 57 | Decisiones estables y limitaciones documentadas | `PROJECT_CONTEXT.md` y esta auditoría | Cumple |
 | 58 | Los metadatos de etapa registran el cierre y el traspaso | `PLAN.md`, `AGENTS.md`, `PROJECT_CONTEXT.md`, `ETAPA_06.md` | Cumple |
 | 59 | No se mezcló implementación de etapas futuras | Sin parser, planner, AST, API ni transacciones | Cumple |
@@ -134,15 +135,24 @@ Cada fila corresponde al checklist de la sección 13, en el mismo orden.
 ## Salvedades declaradas
 
 Ninguna impide el cumplimiento del criterio correspondiente, pero ninguna debe
-quedar oculta.
+quedar oculta. Quedan **tres vigentes** (B, C y D); la A se resolvió después
+del cierre.
 
-**A. Revisión pendiente de la Etapa 5.** La Etapa 5 está cerrada y su suite
-pasa, pero la revisión posterior de sus bloques 5.16–5.27 sigue abierta, con
-hallazgos conocidos en 5.23 (rollback Heap/índice), 5.25 (E/S tipada de
-creación), 5.26 (validación diferencial por mutación) y 5.27 (trazabilidad de
-47 criterios). **No bloquean la Etapa 6**: los cuatro afectan a rutas de
-mutación, y todo operador de la Etapa 6 es de solo lectura sobre el
-almacenamiento base.
+**A. Revisión de la Etapa 5 — resuelta.** Al cerrar esta etapa, la revisión
+posterior de los bloques 5.16–5.27 seguía abierta, con hallazgos en 5.23
+(rollback Heap/índice), 5.25 (E/S tipada de creación), 5.26 (validación
+diferencial por mutación) y 5.27 (trazabilidad de 47 criterios). El equipo la
+completó en `main` ([5.16–5.21](ETAPA_05_REVIEW_5_16_5_21.md),
+[5.22–5.27](ETAPA_05_REVIEW_5_22_5_27.md)) y se fusionó en esta rama.
+
+El cambio no era solo documental: el adaptador hash ahora **valida la
+correspondencia clave/RID también en `search()`**, **verifica la cobertura al
+reabrir** y **bloquea consultas sobre un índice marcado incompleto**. Todo ello
+refuerza, sin contradecir, lo que asumen `IndexScan` e `IndexNestedLoopJoin`.
+Tras el merge, la suite completa pasa **2252 pruebas** (1772 de las Etapas 1–5
+revisadas más las 480 de esta etapa) **sin cambiar una línea de
+`engine/operators/`**, que es la verificación de integración que importa. Esta
+salvedad ya no aplica y se conserva solo como registro.
 
 **B. Aprobación de las decisiones.** Las decisiones de la tarea 6.2 están
 registradas, se aplicaron de forma consistente y se revisaron incremento a
@@ -176,8 +186,10 @@ git diff --check
 |---|---|
 | Línea base de entrada (Etapas 1–5) | 1716 pruebas aprobadas |
 | Suite completa de cierre | **2196 aprobadas en 163,33 s**, advertencias como errores, sin omisiones ni xfails |
+| Línea base de las Etapas 1–5 tras la revisión 5.16–5.27 | 1772 pruebas |
+| Suite tras fusionar esa revisión desde `main` | **2252 aprobadas en 170,00 s**, advertencias como errores, sin omisiones ni xfails |
 | Pruebas añadidas por la Etapa 6 | **480** |
-| Regresión de las Etapas 1–5 | Las 1716 anteriores siguen aprobando; solo se añadieron cuatro subclases de error en `engine/errors.py` |
+| Regresión de las Etapas 1–5 | Las 1716 originales y las 1772 revisadas siguen aprobando; la Etapa 6 solo añadió cuatro subclases de error en `engine/errors.py` |
 | `compileall` y `git diff --check` | Correctos |
 
 Entorno de esta verificación: Linux (WSL2), Python 3.11.9, pytest 8.4.2. Las

@@ -80,9 +80,9 @@ def test_deterministic_randomized_operations_match_map_oracle(tmp_path):
                 with pytest.raises(InvalidReferenceError):
                     index.delete(key, rid)
 
-            assert set(index.search(key)) == oracle[key]
-            if step % 30 == 0:
-                index.validate_structure()
+            for candidate in range(25):
+                assert set(index.search(candidate)) == oracle[candidate]
+            index.validate_structure()
             if step and step % 60 == 0:
                 index.flush()
                 index.close()

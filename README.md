@@ -56,8 +56,10 @@ formatos deterministas, búsqueda/inserción/eliminación exactas, splits,
 duplicación del directorio, reinicio y validación estructural. Puede construirse
 y reconstruirse desde HeapFile; `UnclusteredHashIndex` mantiene mutaciones y las
 fábricas del catálogo despachan, reabren y eliminan archivos físicos. Existen
-métricas reales y pruebas diferenciales. Los 46 criterios obligatorios se
-cumplen con 1621 pruebas estrictas; consulta
+métricas reales y pruebas diferenciales. La revisión de los cuatro bloques
+(2026-09-10) corrige y verifica los 47 criterios bajo las decisiones
+arquitectónicas documentadas, con **1772 pruebas estrictas**
+(cierre original: 1621); consulta
 [la auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md). Merge/shrink son opcionales
 y están diferidos.
 
@@ -69,7 +71,7 @@ streaming, y los **tres algoritmos externos obligatorios** de la Parte 1:
 `GraceHashJoin` para `JOIN`, todos demostrados con volcados a disco forzados.
 `NestedLoopJoin` es la línea base de corrección, y las rutas opcionales
 `IndexNestedLoopJoin` e `IndexOrderedGroup` aprovechan los índices de las
-Etapas 4 y 5. Los 59 criterios se cumplen con 2196 pruebas estrictas; consulta
+Etapas 4 y 5. Los 59 criterios se cumplen con 2252 pruebas estrictas; consulta
 [la auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md). Todavía no existen SQL,
 planificador, transacciones, API ejecutable ni interfaz gráfica: los planes se
 ensamblan a mano con objetos Python. La Parte 1 sigue pendiente.
@@ -518,6 +520,34 @@ reconstrucción desde Heap, el mantenimiento de RIDs, el despacho por catálogo 
 las métricas de E/S/estructura completan la etapa. Buddy merge y shrink del
 directorio permanecen opcionalmente diferidos.
 
+Construye una definición nueva con `build_and_register_catalog_hash(catalog,
+metadata, heap)`: recorre filas activas, valida, sincroniza el índice y solo
+entonces registra los metadatos. `open_catalog_index(catalog, name, heap)`
+despacha por tipo físico y comprueba cobertura contra Heap. El catálogo global
+sigue en memoria: tras reiniciar hay que registrar de nuevo la tabla y su
+definición de índice; el header físico conserva tipo, identidad, unicidad,
+formato, hash y profundidades sin parámetros ocultos.
+
+Usa `insert_record`, `delete_record` y `update_record` del adaptador para mantener
+su índice; `update_record` devuelve el RID vigente. Tanto `search` como
+`search_records` comprueban la clave actual en Heap. Si se modifica Heap por
+fuera, hay que reconstruir los índices afectados con `rebuild()` antes de
+consultarlos. No hay coordinación automática de varios índices ni generaciones
+de RID para identificar una fila histórica después de reutilizar su slot.
+
+Un rollback fallido intenta marcar el hash como incompleto y bloquea su uso
+hasta reconstrucción; si también falla esa marca, cierra la instancia y conserva
+los errores agrupados. Sin WAL no se garantiza atomicidad entre ambos archivos.
+`validate_structure()` comprueba estructura y cobertura, pero no repara datos.
+
+Para medir consultas, usa `index.reset_counters()` antes de la operación y toma
+`index.metrics` y los contadores de Heap después; la validación/reapertura
+también genera E/S. `build_metrics` es una instantánea de construcción, no un
+contador persistido ni el coste total de `rebuild()`. La reconstrucción abre una
+nueva sesión de E/S; mide su tiempo completo externamente con `perf_counter`.
+Consulta [la revisión final](docs/ETAPA_05_REVIEW_5_22_5_27.md) para criterios,
+recuperación y límites de medición.
+
 ### Operadores relacionales y algoritmos externos (Etapa 6 completa)
 
 Un plan físico se ensambla con objetos Python ya ligados; esta capa no analiza
@@ -650,8 +680,10 @@ Esto demuestra persistencia tras cierre normal, no recuperación tras una caída
 - `list_tables()` y `get_indexes()` devuelven tuplas independientes en orden de
   registro. Los elementos son inmutables. Una tabla sin índices devuelve `()`;
   consultar una tabla o índice inexistente genera `KeyError`.
-- Cada catálogo tiene su propio estado en memoria. No hay persistencia, gestión
-  de filas, eliminación de metadatos ni protección concurrente todavía.
+- Cada catálogo tiene su propio estado en memoria. `unregister_index` elimina
+  una definición; `drop_catalog_index` verifica la identidad del archivo, lo
+  elimina y luego retira sus metadatos. Cierra los runtimes antes de eliminar.
+  No hay persistencia global, gestión de filas ni protección concurrente.
 
 ### Errores de dominio
 
@@ -828,7 +860,8 @@ Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
 La verificación de cierre de la Etapa 6 se ejecutó en Linux (WSL2) con Python
-3.11.9 y pytest 8.4.2: **2196 pruebas aprobadas** con advertencias tratadas como
+3.11.9 y pytest 8.4.2, ya integrada la revisión de la Etapa 5: **2252 pruebas
+aprobadas** con advertencias tratadas como
 errores, sin omisiones ni xfails. Las auditorías de etapas anteriores se
 ejecutaron en Windows con Python 3.12.4. Las operaciones físicas
 restantes deberán añadir sus propias pruebas de conformidad, persistencia y
@@ -849,11 +882,11 @@ concurrencia. `compileall`, `pip check` y la revisión del diff también pasan.
 - [Auditoría de la Etapa 4](docs/ETAPA_04_AUDIT.md): evidencia de sus 59
   criterios, validación estricta y límites conocidos.
 - [ETAPA_05.md](ETAPA_05.md): guía completa de Extendible Hashing.
-- [Auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md): evidencia de los 46
-  criterios obligatorios, 1621 pruebas y límites conocidos.
+- [Auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md): matriz conciliada de los 47
+  criterios, 1772 pruebas tras revisión y límites conocidos.
 - [ETAPA_06.md](ETAPA_06.md): etapa de operadores y algoritmos externos, cerrada.
 - [Auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md): evidencia de los 59
-  criterios, 2196 pruebas, salvedades declaradas y traspaso a la Etapa 7.
+  criterios, 2252 pruebas, salvedades declaradas y traspaso a la Etapa 7.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta

@@ -1,5 +1,11 @@
 # Inspección previa de la Etapa 6 — tarea 6.1
 
+> Nota posterior, 2026-09-11: los hallazgos de la Etapa 5 que aquí figuran
+> como pendientes (5.23, 5.25, 5.26 y 5.27) se resolvieron en la revisión de
+> los bloques 5.16–5.27 hecha en `main`. Tras fusionarla, la suite completa
+> pasa 2252 pruebas sin cambios en `engine/operators/`. Este informe conserva
+> el estado observado el día de la inspección.
+
 Fecha: **2026-09-10**. Alcance: contratos, cursores, codecs, métricas y
 políticas de las Etapas 1–5 que condicionan los operadores relacionales y los
 algoritmos externos. Esta inspección fue de solo lectura; la línea base se

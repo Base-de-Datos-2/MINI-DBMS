@@ -13,7 +13,6 @@ from engine.errors import (
     DuplicateError,
     HashBucketOverflowError,
     HashDepthLimitError,
-    InvalidReferenceError,
     InvalidTypeError,
     ValidationError,
 )
@@ -161,6 +160,10 @@ class ExtendibleHashIndex(Index):
             )
             HashHeaderPageIO.write(manager, header)
             index = cls(manager, header)
+            # Keep the typed I/O objects that performed creation, including
+            # their real allocation/write counters for this same session.
+            index._directories = directory_io
+            index._buckets = bucket_io
             index._validate_open_topology()
             return index
         except BaseException:
@@ -227,6 +230,7 @@ class ExtendibleHashIndex(Index):
             
             index.validate_structure()
             index._write_header(replace(index._header, build_complete=True))
+            index.flush()
             index._build_metrics = HashBuildMetrics(
                 elapsed_seconds=perf_counter() - started_at,
                 associations_indexed=indexed,
@@ -238,6 +242,13 @@ class ExtendibleHashIndex(Index):
             )
             return index
         except BaseException:
+            # Publication (including fsync) must succeed before a builder can
+            # expose this index to Catalog. Mark a failed final flush too.
+            try:
+                if not index.closed:
+                    index.mark_incomplete()
+            except BaseException:
+                pass  # No WAL: the original failure remains authoritative.
             try:
                 index.close()
             except BaseException:
@@ -475,7 +486,9 @@ class ExtendibleHashIndex(Index):
 
     def _validate_page_reference(self, page_id: object, label: str) -> int:
         if type(page_id) is not int or not 1 <= page_id <= self._header.index_page_count:
-            raise ValidationError(f"{label} is outside the hash index page range")
+            raise ValidationError(
+                f"{label} {page_id!r} is outside the hash index page range"
+            )
         return page_id
 
     @staticmethod
@@ -508,11 +521,18 @@ class ExtendibleHashIndex(Index):
                 raise ValidationError("Hash directory chain ended early")
             checked = self._validate_page_reference(next_page_id, "directory page")
             if checked in page_ids:
-                raise ValidationError("Cycle detected in hash directory pages")
-            page = self._directories.read_page(checked)
+                raise ValidationError(
+                    f"Cycle detected in hash directory pages at page {checked}"
+                )
+            try:
+                page = self._directories.read_page(checked)
+                page.validate_position(self._header.directory_entry_count)
+            except (ValidationError, InvalidTypeError) as exc:
+                raise type(exc)(f"Hash directory page {checked}: {exc}") from exc
             if page.ordinal != expected_ordinal:
-                raise ValidationError("Hash directory page ordinal is incorrect")
-            page.validate_position(self._header.directory_entry_count)
+                raise ValidationError(
+                    f"Hash directory page {checked} ordinal is incorrect"
+                )
             page_ids.append(checked)
             entries.extend(page.bucket_page_ids)
             next_page_id = page.next_page_id
@@ -567,30 +587,44 @@ class ExtendibleHashIndex(Index):
         self._require_open()
         if type(deep) is not bool:
             raise InvalidTypeError("deep must be a bool")
-        # Revalidate cached metadata so deliberate in-process corruption is not
-        # hidden merely because the index opened successfully in the past.
-        self._header.serialize()
+        # Check both sources: serialization alone does not rerun dataclass
+        # invariants, and a cached header cannot prove the disk page is intact.
+        try:
+            cached_header = HashFileHeader.deserialize(self._header.serialize())
+            persisted_header = HashHeaderPageIO.read(self._manager)
+        except (ValidationError, InvalidTypeError) as exc:
+            raise type(exc)(f"Hash metadata page 0: {exc}") from exc
+        if persisted_header != cached_header:
+            raise ValidationError("Hash metadata page 0 differs from the active header")
         if self._manager.allocated_page_count != self._header.index_page_count + 1:
             raise ValidationError("Hash header page count does not match the file")
         directory, directory_pages = self._read_directory()
-        bucket_ids = set(directory.entries)
-        if bucket_ids & set(directory_pages):
-            raise ValidationError("Hash directory and bucket pages overlap")
+        aliases_by_bucket: dict[int, list[int]] = {}
+        for position, bucket_id in enumerate(directory.entries):
+            aliases_by_bucket.setdefault(bucket_id, []).append(position)
+        bucket_ids = set(aliases_by_bucket)
+        overlap = bucket_ids & set(directory_pages)
+        if overlap:
+            raise ValidationError(
+                f"Hash directory and bucket pages overlap at page {min(overlap)}"
+            )
         if len(bucket_ids) != self._header.bucket_count:
-            raise ValidationError("Hash bucket count differs from directory reachability")
+            raise ValidationError(
+                "Hash bucket count in metadata page 0 differs from directory reachability"
+            )
         observed_associations = 0
         seen_unique_keys: set[bytes] = set()
         for bucket_id in sorted(bucket_ids):
             checked = self._validate_page_reference(bucket_id, "bucket page")
-            bucket = self._buckets.read_bucket(checked)
+            try:
+                bucket = self._buckets.read_bucket(checked)
+            except (ValidationError, InvalidTypeError) as exc:
+                raise type(exc)(f"Hash bucket page {checked}: {exc}") from exc
             if bucket.local_depth > directory.global_depth:
                 raise ValidationError(
                     f"Hash bucket {bucket_id} local depth exceeds global depth"
                 )
-            aliases = [
-                index for index, value in enumerate(directory.entries)
-                if value == bucket_id
-            ]
+            aliases = aliases_by_bucket[bucket_id]
             if len(aliases) != 1 << (directory.global_depth - bucket.local_depth):
                 raise ValidationError(
                     f"Hash bucket {bucket_id} has an invalid directory alias count"
@@ -605,24 +639,28 @@ class ExtendibleHashIndex(Index):
                     "with local depth"
                 )
             if deep:
-                for key, _ in bucket.entries:
+                for entry_position, (key, _) in enumerate(bucket.entries):
                     routed_bucket = directory.lookup_bucket(
                         HashCodec.hash_key(self._header.key_type, key)
                     )
                     if routed_bucket != bucket_id:
                         raise ValidationError(
-                            f"Hash association is stored in wrong bucket {bucket_id}"
+                            f"Hash association is stored in wrong bucket {bucket_id}, "
+                            f"entry {entry_position}"
                         )
                     if not self._header.allow_duplicate_keys:
                         encoded = HashCodec.encode_key(self._header.key_type, key)
                         if encoded in seen_unique_keys:
                             raise ValidationError(
-                                "Unique hash index contains duplicate keys"
+                                "Unique hash index contains duplicate keys in "
+                                f"bucket page {bucket_id}, entry {entry_position}"
                             )
                         seen_unique_keys.add(encoded)
             observed_associations += bucket.entry_count
         if observed_associations != self._header.association_count:
-            raise ValidationError("Hash association count differs from reachable buckets")
+            raise ValidationError(
+                "Hash association count in metadata page 0 differs from reachable buckets"
+            )
         owned_pages = set(directory_pages) | bucket_ids
         expected_pages = set(range(1, self._header.index_page_count + 1))
         orphan_pages = expected_pages - owned_pages
@@ -877,18 +915,14 @@ class ExtendibleHashIndex(Index):
         BPlusRIDCodec.encode(rid)
         hash_value = HashCodec.hash_key(self._header.key_type, checked_key)
         bucket_id = self._lookup_bucket_page_id(hash_value)
-        bucket = self._buckets.read_bucket(
-            self._validate_page_reference(bucket_id, "bucket page")
-        )
+        bucket = self._read_routed_bucket(bucket_id)
         self._count_structural("associations_inspected", bucket.entry_count)
-        try:
-            updated = bucket.delete(checked_key, rid)
-        except InvalidReferenceError:
-            raise
-        self._buckets.write_bucket(updated)
-        self._write_header(
-            replace(
-                self._header,
-                association_count=self._header.association_count - 1,
-            )
+        updated = bucket.delete(checked_key, rid)
+        # Validate the next header before the first physical write.
+        # In particular, corrupt zero counters must not erase a live entry.
+        updated_header = replace(
+            self._header,
+            association_count=self._header.association_count - 1,
         )
+        self._buckets.write_bucket(updated)
+        self._write_header(updated_header)

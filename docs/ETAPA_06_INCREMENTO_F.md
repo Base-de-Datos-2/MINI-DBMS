@@ -172,5 +172,6 @@ git diff --check
 |---|---|
 | Línea base del incremento E | 2062 pruebas aprobadas |
 | Suite completa de cierre | **2196 aprobadas en 163,33 s**, advertencias como errores, sin omisiones ni xfails |
+| Tras fusionar la revisión 5.16–5.27 de `main` | **2252 aprobadas en 170,00 s**, sin cambios en `engine/operators/` |
 | Pruebas nuevas del incremento F | **134** (`test_pipeline` 21, `test_stage6_persistence` 19, `test_stage6_differential` 94) |
 | `compileall` y `git diff --check` | Correctos |
