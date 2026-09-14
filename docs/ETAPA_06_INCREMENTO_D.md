@@ -1,5 +1,10 @@
 # Etapa 6 — incremento D: joins
 
+> Nota posterior (2026-09-13): la
+> [revisión de 6.22–6.26](ETAPA_06_REVIEW_6_22_6_26.md) corrigió la procedencia
+> atribuida por el baseline al leer un spool. Este informe conserva las
+> medidas históricas.
+
 Fecha: **2026-09-11**. Alcance: tareas **6.22 a 6.25** de
 [ETAPA_06.md](../ETAPA_06.md), es decir la condición de salida del incremento D
 de su sección 9: *la línea base y `GraceHashJoin` coinciden, incluidos los

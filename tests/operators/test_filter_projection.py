@@ -251,6 +251,12 @@ def test_projection_rejects_unknown_columns_when_the_plan_is_built(source):
         Projection(source, ["id", "id"])
     with pytest.raises(InvalidTypeError, match="ExecutionOperator child"):
         Projection(object(), ["id"])
+    with pytest.raises(InvalidTypeError, match="selections must be a sequence"):
+        Projection(source, "id")
+    with pytest.raises(InvalidTypeError, match="selections must be a sequence"):
+        Projection(source, 7)
+    with pytest.raises(InvalidTypeError, match="aliases must be a sequence"):
+        Projection(source, ["id"], "alias")
 
 
 def test_projection_keeps_an_ordering_only_when_its_column_survives(sequential):

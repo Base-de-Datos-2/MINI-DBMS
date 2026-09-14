@@ -19,6 +19,7 @@ from engine.operators import (
     NestedLoopJoin,
     Projection,
     RowSpool,
+    TableScan,
     TemporaryWorkspace,
     collect,
     column,
@@ -26,7 +27,7 @@ from engine.operators import (
 )
 from engine.operators.join import MINIMUM_JOIN_BUDGET_BYTES
 from engine.operators.partitioning import partition_hash
-from engine.storage import Record
+from engine.storage import HeapFile, Record
 from tests.operator_helpers import RowSource
 
 
@@ -584,7 +585,7 @@ def test_a_fan_out_beyond_the_granted_budget_is_refused_at_open():
         collect(operator, limit=10)
 
 
-def test_joins_advertise_no_ordering_and_combine_provenance():
+def test_joins_advertise_no_ordering():
     operator = GraceHashJoin(left([(1, "a")]), right([(1, "x")]), ON_ID)
 
     assert operator.ordering is None
@@ -592,6 +593,27 @@ def test_joins_advertise_no_ordering_and_combine_provenance():
 
     baseline = NestedLoopJoin(left([(1, "a")]), right([(1, "x")]), ON_ID)
     assert baseline.ordering is None
+
+
+def test_spooled_baseline_does_not_report_another_rows_rid_as_provenance(tmp_path):
+    with HeapFile.create(tmp_path / "left.heap", STUDENTS) as left_storage:
+        with HeapFile.create(tmp_path / "right.heap", ENROLLMENTS) as right_storage:
+            for record in left_rows([(1, "a"), (1, "b"), (1, "c")]):
+                left_storage.insert(record)
+            right_storage.insert(Record(ENROLLMENTS, [1, "course"]))
+
+            join = NestedLoopJoin(
+                TableScan(left_storage, relation="students"),
+                TableScan(right_storage, relation="enrollments"),
+                ON_ID,
+                block_rows=1,
+            )
+            join.open()
+            try:
+                assert join.next() is not None
+                assert join.provenance == ()
+            finally:
+                join.close()
 
 
 def test_joins_run_twice_from_one_plan_object():

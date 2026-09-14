@@ -45,9 +45,14 @@ from .temp_stream import TemporaryRowReader, TemporaryRun
 #: none of which is free; the constant is a declared model, not a measurement.
 GROUP_ENTRY_OVERHEAD_BYTES = 192
 
-#: Smallest budget a grouping operator may be granted. The documented fallback
-#: sorts a difficult partition, so the budget must be able to host that sort.
-MINIMUM_GROUP_BUDGET_BYTES = MINIMUM_SORT_BUDGET_BYTES + REGISTRY_WORK_BYTES
+#: The fallback must retain one group state while its nested sort is live.
+FALLBACK_STATE_MINIMUM_BYTES = 2048
+
+#: Smallest grant leaves room for the ownership registry, a two-way sort, and
+#: one bounded grouping state at the same time.
+MINIMUM_GROUP_BUDGET_BYTES = (
+    MINIMUM_SORT_BUDGET_BYTES + REGISTRY_WORK_BYTES + FALLBACK_STATE_MINIMUM_BYTES
+)
 
 
 class BoundAggregate(ABC):
@@ -588,30 +593,33 @@ class HashGroupKernel:
         values = record.values
         key = self._key_of(values)
         existing = self._groups.get(key)
+        states = (
+            [aggregate.initialize() for aggregate in self._aggregates]
+            if existing is None else existing
+        )
+        # Compute first, charge second, commit last: a refused growth must not
+        # leave a half-applied row behind.
+        updated = [
+            aggregate.accumulate(state, values)
+            for aggregate, state in zip(self._aggregates, states)
+        ]
         if existing is None:
-            states = [aggregate.initialize() for aggregate in self._aggregates]
             entry_bytes = (
                 self._key_bytes(key)
                 + GROUP_ENTRY_OVERHEAD_BYTES
                 + sum(
                     aggregate.state_bytes(state)
-                    for aggregate, state in zip(self._aggregates, states)
+                    for aggregate, state in zip(self._aggregates, updated)
                 )
             )
             if self._context.available_bytes < entry_bytes:
                 return False
             self._reservation.grow(entry_bytes)
-            self._groups[key] = states
-            existing = states
-        # Compute first, charge second, commit last: a refused growth must not
-        # leave a half-applied row behind.
-        updated = [
-            aggregate.accumulate(state, values)
-            for aggregate, state in zip(self._aggregates, existing)
-        ]
+            self._groups[key] = updated
+            return True
         delta = sum(
             aggregate.state_bytes(new) - aggregate.state_bytes(old)
-            for aggregate, new, old in zip(self._aggregates, updated, existing)
+            for aggregate, new, old in zip(self._aggregates, updated, states)
         )
         if delta > 0:
             if self._context.available_bytes < delta:
@@ -870,17 +878,40 @@ class ExternalHashGroup(ExecutionOperator):
 
         self._metrics.global_aggregation = True
         states = [aggregate.initialize() for aggregate in self._bound_aggregates]
-        while (row := self._child.next()) is not None:
-            self._statistics.rows_examined += 1
-            states = [
-                aggregate.accumulate(state, row.values)
-                for aggregate, state in zip(self._bound_aggregates, states)
-            ]
-        finalized = tuple(
-            aggregate.finalize(state)
+        initial_bytes = sum(
+            aggregate.state_bytes(state)
             for aggregate, state in zip(self._bound_aggregates, states)
         )
-        yield self._emit((), finalized)
+        reservation = context.reserve(initial_bytes, "global-aggregate-state")
+        try:
+            while (row := self._child.next()) is not None:
+                self._statistics.rows_examined += 1
+                updated = [
+                    aggregate.accumulate(state, row.values)
+                    for aggregate, state in zip(self._bound_aggregates, states)
+                ]
+                delta = sum(
+                    aggregate.state_bytes(new) - aggregate.state_bytes(old)
+                    for aggregate, new, old in zip(
+                        self._bound_aggregates, updated, states
+                    )
+                )
+                if delta > 0:
+                    if context.available_bytes < delta:
+                        raise InsufficientBudgetError(
+                            "The global aggregate state exceeds its memory grant"
+                        )
+                    reservation.grow(delta)
+                elif delta < 0:
+                    reservation.shrink(-delta)
+                states = updated
+            finalized = tuple(
+                aggregate.finalize(state)
+                for aggregate, state in zip(self._bound_aggregates, states)
+            )
+            yield self._emit((), finalized)
+        finally:
+            reservation.release()
 
     def _partition(
         self,
@@ -985,8 +1016,32 @@ class ExternalHashGroup(ExecutionOperator):
         # The sort's supported row width depends on its grant. Reuse the
         # available partition budget instead of always forcing the smallest
         # sort, which would reject wide rows even when this context can fit them.
-        sort = ExternalSort(scan, spec, memory_budget_bytes=context.available_bytes)
-        sort.open(context)
+        row_width = partition.run.max_row_bytes
+        state_budget = max(
+            FALLBACK_STATE_MINIMUM_BYTES,
+            GROUP_ENTRY_OVERHEAD_BYTES
+            + 2 * row_width
+            + sum(
+                16 + row_width
+                if isinstance(aggregate, _BoundExtreme)
+                else aggregate.state_bytes(aggregate.initialize())
+                for aggregate in self._bound_aggregates
+            ),
+        )
+        if context.available_bytes - state_budget < MINIMUM_SORT_BUDGET_BYTES:
+            raise InsufficientBudgetError(
+                "The sorted grouping fallback needs memory for both its "
+                "sort and one group state"
+            )
+        state_reservation = context.reserve(state_budget, "fallback-group-state")
+        try:
+            sort = ExternalSort(
+                scan, spec, memory_budget_bytes=context.available_bytes
+            )
+            sort.open(context)
+        except BaseException:
+            cleanup_preserving_error(state_reservation.release)
+            raise
         try:
             current_key: tuple | None = None
             states: list | None = None
@@ -1026,6 +1081,7 @@ class ExternalHashGroup(ExecutionOperator):
             try:
                 cleanup_preserving_error(sort.close)
             finally:
+                cleanup_preserving_error(state_reservation.release)
                 self._metrics.temporary_pages_read += (
                     scan.pages_read + sort.metrics.temporary_pages_read
                 )

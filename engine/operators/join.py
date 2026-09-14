@@ -500,26 +500,26 @@ class NestedLoopJoin(_JoinOperator):
 
         self._metrics.blocks += 1
         self._metrics.inner_passes += 1
-        keys = [
-            join_key_of(row.values, self._left_positions, self._key_types)
-            for row in block
-        ]
         reader = spool.reader()
         try:
             while (inner := reader.next_row()) is not None:
                 inner_key = join_key_of(
                     inner.values, self._right_positions, self._key_types
                 )
-                for outer, outer_key in zip(block, keys):
+                for outer in block:
+                    outer_key = join_key_of(
+                        outer.values, self._left_positions, self._key_types
+                    )
                     self._metrics.pairs_examined += 1
                     if outer_key != inner_key:
                         continue
                     combined = self._combine(outer.values, inner.values)
                     if combined is not None:
                         self._metrics.pairs_emitted += 1
-                        self._provenance = (
-                            self._left.provenance + self._right.provenance
-                        )
+                        # The spool stores values, not per-row provenance. The
+                        # children now point at different rows (or EOF), so
+                        # their current RIDs cannot identify this pair.
+                        self._provenance = ()
                         yield combined
         finally:
             self._metrics.temporary_pages_read += reader.pages_read

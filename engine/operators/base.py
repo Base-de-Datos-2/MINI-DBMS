@@ -254,9 +254,10 @@ class ExecutionOperator(Operator):
     def provenance(self) -> tuple[RowProvenance, ...]:
         """Return the origin of the row most recently returned by ``next``.
 
-        Base scans report one entry, a join reports the combination of its
-        inputs, and computed rows report nothing at all. A derived row never
-        borrows a base RID it does not have.
+        Base scans report one entry. A join combines origins only when it can
+        identify the exact input pair; spooled or partitioned joins report
+        none. Computed rows also report none. A derived row never borrows a
+        base RID it does not have.
         """
 
         return self._provenance

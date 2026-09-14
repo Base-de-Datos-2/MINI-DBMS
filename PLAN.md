@@ -1399,7 +1399,9 @@ demonstrated by forced disk spills; the optional index-assisted routes of task
 6.26 are implemented on top of them. The strict closure suite passes
 2252 tests after integrating the reviewed Stage 5. Evidence and declared
 caveats: [Stage 6 closure audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not
-started and `ETAPA_07.md` does not exist yet; it must be generated and
+started. The [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
+revalidated the 31 tasks and 59 criteria with 2295 strict tests passing.
+`ETAPA_07.md` does not exist yet; it must be generated and
 reconciled with `PROJECT_CONTEXT.md` before any SQL work begins.
 Part 1 is not complete.
 

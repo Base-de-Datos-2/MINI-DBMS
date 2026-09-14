@@ -6,7 +6,9 @@ Fecha: 2026-09-13. Entorno de revisión: Windows, Python 3.12.4, pytest 8.4.2.
 > aborda recursos del sort, metadatos de runs y aislamiento de temporales, y
 > la [revisión de 6.19 y 6.27–6.30](ETAPA_06_REVIEW_6_19_6_27_6_30.md)
 > corrige el cierre del particionador y los informes de E/S. El texto
-> siguiente conserva la evidencia anterior a ambas correcciones.
+> siguiente conserva la evidencia anterior a ambas correcciones. La
+> [revalidación transversal](ETAPA_06_REVALIDACION_2026_09_13.md) reúne todos
+> los bloques posteriores y la suite estricta de 2295 pruebas.
 
 ## Dictamen
 

@@ -352,7 +352,9 @@ scans, filter, projection, `ExternalSort`, `ExternalHashGroup`,
 `NestedLoopJoin`, `GraceHashJoin`, the optional index-assisted routes, and the
 `PhysicalPlan` runner with truthful descriptors and measured reports. Evidence
 and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 has
-not started. Do not implement the SQL parser, planner, executor, a buffer pool,
+not started. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
+revalidated all tasks and criteria after corrections; 2295 strict tests pass.
+Do not implement the SQL parser, planner, executor, a buffer pool,
 WAL or concurrency without a later explicit request, and generate
 `ETAPA_07.md` before any Stage 7 work.
 

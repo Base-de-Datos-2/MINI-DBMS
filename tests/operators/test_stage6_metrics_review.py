@@ -9,6 +9,7 @@ from engine.operators import (
     Count, ExternalHashGroup, ExternalSort, GraceHashJoin, JoinSpec,
     PhysicalPlan, SortSpec, run_plan,
 )
+from engine.operators.aggregation import MINIMUM_GROUP_BUDGET_BYTES
 from engine.operators.temp_stream import TemporaryRowWriter
 from engine.storage import Record
 from engine.storage.page_manager import PageManager
@@ -97,7 +98,8 @@ def test_fallback_io_is_counted_once_across_group_and_internal_sort(monkeypatch)
     rows = [Record(SCHEMA, [n, "x" * 500]) for n in range(300)]
     root = ExternalHashGroup(
         RowSource(rows), ["key"], [Count()],
-        memory_budget_bytes=34816, partition_count=2, max_level=1,
+        memory_budget_bytes=MINIMUM_GROUP_BUDGET_BYTES,
+        partition_count=2, max_level=1,
     )
     result, report = run_plan(root, memory_budget_bytes=131072, limit=300)
     assert len(result) == 300

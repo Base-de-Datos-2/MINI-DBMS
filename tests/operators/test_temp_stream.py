@@ -1,5 +1,8 @@
 """Task 6.12: schema-aware temporary row streams with bounded buffers."""
 
+from dataclasses import replace
+import json
+
 import pytest
 
 from engine.catalog import Column, DataType, Schema
@@ -283,6 +286,23 @@ def test_a_stream_holding_fewer_rows_than_declared_is_reported_at_the_end(
     reader = TemporaryRowReader(workspace, inflated)
     with reader:
         with pytest.raises(ValidationError, match="declares 9"):
+            while reader.next_row() is not None:
+                pass
+
+
+def test_a_stream_with_an_incorrect_declared_byte_length_is_rejected(workspace):
+    run, _ = round_trip(workspace, STUDENTS, students())
+    with PageManager.open(run.path) as manager:
+        page = manager.read_page(DESCRIPTOR_PAGE_ID)
+        descriptor = json.loads(page.read(DESCRIPTOR_SLOT_ID).decode("utf-8"))
+        descriptor["byte_length"] += 1
+        replacement = Page(DESCRIPTOR_PAGE_ID)
+        replacement.insert(json.dumps(descriptor).encode("utf-8"))
+        manager.write_page(replacement)
+
+    inflated = replace(run, byte_length=run.byte_length + 1)
+    with TemporaryRowReader(workspace, inflated) as reader:
+        with pytest.raises(ValidationError, match="byte length"):
             while reader.next_row() is not None:
                 pass
 

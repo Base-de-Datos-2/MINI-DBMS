@@ -1,5 +1,10 @@
 # Etapa 6 — incremento C: agrupación externa
 
+> Nota posterior (2026-09-13): la
+> [revisión de 6.17–6.18 y 6.20–6.21](ETAPA_06_REVIEW_6_17_6_18_6_20_6_21.md)
+> corrige la admisión del kernel y la reserva de estados globales y del
+> fallback. Las cifras de este informe conservan el estado histórico.
+
 Fecha: **2026-09-11**. Alcance: tareas **6.17 a 6.21** de
 [ETAPA_06.md](../ETAPA_06.md), es decir la condición de salida del incremento C
 de su sección 9: *la agrupación externa supera la memoria con seguridad y

@@ -282,6 +282,10 @@ class IndexOrderedGroup(ExecutionOperator):
                 "This index covers one column, so it can only serve a "
                 f"single-column grouping key; {len(keys)} were given"
             )
+        if isinstance(aggregates, (str, bytes, bytearray)) or not isinstance(
+            aggregates, Sequence
+        ):
+            raise InvalidTypeError("aggregates must be a sequence of Aggregate")
         ordered_aggregates = tuple(aggregates)
         for aggregate in ordered_aggregates:
             if not isinstance(aggregate, Aggregate):

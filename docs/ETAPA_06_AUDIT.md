@@ -4,7 +4,12 @@
 > La [revisión independiente](ETAPA_06_REVIEW_2026_09_13.md) encontró defectos
 > posteriores a esa verificación. La [corrección del primer bloque](ETAPA_06_REVIEW_6_5_6_11_6_15_6_16.md)
 > se limita a 6.5, 6.11, 6.15 y 6.16. El [segundo bloque](ETAPA_06_REVIEW_6_19_6_27_6_30.md)
-> revisa 6.19 y 6.27–6.30. Ninguno ratifica por sí solo los 59 criterios.
+> revisa 6.19 y 6.27–6.30. El [tercer bloque](ETAPA_06_REVIEW_6_1_6_4_6_6_6_10.md)
+> corrige la validación de `Projection` y acota el guardián B+ de la salvedad C.
+> Los demás bloques y la suite completa constan en la
+> [revalidación transversal](ETAPA_06_REVALIDACION_2026_09_13.md). Ningún
+> informe por bloque ratifica por sí solo los 59 criterios. Esta auditoría
+> conserva las cifras y salvedades tal como quedaron al cierre de 2026-09-11.
 
 Fecha: **2026-09-11**. Alcance: operadores relacionales y algoritmos externos,
 tareas **6.1 a 6.31** de [ETAPA_06.md](../ETAPA_06.md).

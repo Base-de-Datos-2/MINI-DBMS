@@ -33,6 +33,15 @@ class Projection(ExecutionOperator):
     ) -> None:
         if not isinstance(child, ExecutionOperator):
             raise InvalidTypeError("Projection requires an ExecutionOperator child")
+        if isinstance(selections, (str, bytes, bytearray)) or not isinstance(
+            selections, Sequence
+        ):
+            raise InvalidTypeError("Projection selections must be a sequence")
+        if aliases is not None and (
+            isinstance(aliases, (str, bytes, bytearray))
+            or not isinstance(aliases, Sequence)
+        ):
+            raise InvalidTypeError("Projection aliases must be a sequence")
         self._child = child
         self._selections = tuple(selections)
         self._aliases = None if aliases is None else tuple(aliases)

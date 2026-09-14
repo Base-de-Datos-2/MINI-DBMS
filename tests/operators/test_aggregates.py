@@ -244,6 +244,26 @@ def test_capacity_exhaustion_is_explicit_and_does_not_consume_the_row():
         assert context.available_bytes < GROUP_ENTRY_OVERHEAD_BYTES * 4
 
 
+def test_new_group_is_rolled_back_when_its_first_state_does_not_fit():
+    schema = Schema([
+        Column("key", DataType.INTEGER),
+        Column("value", DataType.VARCHAR),
+    ])
+    layout = RowLayout(schema)
+    with ExecutionContext(memory_budget_bytes=4224) as context:
+        engine = HashGroupKernel(
+            context,
+            key_positions=[0],
+            key_types=[DataType.INTEGER],
+            aggregates=[Min("value").bind(layout)],
+        )
+
+        assert engine.admit(Record(schema, [1, "x" * 5000])) is False
+        assert engine.group_count == 0
+        assert engine.reserved_bytes == 0
+        assert list(engine.results()) == []
+
+
 def test_collisions_are_resolved_by_full_key_equality():
     schema = Schema([Column("k", DataType.VARCHAR), Column("n", DataType.INTEGER)])
     layout = RowLayout(schema)

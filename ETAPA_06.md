@@ -10,12 +10,12 @@
 **Previous stage:** Stage 5 - Extendible Hashing  
 **Next stage:** Stage 7 - SQL Parser, Planner, and Executor  
 **Roadmap:** PLAN.md, Section 11  
-**Review status (2026-09-13):** The independent review found resource, cleanup
-and observability gaps. Corrections to tasks 6.5, 6.11, 6.15 and 6.16 are
-documented in `docs/ETAPA_06_REVIEW_6_5_6_11_6_15_6_16.md`. The closure below
-records the historical audit, not a new ratification of all 31 tasks. The
-follow-up review of 6.19 and 6.27–6.30 is in
-`docs/ETAPA_06_REVIEW_6_19_6_27_6_30.md`. Stage 7 remains unstarted.
+**Review status (2026-09-13):** The independent review found resource,
+cleanup and observability gaps. The
+[transversal revalidation](docs/ETAPA_06_REVALIDACION_2026_09_13.md) records
+the corrections and evidence for all 31 tasks and 59 criteria, with 2295
+passing tests. The closure figures below remain historical. Stage 7 has not
+started.
 
 **Status:** **Complete — formally closed on 2026-09-11.** All tasks 6.1-6.31
 and all 59 Definition of Done criteria are satisfied.

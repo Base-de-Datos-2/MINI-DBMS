@@ -440,6 +440,11 @@ class TemporaryRowReader:
                     f"Temporary stream ended after {self._rows_read} rows but its "
                     f"descriptor declares {self._run.row_count}"
                 )
+            if self._bytes_read != self._run.byte_length:
+                raise CorruptTemporaryError(
+                    f"Temporary stream byte length is {self._bytes_read}, but its "
+                    f"descriptor declares {self._run.byte_length}"
+                )
             return None
         (length,) = VARCHAR_LENGTH_STRUCT.unpack_from(self._buffer, 0)
         if length > MAX_TEMPORARY_ROW_BYTES:

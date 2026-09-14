@@ -434,6 +434,10 @@ def test_ordered_grouping_validates_its_arguments(heap, bplus):
         IndexOrderedGroup(bplus, ["id"], [], relation="students")
     with pytest.raises(InvalidTypeError, match="must be an Aggregate"):
         IndexOrderedGroup(bplus, ["id"], ["count"], relation="students")
+    with pytest.raises(InvalidTypeError, match="aggregates must be a sequence"):
+        IndexOrderedGroup(bplus, ["id"], "count", relation="students")
+    with pytest.raises(InvalidTypeError, match="aggregates must be a sequence"):
+        IndexOrderedGroup(bplus, ["id"], 7, relation="students")
     with pytest.raises(InvalidTypeError, match="group_keys"):
         IndexOrderedGroup(bplus, "id", [Count()], relation="students")
 

@@ -1132,8 +1132,11 @@ then streams leaves in nondecreasing `(key, RID)` order. It rejects inverted
 ranges, NaN, invalid links, cycles, links to internal nodes and cross-leaf order
 violations. A full traversal also checks the persisted association count. These
 queries return fresh generators and do not load the whole index. The core checks
-structural RID encoding; the clustered and unclustered adapters additionally
-resolve existence and key agreement in their borrowed storage.
+the most recent 32 leaf IDs to flag short link cycles directly; longer cycles
+necessarily violate the checked cross-leaf key/RID ordering. The guard therefore
+uses constant working memory even for long duplicate groups and ranges. The
+core checks structural RID encoding; the clustered and unclustered adapters
+additionally resolve existence and key agreement in their borrowed storage.
 
 Insertion orders complete `(key, RID)` pairs, so distinct RIDs of one key are
 deterministic even when the duplicate group spans leaves. Repeating the exact
@@ -1466,8 +1469,10 @@ The Stage 1 `Operator` ABC is unchanged. `ExecutionOperator` extends it:
   separate from its published name, which is what lets a join publish
   `students.id` and `enrollments.id` while both still resolve. A bare name that
   matches two origins is rejected as ambiguous.
-- Provenance is `RowProvenance(relation, rid)`. Scans report one entry, joins
-  combine their inputs', grouped rows report none. No RID is ever fabricated.
+- Provenance is `RowProvenance(relation, rid)`. Scans report one entry;
+  `IndexNestedLoopJoin` combines the exact pair's origins. Spool and partition
+  files carry values only, so `NestedLoopJoin` and `GraceHashJoin` report none,
+  as do grouped rows. No RID is ever fabricated.
 - `ordering` returns the column an operator's output is really ascending by,
   or `None`. Heap scans, hash access, grouping and joins claim none;
   sequential scans, B+ ranges, ascending sorts and `IndexOrderedGroup` do.
@@ -1506,6 +1511,10 @@ refuses to leave the signed 64-bit range. Without NULL, `COUNT(column)` equals
 `COUNT(*)`. A grouped empty input yields no rows; a global aggregate over empty
 input yields `COUNT=0` and a typed zero `SUM`, while global `MIN`, `MAX` and
 `AVG` over empty input raise, because the result is not representable.
+The bounded hash kernel commits a new group only after its first complete
+aggregate state fits. Global aggregation reserves changes to its single state;
+the sorted grouping fallback reserves a conservative one-group allowance
+alongside its nested sort and rejects a grant that cannot host both.
 
 Joins are inner equijoins over one or more same-typed pairs, with an optional
 residual predicate. Multiplicity is preserved: `m` and `n` matches give
@@ -1531,9 +1540,10 @@ residual predicate. Multiplicity is preserved: `m` and `n` matches give
 - Handle leases propagate to every ancestor, so the root context sees and
   bounds every open temporary file in the plan.
 - Minimum grants after the resource review: 4224 bytes for a context; 32 768
-  bytes for sort/join; 34 816 bytes for grouping, which must retain its own
-  ownership registry while its fallback sort executes. These replace the
-  earlier 12 237-byte operator minimum, which omitted live resource costs.
+  bytes for sort/join; 36 864 bytes for grouping, which must retain its own
+  ownership registry and one group state while its fallback sort executes.
+  These replace the earlier 12 237-byte operator minimum, which omitted live
+  resource costs.
 - Sort admission includes encoded row size plus the declared 128-byte row
   overhead, 128 bytes per sort entry and 16 bytes per comparison key, temporary
   page buffers, framing/serialization scratch, pending rows and run metadata.
@@ -1574,6 +1584,8 @@ residual predicate. Multiplicity is preserved: `m` and `n` matches give
   therefore span pages. The per-row maximum is 65 536 bytes. The descriptor is
   written last, so an unfinished file cannot be read as complete.
 - Reopening a completed temporary file in the same process is supported.
+  The reader checks both the declared row count and the exact framed byte
+  length at EOF, even when its run descriptor matches the file descriptor.
   Resuming a query after a process crash is not.
 
 ### Algorithm parameters
@@ -2091,7 +2103,11 @@ strict-suite tests pass after integrating the reviewed Stage 5; the three
 required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
 by forced disk spills. Evidence, per-increment reports and the declared
 caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not
-started, and Part 1 remains incomplete.
+started, and Part 1 remains incomplete. The
+[2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
+revalidated the 31 tasks and 59 criteria after resource, integrity,
+aggregation, join-provenance and observability fixes; its strict suite passes
+2295 tests. The historical closure figures above remain unchanged.
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 

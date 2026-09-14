@@ -1,5 +1,9 @@
 # Etapa 6 — incremento B: temporales y ordenamiento externo
 
+> Nota posterior (2026-09-13): las cifras y reservas de este informe son
+> históricas. Véanse la [corrección de recursos](ETAPA_06_REVIEW_6_5_6_11_6_15_6_16.md)
+> y la [revisión de 6.12–6.14](ETAPA_06_REVIEW_6_12_6_14.md).
+
 Fecha: **2026-09-10**. Alcance: tareas **6.11 a 6.16** de
 [ETAPA_06.md](../ETAPA_06.md), es decir la condición de salida del incremento B
 de su sección 9: *ExternalSort multipasada respaldado por disco, que funciona y

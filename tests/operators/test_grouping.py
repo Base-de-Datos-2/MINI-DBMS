@@ -27,6 +27,8 @@ from engine.operators import (
     execute,
 )
 from engine.operators.aggregation import MINIMUM_GROUP_BUDGET_BYTES
+from engine.operators.context import DEFAULT_MAX_OPEN_HANDLES
+from engine.operators.partitioning import maximum_partition_count
 from engine.storage import Record
 from tests.operator_helpers import RowSource, STUDENTS, students
 
@@ -124,6 +126,25 @@ def test_global_aggregation_over_empty_input_reports_zero_count():
     assert [tuple(row.values) for row in rows] == [(0, 0)]
 
 
+def test_global_variable_width_state_respects_its_memory_grant():
+    fitting = ExternalHashGroup(
+        RowSource(sales([("x" * 5000, 1)])),
+        [],
+        [Min("region")],
+        memory_budget_bytes=MINIMUM_GROUP_BUDGET_BYTES,
+    )
+    assert [row.values[0] for row in collect(fitting, limit=2)] == ["x" * 5000]
+
+    too_wide = ExternalHashGroup(
+        RowSource(sales([("x" * 40000, 1)])),
+        [],
+        [Min("region")],
+        memory_budget_bytes=MINIMUM_GROUP_BUDGET_BYTES,
+    )
+    with pytest.raises(ValidationError, match="global aggregate state"):
+        collect(too_wide, limit=2)
+
+
 def test_global_extremes_over_empty_input_are_refused_not_invented():
     for aggregate in (Min("amount"), Max("amount"), Avg("amount")):
         operator = ExternalHashGroup(
@@ -167,7 +188,7 @@ def test_more_distinct_groups_than_memory_still_produce_one_row_each():
 
 def test_the_hash_route_finishes_without_needing_the_sorted_fallback():
     random.seed(22)
-    data = [(f"r{random.randrange(300)}", 1) for _ in range(3000)]
+    data = [(f"r{random.randrange(600)}", 1) for _ in range(3000)]
     operator = ExternalHashGroup(
         RowSource(sales(data)),
         ["region"],
@@ -452,7 +473,11 @@ def test_a_fan_out_beyond_the_granted_budget_is_refused_at_open():
         ["career"],
         [Count()],
         memory_budget_bytes=MINIMUM_GROUP_BUDGET_BYTES,
-        partition_count=8,
+        partition_count=(
+            maximum_partition_count(
+                MINIMUM_GROUP_BUDGET_BYTES, DEFAULT_MAX_OPEN_HANDLES
+            ) + 1
+        ),
     )
 
     with pytest.raises(ValidationError, match="needs more than the granted"):

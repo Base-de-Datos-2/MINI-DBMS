@@ -17,7 +17,7 @@ tarea 6.31.
 | Reejecución | `close()` seguido de `open()` inicia un run nuevo; abrir un operador ya abierto o agotado lanza `RuntimeError` |
 | Estados | `created → open → (exhausted \| failed) → closed`; `close()` es idempotente en todos ellos |
 | Propiedad | Cada operador cierra a sus hijos y sus cursores; nunca cierra almacenamientos ni índices prestados |
-| Fila | `Record` sin envoltorio nuevo; la identidad de columna se resuelve en `open()` a posiciones preligadas |
+| Fila | `Record` sin envoltorio nuevo; la identidad de columna se resuelve al construir cada operador a posiciones preligadas |
 | Procedencia | Opcional, `RowProvenance(relation, rid)`; jamás se fabrica un RID para una fila derivada |
 
 Se mantiene `Record` como fila de ejecución porque es inmutable y ya valida
@@ -27,7 +27,8 @@ el productor avanza, sin necesidad de copias defensivas.
 ## 2. Identidad de columna
 
 Las referencias se resuelven con **identidad calificada opcional**
-`(relación, columna)`, y se preligan a posiciones enteras durante `open()`.
+`(relación, columna)`, y se preligan a posiciones enteras durante la construcción
+del plan.
 Un nombre sin calificar es válido solo si es único en el esquema de entrada;
 si dos entradas de un join aportan `id`, un nombre desnudo es ambiguo y se
 rechaza con `ValidationError` antes de leer ninguna fila.
@@ -65,7 +66,7 @@ expresa como cadena SQL.**
 | Anidamiento | Un operador bloqueante hijo recibe una subreserva del padre; si el presupuesto restante es inferior al mínimo viable, la construcción falla antes de ejecutar |
 | Mínimo viable | Se declara por operador; por debajo de él se lanza `ValidationError` en vez de degradar a memoria ilimitada |
 | Fila sobredimensionada | Error determinista `ValidationError` cuando una sola fila no cabe en el presupuesto mínimo |
-| Descriptores | Runs y particiones se limitan por un máximo explícito; no se guarda una lista ilimitada de metadatos |
+| Descriptores | Los runs se catalogan en disco y solo se cargan los del fan-in actual; el fan-out de particiones es acotado y no se guarda una lista ilimitada de metadatos |
 | Handles | Se acotan por separado del límite de bytes |
 
 ## 6. Rutas de optimización seleccionadas
