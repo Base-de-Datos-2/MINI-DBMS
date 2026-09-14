@@ -50,3 +50,19 @@ class HashDepthLimitError(ValidationError):
 
 class HashBucketOverflowError(ValidationError):
     """Hash-equal associations cannot be separated into page-sized buckets."""
+
+
+class UnsupportedAccessError(ValidationError):
+    """A requested access path cannot provide the capability asked of it."""
+
+
+class InsufficientBudgetError(ValidationError):
+    """An execution resource grant is too small for the work requested."""
+
+
+class OversizedRowError(ValidationError):
+    """A single execution row exceeds a documented physical or memory limit."""
+
+
+class CorruptTemporaryError(ValidationError):
+    """A temporary execution file is truncated, mis-framed, or of a bad version."""

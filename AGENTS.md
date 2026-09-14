@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **2.10** — aligned with the reviewed Stage 5 closure.
+> Context version: **3.0** — aligned with the reviewed Stage 5 closure and the formal Stage 6 closure.
 
 ## Purpose
 
@@ -315,7 +315,7 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest completed stage:
 
-> **Stage 5 — Extendible Hashing**
+> **Stage 6 — Relational Operators and External Algorithms**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -344,13 +344,23 @@ deterministic routing, dynamic growth, exact deletion, independent validation,
 restart, Heap construction/rebuild and maintenance, Catalog dispatch/drop and
 real metrics. Optional buddy merge and directory shrink are explicitly deferred
 as permitted by the stage guide. Evidence and limitations are recorded in
-`docs/ETAPA_05_AUDIT.md`. Stage 6 is planned but has not started. Do not
-implement relational operators, external algorithms, a buffer pool, WAL or
-concurrency without a later explicit request.
+`docs/ETAPA_05_AUDIT.md`.
+**Stage 6 was formally closed on 2026-09-11.** Tasks 6.1–6.31 and all 59
+Definition of Done criteria are satisfied, with 2252 tests passing under
+warnings-as-errors after integrating the reviewed Stage 5. `engine/operators/` provides the physical execution layer:
+scans, filter, projection, `ExternalSort`, `ExternalHashGroup`,
+`NestedLoopJoin`, `GraceHashJoin`, the optional index-assisted routes, and the
+`PhysicalPlan` runner with truthful descriptors and measured reports. Evidence
+and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 has
+not started. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
+revalidated all tasks and criteria after corrections; 2295 strict tests pass.
+Do not implement the SQL parser, planner, executor, a buffer pool,
+WAL or concurrency without a later explicit request, and generate
+`ETAPA_07.md` before any Stage 7 work.
 
 Most recently completed stage specification:
 
-> `ETAPA_05.md`
+> `ETAPA_06.md`
 
 Stage 1 includes, at the planning level:
 
