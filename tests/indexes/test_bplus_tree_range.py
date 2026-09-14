@@ -160,6 +160,61 @@ def test_range_detects_leaf_link_cycle(tmp_path):
             list(tree.range_search())
 
 
+def test_exact_and_range_stream_duplicate_keys_beyond_cycle_guard(tmp_path):
+    leaf_count = 40
+    nodes = [
+        BPlusLeafNode(
+            page_id,
+            DataType.INTEGER,
+            [10],
+            [rid(page_id)],
+            next_leaf_page_id=page_id + 1 if page_id < leaf_count else None,
+        )
+        for page_id in range(1, leaf_count + 1)
+    ]
+    nodes.append(
+        BPlusInternalNode(
+            leaf_count + 1,
+            DataType.INTEGER,
+            [10] * (leaf_count - 1),
+            list(range(1, leaf_count + 1)),
+        )
+    )
+    path = tmp_path / "long-duplicate-chain.idx"
+    persist_bplus_tree(
+        path,
+        nodes,
+        root_page_id=leaf_count + 1,
+        first_leaf_page_id=1,
+        height=2,
+    )
+
+    with BPlusTree.open(path) as tree:
+        expected = [rid(page_id) for page_id in range(1, leaf_count + 1)]
+        assert list(tree.search(10)) == expected
+        assert list(tree.range_search(10, 10)) == expected
+        assert list(tree.range_search()) == expected
+
+    nodes[-2] = BPlusLeafNode(
+        leaf_count,
+        DataType.INTEGER,
+        [10],
+        [rid(leaf_count)],
+        next_leaf_page_id=1,
+    )
+    cyclic_path = tmp_path / "long-duplicate-cycle.idx"
+    persist_bplus_tree(
+        cyclic_path,
+        nodes,
+        root_page_id=leaf_count + 1,
+        first_leaf_page_id=1,
+        height=2,
+    )
+    with BPlusTree.open(cyclic_path) as tree:
+        with pytest.raises(ValidationError, match="RID order"):
+            list(tree.range_search())
+
+
 def test_range_detects_cross_leaf_key_or_duplicate_rid_disorder(tmp_path):
     unordered = list(integer_three_leaf_nodes())
     unordered[1] = BPlusLeafNode(

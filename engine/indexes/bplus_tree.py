@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import deque
 from collections.abc import Generator
 from contextlib import closing
 from dataclasses import dataclass, replace
@@ -27,6 +28,11 @@ from .bplus_header import BPlusFileHeader
 from .bplus_io import BPlusHeaderPageIO, BPlusNodePageIO
 from .bplus_metrics import BPlusBuildMetrics, BPlusStructuralMetrics
 from .bplus_node import BPlusFreeNode, BPlusInternalNode, BPlusLeafNode
+
+
+# Recent links catch short cycles directly. Longer cycles necessarily violate
+# the strict cross-leaf (key, RID) ordering checked by _read_next_leaf.
+_LEAF_SCAN_GUARD_SIZE = 32
 
 
 @dataclass(frozen=True, slots=True)
@@ -470,7 +476,7 @@ class BPlusTree(OrderedIndex):
     def _read_next_leaf(
         self,
         leaf: BPlusLeafNode,
-        visited: set[int],
+        visited: deque[int],
     ) -> BPlusLeafNode | None:
         next_page_id = leaf.next_leaf_page_id
         if next_page_id is None:
@@ -478,7 +484,7 @@ class BPlusTree(OrderedIndex):
         checked = self._validate_node_reference(next_page_id, "B+ next-leaf pointer")
         if checked in visited:
             raise ValidationError("Cycle detected in B+ leaf links")
-        visited.add(checked)
+        visited.append(checked)
         next_node = self._read_reachable_node(checked, "B+ next leaf")
         if not isinstance(next_node, BPlusLeafNode):
             raise ValidationError("B+ leaf link points to a non-leaf node")
@@ -1556,7 +1562,7 @@ class BPlusTree(OrderedIndex):
             if descent is None:
                 return
             leaf = descent.leaf
-            visited = {leaf.page_id}
+            visited = deque((leaf.page_id,), maxlen=_LEAF_SCAN_GUARD_SIZE)
             while True:
                 self._require_open()
                 for leaf_key, rid in zip(leaf.keys, leaf.rids):
@@ -1634,7 +1640,7 @@ class BPlusTree(OrderedIndex):
             if leaf.key_count == 0:
                 raise ValidationError("Non-empty B+ tree references an empty leaf")
 
-            visited = {leaf.page_id}
+            visited = deque((leaf.page_id,), maxlen=_LEAF_SCAN_GUARD_SIZE)
             yielded = 0
             full_scan = checked_lower is None and checked_upper is None
             while True:

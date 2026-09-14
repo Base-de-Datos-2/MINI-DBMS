@@ -10,11 +10,28 @@
 **Previous stage:** Stage 5 - Extendible Hashing  
 **Next stage:** Stage 7 - SQL Parser, Planner, and Executor  
 **Roadmap:** PLAN.md, Section 11  
-**Status:** Planned; no implementation tasks are marked complete.
+**Review status (2026-09-13):** The independent review found resource,
+cleanup and observability gaps. The
+[transversal revalidation](docs/ETAPA_06_REVALIDACION_2026_09_13.md) records
+the corrections and evidence for all 31 tasks and 59 criteria, with 2295
+passing tests. The closure figures below remain historical. Stage 7 has not
+started.
 
-Stage 5 is formally complete: all 46 mandatory criteria and 1621 strict-suite
-tests are recorded in `docs/ETAPA_05_AUDIT.md`. Task 6.1 must still inspect the
-actual repository before any Stage 6 implementation begins.
+**Status:** **Complete — formally closed on 2026-09-11.** All tasks 6.1-6.31
+and all 59 Definition of Done criteria are satisfied.
+
+The closure evidence, criterion by criterion, is in `docs/ETAPA_06_AUDIT.md`,
+with one report per increment: `docs/ETAPA_06_INCREMENTO_A.md` through
+`docs/ETAPA_06_INCREMENTO_F.md`, plus the task 6.1 inspection and the task 6.2
+decisions. The strict suite passes 2252 tests with warnings as errors: 1772
+from the reviewed Stages 1-5 plus 480 added by Stage 6. (The closure ran 2196
+before the Stage 5 review blocks 5.16-5.27 were merged from main.) The three required external
+algorithms of REQUIREMENTS.md section 5 are implemented and demonstrated by
+forced disk spills. Task 6.26 was implemented as an optional addition on top of
+the required external-hashing routes, never instead of them.
+
+Stage 7 has not started. `ETAPA_07.md` does not exist yet and must be generated
+and reconciled with the current PROJECT_CONTEXT.md before any SQL work begins.
 
 ## 1. Purpose and expected result
 
