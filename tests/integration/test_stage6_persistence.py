@@ -493,7 +493,9 @@ def test_blocking_operators_that_cannot_fit_together_fail_before_reading():
     with pytest.raises(InsufficientBudgetError, match="do not fit simultaneously"):
         run_plan(root, memory_budget_bytes=64 * 4096, limit=100)
 
-    assert source.closes == 1
+    # Preflight rejects the complete grant request before opening any source.
+    assert source.opens == source.closes == 0
+    assert source.statistics.rows_emitted == 0
 
 
 def test_the_root_context_sees_and_bounds_every_nested_handle():

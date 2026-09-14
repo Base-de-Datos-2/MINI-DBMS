@@ -1522,10 +1522,25 @@ residual predicate. Multiplicity is preserved: `m` and `n` matches give
   minimum. Children open before parents, so this is what stops the first
   blocking operator from starving the rest. A plan whose blocking operators
   cannot all fit is refused before reading any row.
+- Grant feasibility is checked in postorder before any source opens. This
+  checks the same explicit/implicit grants that `open` will request. Dynamic
+  row-width and handle admission still fail explicitly when necessary.
+- Contexts own their temporary workspaces and close their live streams before
+  returning permits. Closed child contexts unregister from the parent rather
+  than accumulating across repeated executions.
 - Handle leases propagate to every ancestor, so the root context sees and
   bounds every open temporary file in the plan.
-- Minimum grants: 4224 bytes for a context; 12 237 bytes for a sort, grouping
-  or join, which is what merging two runs requires.
+- Minimum grants after the resource review: 4224 bytes for a context; 32 768
+  bytes for sort/join; 34 816 bytes for grouping, which must retain its own
+  ownership registry while its fallback sort executes. These replace the
+  earlier 12 237-byte operator minimum, which omitted live resource costs.
+- Sort admission includes encoded row size plus the declared 128-byte row
+  overhead, 128 bytes per sort entry and 16 bytes per comparison key, temporary
+  page buffers, framing/serialization scratch, pending rows and run metadata.
+  This is an explicit working-memory accounting model, not Python RSS.
+  A grant also determines the maximum row width that can later participate in
+  a two-way merge; a wider row raises `OversizedRowError` before retention in
+  a chunk. A larger grant can support the same row without changing its values.
 
 ### Temporary files
 
@@ -1534,6 +1549,22 @@ residual predicate. Multiplicity is preserved: `m` and `n` matches give
   `rmdir`, never recursively. A file it did not register is reported as
   unreclaimed rather than destroyed. Readers are reference-counted, so a
   discarded run survives until its last reader closes.
+- The ownership registry uses fixed 512-byte entries on disk and a 2048-byte
+  working reservation; it does not retain a Python object for every allocated
+  path. Only live closeable resources stay in its in-memory registry.
+  Labels and suffixes are filename components, paths cannot escape the owned
+  directory, and allocation refuses to adopt a pre-existing file.
+  `tracked_paths` is an explicit diagnostic snapshot, never the execution or
+  cleanup traversal for a large workspace.
+- Readers and writers acquire a shared handle permit before opening their
+  actual file, register with the workspace, and close before releasing their
+  ownership hold. Registry/catalog metadata handles use the same ceiling and
+  are short lived. A partitioner avoids charging a second permit when its
+  workspace already owns the writer's permit.
+- Cleanup attempts all owned streams. A second cleanup failure is attached
+  as an exception note to an existing execution error, preserving that error.
+  If the ownership registry cannot be read, cleanup preserves the registry
+  and reports it and the directory; it never guesses ownership from a sweep.
 - It lives in `engine/operators/`, not `engine/storage/`, because the
   architecture suite confines raw file access in the storage layer to
   `PageManager`.
@@ -1549,7 +1580,7 @@ residual predicate. Multiplicity is preserved: `m` and `n` matches give
 
 | Parameter | Value |
 |---|---|
-| Sort fan-in | `min(handles − 1, (budget − output buffer) / page buffer, max_fan_in)`, at least 2; default ceiling 8 |
+| Sort fan-in | Bounded by available shared handles minus one, default ceiling 8, and accounted merge cost using the widest admitted row; at least 2 for multiple runs |
 | Sort stability | Stable: Python's stable chunk sort plus run-index tie-breaking; no sequence column |
 | Final merge | Streamed, not materialized |
 | Partition fan-out | Default 8; bounded by `budget / page − 1` and `handles − 1` |
@@ -1557,6 +1588,38 @@ residual predicate. Multiplicity is preserved: `m` and `n` matches give
 | Recursion limit | `MAX_PARTITION_LEVEL` = 4 |
 | Grouping fallback | Sort the partition by its key and fold adjacent equal keys |
 | Join fallback | Bounded block nested loop over the same partition files |
+
+`RunCatalog` stores sort descriptors in 512-byte disk slots, with 2048 bytes
+reserved per catalog. At most two catalogs coexist during a merge pass; only
+the current fan-in's input descriptors are loaded, with 512 bytes reserved per
+descriptor **before** loading. The workspace's separate ownership registry is
+also bounded independently of total run count. Replacement runs are completed
+and their readers closed before input paths are discarded.
+
+For a maximum accounted row width `w` and `k` inputs, sort reserves a merge
+model of `PAGE_SIZE + 2*w + k*(PAGE_SIZE + 2*w + row_cost(w) + 512)`, including
+the descriptor reservations already taken by the caller. It reserves the
+output workspace even for the streamed final pass, using the same conservative
+scheduling rule throughout. Row admission leaves enough room for a two-way
+merge and both catalogs, so run generation cannot accept a row that its own
+merge grant can never process.
+
+Sort, partition, grouping and join page-I/O counters use actual `PageManager`
+counters, including allocation writes, and survive stream closure. Temporary
+readers and writers also record each data-page operation once in their
+workspace and propagate it to the query context. Ownership/catalog operations
+are separate metadata reads/writes, never data-page I/O. Physical sizes of live
+workspace files, including the ownership registry and run catalogs, are held
+in bounded disk metadata; the context records their concurrent peak across
+child workspaces. Failed cleanup retains any still-accounted live bytes and
+reports the paths it could identify; an unreadable ownership registry is
+reported as such. `max_active_descriptors` counts loaded merge inputs.
+
+`HashPartitioner.finish()` publishes partitions only after completing every
+writer. Its error path attempts to close all writers, releases all buffer and
+handle reservations, discards completed output files, and preserves the first
+failure. Grouping includes its internal sort fallback's I/O in its own local
+metrics; GraceHashJoin changes its strategy detail when a block fallback ran.
 
 The avalanche step is required, not cosmetic: FNV-1a's low bit is the parity
 of its input bytes, so a seed that only prefixed a level byte flipped that bit
@@ -1574,10 +1637,19 @@ print(report.render())
 ```
 
 `PhysicalPlan` is the context-manager form and adds `verify(columns=...,
-types=..., ordered_by=...)`. A `PlanReport` exposes the descriptor tree plus
-peak reserved bytes, peak open handles and reservation counts. Row counters
-are local to each operator and are never summed across levels; elapsed times
-are inclusive of child work and are never added together. Fallbacks change the
+types=..., ordered_by=...)`. Its report describes one run even when the same
+operator instances are reused. It remains available after close, including
+after a failed run. A `PlanReport` exposes root output count, the actual
+operator tree, peak accounted bytes and handles, physical base/index page-I/O
+deltas, exclusive query-owned temporary data-page and metadata I/O, framed
+bytes spilled, and peak/live physical temporary bytes. Base and index sources
+are snapshotted once per unique physical object; two scans of one Heap never
+double-count its page operations. Temporary I/O is collected at the root
+context as each stream performs it, so nested operators and internal fallbacks
+are counted once. Row counters are local to each operator and are never summed
+across levels; elapsed times include child work and are never added together.
+The root elapsed time covers its `open` and `next` calls, including child work,
+but excludes the caller's idle time and plan teardown. Fallbacks change the
 live descriptors and metrics rather than hiding behind a static label.
 
 Domain errors added for this layer, all subclasses of `ValidationError`:

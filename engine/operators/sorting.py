@@ -24,7 +24,9 @@ from .context import (
 )
 from .expressions import validate_comparable
 from .rows import ColumnReference, RowLayout, as_reference
-from .temp_files import TemporaryWorkspace
+from .temp_files import TemporaryWorkspace, REGISTRY_WORK_BYTES, cleanup_preserving_error
+from .run_catalog import RunCatalog, CATALOG_WORK_BYTES, RUN_ENTRY_BYTES
+from engine.storage.binary import PAGE_SIZE
 from .temp_stream import (
     CHUNK_PAYLOAD_SIZE,
     TemporaryRowReader,
@@ -40,11 +42,11 @@ MINIMUM_FAN_IN = 2
 #: Default ceiling on simultaneously open runs, independent of the budget.
 DEFAULT_MAX_FAN_IN = 8
 
-#: Smallest budget that can actually finish a sort. A merge of the minimum two
-#: runs needs one page buffer per reader plus one for the output, so a budget
-#: below this could generate runs it could never combine. The plan is rejected
-#: while it is built rather than failing halfway through a spill.
-MINIMUM_SORT_BUDGET_BYTES = (MINIMUM_FAN_IN + 1) * CHUNK_PAYLOAD_SIZE
+#: Minimum accounts for metadata, two readers, a writer, row heads and scratch.
+#: The additional maximum row width is derived from each actual grant, ensuring
+#: every admitted row can participate in at least a two-way merge.
+MINIMUM_SORT_BUDGET_BYTES = 8 * PAGE_SIZE
+SORT_ENTRY_OVERHEAD_BYTES = 128
 
 
 class _Descending:
@@ -234,6 +236,9 @@ class ExternalSortMetrics:
     temporary_pages_written: int = 0
     temporary_pages_read: int = 0
     final_merge_streamed: bool = False
+    metadata_reads: int = 0
+    metadata_writes: int = 0
+    max_active_descriptors: int = 0
 
 
 class ExternalSort(ExecutionOperator):
@@ -250,6 +255,8 @@ class ExternalSort(ExecutionOperator):
     metrics report and the tests force.
     """
 
+    memory_budget_minimum = MINIMUM_SORT_BUDGET_BYTES
+
     __slots__ = (
         "_child",
         "_spec",
@@ -263,6 +270,7 @@ class ExternalSort(ExecutionOperator):
         "_metrics",
         "_fan_in",
         "_ordering",
+        "_final_descriptors",
     )
 
     def __init__(
@@ -300,6 +308,7 @@ class ExternalSort(ExecutionOperator):
         self._output: Generator[Record, None, None] | None = None
         self._metrics = ExternalSortMetrics()
         self._fan_in = 0
+        self._final_descriptors = None
         super().__init__(children=(child,))
         self._ordering = (
             None
@@ -350,190 +359,246 @@ class ExternalSort(ExecutionOperator):
         self._owned_context = owned
         return owned
 
-    def _resolve_fan_in(self, context: ExecutionContext, run_count: int) -> int:
-        """Derive fan-in from resources, never from the number of runs."""
+    def _row_cost(self, size: int) -> int:
+        # Tuple/key/list entries plus stable-sort pointer workspace. Values in
+        # comparison keys reference the immutable row rather than copying it.
+        return size + SORT_ENTRY_OVERHEAD_BYTES + 16 * len(self._spec.keys)
 
-        # One handle is left for the run being produced by the current merge.
-        by_handles = context.max_open_handles - 1
-        per_reader = CHUNK_PAYLOAD_SIZE
-        by_memory = (context.memory_budget_bytes - CHUNK_PAYLOAD_SIZE) // per_reader
-        fan_in = min(by_handles, by_memory, self._max_fan_in)
-        if fan_in < MINIMUM_FAN_IN and run_count > 1:
+    def _merge_cost(self, count: int, width: int) -> int:
+        # Reader page + framing/payload scratch + decoded head + heap/key and
+        # descriptor; writer page + serialization scratch (also kept for the
+        # final streamed merge so that scheduling has one conservative rule).
+        return (PAGE_SIZE + 2 * width + count * (
+            PAGE_SIZE + 2 * width + self._row_cost(width) + RUN_ENTRY_BYTES))
+
+    def _resolve_fan_in(self, context, run_count, width=0):
+        # Two catalogs coexist during a pass, even when only one exists now.
+        available = context.memory_budget_bytes - REGISTRY_WORK_BYTES - 2 * CATALOG_WORK_BYTES
+        by_handles = context.available_handles - 1
+        fan_in = min(by_handles, self._max_fan_in)
+        while fan_in >= 2 and self._merge_cost(fan_in, width) > available:
+            fan_in -= 1
+        if run_count > 1 and fan_in < 2:
             raise InsufficientBudgetError(
-                f"Merging {run_count} runs needs a fan-in of at least "
-                f"{MINIMUM_FAN_IN}; the granted resources allow {fan_in}"
-            )
-        return max(fan_in, MINIMUM_FAN_IN)
+                "Merging needs at least two accounted heads, buffers and handles")
+        return max(1, fan_in)
 
-    def _spill(self, chunk: list[tuple[tuple, Record]]) -> TemporaryRun:
-        """Sort an admitted chunk and persist it as one sorted run."""
-
-        # Python's sort is stable, so equal keys keep their input order, and
-        # only the key tuples are compared: rows are never ordered against
-        # each other.
+    def _spill(self, chunk):
         chunk.sort(key=lambda entry: entry[0])
         writer = TemporaryRowWriter(self._workspace, self.output_schema, label="run")
         try:
             for _, row in chunk:
                 writer.write(row)
             run = writer.finish()
-        except BaseException:
-            writer.close()
-            raise
+        finally:
+            cleanup_preserving_error(writer.close)
         self._metrics.runs_written += 1
         self._metrics.rows_spilled += run.row_count
         self._metrics.bytes_spilled += run.byte_length
-        self._metrics.temporary_pages_written += run.page_count + 1
+        self._metrics.temporary_pages_written += writer.pages_written
         return run
 
-    def _generate_runs(self, context: ExecutionContext) -> list[TemporaryRun]:
-        """Admit rows within the budget, spilling each full chunk as a run."""
+    def _row_capacity(self, context):
+        available = context.memory_budget_bytes - REGISTRY_WORK_BYTES - 2 * CATALOG_WORK_BYTES
+        # Solve the two-way merge inequality for the maximum decoded row size.
+        return (available - self._merge_cost(2, 0)) // 8
 
-        runs: list[TemporaryRun] = []
-        chunk: list[tuple[tuple, Record]] = []
-        writer_reservation = context.reserve(CHUNK_PAYLOAD_SIZE, "sort-output-buffer")
+    def _generate_runs(self, context):
+        runs = RunCatalog(self._workspace, self.output_schema)
+        capacity = self._row_capacity(context)
+        scratch = context.reserve(PAGE_SIZE + 3 * capacity + RUN_ENTRY_BYTES,
+                                  "sort-writer-and-pending-row")
+        chunk_reservation = context.reserve(0, "sort-chunk-and-keys")
+        chunk = []
         try:
-            chunk_reservation = context.reserve(0, "sort-chunk")
             while (row := self._child.next()) is not None:
                 self._statistics.rows_examined += 1
                 size = row_footprint_bytes(row)
-                if context.available_bytes < size:
+                if size > capacity:
+                    raise OversizedRowError(
+                        f"A single row needs {size} bytes; this sort grant supports "
+                        f"at most {capacity} per row including decoded overhead")
+                cost = self._row_cost(size)
+                if context.available_bytes < cost:
                     if not chunk:
-                        raise OversizedRowError(
-                            f"A single row needs {size} bytes but only "
-                            f"{context.available_bytes} remain in the sort budget"
-                        )
-                    # The pending row is held in `row` across the spill and is
-                    # admitted to the next chunk, so nothing is lost.
-                    runs.append(self._spill(chunk))
-                    chunk = []
-                    chunk_reservation.release()
-                    chunk_reservation = context.reserve(0, "sort-chunk")
-                    if context.available_bytes < size:
-                        raise OversizedRowError(
-                            f"A single row needs {size} bytes, more than the "
-                            "sort budget can ever admit"
-                        )
-                chunk_reservation.grow(size)
+                        raise InsufficientBudgetError("No room for a sort chunk")
+                    run = self._spill(chunk)
+                    chunk.clear()
+                    chunk_reservation.shrink(chunk_reservation.bytes)
+                    runs.append(run)
+                chunk_reservation.grow(cost)
                 chunk.append((self._bound.key(row), row))
             if chunk:
-                runs.append(self._spill(chunk))
-            chunk_reservation.release()
+                run = self._spill(chunk)
+                chunk.clear()
+                chunk_reservation.shrink(chunk_reservation.bytes)
+                runs.append(run)
+            self._metrics.initial_runs = len(runs)
+            return runs
+        except BaseException:
+            cleanup_preserving_error(runs.close)
+            raise
         finally:
-            writer_reservation.release()
-        self._metrics.initial_runs = len(runs)
-        return runs
+            chunk.clear()
+            chunk_reservation.release()
+            scratch.release()
 
-    def _merge_rows(
-        self,
-        runs: Sequence[TemporaryRun],
-    ) -> Generator[Record, None, None]:
-        """Yield the merged order of several runs with one head row each."""
-
-        readers: list[TemporaryRowReader] = []
+    def _merge_rows(self, runs):
+        context = self._owned_context
+        width = max((run.max_row_bytes for run in runs), default=0)
+        # The caller reserves the input descriptors before loading them from
+        # the catalog; do not count those bytes twice here.
+        reservation = context.reserve(
+            self._merge_cost(len(runs), width) - len(runs) * RUN_ENTRY_BYTES,
+                                      "merge-buffers-heads-keys-output")
+        self._metrics.max_active_descriptors = max(
+            self._metrics.max_active_descriptors, len(runs))
+        readers = []
+        heap = []
         try:
-            heap: list[tuple[tuple, int, Record]] = []
             for index, run in enumerate(runs):
                 reader = TemporaryRowReader(self._workspace, run)
                 readers.append(reader)
                 head = reader.next_row()
                 if head is not None:
-                    # The run index breaks every tie, so two equal keys never
-                    # force a comparison between Record objects, and the older
-                    # run wins, which is what keeps the sort stable.
                     heapq.heappush(heap, (self._bound.key(head), index, head))
             while heap:
                 _, index, row = heapq.heappop(heap)
                 yield row
+                # Drop the emitted head before advancing its reader.
+                row = None
+                head = None
                 head = readers[index].next_row()
                 if head is not None:
                     heapq.heappush(heap, (self._bound.key(head), index, head))
         finally:
-            pages = 0
-            for reader in readers:
-                pages += reader.pages_read
-                reader.close()
-            self._metrics.temporary_pages_read += pages
+            heap.clear()
+            def close_readers():
+                failure = None
+                for reader in readers:
+                    self._metrics.temporary_pages_read += reader.pages_read
+                    try:
+                        reader.close()
+                    except BaseException as error:
+                        failure = failure or error
+                if failure is not None:
+                    raise failure
+            try:
+                cleanup_preserving_error(close_readers)
+            finally:
+                reservation.release()
 
-    def _merge_to_run(self, runs: Sequence[TemporaryRun]) -> TemporaryRun:
-        """Merge a group of runs into one new run of the next pass."""
-
-        writer = TemporaryRowWriter(self._workspace, self.output_schema, label="pass")
+    def _merge_to_run(self, runs):
+        # Reserve merge work before opening any stream. The generator acquires
+        # its reservation on its first pull, so open the writer afterwards.
         merged = self._merge_rows(runs)
+        writer = None
         try:
+            first = next(merged, None)
+            writer = TemporaryRowWriter(self._workspace, self.output_schema, label="pass")
+            if first is not None:
+                writer.write(first)
+                first = None
             for row in merged:
                 writer.write(row)
             run = writer.finish()
+            self._metrics.runs_written += 1
+            self._metrics.temporary_pages_written += writer.pages_written
+            return run
+        finally:
+            try:
+                cleanup_preserving_error(merged.close)
+            finally:
+                if writer is not None:
+                    cleanup_preserving_error(writer.close)
+
+    def _reduce_runs(self, runs, fan_in):
+        try:
+            while len(runs) > fan_in:
+                self._metrics.merge_passes += 1
+                produced = RunCatalog(self._workspace, self.output_schema)
+                try:
+                    for start in range(0, len(runs), fan_in):
+                        stop = min(start + fan_in, len(runs))
+                        with self._owned_context.reserve(
+                            (stop - start) * RUN_ENTRY_BYTES, "active-run-descriptors"
+                        ):
+                            group = []
+                            try:
+                                for index in range(start, stop):
+                                    group.append(runs.read(index))
+                                if len(group) == 1:
+                                    produced.append(group[0])
+                                    continue
+                                self._metrics.max_fan_in = max(
+                                    self._metrics.max_fan_in, len(group))
+                                merged = self._merge_to_run(group)
+                                produced.append(merged)
+                                for consumed in group:
+                                    self._workspace.discard(consumed.path)
+                            finally:
+                                group.clear()
+                    runs.close()
+                    runs = produced
+                except BaseException:
+                    cleanup_preserving_error(produced.close)
+                    raise
+            return runs
         except BaseException:
-            merged.close()
-            writer.close()
+            cleanup_preserving_error(runs.close)
             raise
-        merged.close()
-        self._metrics.runs_written += 1
-        self._metrics.temporary_pages_written += run.page_count + 1
-        return run
-
-    def _reduce_runs(self, runs: list[TemporaryRun], fan_in: int) -> list[TemporaryRun]:
-        """Run merge passes until one final merge can consume what is left."""
-
-        while len(runs) > fan_in:
-            self._metrics.merge_passes += 1
-            produced: list[TemporaryRun] = []
-            for start in range(0, len(runs), fan_in):
-                group = runs[start:start + fan_in]
-                if len(group) == 1:
-                    produced.append(group[0])
-                    continue
-                self._metrics.max_fan_in = max(self._metrics.max_fan_in, len(group))
-                merged = self._merge_to_run(group)
-                produced.append(merged)
-                # Only now that the replacement exists, and with every reader
-                # of this group already closed, are the inputs reclaimed.
-                for consumed in group:
-                    self._workspace.discard(consumed.path)
-            runs = produced
-        return runs
 
     @staticmethod
-    def _empty_output() -> Generator[Record, None, None]:
-        """Return a closable empty stream, so cleanup is uniform."""
-
+    def _empty_output():
         yield from ()
 
-    def _final_output(self, runs: list[TemporaryRun]) -> Generator[Record, None, None]:
-        """Stream the last merge instead of materializing another run."""
-
-        if not runs:
+    def _final_output(self, runs):
+        self._final_descriptors = self._owned_context.reserve(
+            len(runs) * RUN_ENTRY_BYTES, "final-run-descriptors")
+        try:
+            group = [runs.read(i) for i in range(len(runs))]
+        finally:
+            runs.close()
+        if not group:
             return self._empty_output()
         self._metrics.merge_passes += 1
-        self._metrics.max_fan_in = max(self._metrics.max_fan_in, len(runs))
+        self._metrics.max_fan_in = max(self._metrics.max_fan_in, len(group))
         self._metrics.final_merge_streamed = True
-        return self._merge_rows(runs)
+        return self._merge_rows(group)
 
-    def _open(self) -> None:
+    def _open(self):
         context = self._sorting_context()
-        self._workspace = TemporaryWorkspace(label="sort")
+        self._workspace = TemporaryWorkspace(label="sort", context=context)
         self._metrics = ExternalSortMetrics()
         runs = self._generate_runs(context)
-        self._fan_in = self._resolve_fan_in(context, len(runs))
-        remaining = self._reduce_runs(runs, self._fan_in)
-        self._output = self._final_output(remaining)
+        try:
+            self._fan_in = self._resolve_fan_in(context, len(runs), runs.max_row_bytes)
+            remaining = self._reduce_runs(runs, self._fan_in)
+            self._output = self._final_output(remaining)
+        except BaseException:
+            cleanup_preserving_error(runs.close)
+            raise
 
-    def _next(self) -> Record | None:
+    def _next(self):
         return next(self._output, None)
 
-    def _close(self) -> None:
+    def _close(self):
         output, self._output = self._output, None
         workspace, self._workspace = self._workspace, None
         owned, self._owned_context = self._owned_context, None
+        descriptors, self._final_descriptors = self._final_descriptors, None
         try:
             if output is not None:
-                output.close()
+                cleanup_preserving_error(output.close)
         finally:
             try:
                 if workspace is not None:
-                    workspace.close()
+                    cleanup_preserving_error(workspace.close)
+                    self._metrics.metadata_reads = workspace.statistics.metadata_reads
+                    self._metrics.metadata_writes = workspace.statistics.metadata_writes
             finally:
+                if descriptors is not None:
+                    descriptors.release()
                 if owned is not None:
                     owned.close()
 

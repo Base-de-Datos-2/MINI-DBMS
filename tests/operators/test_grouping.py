@@ -265,7 +265,7 @@ def test_distinct_keys_under_a_constant_hash_fall_back_and_stay_correct(monkeypa
 
 def test_reaching_the_recursion_limit_falls_back_instead_of_looping():
     random.seed(24)
-    data = [(f"r{n}", 1) for n in range(500)]
+    data = [(f"r{n}", 1) for n in range(1500)]
     operator = ExternalHashGroup(
         RowSource(sales(data)),
         ["region"],
@@ -284,7 +284,7 @@ def test_reaching_the_recursion_limit_falls_back_instead_of_looping():
 
 def test_the_fallback_result_matches_the_pure_hash_result():
     random.seed(25)
-    data = [(f"r{n % 250}", n % 13) for n in range(2000)]
+    data = [(f"r{n % 750}", n % 13) for n in range(3000)]
     aggregates = [Count(), Sum("amount"), Min("amount"), Max("amount")]
 
     generous = ExternalHashGroup(RowSource(sales(data)), ["region"], aggregates)

@@ -36,7 +36,7 @@ from .sorting import (
     SortKey,
     SortSpec,
 )
-from .temp_files import TemporaryWorkspace
+from .temp_files import TemporaryWorkspace, REGISTRY_WORK_BYTES, cleanup_preserving_error
 from .temp_stream import TemporaryRowReader, TemporaryRun
 
 
@@ -47,7 +47,7 @@ GROUP_ENTRY_OVERHEAD_BYTES = 192
 
 #: Smallest budget a grouping operator may be granted. The documented fallback
 #: sorts a difficult partition, so the budget must be able to host that sort.
-MINIMUM_GROUP_BUDGET_BYTES = MINIMUM_SORT_BUDGET_BYTES
+MINIMUM_GROUP_BUDGET_BYTES = MINIMUM_SORT_BUDGET_BYTES + REGISTRY_WORK_BYTES
 
 
 class BoundAggregate(ABC):
@@ -659,13 +659,14 @@ class HashGroupMetrics:
     groups_emitted: int = 0
     temporary_pages_written: int = 0
     temporary_pages_read: int = 0
+    fallback_bytes_spilled: int = 0
     global_aggregation: bool = False
 
 
 class _PartitionScan(ExecutionOperator):
     """Stream one partition file as an operator, for the sorting fallback."""
 
-    __slots__ = ("_workspace", "_run", "_layout_source", "_reader")
+    __slots__ = ("_workspace", "_run", "_layout_source", "_reader", "_pages_read")
 
     def __init__(
         self,
@@ -677,6 +678,7 @@ class _PartitionScan(ExecutionOperator):
         self._run = run
         self._layout_source = layout
         self._reader: TemporaryRowReader | None = None
+        self._pages_read = 0
         super().__init__()
 
     def _build_layout(self) -> RowLayout:
@@ -686,7 +688,7 @@ class _PartitionScan(ExecutionOperator):
     def pages_read(self) -> int:
         """Return real page reads performed so far."""
 
-        return 0 if self._reader is None else self._reader.pages_read
+        return self._pages_read if self._reader is None else self._reader.pages_read
 
     def _open(self) -> None:
         self._reader = TemporaryRowReader(self._workspace, self._run)
@@ -697,6 +699,7 @@ class _PartitionScan(ExecutionOperator):
     def _close(self) -> None:
         reader, self._reader = self._reader, None
         if reader is not None:
+            self._pages_read = reader.pages_read
             reader.close()
 
 
@@ -736,6 +739,8 @@ class ExternalHashGroup(ExecutionOperator):
         "_output",
         "_metrics",
     )
+
+    memory_budget_minimum = MINIMUM_GROUP_BUDGET_BYTES
 
     def __init__(
         self,
@@ -898,7 +903,7 @@ class ExternalHashGroup(ExecutionOperator):
                 partitioner.write(row)
             partitions = partitioner.finish()
         except BaseException:
-            partitioner.close()
+            cleanup_preserving_error(partitioner.close)
             raise
         self._metrics.partitions_written += len(partitions)
         self._metrics.bytes_partitioned += sum(
@@ -920,8 +925,10 @@ class ExternalHashGroup(ExecutionOperator):
             while (row := reader.next_row()) is not None:
                 yield row
         finally:
-            self._metrics.temporary_pages_read += reader.pages_read
-            reader.close()
+            try:
+                cleanup_preserving_error(reader.close)
+            finally:
+                self._metrics.temporary_pages_read += reader.pages_read
 
     def _aggregate_partition(
         self,
@@ -975,7 +982,10 @@ class ExternalHashGroup(ExecutionOperator):
         self._metrics.fallback_rows += partition.row_count
         scan = _PartitionScan(self._workspace, partition.run, self._child.layout)
         spec = SortSpec([SortKey(key) for key in self._group_keys])
-        sort = ExternalSort(scan, spec, memory_budget_bytes=MINIMUM_SORT_BUDGET_BYTES)
+        # The sort's supported row width depends on its grant. Reuse the
+        # available partition budget instead of always forcing the smallest
+        # sort, which would reject wide rows even when this context can fit them.
+        sort = ExternalSort(scan, spec, memory_budget_bytes=context.available_bytes)
         sort.open(context)
         try:
             current_key: tuple | None = None
@@ -1013,7 +1023,16 @@ class ExternalHashGroup(ExecutionOperator):
                     ),
                 )
         finally:
-            sort.close()
+            try:
+                cleanup_preserving_error(sort.close)
+            finally:
+                self._metrics.temporary_pages_read += (
+                    scan.pages_read + sort.metrics.temporary_pages_read
+                )
+                self._metrics.temporary_pages_written += (
+                    sort.metrics.temporary_pages_written
+                )
+                self._metrics.fallback_bytes_spilled += sort.metrics.bytes_spilled
 
     def _grouped(self, context: ExecutionContext) -> Generator[Record, None, None]:
         pending = list(
@@ -1054,7 +1073,7 @@ class ExternalHashGroup(ExecutionOperator):
 
     def _open(self) -> None:
         context = self._grouping_context()
-        self._workspace = TemporaryWorkspace(label="group")
+        self._workspace = TemporaryWorkspace(label="group", context=context)
         self._metrics = HashGroupMetrics()
         if not self._group_keys:
             self._output = self._global_aggregate(context)
@@ -1070,14 +1089,14 @@ class ExternalHashGroup(ExecutionOperator):
         owned, self._owned_context = self._owned_context, None
         try:
             if output is not None:
-                output.close()
+                cleanup_preserving_error(output.close)
         finally:
             try:
                 if workspace is not None:
-                    workspace.close()
+                    cleanup_preserving_error(workspace.close)
             finally:
                 if owned is not None:
-                    owned.close()
+                    cleanup_preserving_error(owned.close)
 
     def _details(self) -> tuple[tuple[str, str], ...]:
         keys = ", ".join(key.qualified_name for key in self._group_keys) or "(global)"

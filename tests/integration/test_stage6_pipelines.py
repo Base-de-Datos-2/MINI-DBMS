@@ -38,6 +38,7 @@ from engine.operators import (
     collect,
     column,
     execute,
+    run_plan,
 )
 from engine.operators.aggregation import MINIMUM_GROUP_BUDGET_BYTES
 from engine.operators.sorting import MINIMUM_FAN_IN, MINIMUM_SORT_BUDGET_BYTES
@@ -130,6 +131,36 @@ def test_the_reported_plan_names_the_access_path_actually_used(database):
     assert bplus_details["access"] == "b+ range"
     assert values(collect(over_scan, limit=5)) == values(collect(over_hash, limit=5))
     assert values(collect(over_hash, limit=5)) == values(collect(over_bplus, limit=5))
+
+
+def test_plan_report_counts_shared_base_pages_once(database):
+    heap = database["heap"]
+    before = heap.pages_read
+    root = NestedLoopJoin(
+        TableScan(heap, relation="left"),
+        TableScan(heap, relation="right"),
+        JoinSpec.on(("id", "id")),
+    )
+    rows, report = run_plan(root, limit=10)
+    assert len(rows) == 4
+    assert report.base_pages_read == heap.pages_read - before > 0
+    assert report.base_pages_written == 0
+    assert report.temporary_pages_written > 0
+
+
+@pytest.mark.parametrize("name,access", [("bplus", "tree"), ("hash", "index")])
+def test_plan_report_uses_real_index_and_base_counter_deltas(database, name, access):
+    heap = database["heap"]
+    index = database[name]
+    physical_index = getattr(index, access)
+    base_before, index_before = heap.pages_read, physical_index.pages_read
+    rows, report = run_plan(
+        IndexScan.equality(index, 3, relation="students"), limit=5,
+    )
+    assert len(rows) == 1
+    assert report.base_pages_read == heap.pages_read - base_before
+    assert report.index_pages_read == physical_index.pages_read - index_before > 0
+    assert report.base_pages_written == report.index_pages_written == 0
 
 
 def test_a_composed_predicate_narrows_both_organizations_identically(database):

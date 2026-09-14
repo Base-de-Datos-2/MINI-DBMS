@@ -183,7 +183,9 @@ def test_results_are_independent_of_the_valid_memory_budget(name):
         rows, _ = run_plan(root, memory_budget_bytes=4 * budget, limit=1000)
         return [tuple(row.values) for row in rows]
 
-    results = [pipeline(budget) for budget in BUDGETS]
+    # Grouping owns its registry while a fallback sort owns another workspace;
+    # its minimum is consequently larger than an isolated sort's minimum.
+    results = [pipeline(max(budget, MINIMUM_GROUP_BUDGET_BYTES)) for budget in BUDGETS]
 
     assert results[0] == results[1] == results[2]
 

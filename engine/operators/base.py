@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Generator, Sequence
-from contextlib import ExitStack, closing
+from contextlib import ExitStack
 from dataclasses import dataclass
 from enum import Enum
 from time import perf_counter
@@ -12,6 +12,7 @@ from engine.errors import InvalidTypeError, SchemaError, ValidationError
 from engine.storage.record import Record
 
 from .context import ExecutionContext
+from .temp_files import cleanup_preserving_error
 from .rows import ColumnReference, RowLayout, RowProvenance
 
 
@@ -307,6 +308,22 @@ class ExecutionOperator(Operator):
             elapsed_seconds=self._statistics.elapsed_seconds,
         )
 
+    def _preflight(self, available):
+        """Check grants in the same postorder as open, before any source pulls."""
+        from engine.errors import InsufficientBudgetError
+        for child in self._children:
+            if isinstance(child, ExecutionOperator):
+                available = child._preflight(available)
+        minimum = getattr(self, "memory_budget_minimum", 0)
+        if minimum:
+            requested = getattr(self, "_budget", None)
+            grant = requested if requested is not None else max(minimum, available // 2)
+            if grant < minimum or grant > available:
+                raise InsufficientBudgetError(
+                    "The blocking operators of this plan do not fit simultaneously")
+            available -= grant
+        return available
+
     def open(self, context: ExecutionContext | None = None) -> None:
         """Start a run, opening children first and cleaning up on failure."""
 
@@ -314,6 +331,8 @@ class ExecutionOperator(Operator):
             raise RuntimeError(f"{type(self).__name__} is already open")
         if context is not None and not isinstance(context, ExecutionContext):
             raise InvalidTypeError("context must be an ExecutionContext")
+        if context is not None:
+            self._preflight(context.available_bytes)
         self._context = context
         self._provenance = ()
         self._state = OperatorState.OPEN
@@ -332,7 +351,7 @@ class ExecutionOperator(Operator):
             self._open()
         except BaseException:
             self._statistics.elapsed_seconds += perf_counter() - started
-            self.close()
+            cleanup_preserving_error(self.close)
             raise
         self._statistics.elapsed_seconds += perf_counter() - started
         self._statistics.runs += 1
@@ -416,7 +435,7 @@ def execute(
         while (row := operator.next()) is not None:
             yield row
     finally:
-        operator.close()
+        cleanup_preserving_error(operator.close)
 
 
 def collect(
@@ -437,11 +456,14 @@ def collect(
     if limit < 0:
         raise ValidationError("limit must be non-negative")
     rows: list[Record] = []
-    with closing(execute(operator, context)) as stream:
+    stream = execute(operator, context)
+    try:
         for row in stream:
             if len(rows) == limit:
                 raise ValidationError(
                     f"The plan produced more than the requested {limit} rows"
                 )
             rows.append(row)
+    finally:
+        cleanup_preserving_error(stream.close)
     return tuple(rows)

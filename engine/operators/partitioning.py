@@ -17,7 +17,7 @@ from engine.storage.value_codec import ValueCodec
 
 from .context import ExecutionContext
 from .expressions import validate_comparable
-from .temp_files import TemporaryWorkspace
+from .temp_files import TemporaryWorkspace, cleanup_preserving_error
 from .temp_stream import CHUNK_PAYLOAD_SIZE, TemporaryRowWriter, TemporaryRun
 
 
@@ -226,7 +226,7 @@ class HashPartitioner:
                     )
                 self._reservation = self._context.reserve(needed, "partition-buffers")
             for index in range(self._count):
-                if self._context is not None:
+                if self._context is not None and self._workspace.context is None:
                     self._leases.append(
                         self._context.acquire_handle(f"{self._label}-{index}")
                     )
@@ -238,20 +238,33 @@ class HashPartitioner:
                     )
                 )
         except BaseException:
-            self._release()
+            cleanup_preserving_error(self._release)
             raise
 
     def _release(self) -> None:
-        for writer in self._writers:
-            self._pages_written += writer.pages_written
-            writer.close()
-        self._writers = []
-        for lease in self._leases:
-            lease.release()
-        self._leases = []
-        if self._reservation is not None:
-            self._reservation.release()
-            self._reservation = None
+        writers, self._writers = self._writers, []
+        leases, self._leases = self._leases, []
+        reservation, self._reservation = self._reservation, None
+        failure = None
+        for writer in writers:
+            try:
+                writer.close()
+            except BaseException as error:
+                failure = failure or error
+            finally:
+                self._pages_written += writer.pages_written
+        for lease in leases:
+            try:
+                lease.release()
+            except BaseException as error:
+                failure = failure or error
+        if reservation is not None:
+            try:
+                reservation.release()
+            except BaseException as error:
+                failure = failure or error
+        if failure is not None:
+            raise failure
 
     @property
     def partition_count(self) -> int:
@@ -312,20 +325,19 @@ class HashPartitioner:
         try:
             for index, writer in enumerate(self._writers):
                 run = writer.finish()
-                self._pages_written += run.page_count + 1
                 if run.row_count == 0:
                     # An empty partition costs nothing to represent as absence.
                     self._workspace.discard(run.path)
                     continue
                 partitions.append(Partition(index=index, level=self._level, run=run))
+        except BaseException:
+            for partition in partitions:
+                cleanup_preserving_error(
+                    lambda path=partition.path: self._workspace.discard(path)
+                )
+            raise
         finally:
-            self._writers = []
-            for lease in self._leases:
-                lease.release()
-            self._leases = []
-            if self._reservation is not None:
-                self._reservation.release()
-                self._reservation = None
+            cleanup_preserving_error(self._release)
         return tuple(partitions)
 
     def close(self) -> None:
@@ -343,4 +355,4 @@ class HashPartitioner:
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Release partition resources on every exit path."""
 
-        self.close()
+        cleanup_preserving_error(self.close, exc_value)

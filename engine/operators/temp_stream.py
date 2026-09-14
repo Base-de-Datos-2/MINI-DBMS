@@ -19,7 +19,8 @@ from engine.storage.page_manager import PageManager
 from engine.storage.record import Record
 from engine.storage.record_codec import RecordCodec
 
-from .temp_files import TemporaryWorkspace
+from .context import row_footprint_bytes
+from .temp_files import TemporaryWorkspace, cleanup_preserving_error
 
 
 #: Identifier stored in the descriptor page of every temporary row stream.
@@ -47,8 +48,8 @@ DESCRIPTOR_SLOT_ID = 0
 class TemporaryRun:
     """A completed temporary stream: a small descriptor, never its rows.
 
-    Run descriptors stay this size no matter how many rows a run holds, so a
-    sort with many runs keeps bounded metadata in memory.
+    The external sort stores its descriptor collection in a disk catalog;
+    only the active merge group is loaded into memory.
     """
 
     path: object
@@ -56,11 +57,12 @@ class TemporaryRun:
     row_count: int
     byte_length: int
     page_count: int
+    max_row_bytes: int = 0
 
     def __post_init__(self) -> None:
         if not isinstance(self.schema, Schema):
             raise InvalidTypeError("A temporary run requires a Schema")
-        for name in ("row_count", "byte_length", "page_count"):
+        for name in ("row_count", "byte_length", "page_count", "max_row_bytes"):
             value = getattr(self, name)
             if type(value) is not int or value < 0:
                 raise ValidationError(f"Temporary run {name} must be non-negative")
@@ -129,18 +131,22 @@ def _decode_descriptor(payload: bytes) -> tuple[Schema, int, int]:
 
 
 class TemporaryRowWriter:
-    """Append execution rows to one temporary stream with a single page buffer.
+    """Append rows using paged framing and bounded encoded-row scratch.
 
     Rows are framed into a continuous byte stream and cut into page-sized
     chunks, so a row wider than a page spans pages instead of being truncated
-    or rejected. Buffering is bounded to one chunk regardless of row count.
+    or rejected. The buffer holds a partial chunk plus at most one encoded
+    row, bounded by MAX_TEMPORARY_ROW_BYTES, independently of row count. The
+    caller's memory grant must include serialization and framing scratch.
 
     All I/O goes through PageManager, so temporary work appears in the same
     page counters as base storage rather than hiding from them.
     """
 
     __slots__ = ("_workspace", "_path", "_schema", "_manager", "_buffer",
-                 "_row_count", "_byte_length", "_page_count", "_finished")
+                 "_row_count", "_byte_length", "_page_count", "_finished",
+                 "_lease", "_max_row_bytes", "_pages_written", "_closed",
+                 "_counted_pages_written")
 
     def __init__(
         self,
@@ -161,15 +167,24 @@ class TemporaryRowWriter:
         self._byte_length = 0
         self._page_count = 0
         self._finished = False
-        self._manager = PageManager.create(self._path)
+        self._closed = False
+        self._max_row_bytes = 0
+        self._pages_written = 0
+        self._counted_pages_written = 0
+        self._lease = None
+        self._manager = None
+        workspace.acquire(self._path)
         try:
+            self._lease = workspace.lease("temporary-writer")
+            self._manager = PageManager.create(self._path)
             allocated = self._manager.allocate_page()
             if allocated != DESCRIPTOR_PAGE_ID:
                 raise ValidationError("Temporary stream descriptor page must be page 0")
+            self._record_pages()
         except BaseException:
-            self._manager.close()
-            workspace.discard(self._path)
+            cleanup_preserving_error(self.close)
             raise
+        workspace.manage(self)
 
     @property
     def path(self) -> object:
@@ -193,7 +208,16 @@ class TemporaryRowWriter:
     def pages_written(self) -> int:
         """Return the real page writes performed by this writer."""
 
-        return self._manager.pages_written if not self._manager.closed else 0
+        return self._pages_written if self._closed else self._manager.pages_written
+
+    def _record_pages(self) -> None:
+        if self._manager is None:
+            return
+        current = self._manager.pages_written
+        delta = current - self._counted_pages_written
+        if delta:
+            self._workspace.record_temporary_io(pages_written=delta)
+            self._counted_pages_written = current
 
     def write(self, record: Record) -> None:
         """Frame one row into the stream, flushing whole pages as they fill."""
@@ -212,6 +236,7 @@ class TemporaryRowWriter:
             )
         self._buffer += VARCHAR_LENGTH_STRUCT.pack(len(payload))
         self._buffer += payload
+        self._max_row_bytes = max(self._max_row_bytes, row_footprint_bytes(record))
         self._row_count += 1
         self._byte_length += ROW_LENGTH_SIZE + len(payload)
         while len(self._buffer) >= CHUNK_PAYLOAD_SIZE:
@@ -225,6 +250,7 @@ class TemporaryRowWriter:
         page.insert(chunk)
         self._manager.write_page(page)
         self._page_count += 1
+        self._record_pages()
 
     def finish(self) -> TemporaryRun:
         """Flush the tail, persist the descriptor, and return the run."""
@@ -240,6 +266,7 @@ class TemporaryRowWriter:
         if slot != DESCRIPTOR_SLOT_ID:
             raise ValidationError("Temporary descriptor must occupy slot 0")
         self._manager.write_page(descriptor)
+        self._record_pages()
         self._manager.flush()
         self._finished = True
         run = TemporaryRun(
@@ -248,18 +275,43 @@ class TemporaryRowWriter:
             row_count=self._row_count,
             byte_length=self._byte_length,
             page_count=self._page_count,
+            max_row_bytes=self._max_row_bytes,
         )
-        self._manager.close()
+        self._workspace.record_temporary_io(bytes_spilled=run.byte_length)
+        self.close()
         return run
 
     def close(self) -> None:
-        """Release the handle; an unfinished stream discards its file."""
-
-        if not self._manager.closed:
-            self._manager.close()
-        if not self._finished:
+        """Close the real file before returning its permit and ownership hold."""
+        if self._closed:
+            return
+        self._closed = True
+        physical_size = None
+        try:
+            if self._manager is not None:
+                self._record_pages()
+                self._pages_written = self._manager.pages_written
+                if not self._manager.closed:
+                    physical_size = self._manager.file_size
+                self._manager.close()
+        finally:
             self._buffer.clear()
-            self._workspace.discard(self._path)
+            if self._lease is not None:
+                self._lease.release()
+            try:
+                if physical_size is not None:
+                    cleanup_preserving_error(
+                        lambda: self._workspace.note_size(self._path, physical_size)
+                    )
+            finally:
+                self._workspace.forget(self)
+                try:
+                    cleanup_preserving_error(lambda: self._workspace.release(self._path))
+                finally:
+                    if not self._finished:
+                        cleanup_preserving_error(
+                            lambda: self._workspace.discard(self._path)
+                        )
 
     def __enter__(self) -> "TemporaryRowWriter":
         """Return this writer for use inside a with block."""
@@ -269,7 +321,7 @@ class TemporaryRowWriter:
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Close the writer on every exit path."""
 
-        self.close()
+        cleanup_preserving_error(self.close, exc_value)
 
 
 class TemporaryRowReader:
@@ -282,7 +334,8 @@ class TemporaryRowReader:
     """
 
     __slots__ = ("_workspace", "_run", "_manager", "_buffer", "_next_page",
-                 "_rows_read", "_bytes_read", "_closed", "_schema")
+                 "_rows_read", "_bytes_read", "_closed", "_schema", "_lease",
+                 "_pages_read", "_counted_pages_read")
 
     def __init__(self, workspace: TemporaryWorkspace, run: TemporaryRun) -> None:
         if not isinstance(workspace, TemporaryWorkspace):
@@ -296,14 +349,20 @@ class TemporaryRowReader:
         self._rows_read = 0
         self._bytes_read = 0
         self._closed = False
+        self._lease = None
+        self._manager = None
+        self._pages_read = 0
+        self._counted_pages_read = 0
         path = workspace.acquire(run.path)
         try:
+            self._lease = workspace.lease("temporary-reader")
             self._manager = PageManager.open(path)
         except BaseException:
-            workspace.release(run.path)
+            cleanup_preserving_error(self.close)
             raise
         try:
             descriptor = self._manager.read_page(DESCRIPTOR_PAGE_ID)
+            self._record_pages()
             schema, row_count, byte_length = _decode_descriptor(
                 descriptor.read(DESCRIPTOR_SLOT_ID)
             )
@@ -317,9 +376,9 @@ class TemporaryRowReader:
                 )
             self._schema = schema
         except BaseException:
-            self._manager.close()
-            workspace.release(run.path)
+            cleanup_preserving_error(self.close)
             raise
+        workspace.manage(self)
 
     @property
     def run(self) -> TemporaryRun:
@@ -343,7 +402,16 @@ class TemporaryRowReader:
     def pages_read(self) -> int:
         """Return the real page reads performed by this reader."""
 
-        return self._manager.pages_read if not self._manager.closed else 0
+        return self._pages_read if self._closed else self._manager.pages_read
+
+    def _record_pages(self) -> None:
+        if self._manager is None:
+            return
+        current = self._manager.pages_read
+        delta = current - self._counted_pages_read
+        if delta:
+            self._workspace.record_temporary_io(pages_read=delta)
+            self._counted_pages_read = current
 
     def _fill(self, required: int) -> bool:
         """Read pages until the buffer holds ``required`` bytes, or data ends."""
@@ -352,6 +420,7 @@ class TemporaryRowReader:
             if self._next_page >= self._manager.allocated_page_count:
                 return False
             page = self._manager.read_page(self._next_page)
+            self._record_pages()
             self._next_page += 1
             self._buffer += page.read(DESCRIPTOR_SLOT_ID)
         return True
@@ -399,9 +468,14 @@ class TemporaryRowReader:
         self._closed = True
         self._buffer.clear()
         try:
-            if not self._manager.closed:
+            if self._manager is not None:
+                self._record_pages()
+                self._pages_read = self._manager.pages_read
                 self._manager.close()
         finally:
+            if self._lease is not None:
+                self._lease.release()
+            self._workspace.forget(self)
             self._workspace.release(self._run.path)
 
     def __enter__(self) -> "TemporaryRowReader":
@@ -412,4 +486,4 @@ class TemporaryRowReader:
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Close the reader on every exit path."""
 
-        self.close()
+        cleanup_preserving_error(self.close, exc_value)

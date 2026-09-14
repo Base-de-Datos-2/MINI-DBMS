@@ -31,7 +31,7 @@ from .partitioning import (
 )
 from .rows import ColumnReference, RowLayout, RowProvenance, as_reference
 from .sorting import MINIMUM_SORT_BUDGET_BYTES
-from .temp_files import TemporaryWorkspace
+from .temp_files import TemporaryWorkspace, cleanup_preserving_error
 from .temp_stream import (
     CHUNK_PAYLOAD_SIZE,
     TemporaryRowReader,
@@ -174,7 +174,8 @@ class RowSpool:
     repeated passes correct for any producer, at the cost of one write.
     """
 
-    __slots__ = ("_workspace", "_schema", "_run", "_row_count", "_closed", "_label")
+    __slots__ = ("_workspace", "_schema", "_run", "_row_count", "_closed",
+                 "_label", "_pages_written")
 
     def __init__(
         self,
@@ -189,6 +190,7 @@ class RowSpool:
         self._row_count = 0
         self._closed = False
         self._label = label
+        self._pages_written = 0
 
     @property
     def row_count(self) -> int:
@@ -202,6 +204,11 @@ class RowSpool:
 
         return self._run
 
+    @property
+    def pages_written(self) -> int:
+        """Return the spooling writer's actual page writes."""
+        return self._pages_written
+
     def fill(self, pull) -> None:
         """Drain a ``pull()`` source into the spool exactly once."""
 
@@ -213,8 +220,9 @@ class RowSpool:
                 writer.write(row)
                 self._row_count += 1
             self._run = writer.finish()
+            self._pages_written = writer.pages_written
         except BaseException:
-            writer.close()
+            cleanup_preserving_error(writer.close)
             raise
 
     def reader(self) -> TemporaryRowReader:
@@ -237,6 +245,8 @@ class RowSpool:
 
 class _JoinOperator(ExecutionOperator):
     """Shared layout, key binding, and output construction for inner joins."""
+
+    memory_budget_minimum = MINIMUM_JOIN_BUDGET_BYTES
 
     __slots__ = (
         "_left",
@@ -358,14 +368,14 @@ class _JoinOperator(ExecutionOperator):
         owned, self._owned_context = self._owned_context, None
         try:
             if output is not None:
-                output.close()
+                cleanup_preserving_error(output.close)
         finally:
             try:
                 if workspace is not None:
-                    workspace.close()
+                    cleanup_preserving_error(workspace.close)
             finally:
                 if owned is not None:
-                    owned.close()
+                    cleanup_preserving_error(owned.close)
 
 
 @dataclass(slots=True)
@@ -453,9 +463,7 @@ class NestedLoopJoin(_JoinOperator):
         try:
             spool.fill(self._right.next)
             self._metrics.inner_rows_spooled = spool.row_count
-            self._metrics.temporary_pages_written += (
-                0 if spool.run is None else spool.run.page_count + 1
-            )
+            self._metrics.temporary_pages_written += spool.pages_written
             if spool.row_count == 0:
                 # An inner equijoin with an empty inner side has no output, and
                 # the outer side does not need to be read to know that.
@@ -519,7 +527,7 @@ class NestedLoopJoin(_JoinOperator):
 
     def _open(self) -> None:
         context = self._join_context("nested-loop-join")
-        self._workspace = TemporaryWorkspace(label="nlj")
+        self._workspace = TemporaryWorkspace(label="nlj", context=context)
         self._metrics = NestedLoopMetrics()
         self._output = self._pairs(context)
 
@@ -658,6 +666,7 @@ class GraceHashJoinMetrics:
     pairs_emitted: int = 0
     temporary_pages_written: int = 0
     temporary_pages_read: int = 0
+    bytes_partitioned: int = 0
 
 
 class GraceHashJoin(_JoinOperator):
@@ -744,9 +753,12 @@ class GraceHashJoin(_JoinOperator):
                 partitioner.write(row)
             produced = partitioner.finish()
         except BaseException:
-            partitioner.close()
+            cleanup_preserving_error(partitioner.close)
             raise
         self._metrics.temporary_pages_written += partitioner.pages_written
+        self._metrics.bytes_partitioned += sum(
+            partition.byte_length for partition in produced
+        )
         self._metrics.deepest_level = max(self._metrics.deepest_level, level)
         return {partition.index: partition for partition in produced}
 
@@ -768,8 +780,10 @@ class GraceHashJoin(_JoinOperator):
             while (row := reader.next_row()) is not None:
                 yield row
         finally:
-            self._metrics.temporary_pages_read += reader.pages_read
-            reader.close()
+            try:
+                cleanup_preserving_error(reader.close)
+            finally:
+                self._metrics.temporary_pages_read += reader.pages_read
 
     def _emit(
         self,
@@ -883,7 +897,7 @@ class GraceHashJoin(_JoinOperator):
                             CHUNK_PAYLOAD_SIZE, "join-block"
                         )
                     if context.available_bytes < size:
-                        raise ValidationError(
+                        raise OversizedRowError(
                             f"A single join row needs {size} bytes but only "
                             f"{context.available_bytes} remain"
                         )
@@ -1048,14 +1062,15 @@ class GraceHashJoin(_JoinOperator):
                 f"than the granted {context.memory_budget_bytes} bytes allow "
                 f"({allowed})"
             )
-        self._workspace = TemporaryWorkspace(label="ghj")
+        self._workspace = TemporaryWorkspace(label="ghj", context=context)
         self._metrics = GraceHashJoinMetrics()
         self._output = self._pairs(context)
 
     def _details(self) -> tuple[tuple[str, str], ...]:
         return (
             ("condition", repr(self._spec)),
-            ("strategy", "grace hash join"),
+            ("strategy", "grace hash join + block fallback"
+             if self._metrics.fallback_pairs else "grace hash join"),
             ("partition_pairs", str(self._metrics.partition_pairs)),
             ("repartitions", str(self._metrics.repartitions)),
             ("build_overflows", str(self._metrics.build_overflows)),

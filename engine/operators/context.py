@@ -91,6 +91,13 @@ class ResourceStatistics:
     peak_open_handles: int = 0
     handles_opened: int = 0
     children_created: int = 0
+    temporary_pages_read: int = 0
+    temporary_pages_written: int = 0
+    temporary_metadata_reads: int = 0
+    temporary_metadata_writes: int = 0
+    bytes_spilled: int = 0
+    live_temporary_bytes: int = 0
+    peak_live_temporary_bytes: int = 0
 
 
 class MemoryReservation:
@@ -256,6 +263,7 @@ class ExecutionContext:
         "_closed",
         "_children",
         "_parent",
+        "_resources",
     )
 
     def __init__(
@@ -283,6 +291,7 @@ class ExecutionContext:
         self._open_handles = 0
         self._parent_reservation: MemoryReservation | None = None
         self._closed = False
+        self._resources = {}
         self._children: list["ExecutionContext"] = []
         self._parent: "ExecutionContext | None" = None
 
@@ -329,6 +338,13 @@ class ExecutionContext:
         return self._max_open_handles
 
     @property
+    def available_handles(self) -> int:
+        """Permits available simultaneously here and in every ancestor."""
+        available = self._max_open_handles - self._open_handles
+        return available if self._parent is None else min(
+            available, self._parent.available_handles)
+
+    @property
     def statistics(self) -> ResourceStatistics:
         """Return the measured resource counters of this context."""
 
@@ -366,6 +382,36 @@ class ExecutionContext:
         self._open_handles -= 1
         if self._open_handles < 0:
             self._open_handles = 0
+
+    def record_temporary_io(
+        self, *, pages_read=0, pages_written=0,
+        metadata_reads=0, metadata_writes=0, bytes_spilled=0,
+    ) -> None:
+        """Record exclusive temporary work once, also visible at the root."""
+        stats = self._statistics
+        stats.temporary_pages_read += pages_read
+        stats.temporary_pages_written += pages_written
+        stats.temporary_metadata_reads += metadata_reads
+        stats.temporary_metadata_writes += metadata_writes
+        stats.bytes_spilled += bytes_spilled
+        if self._parent is not None:
+            self._parent.record_temporary_io(
+                pages_read=pages_read, pages_written=pages_written,
+                metadata_reads=metadata_reads, metadata_writes=metadata_writes,
+                bytes_spilled=bytes_spilled,
+            )
+
+    def adjust_temporary_bytes(self, delta: int) -> None:
+        """Track physical bytes of live owned files across nested workspaces."""
+        stats = self._statistics
+        stats.live_temporary_bytes += delta
+        if stats.live_temporary_bytes < 0:
+            raise RuntimeError("Temporary byte accounting became negative")
+        stats.peak_live_temporary_bytes = max(
+            stats.peak_live_temporary_bytes, stats.live_temporary_bytes
+        )
+        if self._parent is not None:
+            self._parent.adjust_temporary_bytes(delta)
 
     def reserve(self, size: int, label: str = "operator") -> MemoryReservation:
         """Grant a reservation, or refuse it without partially claiming bytes."""
@@ -453,6 +499,14 @@ class ExecutionContext:
         self._statistics.children_created += 1
         return child
 
+    def manage(self, resource) -> None:
+        """Attach a closeable owner whose resources must outlive its permits."""
+        self._require_open()
+        self._resources[id(resource)] = resource
+
+    def forget(self, resource) -> None:
+        self._resources.pop(id(resource), None)
+
     def close(self) -> None:
         """Close nested contexts and return this context's parent bytes.
 
@@ -462,19 +516,28 @@ class ExecutionContext:
 
         if self._closed:
             return
-        self._closed = True
         failure: BaseException | None = None
-        for child in self._children:
+        for resource in reversed(tuple(self._resources.values())):
+            try:
+                resource.close()
+            except BaseException as error:
+                failure = failure or error
+        self._resources.clear()
+        for child in tuple(self._children):
             try:
                 child.close()
             except BaseException as error:  # noqa: BLE001 - re-raised below
                 failure = failure or error
         self._children.clear()
+        self._closed = True
         self._reserved = 0
         self._open_handles = 0
         if self._parent_reservation is not None:
             self._parent_reservation.release()
             self._parent_reservation = None
+        if self._parent is not None:
+            self._parent._children.remove(self)
+            self._parent = None
         if failure is not None:
             raise failure
 
@@ -486,7 +549,12 @@ class ExecutionContext:
     def __exit__(self, exc_type, exc_value, traceback) -> None:
         """Close the context on every exit path."""
 
-        self.close()
+        try:
+            self.close()
+        except BaseException as error:
+            if exc_value is None:
+                raise
+            exc_value.add_note(f"Context cleanup also failed: {error}")
 
 
 def operator_context(

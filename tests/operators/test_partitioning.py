@@ -18,6 +18,7 @@ from engine.operators.partitioning import (
     encode_partition_key,
 )
 from engine.operators.temp_stream import CHUNK_PAYLOAD_SIZE
+from engine.operators.temp_stream import TemporaryRowWriter
 from engine.storage import Record
 
 
@@ -51,6 +52,47 @@ def read_partition(workspace, partition):
         while (row := reader.next_row()) is not None:
             rows.append(row)
     return rows
+
+
+def test_finish_failure_closes_every_writer_and_preserves_the_cause(
+    tmp_path, monkeypatch,
+):
+    with ExecutionContext(memory_budget_bytes=65536, max_open_handles=3) as context:
+        with TemporaryWorkspace(parent_directory=tmp_path, context=context) as owner:
+            routing = partitioner(owner, count=2, context=context)
+            writers = tuple(routing._writers)
+            original_finish = TemporaryRowWriter.finish
+            original_close = TemporaryRowWriter.close
+
+            def fail_first_finish(writer):
+                if writer is writers[0]:
+                    raise OSError("partition write failed")
+                return original_finish(writer)
+
+            def fail_second_close(writer):
+                original_close(writer)
+                if writer is writers[1]:
+                    raise OSError("secondary close failure")
+
+            monkeypatch.setattr(TemporaryRowWriter, "finish", fail_first_finish)
+            monkeypatch.setattr(TemporaryRowWriter, "close", fail_second_close)
+            with pytest.raises(OSError, match="partition write failed") as raised:
+                routing.finish()
+            assert any("secondary close failure" in note for note in raised.value.__notes__)
+            assert all(writer._manager.closed for writer in writers)
+            assert context.open_handle_count == 0
+            assert context.reserved_bytes == 2048  # workspace registry only
+            assert owner.tracked_paths == ()
+            routing.close()
+
+
+def test_partitioner_reports_the_page_managers_actual_writes(workspace):
+    routing = partitioner(workspace, count=2)
+    writers = tuple(routing._writers)
+    routing.write(Record(KEYED, ["k", 1]))
+    partitions = routing.finish()
+    assert routing.pages_written == sum(writer.pages_written for writer in writers)
+    assert routing.pages_written > sum(partition.run.page_count + 1 for partition in partitions)
 
 
 def test_equal_keys_always_route_to_the_same_partition(workspace):

@@ -1,5 +1,11 @@
 # Auditoría de cierre de la Etapa 6
 
+> Nota de revisión (2026-09-13): este documento conserva el cierre histórico.
+> La [revisión independiente](ETAPA_06_REVIEW_2026_09_13.md) encontró defectos
+> posteriores a esa verificación. La [corrección del primer bloque](ETAPA_06_REVIEW_6_5_6_11_6_15_6_16.md)
+> se limita a 6.5, 6.11, 6.15 y 6.16. El [segundo bloque](ETAPA_06_REVIEW_6_19_6_27_6_30.md)
+> revisa 6.19 y 6.27–6.30. Ninguno ratifica por sí solo los 59 criterios.
+
 Fecha: **2026-09-11**. Alcance: operadores relacionales y algoritmos externos,
 tareas **6.1 a 6.31** de [ETAPA_06.md](../ETAPA_06.md).
 
