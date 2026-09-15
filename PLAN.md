@@ -1318,7 +1318,7 @@ Part 1 is complete only when:
 [x] Stage 4 complete
 [x] Stage 5 complete
 [x] Stage 6 complete
-[ ] Stage 7 complete
+[x] Stage 7 complete
 [ ] Stage 8 complete
 [ ] Stage 9 complete
 [ ] Stage 10 complete
@@ -1332,15 +1332,15 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest completed stage:
 
-> **Stage 6 — Relational Operators and External Algorithms**
+> **Stage 7 — SQL Parser, Planner, and Executor**
 
 Next planned stage:
 
-> **Stage 7 — SQL Parser, Planner, and Executor (not started)**
+> **Stage 8 (not yet specified in this repository)**
 
 Most recently completed stage document:
 
-> `ETAPA_06.md`
+> `ETAPA_07.md`
 
 Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
 in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
@@ -1398,11 +1398,19 @@ three required external algorithms of `REQUIREMENTS.md` section 5, each
 demonstrated by forced disk spills; the optional index-assisted routes of task
 6.26 are implemented on top of them. The strict closure suite passes
 2252 tests after integrating the reviewed Stage 5. Evidence and declared
-caveats: [Stage 6 closure audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not
-started. The [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
+caveats: [Stage 6 closure audit](docs/ETAPA_06_AUDIT.md). The
+[2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria with 2295 strict tests passing.
-`ETAPA_07.md` does not exist yet; it must be generated and
-reconciled with `PROJECT_CONTEXT.md` before any SQL work begins.
+**Stage 7 (SQL Parser, Planner, and Executor) is implemented for the SQL
+subset frozen in `ETAPA_07.md` section 5**: a manual (non-Lark) lexer/parser,
+a binder/planner that reuses the Stage 6 operators unchanged (including
+equality and B+ range index pushdown), an executor exposing `run_sql`, and a
+new `engine/maintenance/` write service for INSERT/DELETE that rolls back
+index changes on failure. The strict suite passes 2350 tests (55 of them
+new). Evidence and declared scope limits — one JOIN equality key, one
+pushdown term per column, no `EXPLAIN` surface, no differential testing
+against a reference engine — are in
+[the Stage 7 closure audit](docs/ETAPA_07_AUDIT.md).
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.
