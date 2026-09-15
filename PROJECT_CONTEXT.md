@@ -1991,11 +1991,11 @@ Overall Part 1 roadmap:
 
 Next planned stage:
 
-> **Stage 7 — SQL Parser, Planner, and Executor (not started; `ETAPA_07.md` does not exist yet)**
+> **Stage 8 (not yet specified in this repository; no `ETAPA_08.md` exists yet)**
 
 Most recently completed stage specification:
 
-> `ETAPA_06.md`
+> `ETAPA_07.md`
 
 Implemented so far:
 
@@ -2102,8 +2102,15 @@ audited as of 2026-09-11.** All 59 Definition of Done criteria and 2252
 strict-suite tests pass after integrating the reviewed Stage 5; the three
 required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
 by forced disk spills. Evidence, per-increment reports and the declared
-caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). Stage 7 has not
-started, and Part 1 remains incomplete. The
+caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 (SQL
+Parser, Planner, and Executor) is implemented for the SQL subset frozen in
+`ETAPA_07.md` section 5 and `docs/ETAPA_07_AUDIT.md`** — manual
+(non-Lark) parser, binder/planner reusing Stage 6 operators unchanged,
+equality/range index pushdown, and an `engine/maintenance/` write service for
+INSERT/DELETE with index rollback on failure. 2350 tests pass, including 55
+new `tests/query/` tests; declared scope limits (single JOIN key, one
+pushdown term per column, no EXPLAIN surface, no differential testing) are in
+`docs/ETAPA_07_AUDIT.md` section 4. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
