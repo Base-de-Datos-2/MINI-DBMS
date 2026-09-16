@@ -43,7 +43,7 @@ def imported_modules(module, path, tree):
 
 def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_libraries():
     allowed_layers = {
-        "engine": {"errors", "catalog", "storage", "indexes", "operators", "query", "transactions"},
+        "engine": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions"},
         "errors": set(),
         "catalog": {"errors", "catalog"},
         "storage": {"errors", "catalog", "storage"},
@@ -51,7 +51,11 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         # never imports runtime index implementations, so the graph stays acyclic.
         "indexes": {"errors", "catalog", "storage", "indexes"},
         "operators": {"errors", "catalog", "storage", "indexes", "operators"},
-        "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "transactions"},
+        # Maintenance is the Stage 7 write path (INSERT/DELETE + index upkeep):
+        # a storage-layer concern the query engine consumes, so it sits beside
+        # operators/indexes rather than inside engine.query.
+        "maintenance": {"errors", "catalog", "storage", "indexes", "maintenance"},
+        "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions"},
         "transactions": {"errors", "catalog", "storage", "indexes", "transactions"},
     }
     for module, (path, tree) in engine_sources().items():
