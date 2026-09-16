@@ -9,7 +9,9 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Status:** Planned. No implementation task is marked complete.
+**Status:** Implemented and audited — see `docs/ETAPA_07_AUDIT.md` for
+task-by-task status and declared scope limits. 2350 tests pass in the
+strict suite (55 new in `tests/query/`).
 
 The user reports Stage 6 as completed. This document uses that report as its starting point; it does not certify the actual repository or its test results. Task 7.1 verifies the implementation and its adopted decisions.
 
