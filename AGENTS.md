@@ -176,7 +176,7 @@ Do **not** replace required functionality with:
 Auxiliary libraries are allowed when they do not replace the academic algorithm.
 
 Examples of acceptable auxiliary uses:
-- Lark for grammar parsing;
+- small regular expressions inside the handwritten SQL lexer;
 - FastAPI for HTTP transport;
 - React for the UI;
 - pytest for testing;
@@ -193,7 +193,7 @@ Unless the repository already contains a different approved implementation:
 - Python 3
 
 ### SQL grammar
-- Lark
+- handwritten lexer and recursive-descent parser (team decision)
 
 ### API
 - FastAPI
@@ -351,16 +351,19 @@ warnings-as-errors after integrating the reviewed Stage 5. `engine/operators/` p
 scans, filter, projection, `ExternalSort`, `ExternalHashGroup`,
 `NestedLoopJoin`, `GraceHashJoin`, the optional index-assisted routes, and the
 `PhysicalPlan` runner with truthful descriptors and measured reports. Evidence
-and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 has
-not started. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
+and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 is
+in progress under the revised handwritten-parser plan. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated all tasks and criteria after corrections; 2295 strict tests pass.
-Do not implement the SQL parser, planner, executor, a buffer pool,
-WAL or concurrency without a later explicit request, and generate
-`ETAPA_07.md` before any Stage 7 work.
+Tasks 7.1-7.7 establish the inspected baseline, frozen SQL contract,
+parser-independent AST/source spans, and bounded handwritten lexer/parser with
+controlled diagnostics. Do not mark Stage 7 complete until its remaining
+binder, planner, executor, mutation, and closure tasks are implemented and
+verified. Do not implement a buffer pool, WAL, concurrency, or other Stage 8
+work without a later explicit request.
 
-Most recently completed stage specification:
+Current stage specification:
 
-> `ETAPA_06.md`
+> `ETAPA_07.md`
 
 Stage 1 includes, at the planning level:
 

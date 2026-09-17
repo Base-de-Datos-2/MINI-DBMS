@@ -1318,7 +1318,7 @@ Part 1 is complete only when:
 [x] Stage 4 complete
 [x] Stage 5 complete
 [x] Stage 6 complete
-[x] Stage 7 complete
+[ ] Stage 7 complete (in progress; Tasks 7.1-7.7 reviewed)
 [ ] Stage 8 complete
 [ ] Stage 9 complete
 [ ] Stage 10 complete
@@ -1332,13 +1332,13 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest completed stage:
 
+> **Stage 6 — Relational Operators and External Algorithms**
+
+Current stage:
+
 > **Stage 7 — SQL Parser, Planner, and Executor**
 
-Next planned stage:
-
-> **Stage 8 (not yet specified in this repository)**
-
-Most recently completed stage document:
+Current stage document:
 
 > `ETAPA_07.md`
 
@@ -1401,16 +1401,16 @@ demonstrated by forced disk spills; the optional index-assisted routes of task
 caveats: [Stage 6 closure audit](docs/ETAPA_06_AUDIT.md). The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria with 2295 strict tests passing.
-**Stage 7 (SQL Parser, Planner, and Executor) is implemented for the SQL
-subset frozen in `ETAPA_07.md` section 5**: a manual (non-Lark) lexer/parser,
-a binder/planner that reuses the Stage 6 operators unchanged (including
-equality and B+ range index pushdown), an executor exposing `run_sql`, and a
-new `engine/maintenance/` write service for INSERT/DELETE that rolls back
-index changes on failure. The strict suite passes 2350 tests (55 of them
-new). Evidence and declared scope limits — one JOIN equality key, one
-pushdown term per column, no `EXPLAIN` surface, no differential testing
-against a reference engine — are in
-[the Stage 7 closure audit](docs/ETAPA_07_AUDIT.md).
+**Stage 7 is in progress under the handwritten-parser revision of
+`ETAPA_07.md`.** Tasks 7.1-7.7 establish the inspected Stage 6 baseline, freeze
+the SQL contract in [the grammar document](docs/sql-grammar.md), add
+parser-independent source spans, and implement the bounded handwritten
+lexer/parser with controlled diagnostics. The binder, planner, executor, and
+write-maintenance service required by Tasks 7.8-7.30 do not yet exist. The
+former Stage 7 closure report is retained as invalid historical evidence and
+must not be used to claim completion. Current review evidence is in the
+[Tasks 7.1-7.4 report](docs/ETAPA_07_REVIEW_7_1_7_4.md) and
+[Tasks 7.5-7.7 report](docs/ETAPA_07_REVIEW_7_5_7_7.md).
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

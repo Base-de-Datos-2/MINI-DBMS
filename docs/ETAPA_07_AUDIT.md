@@ -1,5 +1,14 @@
 # ETAPA_07_AUDIT.md — Cierre de la Etapa 7 (Parser SQL, Planner, Executor)
 
+> **INVALIDATED ON 2026-09-17.** This document describes a repository state
+> that is not present in the current Git history. The named binder, planner,
+> executor, and `engine/maintenance/` modules do not exist, and the reported
+> 2,350-test result cannot be reproduced from the current tree. It is retained
+> as historical evidence of the documentation inconsistency; it is not a
+> Stage 7 closure audit. Use `ETAPA_07.md`, `docs/sql-grammar.md`, and
+> `docs/ETAPA_07_REVIEW_7_1_7_4.md` and
+> `docs/ETAPA_07_REVIEW_7_5_7_7.md` for the current status.
+
 Fecha: **2026-09-15**. Rama de trabajo: clon local sobre `main`
 (`b087943` + los commits de esta etapa). Comandos de verificación:
 

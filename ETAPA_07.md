@@ -10,7 +10,7 @@
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
 **Revision:** 2026-09-17 — handwritten lexer and parser  
-**Status:** Updated implementation plan. No implementation task is marked complete by this document.
+**Status:** Active implementation stage. Tasks 7.1-7.7 were reviewed on 2026-09-17; evidence is recorded in `docs/ETAPA_07_REVIEW_7_1_7_4.md` and `docs/ETAPA_07_REVIEW_7_5_7_7.md`. This plan does not mark the remaining tasks complete.
 
 The user reports Stage 6 as completed. This document uses that report as its starting point; it does not certify the actual repository or its test results. Task 7.1 verifies the implementation and its adopted decisions.
 
@@ -142,7 +142,7 @@ Task 7.2 freezes the contract below against Stage 6 capabilities. These are prop
 | Strings | Single-quoted strings; doubled quote represents a literal quote |
 | Numbers | Integer and decimal literals, including approved signed values |
 | SELECT | SELECT * and explicit named-column lists |
-| Aliases | Relation aliases and output aliases with AS |
+| Aliases | Relation aliases and output aliases with AS or an unambiguous implicit alias |
 | FROM | One table; support one explicit INNER JOIN or JOIN for the minimum join demonstration |
 | WHERE | Approved comparisons; AND/OR/NOT with explicit precedence and parentheses |
 | ORDER BY | At least one bound key with ASC/DESC; default ASC |
@@ -150,13 +150,13 @@ Task 7.2 freezes the contract below against Stage 6 capabilities. These are prop
 | Aggregate minimum | COUNT(*) for an executable grouping demonstration |
 | JOIN ON | A supported equality key pair; additional residual conditions only if deliberately supported |
 | INSERT | One VALUES row; schema-order values required, optional column list recommended |
-| DELETE | DELETE FROM one table WHERE predicate |
+| DELETE | DELETE FROM one table, with an optional WHERE predicate |
 | NULL | Only the semantics already supported and tested by the type/operator layer |
 | Errors | Unsupported or invalid input produces a structured error, never partial interpretation |
 
-For the baseline, SELECT without WHERE is supported. DELETE without WHERE is deliberately rejected unless Task 7.2 adopts whole-table deletion and adds its tests. This restriction does not weaken the required DELETE ... WHERE query family.
+For the baseline, SELECT without WHERE is supported. Task 7.2 adopts whole-table deletion, so DELETE without WHERE is accepted syntax. Tasks 7.12 and 7.24 must apply the same validation, stable-target, and index-maintenance rules to filtered and whole-table deletion.
 
-Additional ORDER BY/GROUP BY keys, several joins, qualified stars, comments, quoted identifiers, NULLS FIRST/LAST, IS NULL, and extra aggregates may be enabled only when the binder and operators support them consistently. Document their actual status instead of accepting syntax that silently does something else.
+Multiple ORDER BY/GROUP BY keys, qualified stars, `--` line comments, implicit aliases, optional INSERT column lists, and the Stage 6 aggregate set are adopted. Several joins, block comments, quoted identifiers, NULLS FIRST/LAST, IS NULL, and other functions remain unsupported unless a later contract revision provides consistent binder and operator behavior.
 
 ### Semantic rules
 
@@ -415,7 +415,7 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 
 **Actions:**
 
-- Implement SELECT lists, star, approved aggregate-call forms, and AS aliases.
+- Implement SELECT lists, star, approved aggregate-call forms, and the adopted explicit/implicit aliases.
 - Distinguish SELECT `*` from COUNT(*) and ordinary arguments. Do not accept arbitrary function calls as supported aggregates.
 - Implement FROM with adopted relation aliases and the supported JOIN/INNER JOIN plus ON syntax.
 - Parse WHERE with Task 7.5.2, then GROUP BY and ORDER BY in their allowed order; support the adopted ASC/DESC defaults.
@@ -439,12 +439,12 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 - Parse INSERT INTO table VALUES (one row), using the shared literal and comma-list helpers; support an optional column list only if adopted.
 - Retain literal kinds and values without validating table constraints or applying storage encodings.
 - Parse DELETE FROM table WHERE predicate using the shared expression parser, including identical Boolean precedence.
-- Enforce the adopted no-WHERE policy. The default continues to reject DELETE without WHERE.
+- Enforce the policy frozen in Task 7.2: accept whole-table DELETE without WHERE and preserve the optional predicate when present. Later semantic/execution tasks must apply the same validation and maintenance guarantees to both forms.
 - Construct InsertStatement/DeleteStatement nodes directly, retaining useful spans.
 - Reject multi-row VALUES, UPDATE, RETURNING, and INSERT SELECT unless explicitly adopted across all layers.
 - Let the public entry point own the optional terminator and EOF check; do not return a successful prefix from a handler.
 
-**Tests:** Valid writes, optional column-list policy, signed numeric literals, escaped quotes, commas/semicolons inside strings, missing values, malformed punctuation, missing WHERE, compound DELETE predicates, multiple rows, and two statements in one submission.
+**Tests:** Valid writes, optional column-list policy, signed numeric literals, escaped quotes, commas/semicolons inside strings, missing values, malformed punctuation, adopted whole-table DELETE, compound DELETE predicates, multiple rows, and two statements in one submission.
 
 **Acceptance:** Parsing a write never changes table/index bytes. INSERT and DELETE use the same lexical, literal, error, and statement-boundary contracts as SELECT.
 
@@ -1427,4 +1427,3 @@ Stage 8 can begin when the supported SQL engine can reliably:
 Generate ETAPA_08.md from the then-current implementation and PROJECT_CONTEXT.md before starting its work.
 
 Stage 8 adds BEGIN TRANSACTION / END TRANSACTION, concurrency control, and the required thread-based race-condition/protected-execution demonstration. Its design must establish the transactional guarantees that Stage 7 explicitly leaves unimplemented.
-
