@@ -9,11 +9,18 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Status:** Implemented and audited — see `docs/ETAPA_07_AUDIT.md` for
-task-by-task status and declared scope limits. 2350 tests pass in the
-strict suite (55 new in `tests/query/`).
+**Revision:** 2026-09-17 — handwritten lexer and parser  
+**Status:** Updated implementation plan. No implementation task is marked complete by this document.
 
 The user reports Stage 6 as completed. This document uses that report as its starting point; it does not certify the actual repository or its test results. Task 7.1 verifies the implementation and its adopted decisions.
+
+### Adopted team decision and revision scope
+
+The team has decided to implement the SQL lexer and parser manually. This decision supersedes the earlier recommendation to use Lark. Do not introduce Lark or another parser generator as an implementation shortcut.
+
+This revision retains all 30 main tasks and the existing SQL scope. It expands Tasks 7.4-7.7, refines Tasks 7.1-7.3, 7.29, and 7.30, and updates dependencies, modules, completion criteria, and working prompts. Tasks 7.8-7.28 retain their functional content. Existing completed work must be inspected and reused where compatible; this document does not reset verified progress.
+
+The recommended manual technique is recursive descent with explicit precedence levels. The team decision is manual construction; recursive descent is a proposed technique to record in Task 7.2, not an academic requirement. Preserve a compatible handwritten technique already adopted by the team.
 
 ## 1. Purpose and expected outcome
 
@@ -23,7 +30,8 @@ The responsibilities are distinct:
 
 | Component | Input | Output | Responsibility |
 |---|---|---|---|
-| Parser | SQL text | Parser-independent AST | Recognize the supported syntax |
+| Handwritten lexer | SQL text | Tokens with source spans | Recognize lexical units and invalid characters |
+| Handwritten parser | Tokens | Parser-independent AST | Recognize complete statements and construct syntax nodes |
 | Binder / semantic analyzer | AST and Catalog | Typed, resolved statement | Resolve tables, columns, aliases, and operation validity |
 | Planner | Resolved statement and physical capabilities | Physical plan specification | Select compatible access paths and operators |
 | Executor | Physical plan and execution context | Rows or affected-row count | Run the actual plan and own its resources |
@@ -45,7 +53,7 @@ At completion, the same storage and operator implementations used by manually as
 | AGENTS.md | Implementation constraints and testing rules |
 | ETAPA_07.md | Detailed tasks for the current stage |
 
-The existing coordination documents and the original assignment were used to establish scope. The supplied file-organization material supports the distinction between B+ range access and hash equality access; it is not a SQL grammar specification.
+The previous version established scope from the coordination documents and the original assignment. This revision applies the team's explicit manual-parser decision to that plan; it does not claim a fresh source-code or assignment audit. The supplied file-organization material supports the distinction between B+ range access and hash equality access; it is not a SQL grammar specification.
 
 Some available coordination copies still contain historical Stage 1 status fields. During implementation, read the current repository versions and reconcile stale pointers with verified progress. Do not discard completed work because an older document names an earlier stage.
 
@@ -73,7 +81,8 @@ A complete SQL standard, a cost-based optimizer, and a particular parser library
 ### Recommended route
 
 - Keep Python and the existing project stack.
-- Use Lark if the project has not already adopted another suitable grammar parser.
+- Implement the lexer and parser manually; use recursive descent unless a compatible handwritten approach is already adopted.
+- Document the grammar and build AST nodes directly from tokens. Keep parsing independent of Catalog and execution.
 - Build a small parser-independent AST.
 - Bind names and types before any mutation.
 - Use a deterministic rule-based planner.
@@ -82,7 +91,7 @@ A complete SQL standard, a cost-based optimizer, and a particular parser library
 - Provide a Python result cursor and a small bounded demonstration adapter.
 - Expose plan inspection through a Python API before adding optional EXPLAIN syntax.
 
-Lark, AST class names, the binding layer, and exact lexical choices are project decisions. Do not replace an already approved parser or compatible execution contract merely to match these suggestions.
+Manual parsing is the adopted team decision. The specific parsing technique, AST class names, binding layer, and lexical details remain project-level choices. Reconcile stale parser recommendations in repository documentation with this decision. Do not change academic requirements or compatible downstream contracts.
 
 ## 4. Scope and stage boundaries
 
@@ -174,7 +183,9 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 
 | Decision | What must be recorded |
 |---|---|
-| Parser | Existing parser or Lark; grammar ownership and dependency version |
+| Parser | Handwritten implementation; recursive descent or adopted manual technique; grammar owner; no parser generator |
+| Tokens | Kinds, original lexemes, decoded values, spans, EOF, and identifier/keyword rules |
+| Parser mechanics | Lookahead, progress, expression precedence, delimiter ownership, and nesting/input limits |
 | SQL subset | Exact accepted statements, predicates, aliases, aggregates, and optional features |
 | Name policy | Identifier normalization, relation aliases, and Catalog lookup semantics |
 | AST | Parser-independent statement/expression shapes and source spans |
@@ -192,7 +203,7 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 
 ## 7. Execution invariants
 
-1. Parsing never mutates storage or constructs live cursors.
+1. Lexing and parsing never mutate storage, resolve Catalog names, or construct live cursors.
 2. Binding resolves every required name/type and validates the statement before writes.
 3. The planner uses capabilities actually available in Catalog and Stage 6.
 4. Every index restriction is a sound candidate filter: it cannot exclude a true match.
@@ -208,6 +219,9 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 14. Whole-query memory and temporary-resource guarantees from Stage 6 remain in force.
 15. Descriptors identify the executed plan and its runtime fallbacks.
 16. No API in this stage claims transaction isolation or crash atomicity.
+17. Lexer/parser loops consume input or terminate with a result/error; malformed input cannot cause an infinite loop.
+18. Public SQL parsing succeeds only after a complete statement, an optional final semicolon, and EOF.
+19. AST nodes carry syntax and spans, not token-stream state or parser instances.
 
 ## 8. Task sequence
 
@@ -216,9 +230,9 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 | 7.1 | Inspect Stage 6 and establish baseline | Reported Stage 6 completion |
 | 7.2 | Freeze SQL and execution contracts | 7.1 |
 | 7.3 | Define AST and source locations | 7.2 |
-| 7.4 | Implement lexical rules | 7.2-7.3 |
-| 7.5 | Parse SELECT, predicates, grouping, sorting, and joins | 7.3-7.4 |
-| 7.6 | Parse INSERT and DELETE | 7.3-7.4 |
+| 7.4 | Implement token model and handwritten lexer | 7.2-7.3 |
+| 7.5 | Implement parser utilities, expressions, and SELECT clauses | 7.3-7.4 |
+| 7.6 | Parse INSERT and DELETE manually | 7.3-7.4, 7.5.1-7.5.2 |
 | 7.7 | Add strict parsing diagnostics | 7.5-7.6 |
 | 7.8 | Bind relations and column names | 7.3, Catalog |
 | 7.9 | Bind typed predicates | 7.8 |
@@ -259,7 +273,9 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 - Inspect Catalog table/index discovery and whether indexes can be unavailable or incomplete.
 - Inspect table mutation services and their actual index-maintenance guarantees.
 - Determine whether clustered/sequential insert/delete can move existing RIDs.
-- Preserve compatible parser/query code already present.
+- Record the team's manual-parser decision and inspect existing lexer/parser/query code for reuse.
+- Locate any existing parser-generator dependencies or adapters; plan their removal only where unused after migration. Preserve unrelated dependencies and existing SQL tests.
+- Reconcile documentation that still recommends a parser generator with the current team decision.
 - Run the configured Stage 1-6 suite and record real baseline results.
 
 **Tests/evidence:** Commands, actual pass/fail/skip results, and an interface compatibility table.
@@ -273,6 +289,12 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 **Actions:**
 
 - Record accepted syntax, rejected features, and optional features already supported.
+- Adopt the handwritten lexer/parser boundary and select recursive descent or the compatible manual technique already present.
+- Write the supported grammar in docs/sql-grammar.md or an existing equivalent; a handwritten parser still needs a grammar.
+- Define token kinds, keyword recognition, original lexemes, decoded literals, source spans, and EOF.
+- Define lookahead, delimiter ownership, precedence, parser progress, and input/nesting limits.
+- For ordinary recursive descent, express repeated clauses with loops and avoid left-recursive productions.
+- Map grammar productions to parsing functions and AST nodes, then link them to the feature coverage matrix.
 - Confirm COUNT(*) and any additional adopted aggregates.
 - Decide exact alias/case behavior, null rules, literal ranges, and statement terminators.
 - Decide one-statement submission and whether comments are supported.
@@ -288,7 +310,7 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 
 ### Task 7.3 - Define parser-independent AST nodes
 
-**Objective:** Represent syntax without parser-library objects leaking into execution.
+**Objective:** Represent syntax independently of handwritten lexer/parser implementation details.
 
 **Actions:**
 
@@ -302,80 +324,148 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 
 **Tests:** AST construction, structural equality/snapshots, source spans, optional clauses, and malformed constructor input where validation belongs there.
 
-**Acceptance:** AST consumers do not depend on Lark parse-tree details or perform side effects.
+**Acceptance:** AST consumers depend on syntax node contracts and source spans, not token kinds, token cursors, parser instances, or side effects. The handwritten parser creates this same AST directly.
 
-### Task 7.4 - Implement lexical rules
+### Task 7.4 - Implement tokens and the handwritten lexer
 
-**Objective:** Tokenize the selected subset consistently.
+**Objective:** Convert SQL text into a complete token sequence with useful locations and predictable failure behavior.
 
-**Actions:**
-
-- Handle case-insensitive keywords without altering string contents.
-- Normalize identifiers according to the adopted Catalog policy.
-- Parse punctuation and comparison operators with correct longest-token behavior.
-- Support escaped single quotes inside strings and permitted signed numeric literals.
-- Implement comments only if selected, keeping comment-like text inside strings literal.
-- Preserve error positions and enforce full input consumption.
-- Treat statement length/nesting limits as documented implementation limits if needed.
-- Do not split input naively on semicolons, spaces, or commas.
-
-**Tests:** Mixed keyword case, keyword-like identifier prefixes, embedded semicolons/commas, escaped quotes, negative literals, malformed literals, and comments if adopted.
-
-**Acceptance:** The lexical layer cannot accidentally execute or reinterpret a second statement hidden after a valid prefix.
-
-### Task 7.5 - Parse SELECT and relational clauses
-
-**Objective:** Produce the AST for the approved SELECT subset.
+#### Task 7.4.1 - Define the token contract
 
 **Actions:**
 
-- Parse star/column/aggregate selections and AS aliases.
-- Parse FROM and the supported explicit inner join syntax.
-- Parse WHERE with comparison, NOT, AND, OR, and parentheses under the adopted precedence.
-- Parse GROUP BY and ORDER BY in their allowed positions.
-- Treat table/column existence as semantic work; syntax parsing does not query table contents.
-- Do not accept arbitrary function calls as if aggregate support were unlimited.
-- Reject unsupported clause combinations or leave a precise semantic error for the binder.
-- Convert grammar output into the AST using one explicit transformation layer.
+- Define token kinds for adopted keywords, identifiers, numbers, strings, punctuation, comparison operators, and EOF.
+- Store original lexeme, source span, and decoded value when meaningful. Reuse Task 7.3's span convention.
+- Choose character offsets and line/column conventions explicitly; a recommended span is zero-based start offset with exclusive end, plus one-based line/column diagnostics.
+- Preserve original spelling for errors. Apply keyword recognition and identifier normalization separately; never lowercase the entire SQL input.
+- Define reserved-word policy. Recognize keywords only after scanning a complete identifier, so `ordering` is not split into `ORDER` and a suffix.
+- Recommended baseline: tokenize PLUS/MINUS separately and let literal parsing attach an optional sign to a number. Supporting a signed literal does not add general arithmetic expressions.
 
-**Tests:** Minimal SELECT, each clause individually, combined clauses, join aliases, precedence, unmatched parentheses, wrong clause order, and trailing garbage.
+**Tests:** Token values and spans, keyword-like identifiers, case policy, punctuation, signed-number token sequences, and EOF location.
 
-**Acceptance:** Each supported SELECT has an unambiguous AST; precedence is tested independently from execution.
+**Acceptance:** Tokens have an explicit shared contract and cannot contain Catalog objects or execution state.
 
-### Task 7.6 - Parse INSERT and DELETE
-
-**Objective:** Recognize the required write statements without mutating anything.
+#### Task 7.4.2 - Implement character scanning
 
 **Actions:**
 
-- Parse INSERT INTO table VALUES (one row).
-- Parse optional INSERT column lists if adopted.
-- Retain typed literal syntax without validating table constraints in the parser.
-- Parse DELETE FROM table WHERE predicate.
-- Enforce the selected no-WHERE deletion policy.
-- Reject multi-row VALUES, UPDATE, RETURNING, and INSERT SELECT unless explicitly adopted.
-- Keep write AST construction side-effect free.
+- Maintain a character cursor and location tracking; implement small scanning helpers for whitespace, identifiers, numbers, and strings.
+- Use longest-match recognition for supported multi-character operators such as `<=`, `>=`, and the adopted inequality spelling(s), before single-character operators.
+- Scan quoted strings as a unit. Decode doubled single quotes, and retain spaces, commas, semicolons, and keyword text inside the string.
+- Specify decimal syntax, and reject malformed numeric forms. Exponent notation, special floating values, and additional literal forms require explicit adoption.
+- If comments are adopted, handle them only outside strings and report unterminated block comments where applicable. Otherwise reject comment syntax clearly.
+- Reject unsupported characters at their actual position; do not silently skip them.
+- Append exactly one EOF token after scanning the entire input.
+- Small regular expressions for individual token classes are compatible with a handwritten lexer. Do not use regular expressions or string splitting as a substitute for the statement parser.
 
-**Tests:** Valid writes, quoted string values, wrong punctuation, unsupported multiple VALUES rows, missing required WHERE, and two statements in one submission.
+**Tests:** Empty/whitespace input, mixed case, `SELECTED` versus `SELECT`, quoted separators, `O''Brien`, decimals, adjacent operators, invalid characters, unterminated strings, and comments if adopted.
 
-**Acceptance:** Parsing a write never changes table or index bytes.
+**Acceptance:** Every character is consumed as a token or documented whitespace/comment, or causes a lexical error. Lexing performs no storage operations.
 
-### Task 7.7 - Provide strict syntax diagnostics
-
-**Objective:** Make errors actionable without returning partial success.
+#### Task 7.4.3 - Verify lexer boundaries and progress
 
 **Actions:**
 
-- Translate parser exceptions into a project-level syntax error with location and a concise explanation.
-- Distinguish unsupported syntax from malformed accepted syntax where practical.
-- Ensure every parser entry point consumes the complete statement.
-- Prevent recovery mechanisms from returning an executable prefix after a suffix error.
-- Do not expose raw parser stack traces as the normal engine error interface.
-- Keep diagnostic construction independent from execution.
+- Assert exact token sequences and spans independently from parser tests.
+- Ensure every scanner loop advances or returns/raises; test input ending inside each token category.
+- Document SQL input-length limits. A token list bounded by that limit is acceptable; it must never include table rows.
+- Retain semicolon tokens for the parser. The lexer must not stop at the first semicolon or discard a following statement.
+- Define LexicalError using the shared query-error interface; Task 7.7 completes engine-facing diagnostics.
 
-**Tests:** Invalid token, incomplete statement, duplicate clauses, second statement, reserved transaction syntax, and string/comment edge cases.
+**Acceptance:** Invalid suffixes cannot be hidden, and empty input yields EOF for the parser to reject as a missing statement.
 
-**Acceptance:** Invalid SQL produces no executable plan and no storage mutation.
+### Task 7.5 - Implement parser utilities, expressions, and SELECT
+
+**Objective:** Construct the approved AST directly from tokens using the adopted manual technique.
+
+#### Task 7.5.1 - Implement token navigation and statement entry
+
+**Actions:**
+
+- Implement a parser cursor with `peek`, `advance`, `match`, `expect`, and `at_end`, or existing equivalents.
+- `match` consumes only a matching token; `expect` consumes a required token or raises a location-aware error. EOF access must remain safe.
+- Define a single public `parse_statement(sql)` or equivalent that lexes, dispatches by the leading keyword, parses one statement, consumes at most one optional final semicolon, and requires EOF.
+- Add SELECT dispatch now; connect INSERT/DELETE handlers in Task 7.6. Unsupported handlers must reject explicitly.
+- Internal routines stop at their grammar-defined delimiters; only the public statement entry requires EOF.
+- Keep all parser state per invocation. Parsing a later query must not reuse an earlier cursor or error state.
+- Guarantee progress for list/clause loops and bound recursive nesting with a documented limit and a controlled error.
+
+**Tests:** Required/optional tokens, EOF errors, empty query, statement dispatch, repeated invocations after success/failure, extra semicolons, and trailing tokens.
+
+**Acceptance:** Both SELECT and mutation parsers can reuse these mechanics without duplicating state management.
+
+#### Task 7.5.2 - Parse literals, references, and Boolean expressions
+
+**Actions:**
+
+- Share literal parsing between predicates and INSERT; support optional numeric signs without permitting arbitrary unary arithmetic.
+- Parse unqualified/qualified column references without Catalog lookup.
+- Use explicit precedence levels, from weakest to strongest: OR, AND, NOT, comparison. Parentheses override these levels.
+- For recursive descent, implement equivalents of `parse_or`, `parse_and`, `parse_not`, and `parse_predicate`.
+- Use loops for repeated AND/OR terms; nested NOT and parentheses must respect the nesting policy.
+- A predicate is a supported scalar comparison or parenthesized Boolean expression. Reject chained comparisons such as `a < b < c` unless explicitly adopted with semantics.
+- Build AST nodes as tokens are consumed. No intermediate concrete parse tree or separate tree-to-AST transformer is required.
+- Preserve source spans and compatible Stage 6 expression semantics. Do not use Python `eval` or `exec`.
+
+**Tests:** Assert AST structure for `a = 1 OR b = 2 AND c = 3`, `NOT a = 1`, `(a = 1 OR b = 2) AND c = 3`, repeated NOT, signed numbers, qualified names, and missing operands/parentheses.
+
+**Acceptance:** Precedence is demonstrated by AST tests independently of the executor; shared expression parsing is ready for DELETE.
+
+#### Task 7.5.3 - Parse SELECT clauses and construct its AST
+
+**Actions:**
+
+- Implement SELECT lists, star, approved aggregate-call forms, and AS aliases.
+- Distinguish SELECT `*` from COUNT(*) and ordinary arguments. Do not accept arbitrary function calls as supported aggregates.
+- Implement FROM with adopted relation aliases and the supported JOIN/INNER JOIN plus ON syntax.
+- Parse WHERE with Task 7.5.2, then GROUP BY and ORDER BY in their allowed order; support the adopted ASC/DESC defaults.
+- Share comma-separated-list handling while rejecting missing items and trailing commas unless explicitly supported.
+- Keep alias scopes, table existence, type compatibility, grouping validity, and aggregate signatures in the binder. The parser checks structure.
+- Preserve all accepted baseline SQL and existing AST consumers. Do not simplify the language by dropping required query families.
+
+**Tests:** Each clause, combined clauses, joins/aliases, COUNT(*), ordering keys, wrong clause order, duplicate clauses, missing ON, malformed lists, and full-input checks.
+
+**Acceptance:** Every supported SELECT constructs an unambiguous AST, with no Catalog access or execution side effects.
+
+### Task 7.6 - Parse INSERT and DELETE manually
+
+**Dependencies:** Tasks 7.3-7.4 and 7.5.1-7.5.2. SELECT clause parsing in 7.5.3 is not required for these handlers.
+
+**Objective:** Recognize the write statements through the same handwritten parser without mutating anything.
+
+**Actions:**
+
+- Implement `parse_insert` and `parse_delete` or equivalent methods and register them in the public statement dispatcher.
+- Parse INSERT INTO table VALUES (one row), using the shared literal and comma-list helpers; support an optional column list only if adopted.
+- Retain literal kinds and values without validating table constraints or applying storage encodings.
+- Parse DELETE FROM table WHERE predicate using the shared expression parser, including identical Boolean precedence.
+- Enforce the adopted no-WHERE policy. The default continues to reject DELETE without WHERE.
+- Construct InsertStatement/DeleteStatement nodes directly, retaining useful spans.
+- Reject multi-row VALUES, UPDATE, RETURNING, and INSERT SELECT unless explicitly adopted across all layers.
+- Let the public entry point own the optional terminator and EOF check; do not return a successful prefix from a handler.
+
+**Tests:** Valid writes, optional column-list policy, signed numeric literals, escaped quotes, commas/semicolons inside strings, missing values, malformed punctuation, missing WHERE, compound DELETE predicates, multiple rows, and two statements in one submission.
+
+**Acceptance:** Parsing a write never changes table/index bytes. INSERT and DELETE use the same lexical, literal, error, and statement-boundary contracts as SELECT.
+
+### Task 7.7 - Provide manual-parser diagnostics and failure guarantees
+
+**Objective:** Produce actionable errors while refusing partial success.
+
+**Actions:**
+
+- Integrate lexical and syntactic error categories into the project's query-error hierarchy. Reuse existing domain errors where appropriate.
+- Report the offending lexeme or EOF, expected token/category where known, and source location; provide a concise context excerpt if useful.
+- Distinguish unsupported syntax from malformed supported syntax when the parser can do so reliably. Do not build a full SQL parser solely to classify unsupported features.
+- Fail fast for one-statement submissions; do not recover to an executable prefix or execute a later statement after an error.
+- Require EOF at every public complete-statement entry, while allowing internal expression/clause routines to return at their delimiters.
+- Reject an invalid suffix even when the prefix forms valid SQL. Lexical errors anywhere in an eagerly scanned submission occur before planning.
+- Surface input/nesting-limit failures as controlled query errors, not raw recursion or indexing exceptions. Avoid masking unrelated implementation bugs with broad exception handling.
+- Do not expose Python stack traces as the normal SQL error response.
+
+**Tests:** Invalid characters, EOF at required positions, duplicate clauses, invalid suffixes, second statements, reserved transaction syntax, malformed strings/comments, limits just below/above the threshold, and a valid parse immediately after a failed one.
+
+**Acceptance:** Invalid SQL yields neither an executable plan nor a storage mutation. No malformed input hangs the parser; locations follow the documented convention.
 
 ### Task 7.8 - Bind table references, aliases, and columns
 
@@ -803,6 +893,17 @@ INSERT/DELETE should execute synchronously once and return a completed command r
 
 **Objective:** Detect semantic and optimization errors outside the happy path.
 
+**Handwritten lexer/parser coverage:**
+
+- Assert exact token kinds, values, and source spans for representative inputs.
+- Compare AST structure against manually specified expected trees, especially Boolean precedence; do not rely only on a parser/pretty-printer round trip.
+- Test every supported statement with missing delimiters, operands, and truncated suffixes.
+- Include strings containing keywords, comments, commas, and semicolons, plus escaped quotes.
+- Verify limits and progress with bounded generated/mutated token sequences and nested predicates; no parser-generator oracle is required.
+- Verify fresh parser state after both errors and successful statements.
+- Test the complete SQL API to show lexical/syntax rejection leaves permanent state unchanged.
+- Keep unit tests alongside Tasks 7.4-7.7; this task adds cross-layer and regression evidence.
+
 **Negative cases:**
 
 - malformed SQL, unsupported clauses, trailing statements, and unterminated strings;
@@ -835,6 +936,10 @@ INSERT/DELETE should execute synchronously once and return a completed command r
 **Actions:**
 
 - Publish the accepted SQL subset, examples, unsupported syntax, and error categories.
+- Record the team's handwritten lexer/parser decision in PROJECT_CONTEXT.md and reconcile stale recommendations in AGENTS.md and PLAN.md where present. Keep REQUIREMENTS.md focused on academic scope.
+- Document grammar productions, their parsing functions, token/span conventions, precedence, limits, and direct AST construction.
+- Remove parser-generator-specific dependencies/imports and obsolete grammar artifacts only when present and unused after migration; do not delete the human-readable grammar or unrelated packages.
+- Verify the public parser/AST contract remains compatible with binding, planning, and execution.
 - Update PROJECT_CONTEXT.md with AST/binding/plan boundaries, result ownership, access rules, and mutation failure semantics.
 - Record actual aggregate/join/null/case support instead of copying proposed features as implemented.
 - Document manual engine setup without requiring new DDL or a frontend.
@@ -883,9 +988,11 @@ Do not select a merely proposed Stage 6 operator that was never implemented.
 
 | Location | Responsibility |
 |---|---|
-| engine/query/grammar.lark | Grammar if Lark is selected |
+| engine/query/tokens.py | Token kinds, lexemes, decoded values, and source spans |
+| engine/query/lexer.py | Handwritten character scanning and lexical errors |
+| docs/sql-grammar.md | Human-readable grammar, precedence, and production-to-function mapping |
 | engine/query/ast.py | Parser-independent syntax model |
-| engine/query/parser.py | Parsing and AST conversion |
+| engine/query/parser.py | Handwritten token navigation, statement/expression parsing, and direct AST construction |
 | engine/query/binder.py | Catalog and type resolution |
 | engine/query/bound.py | Resolved statement specifications, if a separate module helps |
 | engine/query/planner.py | Rule-based physical planning |
@@ -904,7 +1011,7 @@ Use current repository organization where compatible. Do not create parallel imp
 
 | Increment | Tasks | Exit condition |
 |---|---|---|
-| A. Syntax | 7.1-7.7 | Complete accepted SQL parses; invalid input fails without side effects |
+| A. Syntax | 7.1-7.4; 7.5.1-7.5.2; then 7.5.3 and 7.6; finally 7.7 | Handwritten parsing covers complete accepted SQL; invalid input fails without side effects |
 | B. Semantics | 7.8-7.12 | Every name/type/aggregate/write target is validated |
 | C. Physical planning | 7.13-7.20 | Bound statements map to real compatible operators |
 | D. Execution and results | 7.21-7.22 | Streaming SELECT executes and closes correctly |
@@ -1087,7 +1194,7 @@ Record:
 
 | Evidence | Required details |
 |---|---|
-| Syntax | Accepted/rejected coverage and full-input checks |
+| Syntax | Token/span tests, expected ASTs, precedence, accepted/rejected coverage, progress/limit checks, and EOF checks |
 | Semantics | Name/type/aggregate validation and unchanged-state errors |
 | Planning | Actual chosen indexes/operators and residual conditions |
 | Execution | Correct schema, row multiset/order, and affected count |
@@ -1107,7 +1214,14 @@ Stage 7 is complete only when the required functionality is implemented and veri
 
 - [ ] Actual Stage 6 prerequisites and baseline tests were inspected.
 - [ ] Supported SQL syntax and optional features are explicitly documented.
-- [ ] The parser produces parser-independent AST nodes.
+- [ ] The adopted handwritten lexer/parser is implemented without a parser generator.
+- [ ] The documented grammar maps to parsing functions and the accepted feature matrix.
+- [ ] Tokens retain original lexemes, meaningful decoded values, source spans, and EOF.
+- [ ] Shared parser utilities serve SELECT, INSERT, and DELETE.
+- [ ] The parser constructs parser-independent AST nodes directly.
+- [ ] No parser/token-stream state leaks into binder/planner/executor interfaces.
+- [ ] Lexer/parser loops make progress; input and nesting limits fail predictably.
+- [ ] Parsing after a failed invocation uses fresh state.
 - [ ] Source locations support useful diagnostics.
 - [ ] Keywords, identifiers, strings, numeric literals, and punctuation follow the adopted policy.
 - [ ] Boolean precedence and parentheses are tested.
@@ -1181,6 +1295,9 @@ Stage 7 is complete only when the required functionality is implemented and veri
 
 | Risk | Control |
 |---|---|
+| Lexer splits keywords inside identifiers or delimiters inside strings | Full-identifier recognition and string-state token tests |
+| Manual parser loops or overflows on malformed nesting | Progress invariants, bounded nesting, and negative tests |
+| Expression precedence differs between SELECT and DELETE | Shared expression parser and expected-AST tests |
 | Parser executes while building the AST | Side-effect-free parsing and unchanged-state tests |
 | Valid prefix is executed despite invalid suffix | Full-input parsing and single-statement tests |
 | Column aliases bind to the wrong relation | Qualified scope resolution and ambiguity errors |
@@ -1203,7 +1320,7 @@ Stage 7 is complete only when the required functionality is implemented and veri
 ### Commit organization
 
 1. Record Stage 7 contracts and verification baseline.
-2. Add AST, lexical rules, grammar, and syntax diagnostics.
+2. Add AST, documented grammar, token model, handwritten lexer, parser utilities, expressions, statement parsers, and diagnostics. Split this increment into reviewable commits corresponding to Tasks 7.3-7.7.
 3. Add Catalog scope binding and typed expressions.
 4. Add projection/order/group/mutation semantic validation.
 5. Add physical specifications and baseline plans.
@@ -1225,7 +1342,9 @@ and ETAPA_07.md. Stage 6 is reported complete.
 
 Complete Task 7.1 only. Inspect actual operators, bound expressions,
 schemas, aggregate/join capabilities, index cursors, Catalog, memory
-contracts, and mutation-maintenance services. Run the configured baseline
+contracts, and mutation-maintenance services. Inspect existing manual
+lexer/parser code and record the team decision to avoid parser generators.
+Run the configured baseline
 tests and report evidence, gaps, and conflicts. Do not modify code yet.
 ~~~
 
@@ -1233,7 +1352,10 @@ tests and report evidence, gaps, and conflicts. Do not modify code yet.
 
 ~~~text
 Complete Task 7.2. Freeze the supported SQL subset and the parser/AST/
-binder/planner/executor boundaries. Preserve actual Stage 6 semantics.
+binder/planner/executor boundaries. Adopt a handwritten lexer/parser;
+document tokens, grammar, lookahead, precedence, spans, progress, and limits.
+Use recursive descent unless a compatible manual approach is already adopted.
+Preserve actual Stage 6 semantics. Do not introduce a parser generator.
 
 Define alias/type/null rules, index eligibility, result ownership,
 INSERT/DELETE validation, stable DELETE targets, index-maintenance failure
@@ -1245,11 +1367,26 @@ official requirements. Do not implement transactions or the frontend.
 
 ~~~text
 Implement Tasks 7.3-7.4 using the approved design: parser-independent AST
-nodes, source spans, and lexical rules. Add tests for case handling,
-quoted strings, signed numbers, punctuation, and statement boundaries.
+nodes, source spans, tokens, and a handwritten lexer. Add tests for case
+handling, quoted strings, signed-number tokenization, punctuation, EOF,
+locations, and lexical errors. Preserve the original SQL text for diagnostics.
 
 Do not implement binding, planning, live operators, or mutations yet.
 Reuse existing compatible modules and run the relevant tests.
+~~~
+
+### Handwritten parser implementation prompt
+
+~~~text
+Implement Task 7.5.1 and then 7.5.2 using the approved manual design.
+Add shared token navigation, one-statement dispatch, literal/reference
+parsing, Boolean precedence, source spans, progress, and nesting limits.
+Construct AST nodes directly. Do not use a parser generator or eval/exec.
+
+Then implement 7.5.3 and 7.6, reusing the shared utilities. Complete 7.7's
+structured diagnostics and full-input rejection. Add exact token/AST tests
+and verify that malformed suffixes cannot yield executable statements.
+Do not implement new SQL features, binding, or execution in these tasks.
 ~~~
 
 ### Incremental implementation prompt
@@ -1265,7 +1402,8 @@ Do not implement optional SQL features or Stage 8 work automatically.
 
 ~~~text
 Audit ETAPA_07.md against the actual repository. Verify the required SQL
-families end to end, parser/binder rejection, optimized-versus-baseline
+families end to end, handwritten lexer/parser coverage, exact precedence
+ASTs, parser/binder rejection, progress/limit behavior, optimized-versus-baseline
 equivalence, real external execution, streaming cleanup, persistent
 INSERT/DELETE index consistency, and failure behavior.
 
