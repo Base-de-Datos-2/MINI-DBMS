@@ -78,14 +78,16 @@ parsing exception strings.
 The 2,399-test run consists of the 2,295 strict Stage 1-6 baseline plus 104
 implemented Stage 7 AST/lexer/parser tests. No tests were skipped in that run.
 
-Running `tests/query` without exclusions still stops at three collection
-errors. They are the same future-task boundary documented after Block 2:
+At the time of this Block 3 review, running `tests/query` without exclusions
+stopped at three collection errors:
 
 - missing `engine.maintenance` for `test_executor_writes.py`;
 - missing `engine.query.environment` for `test_index_pushdown.py`;
 - missing `engine.query.environment` for `test_planner_select.py`.
 
-Those modules belong to later binder/planner/executor/mutation blocks. No
+Block 4 has since implemented `engine.query.environment`. The current three
+future-boundary imports are `engine.query.planner`, `engine.query.executor`, and
+`engine.maintenance`, as recorded in `docs/ETAPA_07_REVIEW_7_8_7_12.md`. No
 placeholder implementations were added to conceal their absence.
 
 ## Handoff to the next block

@@ -125,14 +125,72 @@ does not claim that the current repository already implements them.
 
 | Feature | Grammar / AST | Binder | Planner / executor | Tests |
 |---|---|---|---|---|
-| SELECT, projection, aliases, star | Tasks 7.3, 7.5 | 7.8, 7.10 | 7.14, 7.17, 7.21 | syntax exists; end-to-end 7.27 |
-| WHERE and Boolean predicates | 7.5 | 7.9 | table/index scan + Filter, 7.14-7.17 | syntax exists; end-to-end 7.27 |
-| ORDER BY | 7.5 | 7.10 | `ExternalSort`, 7.18 | syntax exists; spill/restart 7.28 |
-| GROUP BY and aggregates | 7.5 | 7.11 | `ExternalHashGroup`, 7.19 | syntax exists; spill/restart 7.28 |
-| one inner JOIN | 7.5 | 7.8-7.9 | Stage 6 join operators, 7.20 | syntax exists; end-to-end 7.27 |
-| INSERT | 7.6 | 7.12 | validated maintenance path, 7.23-7.25 | syntax exists; physical tests pending |
-| filtered/whole-table DELETE | 7.6 | 7.12 | stable targets + index maintenance, 7.24-7.25 | syntax exists; physical tests pending |
-| signed numbers | lexer 7.4; parser 7.5 | target range in 7.9/7.12 | existing typed expressions/mutations | lexer/parser verified; semantic tests pending |
+| SELECT, projection, aliases, star | Tasks 7.3, 7.5 | implemented in 7.8, 7.10 | basic TableScan/IndexScan + final Projection implemented in 7.13-7.17; execution API 7.21 | syntax/binding/basic planning verified; end-to-end 7.27 |
+| WHERE and Boolean predicates | 7.5 | implemented in 7.9 | TableScan/B+/hash candidate + complete Filter implemented in 7.14-7.17 | syntax/binding/basic planning verified; end-to-end 7.27 |
+| ORDER BY | 7.5 | implemented in 7.10 | `ExternalSort`, 7.18 | binding verified; spill/restart 7.28 |
+| GROUP BY and aggregates | 7.5 | implemented in 7.11 | `ExternalHashGroup`, 7.19 | binding verified; spill/restart 7.28 |
+| one inner JOIN | 7.5 | implemented in 7.8-7.9 | Stage 6 join operators, 7.20 | binding verified; end-to-end 7.27 |
+| INSERT | 7.6 | implemented in 7.12 | validated maintenance path, 7.23-7.25 | no-write binding verified; execution pending |
+| filtered/whole-table DELETE | 7.6 | implemented in 7.12 | stable targets + index maintenance, 7.24-7.25 | no-write binding verified; execution pending |
+| signed numbers | lexer 7.4; parser 7.5 | target range implemented in 7.9/7.12 | existing typed expressions/mutations | syntax and semantic ranges verified |
+
+## Semantic binding policy
+
+`QueryEnvironment` pairs exact Catalog definitions with borrowed runtime
+storage/index objects; it does not own or close them. The binder resolves every
+executable column through the Stage 6 `RowLayout`/`ColumnReference` contract.
+Catalog names, relation aliases, output aliases, and columns remain
+case-sensitive. A relation alias replaces its original table qualifier in that
+query scope.
+
+Comparisons use exact declared types with no INTEGER/FLOAT coercion. The full
+Stage 6 expression is retained as the residual condition. Only equality/range
+column-literal terms that are direct or under top-level AND are exposed as safe
+index candidates; `<>`, OR, and NOT remain residual-only. FLOAT signed zero is
+canonicalized for index probes in the same way as the hash codec.
+
+ORDER BY resolves a bare exact output alias before a source field. Qualified
+ORDER BY references use source scope. Unselected source/group keys are retained
+as hidden dependencies for later planning. Positional ordering and general
+ORDER BY expressions are outside the subset.
+
+The grouped subset requires at least one aggregate. Global aggregation without
+GROUP BY is adopted when every selected item is an aggregate. COUNT(*),
+COUNT(column), SUM, AVG, MIN, and MAX use Stage 6 signatures and result types;
+Stage 6 also remains authoritative for empty-input behavior.
+
+INSERT requires every schema column because NULL and defaults are absent. The
+optional column list may reorder values but cannot omit or repeat fields.
+Binding validates exact scalar encoding, signed-int64 range, record page
+capacity, index-key compatibility, registered index availability, and known
+uniqueness through read-only probes. Execution must repeat mutable-state checks
+through the future maintenance service immediately before writing. DELETE
+binding retains the real target storage, RID requirement, affected indexes, and
+RID-movement policy but does not enumerate or remove rows.
+
+## Basic physical-planning policy
+
+`engine.query.planner` stores immutable physical specifications rather than
+mutable operator instances. A prepared SELECT creates a fresh, closed Stage 6
+operator tree on every instantiation and rechecks exact Catalog, storage, and
+chosen-index identities first. The current Catalog has no public table-schema
+replacement operation; identity checks still reject unversioned replacement,
+index removal, closure, or incompleteness before reuse.
+
+Every single-relation basic SELECT has a TableScan fallback. A test-only
+`use_indexes=False` option forces that baseline. A compatible exact equality
+candidate has priority over a B+ range candidate, with exact index name as the
+deterministic tie-break; this policy is not a cost estimate. Hash indexes are
+never used for ranges. Missing, closed, incomplete, mismatched, or
+unrepresentable indexes are not candidates.
+
+Index conditions come only from the binder's safe top-level conjuncts. B+
+lower/upper bounds are combined with their inclusive/exclusive endpoints. OR,
+NOT, `<>`, and proven contradictory intervals use TableScan. Regardless of the
+leaf selected, the complete bound WHERE expression remains a Filter before the
+final Projection, so hidden predicate columns and duplicate row occurrences
+are preserved. ORDER BY, GROUP BY, and JOIN physical planning remain assigned
+to Tasks 7.18-7.20.
 
 ## Controlled diagnostics
 
@@ -144,6 +202,10 @@ failures. Errors retain the offending lexeme or EOF, expected category when
 known, source span, one-based line/column, offset, and a bounded line excerpt.
 The lexer scans the complete submission before parsing, so an invalid character
 after a valid prefix or semicolon cannot be hidden.
+
+Semantic failures use `SqlBindingError`. Located unknown-name variants also
+inherit the existing `UnknownTableError` or `UnknownColumnError`, so callers can
+keep their domain-level handling while receiving SQL line/column information.
 
 Access selection must be deterministic: use Extendible Hashing only for an
 eligible full-key equality predicate; use B+ for eligible equality/ranges; use
