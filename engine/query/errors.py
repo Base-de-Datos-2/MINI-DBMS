@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from engine.errors import ValidationError
+from engine.errors import UnknownColumnError, UnknownTableError, ValidationError
 
 from .source import SourceSpan
 
@@ -83,10 +83,32 @@ class SqlLimitError(SqlSyntaxError):
     """A controlled SQL input or parser-depth limit failure."""
 
 
+class SqlBindingError(SqlQueryError):
+    """A syntactically valid statement that violates semantic SQL rules.
+
+    Located name-resolution subclasses also preserve compatibility with the
+    existing engine-domain ``UnknownTableError``/``UnknownColumnError`` APIs.
+    This class covers incompatible types, ambiguous scopes, invalid grouping,
+    output-name collisions, and mutation values that cannot be represented by
+    the target schema.
+    """
+
+
+class SqlUnknownTableError(SqlBindingError, UnknownTableError):
+    """Located table-resolution failure preserving UnknownTableError APIs."""
+
+
+class SqlUnknownColumnError(SqlBindingError, UnknownColumnError):
+    """Located column-resolution failure preserving UnknownColumnError APIs."""
+
+
 __all__ = [
+    "SqlBindingError",
     "SqlLexicalError",
     "SqlLimitError",
     "SqlQueryError",
     "SqlSyntaxError",
+    "SqlUnknownColumnError",
+    "SqlUnknownTableError",
     "SqlUnsupportedError",
 ]

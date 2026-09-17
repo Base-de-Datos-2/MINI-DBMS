@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **3.0** — aligned with the reviewed Stage 5 closure and the formal Stage 6 closure.
+> Context version: **3.2** — adds the reviewed Stage 7 basic physical-planning contract while Stage 6 remains the latest completed stage.
 
 ## Project identity
 
@@ -211,6 +211,8 @@ Owns:
 - SQL grammar;
 - parser;
 - AST;
+- borrowed runtime-object registration for query preparation;
+- Catalog-backed semantic binding and immutable resolved statements;
 - planner;
 - execution-plan representation;
 - executor coordination.
@@ -2074,6 +2076,16 @@ Implemented so far:
   and `GraceHashJoin`, each with bounded skew fallbacks; the optional
   `IndexNestedLoopJoin` and `IndexOrderedGroup`; and a manual plan runner with
   truthful descriptors, measured reports and stable domain errors.
+- Stage 7 tasks 7.1–7.17: reconciled the active-stage baseline, froze the
+  handwritten SQL grammar, added immutable located AST/token models, completed
+  the bounded lexer and recursive-descent parser, and implemented Catalog-backed
+  semantic binding. `QueryEnvironment` pairs metadata with borrowed live
+  storage/index adapters; the binder resolves exact Stage 6 column/expression
+  identities, joins, projection/order dependencies, grouping/aggregates, and
+  read-only mutation validation without writing records/indexes. The basic
+  planner stores immutable operator specifications and constructs fresh Stage 6
+  TableScan/IndexScan/Filter/Projection trees with deterministic compatible
+  index selection, full residual predicates, and stale-plan rejection.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -2104,15 +2116,18 @@ strict-suite tests pass after integrating the reviewed Stage 5; the three
 required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
 by forced disk spills. Evidence, per-increment reports and the declared
 caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 is in
-progress.** Tasks 7.1-7.7 reconcile the baseline and contract, freeze the
-handwritten grammar, add parser-independent source spans, and implement a
-bounded lexer plus recursive-descent parser with controlled lexical, syntax,
-unsupported-feature, and nesting-limit diagnostics. There is currently no
-binder, planner, executor, or `engine/maintenance/` write service, so Stage 7
-is not closed. The invalid former closure report is retained only as historical
-evidence; the current status is documented in
+progress.** Tasks 7.1-7.17 reconcile the baseline and contract, freeze the
+handwritten grammar, implement the located bounded lexer/parser, and add the
+Catalog-backed semantic layer for names, exact types, joins, projections,
+ordering, grouping, aggregates, and no-write mutation validation, then connect
+basic single-relation SELECTs to reusable TableScan/B+/hash physical plans.
+ORDER BY, GROUP BY, JOIN planning, execution, and the `engine/maintenance/`
+write service remain unimplemented, so Stage 7 is not closed. The invalid former closure report is
+retained only as historical evidence; the current status is documented in
 `docs/ETAPA_07_REVIEW_7_1_7_4.md` and
-`docs/ETAPA_07_REVIEW_7_5_7_7.md`. Part 1 remains incomplete. The
+`docs/ETAPA_07_REVIEW_7_5_7_7.md`, and
+`docs/ETAPA_07_REVIEW_7_8_7_12.md`, and
+`docs/ETAPA_07_REVIEW_7_13_7_17.md`. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2131,14 +2146,20 @@ The following should not be guessed silently:
 - eventual persistence of the complete table/index catalog and its integration
   timing (organization files now persist their own schema, while `Catalog`
   remains in memory);
-- which part of the physical predicate subset the Stage 7 SQL grammar exposes,
-  and how SQL literals map onto the strict, coercion-free value types;
 - exact transaction syntax details beyond the assignment's `BEGIN TRANSACTION` / `END TRANSACTION`;
 - deadlock handling strategy.
 
 Resolved in Stage 6 and recorded under *Relational operators*: the physical
 comparison subset, the adopted aggregate set, the memory-budget model and its
 minimum grants, and the absence of NULL in execution rows.
+
+Resolved in Stage 7 Tasks 7.13-7.17: prepared physical plans are immutable
+operator specifications that construct fresh Stage 6 instances. Basic SELECT
+always retains the full WHERE expression as a residual Filter. Exact lookups
+precede range candidates and exact index names break ties; this is a stable
+rule, not a measured cost estimate. Missing/incomplete indexes fall back to
+TableScan, while a previously prepared index plan rejects changed Catalog or
+runtime identities.
 
 When one of these decisions is made, document it here.
 
