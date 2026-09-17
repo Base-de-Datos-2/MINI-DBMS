@@ -1,5 +1,12 @@
 # Task 7.1 — Inspección de la Etapa 6 completada y línea base real
 
+> **Historical snapshot.** This inspection was accurate on 2026-09-14 before
+> the AST, lexer, and parser files now present in the repository were added.
+> Its Stage 6 interface findings remain useful, but its “zero Stage 7 code”
+> statement is no longer current. See `ETAPA_07_REVIEW_7_1_7_4.md` for the
+> reconciled 2026-09-17 baseline. Parser progress after that baseline is in
+> `ETAPA_07_REVIEW_7_5_7_7.md`.
+
 Fecha: **2026-09-14**. Alcance: Tarea 7.1 de [ETAPA_07.md](../ETAPA_07.md) —
 "Inspect the completed Stage 6 implementation".
 

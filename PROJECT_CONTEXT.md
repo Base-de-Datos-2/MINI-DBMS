@@ -117,7 +117,8 @@ uses only the standard library; pytest is an optional test dependency and
 setuptools is the build backend, declared in `pyproject.toml`.
 
 ### Parser
-Lark
+Handwritten lexer plus recursive-descent parser. The team's decision to avoid
+Lark is frozen in `ETAPA_07.md` and `docs/sql-grammar.md`.
 
 ### HTTP API
 FastAPI
@@ -1989,11 +1990,11 @@ Overall Part 1 roadmap:
 
 > `PLAN.md`
 
-Next planned stage:
+Current stage:
 
-> **Stage 8 (not yet specified in this repository; no `ETAPA_08.md` exists yet)**
+> **Stage 7 — SQL Parser, Planner, and Executor (in progress)**
 
-Most recently completed stage specification:
+Current stage specification:
 
 > `ETAPA_07.md`
 
@@ -2102,15 +2103,16 @@ audited as of 2026-09-11.** All 59 Definition of Done criteria and 2252
 strict-suite tests pass after integrating the reviewed Stage 5; the three
 required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
 by forced disk spills. Evidence, per-increment reports and the declared
-caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 (SQL
-Parser, Planner, and Executor) is implemented for the SQL subset frozen in
-`ETAPA_07.md` section 5 and `docs/ETAPA_07_AUDIT.md`** — manual
-(non-Lark) parser, binder/planner reusing Stage 6 operators unchanged,
-equality/range index pushdown, and an `engine/maintenance/` write service for
-INSERT/DELETE with index rollback on failure. 2350 tests pass, including 55
-new `tests/query/` tests; declared scope limits (single JOIN key, one
-pushdown term per column, no EXPLAIN surface, no differential testing) are in
-`docs/ETAPA_07_AUDIT.md` section 4. Part 1 remains incomplete. The
+caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 is in
+progress.** Tasks 7.1-7.7 reconcile the baseline and contract, freeze the
+handwritten grammar, add parser-independent source spans, and implement a
+bounded lexer plus recursive-descent parser with controlled lexical, syntax,
+unsupported-feature, and nesting-limit diagnostics. There is currently no
+binder, planner, executor, or `engine/maintenance/` write service, so Stage 7
+is not closed. The invalid former closure report is retained only as historical
+evidence; the current status is documented in
+`docs/ETAPA_07_REVIEW_7_1_7_4.md` and
+`docs/ETAPA_07_REVIEW_7_5_7_7.md`. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes

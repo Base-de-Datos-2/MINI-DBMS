@@ -11,17 +11,29 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from .source import SourceSpan
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SyntaxNode:
+    """Base for immutable syntax nodes with an optional source location.
+
+    The default keeps programmatic AST construction backward compatible.
+    Nodes produced by :func:`engine.query.parser.parse_sql` always have a
+    concrete span. Locations do not participate in structural equality.
+    """
+
+    span: SourceSpan | None = field(default=None, compare=False)
+
 
 # --------------------------------------------------------------------------- #
 # Expressions
 # --------------------------------------------------------------------------- #
 
 
-class SqlExpr:
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SqlExpr(SyntaxNode):
     """Base class of every syntactic expression node."""
-
-    __slots__ = ()
-
 
 @dataclass(frozen=True, slots=True)
 class IntegerLiteral(SqlExpr):
@@ -101,31 +113,31 @@ class BoolNot(SqlExpr):
 
 
 @dataclass(frozen=True, slots=True)
-class SelectItem:
+class SelectItem(SyntaxNode):
     expr: SqlExpr
     alias: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class TableRef:
+class TableRef(SyntaxNode):
     name: str
     alias: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class JoinClause:
+class JoinClause(SyntaxNode):
     table: TableRef
     on: SqlExpr
 
 
 @dataclass(frozen=True, slots=True)
-class OrderItem:
+class OrderItem(SyntaxNode):
     expr: SqlExpr
     descending: bool = False
 
 
 @dataclass(frozen=True, slots=True)
-class SelectStatement:
+class SelectStatement(SyntaxNode):
     items: tuple[SelectItem, ...]
     from_table: TableRef
     join: JoinClause | None = None
@@ -135,14 +147,14 @@ class SelectStatement:
 
 
 @dataclass(frozen=True, slots=True)
-class InsertStatement:
+class InsertStatement(SyntaxNode):
     table: str
     columns: tuple[str, ...] | None
     values: tuple[SqlExpr, ...]
 
 
 @dataclass(frozen=True, slots=True)
-class DeleteStatement:
+class DeleteStatement(SyntaxNode):
     table: str
     where: SqlExpr | None = None
 
