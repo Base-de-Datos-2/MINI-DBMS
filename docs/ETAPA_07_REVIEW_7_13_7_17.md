@@ -14,14 +14,13 @@ variants for later executors. Basic SELECT supports the correct TableScan
 baseline, compatible B+/hash equality lookup, B+ range lookup, complete
 residual filters, and final projection.
 
-Stage 7 remains open. ORDER BY, GROUP BY, JOIN planning, execution/result APIs,
-write maintenance, end-to-end acceptance, and closure work in Tasks 7.18-7.30
-are still pending.
+Stage 7 remains open. Block 5B subsequently implemented ORDER BY, GROUP BY, and
+JOIN planning in Tasks 7.18-7.20. Execution/result APIs, write maintenance,
+end-to-end acceptance, and closure work in Tasks 7.21-7.30 are still pending.
 
 Task 7.17's constraints concerning hidden sort/group fields and join-side
-predicate movement are frozen in the spec model but cannot receive executable
-integration acceptance before Tasks 7.18-7.20 construct those operators. Such
-statements currently fail explicitly before a partial plan is returned.
+predicate movement are frozen in the spec model and now have executable
+integration acceptance in the Block 5B report.
 
 ## Critical findings and corrections
 
@@ -59,8 +58,8 @@ statements currently fail explicitly before a partial plan is returned.
 - A prepared plan is tied to exact immutable Catalog definitions and borrowed
   runtime identities. This substitutes a conservative freshness check for a
   schema-version facility that the current Catalog does not have.
-- ORDER BY, GROUP BY, and JOIN fail explicitly at this boundary until Tasks
-  7.18-7.20 add their real Stage 6 operators.
+- ORDER BY, GROUP BY, and JOIN extension points preserve the same immutable,
+  full-residual and freshness policies used by the basic routes.
 
 ## Implemented modules
 
@@ -108,8 +107,7 @@ also pass.
 
 ## Handoff to the next block
 
-Task 7.18 can extend `SelectPlanSpec` with `ExternalSort`, carrying each bound
-hidden order dependency until the final projection. Tasks 7.19-7.20 should add
-the real Stage 6 grouping and join operators while retaining the same immutable
-factory, identity validation, full-residual, duplicate-preservation, and
-conservative capability rules.
+Completed by the subsequent Block 5B review: Tasks 7.18-7.20 add the real Stage
+6 sort, group and join operators while retaining the immutable factory,
+identity validation, full-residual, duplicate-preservation, and conservative
+capability rules. Continue with Task 7.21's executor lifecycle.

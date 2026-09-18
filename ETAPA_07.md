@@ -10,7 +10,7 @@
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
 **Revision:** 2026-09-17 — handwritten lexer and parser  
-**Status:** Active implementation stage. Tasks 7.1-7.17 were reviewed on 2026-09-17; evidence is recorded in `docs/ETAPA_07_REVIEW_7_1_7_4.md`, `docs/ETAPA_07_REVIEW_7_5_7_7.md`, `docs/ETAPA_07_REVIEW_7_8_7_12.md`, and `docs/ETAPA_07_REVIEW_7_13_7_17.md`. This plan does not mark Tasks 7.18-7.30 complete.
+**Status:** Active implementation stage. Tasks 7.1-7.22 were reviewed through 2026-09-18, together with the prepared/runtime reporting foundation of Task 7.26; evidence is recorded in `docs/ETAPA_07_REVIEW_7_1_7_4.md`, `docs/ETAPA_07_REVIEW_7_5_7_7.md`, `docs/ETAPA_07_REVIEW_7_8_7_12.md`, `docs/ETAPA_07_REVIEW_7_13_7_17.md`, `docs/ETAPA_07_REVIEW_7_18_7_20.md`, and `docs/ETAPA_07_REVIEW_7_21_7_22.md`. Tasks 7.23-7.25 and 7.27-7.30 remain pending; Task 7.26 is not yet closed, and Stage 7 remains open.
 
 The user reports Stage 6 as completed. This document uses that report as its starting point; it does not certify the actual repository or its test results. Task 7.1 verifies the implementation and its adopted decisions.
 

@@ -125,11 +125,11 @@ does not claim that the current repository already implements them.
 
 | Feature | Grammar / AST | Binder | Planner / executor | Tests |
 |---|---|---|---|---|
-| SELECT, projection, aliases, star | Tasks 7.3, 7.5 | implemented in 7.8, 7.10 | basic TableScan/IndexScan + final Projection implemented in 7.13-7.17; execution API 7.21 | syntax/binding/basic planning verified; end-to-end 7.27 |
+| SELECT, projection, aliases, star | Tasks 7.3, 7.5 | implemented in 7.8, 7.10 | physical planning 7.13-7.20; streaming execution/result API implemented in 7.21-7.22 | syntax/binding/planning/lifecycle verified; complete acceptance 7.27 |
 | WHERE and Boolean predicates | 7.5 | implemented in 7.9 | TableScan/B+/hash candidate + complete Filter implemented in 7.14-7.17 | syntax/binding/basic planning verified; end-to-end 7.27 |
-| ORDER BY | 7.5 | implemented in 7.10 | `ExternalSort`, 7.18 | binding verified; spill/restart 7.28 |
-| GROUP BY and aggregates | 7.5 | implemented in 7.11 | `ExternalHashGroup`, 7.19 | binding verified; spill/restart 7.28 |
-| one inner JOIN | 7.5 | implemented in 7.8-7.9 | Stage 6 join operators, 7.20 | binding verified; end-to-end 7.27 |
+| ORDER BY | 7.5 | implemented in 7.10 | `ExternalSort` implemented in 7.18 | binding, hidden fields, direction, stability, and forced multi-pass spill verified; restart 7.28 |
+| GROUP BY and aggregates | 7.5 | implemented in 7.11 | `ExternalHashGroup` implemented in 7.19 | binding, aliases, empty/global behavior, and forced repartition verified; restart 7.28 |
+| one inner JOIN | 7.5 | implemented in 7.8-7.9 | `GraceHashJoin` default, eligible `IndexNestedLoopJoin`, `NestedLoopJoin` baseline implemented in 7.20 | predicate scope, multiplicity, strategy equivalence, and measured optimized route verified; end-to-end 7.27 |
 | INSERT | 7.6 | implemented in 7.12 | validated maintenance path, 7.23-7.25 | no-write binding verified; execution pending |
 | filtered/whole-table DELETE | 7.6 | implemented in 7.12 | stable targets + index maintenance, 7.24-7.25 | no-write binding verified; execution pending |
 | signed numbers | lexer 7.4; parser 7.5 | target range implemented in 7.9/7.12 | existing typed expressions/mutations | syntax and semantic ranges verified |
@@ -168,7 +168,7 @@ through the future maintenance service immediately before writing. DELETE
 binding retains the real target storage, RID requirement, affected indexes, and
 RID-movement policy but does not enumerate or remove rows.
 
-## Basic physical-planning policy
+## Physical-planning policy
 
 `engine.query.planner` stores immutable physical specifications rather than
 mutable operator instances. A prepared SELECT creates a fresh, closed Stage 6
@@ -189,8 +189,48 @@ lower/upper bounds are combined with their inclusive/exclusive endpoints. OR,
 NOT, `<>`, and proven contradictory intervals use TableScan. Regardless of the
 leaf selected, the complete bound WHERE expression remains a Filter before the
 final Projection, so hidden predicate columns and duplicate row occurrences
-are preserved. ORDER BY, GROUP BY, and JOIN physical planning remain assigned
-to Tasks 7.18-7.20.
+are preserved.
+
+ORDER BY always uses the Stage 6 `ExternalSort` baseline before final
+Projection. Output aliases are mapped back to their physical inputs and hidden
+source/group keys remain available through sorting. `PhysicalPlanningOptions`
+can grant an exact sort budget and merge fan-in so acceptance tests exercise
+real multi-pass temporary I/O.
+
+WHERE filtering is complete before `ExternalHashGroup`. Group keys and Stage 6
+aggregate states form the intermediate layout; collision-free internal names
+prevent an aggregate alias from hiding a group key, and final Projection
+restores the requested SQL schema. Grouped ordering adds `ExternalSort` above
+the group operator.
+
+One supported inner join defaults to `GraceHashJoin`. AUTO may use
+`IndexNestedLoopJoin` only for a single equality key covered by a live exact
+index on the logical right relation. `NestedLoopJoin` remains a selectable test
+baseline. The full ON condition is evaluated in join scope, the complete WHERE
+condition is evaluated above the joined relation, and no join reordering or
+outer-join rewrite is attempted.
+
+## Execution and result policy
+
+`SqlEngine.prepare()` parses, binds, and plans without opening a cursor or
+applying a mutation. The returned `PreparedQuery` is reusable: each execution
+instantiates a new physical tree and Stage 6 `ExecutionContext`. Preparing and
+describing INSERT/DELETE remains read-only; executing either is rejected until
+the maintenance work in Tasks 7.23-7.25 exists.
+
+`SqlEngine.execute()` returns a lazy streaming `QueryResult`. One active result
+owns the single session until it is exhausted, explicitly closed, or fails.
+The result closes operators, temporary workspaces, and its context, while table
+and index managers remain borrowed. Streaming iteration is primary;
+`fetchmany(size)` is bounded, and `fetchall(limit=...)` plus the compatibility
+`rows` property enforce hard limits and never silently truncate.
+
+Result states distinguish `COMPLETE`, early `CLOSED`, and `FAILED`. A failure
+after yielding rows retains the delivered-row count and is not successful.
+Prepared descriptions contain planned facts; `QueryExecutionReport.runtime`
+contains only measurements from the actual Stage 6 operator instances. A
+partial preview reports `fully_consumed=False` and cannot claim total output
+cardinality.
 
 ## Controlled diagnostics
 

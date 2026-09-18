@@ -483,17 +483,15 @@ def test_mutation_plan_variants_are_complete_but_do_not_write(heap_environment):
     assert storage.record_count == before
 
 
-@pytest.mark.parametrize(
-    "sql",
-    [
-        "SELECT id FROM students ORDER BY age",
-        "SELECT COUNT(*) FROM students",
-    ],
-)
-def test_later_planner_blocks_fail_explicitly_instead_of_building_partial_plans(
-    heap_environment,
-    sql,
+@pytest.mark.parametrize("sql", [
+    "SELECT id FROM students ORDER BY age",
+    "SELECT COUNT(*) FROM students",
+])
+def test_relational_planner_extensions_prepare_without_touching_storage(
+    heap_environment, sql,
 ):
     environment, _, _ = heap_environment
-    with pytest.raises(UnsupportedAccessError, match="not implemented"):
-        prepare_select_plan(environment, parse_sql(sql))
+    prepared = prepare_select_plan(environment, parse_sql(sql))
+
+    assert isinstance(prepared, SelectPlanSpec)
+    assert prepared.describe().name == "Projection"

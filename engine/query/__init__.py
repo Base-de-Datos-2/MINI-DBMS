@@ -1,4 +1,4 @@
-"""Handwritten SQL syntax and read-only semantic binding package."""
+"""Handwritten SQL parsing, binding, planning, and streaming execution."""
 
 from .binder import (
     BoundDelete,
@@ -17,6 +17,17 @@ from .binder import (
     bind_statement,
 )
 from .environment import QueryEnvironment, RegisteredIndex
+from .executor import (
+    PreparedQuery,
+    QueryExecutionReport,
+    QueryResult,
+    ResultKind,
+    ResultState,
+    SqlEngine,
+    StatementKind,
+    prepare_sql,
+    run_sql,
+)
 
 from .errors import (
     SqlBindingError,
@@ -31,10 +42,17 @@ from .errors import (
 from .parser import parse_sql
 from .planner import (
     DeletePlanSpec,
+    ExternalHashGroupSpec,
+    ExternalSortSpec,
     FilterSpec,
+    GraceHashJoinSpec,
     IndexScanSpec,
+    IndexNestedLoopJoinSpec,
     InsertPlanSpec,
+    JoinPlanningStrategy,
+    NestedLoopJoinSpec,
     PhysicalPlanSpec,
+    PhysicalPlanningOptions,
     PlanCapabilities,
     PlanSpecDescriptor,
     ProjectionSpec,
@@ -58,15 +76,27 @@ __all__ = [
     "BoundRelation",
     "BoundSelect",
     "DeletePlanSpec",
+    "ExternalHashGroupSpec",
+    "ExternalSortSpec",
     "FilterSpec",
+    "GraceHashJoinSpec",
     "IndexScanSpec",
+    "IndexNestedLoopJoinSpec",
     "InsertPlanSpec",
+    "JoinPlanningStrategy",
+    "NestedLoopJoinSpec",
     "PhysicalPlanSpec",
+    "PhysicalPlanningOptions",
     "PlanCapabilities",
     "PlanSpecDescriptor",
     "ProjectionSpec",
+    "PreparedQuery",
+    "QueryExecutionReport",
     "QueryEnvironment",
+    "QueryResult",
     "RegisteredIndex",
+    "ResultKind",
+    "ResultState",
     "SelectPlanSpec",
     "SqlBindingError",
     "SqlLexicalError",
@@ -77,13 +107,17 @@ __all__ = [
     "SqlUnknownTableError",
     "SqlUnsupportedError",
     "StalePlanError",
+    "SqlEngine",
     "TableScanSpec",
+    "StatementKind",
     "bind_delete",
     "bind_insert",
     "bind_select",
     "bind_statement",
     "build_select_plan",
     "parse_sql",
+    "prepare_sql",
     "prepare_plan",
     "prepare_select_plan",
+    "run_sql",
 ]

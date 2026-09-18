@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from enum import Enum
 
 from engine.catalog import IndexMetadata, Schema, TableMetadata
 from engine.errors import (
@@ -20,16 +21,44 @@ from engine.errors import (
 )
 from engine.indexes import BPlusKeyCodec, OrderedIndex
 from engine.operators import (
+    Aggregate,
+    Avg,
     ColumnReference,
     ComparisonOperator,
+    Count,
+    CountColumn,
     EqualitySearch,
     ExecutionOperator,
+    ExternalHashGroup,
+    ExternalSort,
     Filter,
+    GraceHashJoin,
+    IndexNestedLoopJoin,
     IndexScan,
+    JoinKey,
+    JoinSpec,
+    Max,
+    Min,
+    NestedLoopJoin,
     Projection,
     RangeSearch,
+    SortKey,
+    SortSpec,
+    Sum,
     TableScan,
+    build_grouped_layout,
     compare_values,
+)
+from engine.operators.aggregation import MINIMUM_GROUP_BUDGET_BYTES
+from engine.operators.join import MINIMUM_JOIN_BUDGET_BYTES
+from engine.operators.partitioning import (
+    DEFAULT_PARTITION_COUNT,
+    MAX_PARTITION_LEVEL,
+)
+from engine.operators.sorting import (
+    DEFAULT_MAX_FAN_IN,
+    MINIMUM_FAN_IN,
+    MINIMUM_SORT_BUDGET_BYTES,
 )
 from engine.storage import PagedSequentialFile, Storage
 from engine.storage.record import RecordValue
@@ -52,6 +81,75 @@ from .environment import QueryEnvironment, RegisteredIndex
 
 class StalePlanError(ValidationError):
     """A prepared plan no longer matches its Catalog/runtime identities."""
+
+
+class JoinPlanningStrategy(Enum):
+    """Explicit join route policy; AUTO may use one exact inner index."""
+
+    AUTO = "AUTO"
+    GRACE_HASH = "GRACE_HASH"
+    NESTED_LOOP = "NESTED_LOOP"
+
+
+@dataclass(frozen=True, slots=True)
+class PhysicalPlanningOptions:
+    """Resource/strategy controls copied into reusable physical specs.
+
+    ``None`` budgets let a future executor grant resources through its shared
+    ``ExecutionContext``. Tests may set exact Stage 6 minimums to force real
+    external behavior without adding alternate SQL-layer algorithms.
+    """
+
+    sort_memory_budget_bytes: int | None = None
+    sort_max_fan_in: int = DEFAULT_MAX_FAN_IN
+    group_memory_budget_bytes: int | None = None
+    group_partition_count: int = DEFAULT_PARTITION_COUNT
+    group_max_level: int = MAX_PARTITION_LEVEL
+    join_memory_budget_bytes: int | None = None
+    join_partition_count: int = DEFAULT_PARTITION_COUNT
+    join_max_level: int = MAX_PARTITION_LEVEL
+    join_strategy: JoinPlanningStrategy = JoinPlanningStrategy.AUTO
+
+    def __post_init__(self) -> None:
+        budgets = (
+            ("sort_memory_budget_bytes", self.sort_memory_budget_bytes,
+             MINIMUM_SORT_BUDGET_BYTES),
+            ("group_memory_budget_bytes", self.group_memory_budget_bytes,
+             MINIMUM_GROUP_BUDGET_BYTES),
+            ("join_memory_budget_bytes", self.join_memory_budget_bytes,
+             MINIMUM_JOIN_BUDGET_BYTES),
+        )
+        for name, value, minimum in budgets:
+            if value is not None and type(value) is not int:
+                raise InvalidTypeError(f"{name} must be an int or None")
+            if value is not None and value < minimum:
+                raise ValidationError(f"{name} must be at least {minimum} bytes")
+        if type(self.sort_max_fan_in) is not int:
+            raise InvalidTypeError("sort_max_fan_in must be an int")
+        if self.sort_max_fan_in < MINIMUM_FAN_IN:
+            raise ValidationError(
+                f"sort_max_fan_in must be at least {MINIMUM_FAN_IN}"
+            )
+        for name, value in (
+            ("group_partition_count", self.group_partition_count),
+            ("join_partition_count", self.join_partition_count),
+        ):
+            if type(value) is not int:
+                raise InvalidTypeError(f"{name} must be an int")
+            if value < 2:
+                raise ValidationError(f"{name} must be at least 2")
+        for name, value in (
+            ("group_max_level", self.group_max_level),
+            ("join_max_level", self.join_max_level),
+        ):
+            if type(value) is not int:
+                raise InvalidTypeError(f"{name} must be an int")
+            if value < 1:
+                raise ValidationError(f"{name} must be positive")
+        if not isinstance(self.join_strategy, JoinPlanningStrategy):
+            raise InvalidTypeError(
+                "join_strategy must be a JoinPlanningStrategy member"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -331,11 +429,24 @@ class ProjectionSpec(PhysicalPlanSpec):
     child: PhysicalPlanSpec
     items: tuple[BoundProjectionItem, ...]
     schema: Schema
+    selectors: tuple[ColumnReference, ...] | None = None
 
     def __post_init__(self) -> None:
-        if any(item.source is None for item in self.items):
-            raise UnsupportedAccessError(
-                "Aggregate projection requires the grouped-query planner"
+        selectors = self.selectors
+        if selectors is None:
+            if any(item.source is None for item in self.items):
+                raise UnsupportedAccessError(
+                    "Aggregate projection requires resolved grouped selectors"
+                )
+            selectors = tuple(item.source for item in self.items)
+            object.__setattr__(self, "selectors", selectors)
+        if len(selectors) != len(self.items):
+            raise ValidationError(
+                "ProjectionSpec requires one selector per output item"
+            )
+        if not all(isinstance(selector, ColumnReference) for selector in selectors):
+            raise InvalidTypeError(
+                "ProjectionSpec selectors must be ColumnReference objects"
             )
 
     @property
@@ -363,15 +474,270 @@ class ProjectionSpec(PhysicalPlanSpec):
 
     def instantiate(self) -> ExecutionOperator:
         child = self.child.instantiate()
-        selections = tuple(item.source for item in self.items)
+        selections = self.selectors
         aliases: list[str | None] = []
-        for item in self.items:
-            field = child.layout.field(item.source)
+        for item, selector in zip(self.items, selections):
+            field = child.layout.field(selector)
             published = child.layout.published_name(field)
             aliases.append(None if item.output_name == published else item.output_name)
         operator = Projection(child, selections, aliases)
         if operator.output_schema != self.schema:
             raise StalePlanError("Prepared projection no longer has its bound schema")
+        return operator
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalSortSpec(PhysicalPlanSpec):
+    """Reusable construction data for the mandatory SQL ordering route."""
+
+    child: PhysicalPlanSpec
+    keys: tuple[SortKey, ...]
+    memory_budget_bytes: int | None = None
+    max_fan_in: int = DEFAULT_MAX_FAN_IN
+
+    def __post_init__(self) -> None:
+        SortSpec(self.keys)
+
+    @property
+    def children(self) -> tuple[PhysicalPlanSpec, ...]:
+        return (self.child,)
+
+    @property
+    def output_schema(self) -> Schema:
+        return self.child.output_schema
+
+    @property
+    def capabilities(self) -> PlanCapabilities:
+        ordered_by = None
+        if self.keys and not self.keys[0].descending:
+            ordered_by = self.keys[0].column
+        return PlanCapabilities(ordered_by=ordered_by)
+
+    @property
+    def operator_name(self) -> str:
+        return "ExternalSort"
+
+    @property
+    def details(self) -> tuple[tuple[str, str], ...]:
+        ordering = ", ".join(
+            f"{key.column.qualified_name} "
+            f"{'DESC' if key.descending else 'ASC'}"
+            for key in self.keys
+        )
+        return (
+            ("keys", ordering),
+            ("strategy", "disk-backed k-way merge"),
+        )
+
+    def instantiate(self) -> ExecutionOperator:
+        operator = ExternalSort(
+            self.child.instantiate(),
+            SortSpec(self.keys),
+            memory_budget_bytes=self.memory_budget_bytes,
+            max_fan_in=self.max_fan_in,
+        )
+        if operator.output_schema != self.output_schema:
+            raise StalePlanError("Prepared sort output schema changed")
+        return operator
+
+
+@dataclass(frozen=True, slots=True)
+class ExternalHashGroupSpec(PhysicalPlanSpec):
+    """Reusable construction data for Stage 6 external hash grouping."""
+
+    child: PhysicalPlanSpec
+    group_keys: tuple[ColumnReference, ...]
+    aggregates: tuple[Aggregate, ...]
+    schema: Schema
+    memory_budget_bytes: int | None = None
+    partition_count: int = DEFAULT_PARTITION_COUNT
+    max_level: int = MAX_PARTITION_LEVEL
+
+    @property
+    def children(self) -> tuple[PhysicalPlanSpec, ...]:
+        return (self.child,)
+
+    @property
+    def output_schema(self) -> Schema:
+        return self.schema
+
+    @property
+    def capabilities(self) -> PlanCapabilities:
+        return PlanCapabilities()
+
+    @property
+    def operator_name(self) -> str:
+        return "ExternalHashGroup"
+
+    @property
+    def details(self) -> tuple[tuple[str, str], ...]:
+        keys = ", ".join(key.qualified_name for key in self.group_keys)
+        return (
+            ("keys", keys if keys else "(global)"),
+            ("aggregates", ", ".join(item.alias for item in self.aggregates)),
+            ("strategy", "external hash partitions"),
+        )
+
+    def instantiate(self) -> ExecutionOperator:
+        operator = ExternalHashGroup(
+            self.child.instantiate(),
+            self.group_keys,
+            self.aggregates,
+            memory_budget_bytes=self.memory_budget_bytes,
+            partition_count=self.partition_count,
+            max_level=self.max_level,
+        )
+        if operator.output_schema != self.schema:
+            raise StalePlanError("Prepared grouping output schema changed")
+        return operator
+
+
+@dataclass(frozen=True, slots=True)
+class GraceHashJoinSpec(PhysicalPlanSpec):
+    """Reusable default optimized inner-join specification."""
+
+    left: PhysicalPlanSpec
+    right: PhysicalPlanSpec
+    join: JoinSpec
+    residual: BoundPredicate | None
+    schema: Schema
+    memory_budget_bytes: int | None = None
+    partition_count: int = DEFAULT_PARTITION_COUNT
+    max_level: int = MAX_PARTITION_LEVEL
+
+    @property
+    def children(self) -> tuple[PhysicalPlanSpec, ...]:
+        return (self.left, self.right)
+
+    @property
+    def output_schema(self) -> Schema:
+        return self.schema
+
+    @property
+    def capabilities(self) -> PlanCapabilities:
+        return PlanCapabilities()
+
+    @property
+    def operator_name(self) -> str:
+        return "GraceHashJoin"
+
+    @property
+    def details(self) -> tuple[tuple[str, str], ...]:
+        return (
+            ("condition", repr(self.join)),
+            ("strategy", "grace hash join"),
+        )
+
+    def instantiate(self) -> ExecutionOperator:
+        operator = GraceHashJoin(
+            self.left.instantiate(),
+            self.right.instantiate(),
+            self.join,
+            residual=(None if self.residual is None else self.residual.expression),
+            memory_budget_bytes=self.memory_budget_bytes,
+            partition_count=self.partition_count,
+            max_level=self.max_level,
+        )
+        if operator.output_schema != self.schema:
+            raise StalePlanError("Prepared join output schema changed")
+        return operator
+
+
+@dataclass(frozen=True, slots=True)
+class NestedLoopJoinSpec(PhysicalPlanSpec):
+    """Reusable independent correctness baseline for one inner join."""
+
+    left: PhysicalPlanSpec
+    right: PhysicalPlanSpec
+    join: JoinSpec
+    residual: BoundPredicate | None
+    schema: Schema
+    memory_budget_bytes: int | None = None
+
+    @property
+    def children(self) -> tuple[PhysicalPlanSpec, ...]:
+        return (self.left, self.right)
+
+    @property
+    def output_schema(self) -> Schema:
+        return self.schema
+
+    @property
+    def capabilities(self) -> PlanCapabilities:
+        return PlanCapabilities()
+
+    @property
+    def operator_name(self) -> str:
+        return "NestedLoopJoin"
+
+    @property
+    def details(self) -> tuple[tuple[str, str], ...]:
+        return (
+            ("condition", repr(self.join)),
+            ("strategy", "nested-loop baseline"),
+        )
+
+    def instantiate(self) -> ExecutionOperator:
+        operator = NestedLoopJoin(
+            self.left.instantiate(),
+            self.right.instantiate(),
+            self.join,
+            residual=(None if self.residual is None else self.residual.expression),
+            memory_budget_bytes=self.memory_budget_bytes,
+        )
+        if operator.output_schema != self.schema:
+            raise StalePlanError("Prepared baseline join output schema changed")
+        return operator
+
+
+@dataclass(frozen=True, slots=True)
+class IndexNestedLoopJoinSpec(PhysicalPlanSpec):
+    """Reusable single-key inner-index join when exact preconditions hold."""
+
+    environment: QueryEnvironment
+    outer: PhysicalPlanSpec
+    inner_relation: BoundRelation
+    registered: RegisteredIndex
+    join: JoinSpec
+    residual: BoundPredicate | None
+    schema: Schema
+
+    @property
+    def children(self) -> tuple[PhysicalPlanSpec, ...]:
+        return (self.outer,)
+
+    @property
+    def output_schema(self) -> Schema:
+        return self.schema
+
+    @property
+    def capabilities(self) -> PlanCapabilities:
+        return PlanCapabilities()
+
+    @property
+    def operator_name(self) -> str:
+        return "IndexNestedLoopJoin"
+
+    @property
+    def details(self) -> tuple[tuple[str, str], ...]:
+        return (
+            ("condition", repr(self.join)),
+            ("index", self.registered.metadata.name),
+            ("strategy", "index nested loop"),
+        )
+
+    def instantiate(self) -> ExecutionOperator:
+        _validate_relation(self.environment, self.inner_relation)
+        _validate_index(self.environment, self.registered)
+        operator = IndexNestedLoopJoin(
+            self.outer.instantiate(),
+            self.registered.index,
+            self.join,
+            relation=self.inner_relation.exposed_name,
+            residual=(None if self.residual is None else self.residual.expression),
+        )
+        if operator.output_schema != self.schema:
+            raise StalePlanError("Prepared index join output schema changed")
         return operator
 
 
@@ -383,6 +749,7 @@ class SelectPlanSpec:
     bound: BoundSelect
     root: PhysicalPlanSpec
     indexes_enabled: bool
+    options: PhysicalPlanningOptions
 
     @property
     def output_schema(self) -> Schema:
@@ -658,15 +1025,222 @@ def _source_spec(
     )
 
 
-def _require_basic_select(bound: BoundSelect) -> None:
-    if len(bound.relations) != 1:
-        raise UnsupportedAccessError("JOIN physical planning is not implemented yet")
-    if bound.grouped:
-        raise UnsupportedAccessError(
-            "Grouped and aggregate physical planning is not implemented yet"
+def _clone_aggregate(aggregate: Aggregate, alias: str) -> Aggregate:
+    """Copy one Stage 6 aggregate with an internal collision-free alias."""
+
+    if type(aggregate) is Count:
+        return Count(alias)
+    if type(aggregate) is CountColumn:
+        return CountColumn(aggregate.column, alias)
+    if type(aggregate) is Sum:
+        return Sum(aggregate.column, alias)
+    if type(aggregate) is Avg:
+        return Avg(aggregate.column, alias)
+    if type(aggregate) is Max:
+        return Max(aggregate.column, alias)
+    if type(aggregate) is Min:
+        return Min(aggregate.column, alias)
+    raise UnsupportedAccessError(
+        f"Unsupported aggregate specification: {type(aggregate).__name__}"
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class _PhysicalGroupBinding:
+    aggregates: tuple[Aggregate, ...]
+    aggregate_references: tuple[ColumnReference, ...]
+    schema: Schema
+
+
+def _physical_group_binding(bound: BoundSelect) -> _PhysicalGroupBinding:
+    """Assign intermediate aggregate names that cannot collide with keys."""
+
+    occupied = {
+        bound.source_layout.published_name(bound.source_layout.field(key))
+        for key in bound.group_keys
+    }
+    physical: list[Aggregate] = []
+    references: list[ColumnReference] = []
+    for position, aggregate in enumerate(bound.aggregates):
+        alias = aggregate.alias
+        if alias in occupied:
+            suffix = 0
+            alias = f"__sql_aggregate_{position}"
+            while alias in occupied:
+                suffix += 1
+                alias = f"__sql_aggregate_{position}_{suffix}"
+        occupied.add(alias)
+        physical_aggregate = (
+            aggregate
+            if alias == aggregate.alias
+            else _clone_aggregate(aggregate, alias)
         )
-    if bound.order_by:
-        raise UnsupportedAccessError("ORDER BY physical planning is not implemented yet")
+        physical.append(physical_aggregate)
+        references.append(ColumnReference(alias))
+    grouped_layout = build_grouped_layout(
+        bound.source_layout,
+        bound.group_keys,
+        physical,
+    )
+    return _PhysicalGroupBinding(
+        tuple(physical),
+        tuple(references),
+        grouped_layout.schema,
+    )
+
+
+def _projection_selectors(
+    bound: BoundSelect,
+    aggregate_references: tuple[ColumnReference, ...] = (),
+) -> tuple[ColumnReference, ...]:
+    selectors: list[ColumnReference] = []
+    for item in bound.projection:
+        if not bound.grouped:
+            if item.source is None:
+                raise ValidationError("Ungrouped projection lost its source")
+            selectors.append(item.source)
+            continue
+        if item.group_key_index is not None:
+            selectors.append(bound.group_keys[item.group_key_index])
+            continue
+        if item.aggregate_index is not None:
+            selectors.append(aggregate_references[item.aggregate_index])
+            continue
+        raise ValidationError("Grouped projection has no physical source")
+    return tuple(selectors)
+
+
+def _sort_keys(
+    bound: BoundSelect,
+    projection_selectors: tuple[ColumnReference, ...],
+) -> tuple[SortKey, ...]:
+    keys: list[SortKey] = []
+    seen: set[ColumnReference] = set()
+    for item in bound.order_by:
+        selector = (
+            projection_selectors[item.output_position]
+            if item.output_position is not None
+            else item.source
+        )
+        if selector is None:
+            raise ValidationError("ORDER BY has no physical input selector")
+        # Repeating a key cannot refine the order; the first direction wins.
+        if selector in seen:
+            continue
+        seen.add(selector)
+        keys.append(SortKey(selector, item.descending))
+    return tuple(keys)
+
+
+def _stage6_join_spec(bound: BoundSelect) -> JoinSpec:
+    return JoinSpec(
+        tuple(JoinKey(key.left, key.right) for key in bound.join_keys)
+    )
+
+
+def _eligible_inner_join_index(
+    environment: QueryEnvironment,
+    bound: BoundSelect,
+) -> RegisteredIndex | None:
+    if len(bound.join_keys) != 1:
+        return None
+    inner = bound.relations[1]
+    key = bound.join_keys[0].right
+    eligible = [
+        registered
+        for registered in _usable_indexes(environment, inner.metadata.name)
+        if registered.metadata.supports_equality
+        and registered.metadata.column_name == key.name
+    ]
+    if not eligible:
+        return None
+    return min(eligible, key=lambda registered: registered.metadata.name)
+
+
+def _joined_source_spec(
+    environment: QueryEnvironment,
+    bound: BoundSelect,
+    *,
+    use_indexes: bool,
+    options: PhysicalPlanningOptions,
+) -> PhysicalPlanSpec:
+    left_relation, right_relation = bound.relations
+    left = _source_spec(
+        environment,
+        left_relation,
+        bound.where,
+        use_indexes=use_indexes,
+    )
+    right = _source_spec(
+        environment,
+        right_relation,
+        bound.where,
+        use_indexes=use_indexes,
+    )
+    join = _stage6_join_spec(bound)
+
+    if options.join_strategy is JoinPlanningStrategy.NESTED_LOOP:
+        return NestedLoopJoinSpec(
+            left,
+            right,
+            join,
+            bound.join_predicate,
+            bound.source_layout.schema,
+            options.join_memory_budget_bytes,
+        )
+
+    registered = (
+        _eligible_inner_join_index(environment, bound)
+        if use_indexes and options.join_strategy is JoinPlanningStrategy.AUTO
+        else None
+    )
+    if registered is not None:
+        return IndexNestedLoopJoinSpec(
+            environment,
+            left,
+            right_relation,
+            registered,
+            join,
+            bound.join_predicate,
+            bound.source_layout.schema,
+        )
+
+    return GraceHashJoinSpec(
+        left,
+        right,
+        join,
+        bound.join_predicate,
+        bound.source_layout.schema,
+        options.join_memory_budget_bytes,
+        options.join_partition_count,
+        options.join_max_level,
+    )
+
+
+def _relational_source_spec(
+    environment: QueryEnvironment,
+    bound: BoundSelect,
+    *,
+    use_indexes: bool,
+    options: PhysicalPlanningOptions,
+) -> PhysicalPlanSpec:
+    if len(bound.relations) == 1:
+        root = _source_spec(
+            environment,
+            bound.relations[0],
+            bound.where,
+            use_indexes=use_indexes,
+        )
+    else:
+        root = _joined_source_spec(
+            environment,
+            bound,
+            use_indexes=use_indexes,
+            options=options,
+        )
+    if bound.where is not None:
+        root = FilterSpec(root, bound.where)
+    return root
 
 
 def prepare_select_plan(
@@ -674,13 +1248,18 @@ def prepare_select_plan(
     statement: SelectStatement | BoundSelect,
     *,
     use_indexes: bool = True,
+    options: PhysicalPlanningOptions | None = None,
 ) -> SelectPlanSpec:
-    """Bind and prepare one reusable basic SELECT without opening cursors."""
+    """Bind and prepare one reusable SELECT without opening cursors."""
 
     if not isinstance(environment, QueryEnvironment):
         raise InvalidTypeError("prepare_select_plan requires a QueryEnvironment")
     if type(use_indexes) is not bool:
         raise InvalidTypeError("use_indexes must be a bool")
+    if options is None:
+        options = PhysicalPlanningOptions()
+    elif not isinstance(options, PhysicalPlanningOptions):
+        raise InvalidTypeError("options must be PhysicalPlanningOptions or None")
     if isinstance(statement, SelectStatement):
         bound = bind_select(environment, statement)
     elif isinstance(statement, BoundSelect):
@@ -690,23 +1269,44 @@ def prepare_select_plan(
             "prepare_select_plan requires SelectStatement or BoundSelect"
         )
 
-    _require_basic_select(bound)
     for relation in bound.relations:
         _validate_relation(environment, relation)
-    relation = bound.relations[0]
-    root = _source_spec(
+    root = _relational_source_spec(
         environment,
-        relation,
-        bound.where,
+        bound,
         use_indexes=use_indexes,
+        options=options,
     )
-    if bound.where is not None:
-        # Keep the complete predicate even when the leaf index enforces one or
-        # more conjuncts. Every index is a candidate source, never a rewrite of
-        # SQL Boolean meaning.
-        root = FilterSpec(root, bound.where)
-    root = ProjectionSpec(root, bound.projection, bound.output_schema)
-    return SelectPlanSpec(environment, bound, root, use_indexes)
+
+    aggregate_references: tuple[ColumnReference, ...] = ()
+    if bound.grouped:
+        group = _physical_group_binding(bound)
+        aggregate_references = group.aggregate_references
+        root = ExternalHashGroupSpec(
+            root,
+            bound.group_keys,
+            group.aggregates,
+            group.schema,
+            options.group_memory_budget_bytes,
+            options.group_partition_count,
+            options.group_max_level,
+        )
+
+    selectors = _projection_selectors(bound, aggregate_references)
+    if bound.order_by:
+        root = ExternalSortSpec(
+            root,
+            _sort_keys(bound, selectors),
+            options.sort_memory_budget_bytes,
+            options.sort_max_fan_in,
+        )
+    root = ProjectionSpec(
+        root,
+        bound.projection,
+        bound.output_schema,
+        selectors,
+    )
+    return SelectPlanSpec(environment, bound, root, use_indexes, options)
 
 
 def build_select_plan(
@@ -714,13 +1314,15 @@ def build_select_plan(
     statement: SelectStatement | BoundSelect,
     *,
     use_indexes: bool = True,
+    options: PhysicalPlanningOptions | None = None,
 ) -> ExecutionOperator:
-    """Return one fresh closed Stage 6 tree for a basic SELECT."""
+    """Return one fresh closed Stage 6 tree for a SELECT."""
 
     return prepare_select_plan(
         environment,
         statement,
         use_indexes=use_indexes,
+        options=options,
     ).instantiate()
 
 
@@ -729,6 +1331,7 @@ def prepare_plan(
     statement: Statement | BoundSelect | BoundInsert | BoundDelete,
     *,
     use_indexes: bool = True,
+    options: PhysicalPlanningOptions | None = None,
 ) -> SelectPlanSpec | InsertPlanSpec | DeletePlanSpec:
     """Prepare a SELECT/INSERT/DELETE without retaining raw SQL semantics."""
 
@@ -736,6 +1339,8 @@ def prepare_plan(
         raise InvalidTypeError("prepare_plan requires a QueryEnvironment")
     if type(use_indexes) is not bool:
         raise InvalidTypeError("use_indexes must be a bool")
+    if options is not None and not isinstance(options, PhysicalPlanningOptions):
+        raise InvalidTypeError("options must be PhysicalPlanningOptions or None")
     if isinstance(statement, (SelectStatement, InsertStatement, DeleteStatement)):
         bound = bind_statement(environment, statement)
     elif isinstance(statement, (BoundSelect, BoundInsert, BoundDelete)):
@@ -744,7 +1349,12 @@ def prepare_plan(
         raise InvalidTypeError("prepare_plan requires a supported statement")
 
     if isinstance(bound, BoundSelect):
-        return prepare_select_plan(environment, bound, use_indexes=use_indexes)
+        return prepare_select_plan(
+            environment,
+            bound,
+            use_indexes=use_indexes,
+            options=options,
+        )
     if isinstance(bound, BoundInsert):
         plan = InsertPlanSpec(environment, bound)
         plan.validate()
@@ -767,10 +1377,17 @@ def prepare_plan(
 
 __all__ = [
     "DeletePlanSpec",
+    "ExternalHashGroupSpec",
+    "ExternalSortSpec",
     "FilterSpec",
+    "GraceHashJoinSpec",
     "IndexScanSpec",
+    "IndexNestedLoopJoinSpec",
     "InsertPlanSpec",
+    "JoinPlanningStrategy",
+    "NestedLoopJoinSpec",
     "PhysicalPlanSpec",
+    "PhysicalPlanningOptions",
     "PlanCapabilities",
     "PlanSpecDescriptor",
     "ProjectionSpec",

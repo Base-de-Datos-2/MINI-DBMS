@@ -132,6 +132,19 @@ def index_storage(index: Index) -> Storage:
     )
 
 
+def runtime_index_name(index: Index) -> str | None:
+    """Return the persisted index identity exposed by a runtime adapter."""
+
+    core = getattr(index, "tree", None)
+    if core is None:
+        core = getattr(index, "index", None)
+    if core is None:
+        core = index
+    header = getattr(core, "header", None)
+    name = getattr(header, "index_name", None)
+    return name if isinstance(name, str) and name else None
+
+
 class IndexScan(ExecutionOperator):
     """Stream rows located through one explicitly chosen access path.
 
@@ -275,6 +288,9 @@ class IndexScan(ExecutionOperator):
             ("index", type(self._index).__name__),
             ("access", access),
         ]
+        index_name = runtime_index_name(self._index)
+        if index_name is not None:
+            details.append(("index_name", index_name))
         key_column = getattr(self._index, "key_column", None)
         if isinstance(key_column, str):
             details.append(("key_column", key_column))

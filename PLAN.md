@@ -1318,7 +1318,7 @@ Part 1 is complete only when:
 [x] Stage 4 complete
 [x] Stage 5 complete
 [x] Stage 6 complete
-[ ] Stage 7 complete (in progress; Tasks 7.1-7.17 reviewed)
+[ ] Stage 7 complete (in progress; Tasks 7.1-7.22 reviewed; 7.26 reporting foundation present)
 [ ] Stage 8 complete
 [ ] Stage 9 complete
 [ ] Stage 10 complete
@@ -1402,21 +1402,30 @@ caveats: [Stage 6 closure audit](docs/ETAPA_06_AUDIT.md). The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria with 2295 strict tests passing.
 **Stage 7 is in progress under the handwritten-parser revision of
-`ETAPA_07.md`.** Tasks 7.1-7.17 establish the inspected Stage 6 baseline, freeze
+`ETAPA_07.md`.** Tasks 7.1-7.22 establish the inspected Stage 6 baseline, freeze
 the SQL contract in [the grammar document](docs/sql-grammar.md), implement the
 bounded located lexer/parser, and add Catalog-backed semantic binding for
 relations, exact types, joins, projections, ordering, aggregates, and read-only
 mutation validation. The basic physical planner now creates reusable immutable
 specifications and fresh Stage 6 TableScan/IndexScan/Filter/Projection trees
 with deterministic compatible index selection and complete residual filters.
-ORDER BY, GROUP BY, JOIN planning, execution, write maintenance, and the
-remaining acceptance/closure work in Tasks 7.18-7.30 do not yet exist. The
+Relational planning carries hidden sort dependencies to real `ExternalSort`,
+maps grouping and aggregates to `ExternalHashGroup`, and selects
+`GraceHashJoin` by default or an eligible exact inner `IndexNestedLoopJoin`,
+with `NestedLoopJoin` retained as a differential baseline. Execution is now
+exposed through reusable prepared queries and streaming results that own
+fresh Stage 6 operator/context state and retain measured reports after cleanup.
+The prepared/runtime reporting foundation of Task 7.26 is present. Write
+maintenance in Tasks 7.23-7.25 and the remaining acceptance/closure work do not
+yet exist. The
 former Stage 7 closure report is retained as invalid historical evidence and
 must not be used to claim completion. Current review evidence is in the
 [Tasks 7.1-7.4 report](docs/ETAPA_07_REVIEW_7_1_7_4.md) and
 [Tasks 7.5-7.7 report](docs/ETAPA_07_REVIEW_7_5_7_7.md), and
 [Tasks 7.8-7.12 report](docs/ETAPA_07_REVIEW_7_8_7_12.md), and
-[Tasks 7.13-7.17 report](docs/ETAPA_07_REVIEW_7_13_7_17.md).
+[Tasks 7.13-7.17 report](docs/ETAPA_07_REVIEW_7_13_7_17.md), and
+[Tasks 7.18-7.20 report](docs/ETAPA_07_REVIEW_7_18_7_20.md), and
+[Tasks 7.21-7.22 report](docs/ETAPA_07_REVIEW_7_21_7_22.md).
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.
