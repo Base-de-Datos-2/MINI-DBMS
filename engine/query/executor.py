@@ -7,7 +7,14 @@ from enum import Enum
 
 from engine.catalog import Schema
 from engine.errors import InvalidTypeError, UnsupportedAccessError, ValidationError
-from engine.operators import PhysicalPlan, PlanReport
+from engine.maintenance import (
+    DeleteTargetSpool,
+    MaintenanceError,
+    MaintenanceIndex,
+    MutationReport,
+    MutationService,
+)
+from engine.operators import ExecutionOperator, PhysicalPlan, PlanReport
 from engine.operators.context import (
     DEFAULT_BUDGET_BYTES,
     DEFAULT_MAX_OPEN_HANDLES,
@@ -15,7 +22,9 @@ from engine.operators.context import (
 )
 from engine.storage import Record
 
+from .ast import DeleteStatement, InsertStatement
 from .environment import QueryEnvironment
+from .errors import SqlBindingError, SqlUnknownColumnError, SqlUnknownTableError
 from .parser import parse_sql
 from .planner import (
     DeletePlanSpec,
@@ -39,7 +48,7 @@ class StatementKind(Enum):
 
 
 class ResultKind(Enum):
-    """Public result shape; command results are reserved for Tasks 7.23-7.25."""
+    """Public result shape for streaming rows or a completed command."""
 
     ROWS = "ROWS"
     COMMAND = "COMMAND"
@@ -60,12 +69,37 @@ class QueryExecutionReport:
     """Prepared facts beside measured evidence from one physical execution."""
 
     prepared: PlanSpecDescriptor
-    runtime: PlanReport | None
+    runtime: PlanReport | MutationReport | None
     state: ResultState
     fully_consumed: bool
     rows_delivered: int
     error_type: str | None = None
     error_message: str | None = None
+    affected_rows: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CommandExecutionReport(MutationReport):
+    """Mutation measurements plus the real DELETE discovery plan, if any."""
+
+    discovery: PlanReport | None = None
+
+    @classmethod
+    def combine(
+        cls,
+        maintenance: MutationReport,
+        discovery: PlanReport | None = None,
+    ) -> "CommandExecutionReport":
+        return cls(
+            operation=maintenance.operation,
+            affected_rows=maintenance.affected_rows,
+            indexes_maintained=maintenance.indexes_maintained,
+            index_association_updates=maintenance.index_association_updates,
+            indexes_rebuilt=maintenance.indexes_rebuilt,
+            targets_spooled=maintenance.targets_spooled,
+            spool_bytes=maintenance.spool_bytes,
+            discovery=discovery,
+        )
 
 
 PlanSpec = SelectPlanSpec | InsertPlanSpec | DeletePlanSpec
@@ -111,10 +145,103 @@ class PreparedQuery:
 
         return self._spec.describe()
 
-    def execute(self) -> "QueryResult":
+    def execute(self) -> "QueryResult | CommandResult":
         """Create one fresh execution through the owning single-session engine."""
 
         return self._engine.execute(self)
+
+
+class CommandResult:
+    """One already-completed INSERT or DELETE result with no row stream."""
+
+    __slots__ = ("_prepared_description", "_statistics")
+
+    def __init__(self, prepared: PreparedQuery, statistics: MutationReport) -> None:
+        if not isinstance(prepared, PreparedQuery):
+            raise InvalidTypeError("CommandResult requires a PreparedQuery")
+        if prepared.kind not in {StatementKind.INSERT, StatementKind.DELETE}:
+            raise ValidationError("CommandResult requires an INSERT or DELETE plan")
+        if not isinstance(statistics, MutationReport):
+            raise InvalidTypeError("CommandResult requires a MutationReport")
+        self._prepared_description = prepared.describe()
+        self._statistics = statistics
+
+    @property
+    def kind(self) -> ResultKind:
+        return ResultKind.COMMAND
+
+    @property
+    def state(self) -> ResultState:
+        return ResultState.COMPLETE
+
+    @property
+    def schema(self) -> None:
+        return None
+
+    @property
+    def affected_rows(self) -> int:
+        return self._statistics.affected_rows
+
+    @property
+    def rows_delivered(self) -> int:
+        return 0
+
+    @property
+    def fully_consumed(self) -> bool:
+        return True
+
+    @property
+    def completed(self) -> bool:
+        return True
+
+    @property
+    def closed(self) -> bool:
+        return True
+
+    @property
+    def partial(self) -> bool:
+        return False
+
+    @property
+    def error(self) -> None:
+        return None
+
+    @property
+    def rows(self):
+        raise UnsupportedAccessError("Command results do not contain rows")
+
+    @property
+    def statistics(self) -> MutationReport:
+        return self._statistics
+
+    @property
+    def report(self) -> QueryExecutionReport:
+        return QueryExecutionReport(
+            prepared=self._prepared_description,
+            runtime=self._statistics,
+            state=ResultState.COMPLETE,
+            fully_consumed=True,
+            rows_delivered=0,
+            affected_rows=self.affected_rows,
+        )
+
+    def fetchmany(self, size: int):
+        raise UnsupportedAccessError("Command results do not contain rows")
+
+    def fetchall(self, *, limit: int):
+        raise UnsupportedAccessError("Command results do not contain rows")
+
+    def close(self) -> None:
+        """Command execution is synchronous, so there are no live resources."""
+
+    def __iter__(self):
+        raise UnsupportedAccessError("Command results are not iterable")
+
+    def __enter__(self) -> "CommandResult":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        return False
 
 
 class QueryResult:
@@ -210,7 +337,7 @@ class QueryResult:
 
     @property
     def affected_rows(self) -> None:
-        """SELECT has no command count; mutation results arrive in later tasks."""
+        """SELECT has no command count; only command results expose one."""
 
         return None
 
@@ -241,6 +368,7 @@ class QueryResult:
             rows_delivered=self._rows_delivered,
             error_type=None if error is None else type(error).__name__,
             error_message=None if error is None else str(error),
+            affected_rows=None,
         )
 
     def _release_session(self) -> None:
@@ -546,23 +674,148 @@ class SqlEngine:
         )
         return PreparedQuery(self, spec)
 
-    def execute(self, query: str | PreparedQuery) -> QueryResult:
-        """Return a streaming SELECT result; mutation execution is still closed."""
+    @staticmethod
+    def _maintenance_indexes(spec: InsertPlanSpec | DeletePlanSpec):
+        return tuple(
+            MaintenanceIndex(
+                item.metadata.name,
+                item.metadata.column_name,
+                item.metadata.unique,
+                item.index,
+            )
+            for item in spec.bound.indexes
+        )
+
+    def execute(
+        self,
+        query: str | PreparedQuery,
+        *,
+        use_indexes: bool | None = None,
+        planning_options: PhysicalPlanningOptions | None = None,
+    ) -> QueryResult | CommandResult:
+        """Execute one statement under the single-session lifecycle contract."""
 
         self._require_idle()
+        if use_indexes is not None and type(use_indexes) is not bool:
+            raise InvalidTypeError("use_indexes must be a bool or None")
+        if planning_options is not None and not isinstance(
+            planning_options, PhysicalPlanningOptions
+        ):
+            raise InvalidTypeError(
+                "planning_options must be PhysicalPlanningOptions or None"
+            )
         if isinstance(query, str):
-            prepared = self.prepare(query)
+            indexes_enabled = True if use_indexes is None else use_indexes
+            options = (
+                self._planning_options
+                if planning_options is None
+                else planning_options
+            )
+            statement = parse_sql(query)
+            try:
+                spec = prepare_plan(
+                    self._environment,
+                    statement,
+                    use_indexes=indexes_enabled,
+                    options=options,
+                )
+            except SqlBindingError as error:
+                if isinstance(statement, (InsertStatement, DeleteStatement)) and not isinstance(
+                    error, (SqlUnknownTableError, SqlUnknownColumnError)
+                ):
+                    operation = "INSERT" if isinstance(statement, InsertStatement) else "DELETE"
+                    raise MaintenanceError(
+                        f"{operation} validation failed before the first write",
+                        operation=operation,
+                        table_name=statement.table,
+                        completed_rows=0,
+                        failures=(error,),
+                    ) from error
+                raise
+            prepared = PreparedQuery(self, spec)
         elif isinstance(query, PreparedQuery):
             prepared = query
             if prepared._engine is not self:
                 raise ValidationError("PreparedQuery belongs to another SqlEngine")
+            if use_indexes is not None or planning_options is not None:
+                raise ValidationError(
+                    "A PreparedQuery already has fixed planning options; prepare a "
+                    "new query to change them"
+                )
         else:
             raise InvalidTypeError("execute requires SQL text or PreparedQuery")
         if prepared.kind is not StatementKind.SELECT:
-            raise UnsupportedAccessError(
-                "INSERT/DELETE execution requires the Stage 7 maintenance block "
-                "(Tasks 7.23-7.25); inspection remains read-only"
-            )
+            spec = prepared._spec
+            if not isinstance(spec, (InsertPlanSpec, DeletePlanSpec)):
+                raise RuntimeError("A mutation prepared query lost its plan")
+            service = MutationService()
+            indexes = self._maintenance_indexes(spec)
+            if isinstance(spec, InsertPlanSpec):
+                bound = spec.bound
+                spec.validate()
+                maintenance = service.insert(
+                    table_name=bound.table.name,
+                    storage=bound.storage,
+                    record=bound.record,
+                    indexes=indexes,
+                    storage_may_move_rids=bound.storage_may_move_rids,
+                    storage_key=bound.storage_key,
+                    requires_storage_unique_check=bound.requires_storage_unique_check,
+                )
+                statistics = CommandExecutionReport.combine(maintenance)
+            else:
+                bound = spec.bound
+                spec.validate()
+                with DeleteTargetSpool() as spool:
+                    try:
+                        root = spec.instantiate_candidates()
+                        if not isinstance(root, ExecutionOperator):
+                            raise InvalidTypeError(
+                                "DELETE discovery requires an ExecutionOperator"
+                            )
+                        plan = PhysicalPlan(
+                            root,
+                            memory_budget_bytes=self._memory_budget_bytes,
+                            max_open_handles=self._max_open_handles,
+                            label="sql-delete-discovery",
+                        )
+                        with plan:
+                            for record in plan.rows():
+                                provenance = root.provenance
+                                if (
+                                    len(provenance) != 1
+                                    or provenance[0].relation != bound.table.name
+                                ):
+                                    raise ValidationError(
+                                        "DELETE discovery lost exact base-row provenance"
+                                    )
+                                spool.append(provenance[0].rid, record)
+                        discovery = plan.report()
+                        spool.seal()
+                    except BaseException as error:
+                        raise MaintenanceError(
+                            "DELETE target discovery failed before the first write",
+                            operation="DELETE",
+                            table_name=bound.table.name,
+                            completed_rows=0,
+                            failures=(error,),
+                        ) from error
+                    # Discovery holds only borrowed handles and is fully closed.
+                    # Recheck the prepared mutation snapshot before the first write.
+                    spec.validate()
+                    maintenance = service.delete(
+                        table_name=bound.table.name,
+                        storage=bound.storage,
+                        indexes=indexes,
+                        targets=spool.targets(bound.table.schema),
+                        target_count=spool.count,
+                        spool_bytes=spool.size,
+                    )
+                    statistics = CommandExecutionReport.combine(
+                        maintenance,
+                        discovery,
+                    )
+            return CommandResult(prepared, statistics)
         result = QueryResult(
             self,
             prepared,
@@ -623,22 +876,26 @@ def run_sql(
     max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
     materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
     planning_options: PhysicalPlanningOptions | None = None,
-) -> QueryResult:
-    """Return a lazy streaming SELECT result with a bounded ``rows`` shortcut."""
+) -> QueryResult | CommandResult:
+    """Execute SQL, returning a lazy row result or completed command result."""
 
-    prepared = prepare_sql(
+    engine = SqlEngine(
         environment,
-        sql,
-        use_indexes=use_indexes,
         memory_budget_bytes=memory_budget_bytes,
         max_open_handles=max_open_handles,
         materialization_limit=materialization_limit,
         planning_options=planning_options,
     )
-    return prepared.execute()
+    return engine.execute(
+        sql,
+        use_indexes=use_indexes,
+        planning_options=planning_options,
+    )
 
 
 __all__ = [
+    "CommandExecutionReport",
+    "CommandResult",
     "PreparedQuery",
     "QueryExecutionReport",
     "QueryResult",

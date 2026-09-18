@@ -10,7 +10,7 @@
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
 **Revision:** 2026-09-17 — handwritten lexer and parser  
-**Status:** Active implementation stage. Tasks 7.1-7.22 were reviewed through 2026-09-18, together with the prepared/runtime reporting foundation of Task 7.26; evidence is recorded in `docs/ETAPA_07_REVIEW_7_1_7_4.md`, `docs/ETAPA_07_REVIEW_7_5_7_7.md`, `docs/ETAPA_07_REVIEW_7_8_7_12.md`, `docs/ETAPA_07_REVIEW_7_13_7_17.md`, `docs/ETAPA_07_REVIEW_7_18_7_20.md`, and `docs/ETAPA_07_REVIEW_7_21_7_22.md`. Tasks 7.23-7.25 and 7.27-7.30 remain pending; Task 7.26 is not yet closed, and Stage 7 remains open.
+**Status:** Formally closed on 2026-09-18. Tasks 7.1-7.30 and all 63 Definition of Done criteria are implemented and verified. The complete warnings-as-errors regression suite passes 2,556 tests. Review evidence is recorded in `docs/ETAPA_07_REVIEW_7_1_7_4.md`, `docs/ETAPA_07_REVIEW_7_5_7_7.md`, `docs/ETAPA_07_REVIEW_7_8_7_12.md`, `docs/ETAPA_07_REVIEW_7_13_7_17.md`, `docs/ETAPA_07_REVIEW_7_18_7_20.md`, `docs/ETAPA_07_REVIEW_7_21_7_22.md`, `docs/ETAPA_07_REVIEW_7_23_7_25.md`, and `docs/ETAPA_07_REVIEW_7_26_7_30.md`. Formal evidence and declared limits are in `docs/ETAPA_07_AUDIT.md`.
 
 The user reports Stage 6 as completed. This document uses that report as its starting point; it does not certify the actual repository or its test results. Task 7.1 verifies the implementation and its adopted decisions.
 
@@ -1212,84 +1212,84 @@ Stage 7 is complete only when the required functionality is implemented and veri
 
 ### Contracts and parsing
 
-- [ ] Actual Stage 6 prerequisites and baseline tests were inspected.
-- [ ] Supported SQL syntax and optional features are explicitly documented.
-- [ ] The adopted handwritten lexer/parser is implemented without a parser generator.
-- [ ] The documented grammar maps to parsing functions and the accepted feature matrix.
-- [ ] Tokens retain original lexemes, meaningful decoded values, source spans, and EOF.
-- [ ] Shared parser utilities serve SELECT, INSERT, and DELETE.
-- [ ] The parser constructs parser-independent AST nodes directly.
-- [ ] No parser/token-stream state leaks into binder/planner/executor interfaces.
-- [ ] Lexer/parser loops make progress; input and nesting limits fail predictably.
-- [ ] Parsing after a failed invocation uses fresh state.
-- [ ] Source locations support useful diagnostics.
-- [ ] Keywords, identifiers, strings, numeric literals, and punctuation follow the adopted policy.
-- [ ] Boolean precedence and parentheses are tested.
-- [ ] Every required statement family parses.
-- [ ] Trailing garbage, extra statements, and unsupported syntax are rejected.
-- [ ] Parsing and plan inspection do not mutate storage.
+- [x] Actual Stage 6 prerequisites and baseline tests were inspected.
+- [x] Supported SQL syntax and optional features are explicitly documented.
+- [x] The adopted handwritten lexer/parser is implemented without a parser generator.
+- [x] The documented grammar maps to parsing functions and the accepted feature matrix.
+- [x] Tokens retain original lexemes, meaningful decoded values, source spans, and EOF.
+- [x] Shared parser utilities serve SELECT, INSERT, and DELETE.
+- [x] The parser constructs parser-independent AST nodes directly.
+- [x] No parser/token-stream state leaks into binder/planner/executor interfaces.
+- [x] Lexer/parser loops make progress; input and nesting limits fail predictably.
+- [x] Parsing after a failed invocation uses fresh state.
+- [x] Source locations support useful diagnostics.
+- [x] Keywords, identifiers, strings, numeric literals, and punctuation follow the adopted policy.
+- [x] Boolean precedence and parentheses are tested.
+- [x] Every required statement family parses.
+- [x] Trailing garbage, extra statements, and unsupported syntax are rejected.
+- [x] Parsing and plan inspection do not mutate storage.
 
 ### Semantic analysis
 
-- [ ] Tables and columns resolve through Catalog.
-- [ ] Ambiguous/unknown names and duplicate relation aliases fail clearly.
-- [ ] Types and literals follow Stage 6 semantics.
-- [ ] SELECT output schema and aliases are correct.
-- [ ] Hidden ORDER BY keys survive until sorting and disappear from final output.
-- [ ] Grouped projections and aggregate signatures are validated.
-- [ ] Join references and key types are correct.
-- [ ] INSERT/DELETE validation happens before predictable invalid writes.
-- [ ] NULL behavior, if supported, is consistent across predicates, indexes, grouping, and joins.
+- [x] Tables and columns resolve through Catalog.
+- [x] Ambiguous/unknown names and duplicate relation aliases fail clearly.
+- [x] Types and literals follow Stage 6 semantics.
+- [x] SELECT output schema and aliases are correct.
+- [x] Hidden ORDER BY keys survive until sorting and disappear from final output.
+- [x] Grouped projections and aggregate signatures are validated.
+- [x] Join references and key types are correct.
+- [x] INSERT/DELETE validation happens before predictable invalid writes.
+- [x] NULL behavior, if supported, is consistent across predicates, indexes, grouping, and joins.
 
 ### Physical planning
 
-- [ ] A table-scan baseline can execute the supported SELECT subset.
-- [ ] Eligible equality queries use compatible hash or B+ indexes.
-- [ ] Eligible ranges use B+ with correct endpoints.
-- [ ] OR/NOT and residual predicates preserve the complete Boolean meaning.
-- [ ] Index availability, key types, and coverage are checked.
-- [ ] ORDER BY demonstrably reaches ExternalSort.
-- [ ] GROUP BY reaches the Stage 6 required optimized route.
-- [ ] JOIN reaches the Stage 6 required optimized route.
-- [ ] Plans reference real implemented operators and use fresh execution state.
-- [ ] Predicate/projection rewrites have equivalence tests.
+- [x] A table-scan baseline can execute the supported SELECT subset.
+- [x] Eligible equality queries use compatible hash or B+ indexes.
+- [x] Eligible ranges use B+ with correct endpoints.
+- [x] OR/NOT and residual predicates preserve the complete Boolean meaning.
+- [x] Index availability, key types, and coverage are checked.
+- [x] ORDER BY demonstrably reaches ExternalSort.
+- [x] GROUP BY reaches the Stage 6 required optimized route.
+- [x] JOIN reaches the Stage 6 required optimized route.
+- [x] Plans reference real implemented operators and use fresh execution state.
+- [x] Predicate/projection rewrites have equivalence tests.
 
 ### Execution and results
 
-- [ ] Public Python prepare/execute interfaces work independently of HTTP/UI.
-- [ ] SELECT results are streamed under the Stage 6 resource contract.
-- [ ] Output rows preserve required duplicate multiplicity.
-- [ ] Empty and combined-clause queries are correct.
-- [ ] Full consumption, early stop, and exceptions close owned resources.
-- [ ] Partial result delivery and final completion are distinguished.
-- [ ] Repeated execution cannot reuse corrupt live state or repeat a mutation accidentally.
-- [ ] Planned descriptions and measured execution details are distinguished.
+- [x] Public Python prepare/execute interfaces work independently of HTTP/UI.
+- [x] SELECT results are streamed under the Stage 6 resource contract.
+- [x] Output rows preserve required duplicate multiplicity.
+- [x] Empty and combined-clause queries are correct.
+- [x] Full consumption, early stop, and exceptions close owned resources.
+- [x] Partial result delivery and final completion are distinguished.
+- [x] Repeated execution cannot reuse corrupt live state or repeat a mutation accidentally.
+- [x] Planned descriptions and measured execution details are distinguished.
 
 ### Mutations
 
-- [ ] INSERT updates the base storage and every affected index.
-- [ ] DELETE discovers and applies a stable target set.
-- [ ] Large DELETE target sets remain within the memory contract.
-- [ ] RID movement/reorganization cannot delete the wrong row or stale remaining targets.
-- [ ] Ordinary validation failures leave permanent state unchanged.
-- [ ] Mid-operation failures follow a tested compensation/repair/unavailable-state policy.
-- [ ] Failed statements do not return success or invented affected counts.
-- [ ] Incomplete indexes cannot be selected silently after a failure/reopen.
-- [ ] Successful writes persist according to the adopted flush boundary.
-- [ ] Transaction isolation and crash atomicity are not falsely claimed.
+- [x] INSERT updates the base storage and every affected index.
+- [x] DELETE discovers and applies a stable target set.
+- [x] Large DELETE target sets remain within the memory contract.
+- [x] RID movement/reorganization cannot delete the wrong row or stale remaining targets.
+- [x] Ordinary validation failures leave permanent state unchanged.
+- [x] Mid-operation failures follow a tested compensation/repair/unavailable-state policy.
+- [x] Failed statements do not return success or invented affected counts.
+- [x] Incomplete indexes cannot be selected silently after a failure/reopen.
+- [x] Successful writes persist according to the adopted flush boundary.
+- [x] Transaction isolation and crash atomicity are not falsely claimed.
 
 ### Verification and handoff
 
-- [ ] End-to-end SQL tests cover every required family.
-- [ ] SQL output agrees with manual and unoptimized physical baselines.
-- [ ] Tiny-budget SQL tests demonstrate required external behavior.
-- [ ] Restart tests create fresh storage/index managers and operator objects.
-- [ ] Read-only SQL preserves permanent data.
-- [ ] Invalid syntax, semantic errors, corruption, and resource failures are tested.
-- [ ] The configured Stage 1-7 regression suite passes.
-- [ ] Descriptors and metrics report the operators actually executed.
-- [ ] Documentation reflects implemented capabilities and known limits.
-- [ ] Stage 8 integration points are documented without implementing its features.
+- [x] End-to-end SQL tests cover every required family.
+- [x] SQL output agrees with manual and unoptimized physical baselines.
+- [x] Tiny-budget SQL tests demonstrate required external behavior.
+- [x] Restart tests create fresh storage/index managers and operator objects.
+- [x] Read-only SQL preserves permanent data.
+- [x] Invalid syntax, semantic errors, corruption, and resource failures are tested.
+- [x] The configured Stage 1-7 regression suite passes.
+- [x] Descriptors and metrics report the operators actually executed.
+- [x] Documentation reflects implemented capabilities and known limits.
+- [x] Stage 8 integration points are documented without implementing its features.
 
 ## 15. Main risks and controls
 

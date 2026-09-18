@@ -1,136 +1,116 @@
-# ETAPA_07_AUDIT.md — Cierre de la Etapa 7 (Parser SQL, Planner, Executor)
+# Stage 7 closure audit — SQL parser, planner, and executor
 
-> **INVALIDATED ON 2026-09-17.** This document describes a repository state
-> that is not present in the current Git history. The named binder, planner,
-> executor, and `engine/maintenance/` modules do not exist, and the reported
-> 2,350-test result cannot be reproduced from the current tree. It is retained
-> as historical evidence of the documentation inconsistency; it is not a
-> Stage 7 closure audit. Use `ETAPA_07.md`, `docs/sql-grammar.md`, and
-> `docs/ETAPA_07_REVIEW_7_1_7_4.md` and
-> `docs/ETAPA_07_REVIEW_7_5_7_7.md` for the current status.
+**Closure date:** 2026-09-18
 
-Fecha: **2026-09-15**. Rama de trabajo: clon local sobre `main`
-(`b087943` + los commits de esta etapa). Comandos de verificación:
+**Stage specification:** `ETAPA_07.md`
 
-```bash
-python -m pytest -q                 # 2350 passed, 0 failed
-python -m pytest tests/query -q     # 55 passed, 0 failed  (código nuevo de la Etapa 7)
+**Result:** Tasks 7.1-7.30 and all 63 Definition of Done criteria are satisfied.
+
+## Reproducible evidence
+
+The formal cross-stage command was run from the repository root with the
+project virtual environment:
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests -q -W error -p no:cacheprovider
 ```
 
-## 1. Qué se construyó
+Result:
 
-| Módulo | Archivo | Tareas cubiertas |
-|---|---|---|
-| AST | `engine/query/ast.py` | 7.3 |
-| Lexer | `engine/query/lexer.py` | 7.4 |
-| Parser | `engine/query/parser.py` | 7.5, 7.6, 7.7 |
-| Entorno de ejecución | `engine/query/environment.py` | 7.8 (registro de handles físicos) |
-| Binder + Planner | `engine/query/planner.py` | 7.8–7.20 |
-| Executor / API pública | `engine/query/executor.py` | 7.13, 7.21–7.24 |
-| Mantenimiento de escritura | `engine/maintenance/table.py` (paquete nuevo, decisión adoptada) | 7.23–7.25 |
-| Pruebas | `tests/query/*.py` (55 pruebas) | 7.27, 7.29 (parcial) |
-
-Decisiones de diseño que Paolo confirmó y que quedan documentadas en el
-código: **parser manual sin Lark**, y **capa de mantenimiento en un paquete
-aparte** (`engine/maintenance/`, no dentro de `engine/query/`).
-
-`tests/test_architecture.py` fue actualizado para declarar la nueva capa
-`maintenance` y sus dependencias permitidas (`errors`, `catalog`, `storage`,
-`indexes`) — el propio proyecto exige que todo módulo nuevo respete las
-fronteras de capas, así que esta actualización era parte obligatoria del
-trabajo, no un ajuste cosmético.
-
-## 2. Contrato SQL soportado (cierre real de la Tarea 7.2)
-
-```
-SELECT <* | expr [AS alias] (, ...)>
-FROM tabla [alias]
-[[INNER] JOIN tabla [alias] ON <predicado>]
-[WHERE <predicado>]
-[GROUP BY columna (, ...)]
-[ORDER BY expr [ASC|DESC] (, ...)]
-
-INSERT INTO tabla [(columna, ...)] VALUES (valor, ...)
-
-DELETE FROM tabla [WHERE <predicado>]
+```text
+2556 passed in 936.76s (0:15:36)
 ```
 
-- Predicados: `=`, `<>`/`!=`, `<`, `<=`, `>`, `>=`, `AND`, `OR`, `NOT`,
-  paréntesis.
-- Agregados: `COUNT(*)`, `COUNT(col)`, `SUM`, `AVG`, `MIN`, `MAX`, con alias
-  automático (`count`, `sum_edad`, ...) o explícito vía `AS`.
-- Sin soporte de `UPDATE` — **no** es una omisión: `ETAPA_07.md` nunca lo
-  pide (su Tarea 7.6 dice explícitamente "Parse INSERT and DELETE").
-- Sin `NULL`: consistente con el modelo de filas de la Etapa 6
-  (`engine/operators/expressions.py` ya documenta "no NULL"), por lo que
-  `INSERT` exige valor para cada columna.
+No Stage 7 mutation, acceptance, restart, spilling, cleanup, or differential
+test is skipped or marked expected-failure. Focused evidence also passed:
 
-## 3. Verificación real, no solo lectura de código
+| Scope | Result |
+|---|---:|
+| `tests/query/test_stage7_acceptance.py` | 6 passed |
+| `tests/query/test_stage7_resources.py` | 5 passed |
+| `tests/query` plus `tests/test_architecture.py` | 281 passed |
 
-- 2350 pruebas en verde en la suite completa (2295 heredadas de la Etapa 6
-  + 55 nuevas), **sin marcar ni una sola prueba como skip**.
-- Las pruebas de escritura verifican consecuencia física real, no solo el
-  valor de retorno: tras un `INSERT`, se relee el índice
-  (`index.search(...)`) y el storage (`storage.read(rid)`), no solo el
-  resultado de `run_sql`.
-- Hay una prueba de **rollback real** (`test_insert_duplicate_unique_key_
-  rolls_back_the_row`): un `INSERT` que viola una clave única deja el
-  storage exactamente como estaba, verificado leyendo el storage después
-  del error, no asumido por el código de manejo de excepciones.
-- Hay una prueba de **cierre/reapertura** (`test_close_reopen_storage_scan_
-  and_index_agree`): se cierran storage e índice, se reabren con
-  `HeapFile.open`/`open_catalog_index`, y se confirma que ambos siguen de
-  acuerdo tras INSERT+DELETE+INSERT.
-- El *pushdown* a índice (Tareas 7.15–7.17 para igualdad, 7.16 para rangos
-  B+) se verifica **estructuralmente**: las pruebas abren el plan generado
-  y confirman que el nodo hoja es un `IndexScan`, no solo que el resultado
-  final es correcto (que podría dar el mismo resultado con un `TableScan`
-  sin decir nada sobre si el índice realmente se usó).
+The first complete run exposed one stale Stage 6 exact-string assertion after
+TableScan descriptors began naming the concrete storage adapter. The assertion
+was updated to the truthful descriptor and the complete suite was rerun from
+zero; only the successful 2,556-test rerun is closure evidence.
 
-## 4. Alcance adoptado y limitaciones honestas (no ocultas)
+## Task closure
 
-Esto es exactamente lo que la Tarea 7.30 exige documentar — decisiones y
-lo que queda para después, no una lista de errores escondidos:
+| Tasks | Evidence and implemented behavior |
+|---|---|
+| 7.1-7.2 | Stage 6 prerequisites were inspected; the handwritten-parser contract, exact supported syntax, aliases, comments, signed-number rules, whole-table DELETE policy, and real baseline are documented. |
+| 7.3-7.4 | Parser-independent immutable AST nodes and complete token metadata retain source spans, exact lexemes, decoded values, EOF, limits, and controlled lexical failures. |
+| 7.5-7.7 | The bounded recursive-descent parser covers SELECT, INSERT, DELETE, precedence, optional syntax, full-input consumption, fresh state, and located diagnostics. |
+| 7.8-7.12 | Catalog-backed binding resolves names, exact types, projections, hidden order dependencies, aggregates, joins, and mutation targets without writes. |
+| 7.13-7.17 | Immutable plan specifications create fresh TableScan, hash/B+ IndexScan, Filter, and Projection trees with safe candidates, residual predicates, range endpoints, and stale-plan checks. |
+| 7.18-7.20 | SQL reaches the real Stage 6 `ExternalSort`, `ExternalHashGroup`, `GraceHashJoin`, eligible `IndexNestedLoopJoin`, and selectable `NestedLoopJoin` baseline. |
+| 7.21-7.22 | `SqlEngine`, reusable `PreparedQuery`, streaming `QueryResult`, synchronous `CommandResult`, and explicit completion states own fresh transient execution resources. |
+| 7.23-7.25 | The shared maintenance service keeps base storage and all declared indexes aligned, uses bounded stable DELETE targets, repairs ordinary failures, and persists incomplete-index state when repair fails. |
+| 7.26 | Prepared facts and measured runtime reports are separate. Descriptors name real operators, concrete storage adapters, chosen indexes, predicates, keys, and exact mutation indexes; runtime data comes from actual Stage 6 reports. Prepared planning options cannot be silently overridden at execution. |
+| 7.27 | The exact Section 12 students/enrollments dataset passes through the public API across selection, hash/B+ access, Boolean fallback, hidden ordering, grouping, joins, INSERT, DELETE, and semantic rejection. |
+| 7.28 | Fresh-manager restart, forced sort runs and merge passes, group repartition, Grace-join overflow/fallback, early close, injected failure, memory/handle accounting, and temporary cleanup are verified. |
+| 7.29 | Optimized results agree with forced TableScan and manual algorithm baselines; malformed, semantic, and failed-execution paths preserve the specified permanent state; the full Stage 1-7 regression suite passes. |
+| 7.30 | The grammar contract, public SQL guide, architecture, roadmap, stage status, limitations, and Stage 8 integration points are documented without implementing Stage 8. |
 
-1. **JOIN**: un único `JOIN` por consulta, requiere al menos una clave de
-   igualdad calificada por relación (`a.col = b.col`); siempre se planea
-   como `GraceHashJoin`. No hay elección costo-basada entre join
-   algorithms (Tarea 7.20 la deja como decisión de diseño, no como
-   obligación de comparar planes).
-2. **Pushdown a índice**: solo se usa un término del `WHERE` (el primero
-   elegible); un segundo término sobre la misma columna (p. ej.
-   `edad >= 20 AND edad < 24`) se aplica como filtro residual después del
-   `IndexScan`, no se combina en un único rango de dos extremos. Resultado
-   siempre correcto, solo no es el plan más veloz posible.
-3. **INSERT/DELETE no usan pushdown de índice** para localizar filas — el
-   `DELETE` siempre resuelve su `WHERE` vía `TableScan`/`Filter` antes de
-   invocar el mantenimiento. Correcto y probado; una futura optimización.
-4. **Sin `EXPLAIN`/plan expuesto** (Tarea 7.26): el plan interno existe
-   como árbol de operadores real, pero no hay todavía un método público
-   que lo imprima o mida (fuera de las métricas que cada operador de la
-   Etapa 6 ya expone, como `HashGroupMetrics`).
-5. **Sin pruebas diferenciales** contra un motor de referencia (parte de
-   la Tarea 7.29): las pruebas negativas/de regresión existen (columna
-   desconocida, `GROUP BY` inválido, `JOIN` sin clave, `INSERT` con lista
-   de columnas incompleta, clave duplicada), pero no se comparó contra
-   SQLite u otro motor para el mismo dataset.
-6. **No se ejecutó el dataset de aceptación reproducible de la sección 12
-   de `ETAPA_07.md`** palabra por palabra — las pruebas de
-   `tests/query/` cubren los mismos casos (SELECT/JOIN/GROUP BY/ORDER
-   BY/INSERT/DELETE/errores) con datos propios, no con ese dataset
-   exacto.
-7. `PROJECT_CONTEXT.md`, `PLAN.md` y `ETAPA_07.md` quedan actualizados con
-   el puntero de cierre de esta etapa (ver más abajo), pero no se generó
-   un documento de "handoff a la Etapa 8" separado — no hay Etapa 8
-   redactada todavía en el repo contra la cual planear ese traspaso.
+## Definition of Done mapping
 
-## 5. Conclusión
+The 63 checked criteria in `ETAPA_07.md` are supported as follows:
 
-Con la evidencia de arriba, la Etapa 7 está **funcionalmente completa y
-verificada para el subconjunto de SQL definido en la sección 2**: parseo,
-binding, planificación (incluido *pushdown* de índice por igualdad y por
-rango), ejecución de `SELECT`/`INSERT`/`DELETE`, y mantenimiento
-consistente de índices con reversión real ante fallos — todo con pruebas
-que leen el estado físico, no solo el valor de retorno. Los seis puntos de
-la sección 4 son el resto real: extensiones válidas para una siguiente
-pasada, no defectos escondidos bajo la alfombra.
+| Criterion group | Count | Primary evidence |
+|---|---:|---|
+| Contracts and parsing | 16 | `docs/sql-grammar.md`; lexer/parser/AST tests; malformed-input, span, limit, precedence, fresh-state, and no-write tests |
+| Semantic analysis | 9 | binder tests and public acceptance tests for resolution, ambiguity, exact types, output schemas, hidden order fields, aggregates, joins, and pre-write validation |
+| Physical planning | 10 | plan-structure, index-pushdown, external planning, join strategy, fresh-instance, and optimized-versus-baseline tests |
+| Execution and results | 8 | executor lifecycle tests plus acceptance/resource tests for streaming, duplicate multiplicity, empty/combined queries, cleanup, completion states, repeat safety, and reporting |
+| Mutations | 10 | mutation-maintenance and executor-write tests for every-index consistency, bounded stable targets, RID movement, validation atomicity, compensation, incomplete markers, flushes, and honest affected counts |
+| Verification and handoff | 10 | exact acceptance dataset, differential baselines, forced external paths, fresh restart, read-only preservation, injected failures, complete strict suite, reports, and closure documentation |
+
+The NULL criterion is satisfied by a documented absence of NULL: the Stage 6
+row model and Stage 7 grammar do not admit a SQL NULL literal or three-valued
+logic. This policy is consistent across predicates, indexes, grouping, joins,
+and mutations and is tested as unsupported syntax.
+
+## Verified reporting contract
+
+`PreparedQuery.describe()` is read-only and reports planned facts. SELECT
+execution reports are produced from the actual operator instances and retain
+measured page I/O, temporary I/O, spills, memory, handles, runs, passes,
+partitions, recursion, fallback details, elapsed time, and row counts where the
+operator exposes them. INSERT/DELETE reports identify the concrete storage
+adapter and exact maintained indexes. DELETE additionally reports its executed
+discovery plan and bounded spool statistics.
+
+An early-closed result reports partial delivery and `fully_consumed=False`; a
+failed result is never converted to success. A caller cannot pass new planning
+options while executing an existing `PreparedQuery`, so the reported prepared
+plan cannot diverge from a silently replanned execution.
+
+## Declared limitations
+
+Stage 7 deliberately remains a limited educational SQL engine:
+
+- exactly one inner JOIN is supported; outer joins, subqueries, set operations,
+  HAVING, DISTINCT, UPDATE, DDL, expressions, and multi-row VALUES are absent;
+- NULL/defaults and implicit numeric coercion are absent;
+- the planner is deterministic and rule-based, not cost-based;
+- DELETE discovery currently uses the safe TableScan/Filter route;
+- there is no SQL `EXPLAIN`; the Python API exposes real descriptions/reports;
+- Catalog registration remains in memory although storage/index formats persist;
+- ordinary mutation compensation is not transaction rollback, isolation, WAL,
+  concurrent-write safety, or crash-atomic multi-file commit.
+
+These limits agree with the frozen Stage 7 contract and are documented in
+`docs/sql.md` and `docs/sql-grammar.md`.
+
+## Closure decision and handoff
+
+Stage 7 is formally closed. Stage 8 is the next roadmap stage, but no detailed
+`ETAPA_08.md` plan is claimed to exist. The existing handoff points are
+`SqlEngine` session ownership, `QueryResult` lifetime and states,
+`MutationService` as the table-wide write boundary, persistent incomplete-index
+markers, and borrowed durable managers in `QueryEnvironment`. Transaction
+identity, locking, competing sessions, commit/abort, deadlocks, and recovery
+must be designed in Stage 8 rather than inferred from Stage 7 compensation.
+
+Part 1 remains incomplete because Stages 8-10 are still open.

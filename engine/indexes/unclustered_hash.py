@@ -303,6 +303,13 @@ class UnclusteredHashIndex(Index):
         self._require_open()
         return self.index.rebuild_from_storage(self.heap)
 
+    def mark_incomplete(self) -> None:
+        """Persistently disable this adapter until a complete rebuild succeeds."""
+
+        self._require_open()
+        self._index.mark_incomplete()
+        self._index.flush()
+
     def validate_structure(self) -> HashValidationReport:
         """Validate physical hash invariants and one-to-one live Heap coverage."""
 

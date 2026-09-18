@@ -4,6 +4,11 @@
 not an additional academic requirement. The lexer and parser are handwritten;
 the parser uses recursive descent and does not depend on Lark.
 
+**Verified:** 2026-09-18 through the completed Stage 7 public acceptance,
+restart, external-path, cleanup, differential, and full regression suites. See
+the practical [SQL engine guide](sql.md) and the
+[Stage 7 closure audit](ETAPA_07_AUDIT.md).
+
 ## Source and token conventions
 
 - A source span uses a zero-based inclusive `start` offset and exclusive `end`
@@ -120,18 +125,17 @@ objects, RIDs, storage objects, physical operators, or mutation behavior.
 
 ## Feature coverage and execution route
 
-“Planned” names the tasks that must provide semantic and physical support. It
-does not claim that the current repository already implements them.
+The table names the implemented route and its completed Stage 7 evidence.
 
 | Feature | Grammar / AST | Binder | Planner / executor | Tests |
 |---|---|---|---|---|
-| SELECT, projection, aliases, star | Tasks 7.3, 7.5 | implemented in 7.8, 7.10 | physical planning 7.13-7.20; streaming execution/result API implemented in 7.21-7.22 | syntax/binding/planning/lifecycle verified; complete acceptance 7.27 |
-| WHERE and Boolean predicates | 7.5 | implemented in 7.9 | TableScan/B+/hash candidate + complete Filter implemented in 7.14-7.17 | syntax/binding/basic planning verified; end-to-end 7.27 |
-| ORDER BY | 7.5 | implemented in 7.10 | `ExternalSort` implemented in 7.18 | binding, hidden fields, direction, stability, and forced multi-pass spill verified; restart 7.28 |
-| GROUP BY and aggregates | 7.5 | implemented in 7.11 | `ExternalHashGroup` implemented in 7.19 | binding, aliases, empty/global behavior, and forced repartition verified; restart 7.28 |
-| one inner JOIN | 7.5 | implemented in 7.8-7.9 | `GraceHashJoin` default, eligible `IndexNestedLoopJoin`, `NestedLoopJoin` baseline implemented in 7.20 | predicate scope, multiplicity, strategy equivalence, and measured optimized route verified; end-to-end 7.27 |
-| INSERT | 7.6 | implemented in 7.12 | validated maintenance path, 7.23-7.25 | no-write binding verified; execution pending |
-| filtered/whole-table DELETE | 7.6 | implemented in 7.12 | stable targets + index maintenance, 7.24-7.25 | no-write binding verified; execution pending |
+| SELECT, projection, aliases, star | Tasks 7.3, 7.5 | implemented in 7.8, 7.10 | physical planning 7.13-7.20; streaming execution/result API implemented in 7.21-7.22 | syntax, binding, planning, lifecycle, exact dataset, and differential acceptance verified in 7.27-7.29 |
+| WHERE and Boolean predicates | 7.5 | implemented in 7.9 | TableScan/B+/hash candidate + complete Filter implemented in 7.14-7.17 | residual meaning, scan fallback, optimized equivalence, and negative cases verified in 7.27-7.29 |
+| ORDER BY | 7.5 | implemented in 7.10 | `ExternalSort` implemented in 7.18 | hidden fields, direction, stability, forced multi-pass spill, cleanup, and fresh restart verified in 7.27-7.29 |
+| GROUP BY and aggregates | 7.5 | implemented in 7.11 | `ExternalHashGroup` implemented in 7.19 | aliases, empty/global behavior, forced repartition, budget equivalence, and restart verified in 7.27-7.29 |
+| one inner JOIN | 7.5 | implemented in 7.8-7.9 | `GraceHashJoin` default, eligible `IndexNestedLoopJoin`, `NestedLoopJoin` baseline implemented in 7.20 | scope, multiplicity, optimized/baseline equivalence, spill fallback, cleanup, and restart verified in 7.27-7.29 |
+| INSERT | 7.6 | implemented in 7.12 | shared maintenance path implemented in 7.23-7.25 | success, uniqueness recheck, rebuild, compensation, report, and fresh-restart agreement verified in 7.27-7.29 |
+| filtered/whole-table DELETE | 7.6 | implemented in 7.12 | disk-backed stable targets + shared maintenance implemented in 7.24-7.25 | bounded discovery, confirmed-prefix failure, repair, report, and fresh-restart agreement verified in 7.27-7.29 |
 | signed numbers | lexer 7.4; parser 7.5 | target range implemented in 7.9/7.12 | existing typed expressions/mutations | syntax and semantic ranges verified |
 
 ## Semantic binding policy
@@ -164,7 +168,7 @@ optional column list may reorder values but cannot omit or repeat fields.
 Binding validates exact scalar encoding, signed-int64 range, record page
 capacity, index-key compatibility, registered index availability, and known
 uniqueness through read-only probes. Execution must repeat mutable-state checks
-through the future maintenance service immediately before writing. DELETE
+through the maintenance service immediately before writing. DELETE
 binding retains the real target storage, RID requirement, affected indexes, and
 RID-movement policy but does not enumerate or remove rows.
 
@@ -213,17 +217,21 @@ outer-join rewrite is attempted.
 ## Execution and result policy
 
 `SqlEngine.prepare()` parses, binds, and plans without opening a cursor or
-applying a mutation. The returned `PreparedQuery` is reusable: each execution
-instantiates a new physical tree and Stage 6 `ExecutionContext`. Preparing and
-describing INSERT/DELETE remains read-only; executing either is rejected until
-the maintenance work in Tasks 7.23-7.25 exists.
+applying a mutation. The returned `PreparedQuery` is reusable: each SELECT
+execution instantiates a new physical tree and Stage 6 `ExecutionContext`;
+each INSERT/DELETE execution applies the command synchronously once through the
+shared maintenance service. Preparing and describing every statement remains
+read-only.
 
-`SqlEngine.execute()` returns a lazy streaming `QueryResult`. One active result
+`SqlEngine.execute()` returns a lazy streaming `QueryResult` for SELECT and a
+completed, rowless `CommandResult` for INSERT/DELETE. One active SELECT result
 owns the single session until it is exhausted, explicitly closed, or fails.
 The result closes operators, temporary workspaces, and its context, while table
 and index managers remain borrowed. Streaming iteration is primary;
 `fetchmany(size)` is bounded, and `fetchall(limit=...)` plus the compatibility
-`rows` property enforce hard limits and never silently truncate.
+`rows` property enforce hard limits and never silently truncate. A command
+result exposes its affected-row count and report without re-executing the
+mutation; row iteration and fetch methods are unsupported.
 
 Result states distinguish `COMPLETE`, early `CLOSED`, and `FAILED`. A failure
 after yielding rows retains the delivered-row count and is not successful.
@@ -261,9 +269,22 @@ partial while running and final only after completion/close. A plan
 specification may be executed more than once only by constructing a fresh
 operator tree for each run.
 
-INSERT and DELETE must validate before mutation, update every affected index,
-and compensate completed steps after an ordinary mid-operation failure. These
-rules do not claim transaction isolation, WAL durability, or crash-atomic
-multi-file commits; those belong to Stage 8. Clustered/sequential writes that
-move RIDs require the existing rebuild/recovery contracts rather than stale RID
-reuse.
+INSERT and DELETE validate before mutation and require every declared index to
+participate. INSERT writes the base record once. Heap storage then updates each
+stable RID association; sequential storage marks indexes incomplete before a
+potential RID movement and rebuilds them all from the resulting base file.
+
+DELETE discovery runs through the selected physical plan before any write. It
+stores each exact RID plus its complete old record in a framed temporary disk
+spool, closes the plan, and only then begins maintenance. Before deleting each
+row, the service verifies that the RID still identifies that old record. It
+never mutates a scan/index cursor that is still producing targets and never
+keeps the complete target set in an unbounded in-memory list.
+
+An ordinary mid-operation failure reports only the confirmed base-row prefix.
+The current base storage is authoritative and every index is repaired through
+its atomic rebuild path. If repair cannot finish, the index remains persistently
+marked incomplete and both live and reopened access reject it. Successful
+commands flush before returning. This compensation contract does not claim
+statement rollback, transaction isolation, WAL durability, or crash-atomic
+multi-file commits; those belong to Stage 8.

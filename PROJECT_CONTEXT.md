@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **3.2** — adds the reviewed Stage 7 basic physical-planning contract while Stage 6 remains the latest completed stage.
+> Context version: **3.6** — records the formal Stage 7 closure, evidence contract, and Stage 8 handoff.
 
 ## Project identity
 
@@ -1986,17 +1986,17 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 Latest completed stage:
 
-> **Stage 6 — Relational Operators and External Algorithms**
+> **Stage 7 — SQL Parser, Planner, and Executor**
 
 Overall Part 1 roadmap:
 
 > `PLAN.md`
 
-Current stage:
+Next roadmap stage:
 
-> **Stage 7 — SQL Parser, Planner, and Executor (in progress)**
+> **Stage 8 — Transactions and Concurrency (not started)**
 
-Current stage specification:
+Latest completed stage specification:
 
 > `ETAPA_07.md`
 
@@ -2101,8 +2101,27 @@ Implemented so far:
   execution resources, supports bounded batches/materialization, records
   complete/early-close/failure states, and retains measured `PlanReport`
   evidence after cleanup. One open result owns a session. Permanent storage
-  and index managers remain borrowed. Mutation plans are inspectable but cannot
-  execute before Tasks 7.23–7.25.
+  and index managers remain borrowed.
+- Stage 7 tasks 7.23–7.25: `SqlEngine` executes INSERT and DELETE synchronously
+  through `engine.maintenance`, below the query/operator layer. INSERT writes
+  the base row once, rechecks mutable uniqueness immediately before the write,
+  updates every Heap-stable index, and rebuilds every index for RID-moving
+  sequential storage. DELETE discovers exact RID/old-record targets through a
+  framed disk spool, closes the discovery plan before writing, verifies each
+  target is still the same row, and reports only completed base deletions.
+  Ordinary failures preserve confirmed DELETE prefixes and rebuild every index
+  from current base storage; a failed repair leaves a persistent incomplete
+  marker that blocks live and reopened access. Successful commands flush before
+  returning one completed `CommandResult`. This is compensation and repair,
+  not transaction isolation, WAL, or crash-atomic multi-file commit.
+- Stage 7 tasks 7.26–7.30: prepared descriptors name concrete storage and exact
+  access/mutation indexes while runtime reports retain measurements from the
+  actual Stage 6 operator instances. The exact public acceptance dataset,
+  scan/index and join-strategy differential baselines, fresh-manager restart,
+  forced sort/group/join external paths, early close, injected temporary-write
+  failure, and full owned-resource cleanup are verified. `docs/sql.md` records
+  the public API, supported subset, reports, failure boundaries, limits, and
+  Stage 8 integration points.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -2132,24 +2151,16 @@ audited as of 2026-09-11.** All 59 Definition of Done criteria and 2252
 strict-suite tests pass after integrating the reviewed Stage 5; the three
 required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
 by forced disk spills. Evidence, per-increment reports and the declared
-caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 is in
-progress.** Tasks 7.1-7.22 reconcile the baseline and contract, freeze the
-handwritten grammar, implement the located bounded lexer/parser, and add the
-Catalog-backed semantic layer for names, exact types, joins, projections,
-ordering, grouping, aggregates, and no-write mutation validation, then connect
-basic SELECTs to reusable TableScan/B+/hash physical plans, then connect SQL to
-the real Stage 6 external sort, hash-group and join routes. Streaming SELECT
-execution, lifecycle ownership, the public Python API, and the initial
-prepared/runtime report boundary are implemented. The `engine/maintenance/`
-write service remains unimplemented, so Stage 7 is not
-closed. The invalid former closure report is
-retained only as historical evidence; the current status is documented in
-`docs/ETAPA_07_REVIEW_7_1_7_4.md` and
-`docs/ETAPA_07_REVIEW_7_5_7_7.md`, and
-`docs/ETAPA_07_REVIEW_7_8_7_12.md`, and
-`docs/ETAPA_07_REVIEW_7_13_7_17.md`, and
-`docs/ETAPA_07_REVIEW_7_18_7_20.md`, and
-`docs/ETAPA_07_REVIEW_7_21_7_22.md`. Part 1 remains incomplete. The
+caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 is
+formally complete and audited as of 2026-09-18.** Tasks 7.1-7.30 and all 63
+Definition of Done criteria are satisfied under the frozen handwritten-parser
+contract. The exact public acceptance dataset, real external paths, fresh
+restart, cleanup, injected failures, and optimized-versus-baseline results are
+verified. The complete warnings-as-errors suite passes 2,556 tests. Evidence
+and declared limits are in the [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md),
+[SQL engine guide](docs/sql.md), and [Stage 7 audit](docs/ETAPA_07_AUDIT.md).
+Stage 8 is next in the roadmap; no detailed `ETAPA_08.md` plan or Stage 8
+implementation is claimed. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2202,6 +2213,28 @@ mean `FAILED`; partial delivery is never reported as success. The result closes
 temporary/operator resources but never borrowed table/index managers. Initial
 Task 7.26 reporting pairs immutable prepared descriptions with actual Stage 6
 `PlanReport` measurements and an honest fully-consumed flag.
+
+Resolved in Stage 7 Tasks 7.23-7.25: mutation execution is synchronous and
+returns a rowless `CommandResult` exactly once. Query execution owns DELETE
+discovery because it depends on physical operators; the lower maintenance
+service receives only a closed, framed disk spool of exact RID/old-record
+targets. Heap INSERT/DELETE updates every declared index around one base write.
+RID-moving sequential INSERT marks indexes incomplete before movement and
+atomically rebuilds all of them. After an ordinary partial failure, the base
+storage is authoritative: confirmed DELETE prefixes remain deleted and all
+indexes are rebuilt from current rows. If repair fails, its persistent
+incomplete marker blocks subsequent access and restart. These guarantees do
+not imply transaction rollback, concurrency control, WAL, or crash atomicity.
+
+Resolved in Stage 7 Tasks 7.26-7.30: prepared descriptions and measured runtime
+reports are separate. Descriptors identify concrete storage and exact indexes;
+runtime facts come from fresh actual operators. Executing a `PreparedQuery`
+cannot silently override its frozen planning options. Closure evidence includes
+the exact acceptance dataset, unoptimized and alternative baselines,
+fresh-manager restart, forced external paths, and cleanup after completion,
+early close, and failure. Stage 8 may wrap the documented engine, result, and
+maintenance ownership boundaries, but Stage 7 compensation is not a
+transaction or recovery protocol.
 
 When one of these decisions is made, document it here.
 

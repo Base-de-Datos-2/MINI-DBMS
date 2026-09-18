@@ -167,7 +167,7 @@ class BoundSelect:
 
 @dataclass(frozen=True, slots=True)
 class BoundIndexMutation:
-    """One index association a future maintenance operation must update."""
+    """One index association the maintenance operation must update."""
 
     metadata: IndexMetadata
     index: Index

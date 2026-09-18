@@ -45,8 +45,11 @@ def environment(tmp_path):
     for row in [(1, "Ana", 22), (2, "Luis", 19), (3, "Sol", 24), (4, "Omar", 23), (5, "Kai", 30)]:
         run_sql(env, f"INSERT INTO students VALUES ({row[0]}, '{row[1]}', {row[2]})")
 
-    yield env
-    storage.close()
+    try:
+        yield env
+    finally:
+        index.close()
+        storage.close()
 
 
 def _leaf(plan):

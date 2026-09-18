@@ -314,6 +314,7 @@ class TableScanSpec(PhysicalPlanSpec):
         return (
             ("relation", self.relation.exposed_name),
             ("table", self.relation.metadata.name),
+            ("storage", type(self.relation.storage).__name__),
             ("access", "sequential scan"),
         )
 
@@ -377,6 +378,8 @@ class IndexScanSpec(PhysicalPlanSpec):
             access = f"range {left}{self.search.lower!r}, {self.search.upper!r}{right}"
         return (
             ("relation", self.relation.exposed_name),
+            ("table", self.relation.metadata.name),
+            ("storage", type(self.relation.storage).__name__),
             ("index", self.registered.metadata.name),
             ("access", access),
         )
@@ -796,7 +799,7 @@ def _validate_mutation_snapshot(
 
 @dataclass(frozen=True, slots=True)
 class InsertPlanSpec:
-    """Complete no-write INSERT plan consumed by the future write executor."""
+    """Complete no-write INSERT plan consumed by mutation maintenance."""
 
     environment: QueryEnvironment
     bound: BoundInsert
@@ -811,12 +814,16 @@ class InsertPlanSpec:
         )
 
     def describe(self) -> PlanSpecDescriptor:
+        index_names = ", ".join(
+            item.metadata.name for item in self.bound.indexes
+        ) or "(none)"
         return PlanSpecDescriptor(
             "Insert",
             (),
             (
                 ("table", self.bound.table.name),
-                ("indexes", str(len(self.bound.indexes))),
+                ("storage", type(self.bound.storage).__name__),
+                ("indexes", index_names),
             ),
         )
 
@@ -844,11 +851,16 @@ class DeletePlanSpec:
 
     def describe(self) -> PlanSpecDescriptor:
         child = self.candidates.describe()
+        index_names = ", ".join(
+            item.metadata.name for item in self.bound.indexes
+        ) or "(none)"
         return PlanSpecDescriptor(
             "Delete",
             (),
             (
                 ("table", self.bound.table.name),
+                ("storage", type(self.bound.storage).__name__),
+                ("indexes", index_names),
                 ("requires_stable_rid", str(self.bound.requires_stable_rid)),
             ),
             children=(child,),

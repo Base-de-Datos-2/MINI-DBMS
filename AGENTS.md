@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **3.4** — adds the reviewed Stage 7 execution/result contract while Stage 6 remains the latest completed stage.
+> Context version: **3.6** — records the formal Stage 7 closure and Stage 8 handoff boundary.
 
 ## Purpose
 
@@ -315,7 +315,7 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest completed stage:
 
-> **Stage 6 — Relational Operators and External Algorithms**
+> **Stage 7 — SQL Parser, Planner, and Executor**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -351,25 +351,33 @@ warnings-as-errors after integrating the reviewed Stage 5. `engine/operators/` p
 scans, filter, projection, `ExternalSort`, `ExternalHashGroup`,
 `NestedLoopJoin`, `GraceHashJoin`, the optional index-assisted routes, and the
 `PhysicalPlan` runner with truthful descriptors and measured reports. Evidence
-and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 is
-in progress under the revised handwritten-parser plan. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
+and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated all tasks and criteria after corrections; 2295 strict tests pass.
-Tasks 7.1-7.22 establish the inspected baseline, frozen SQL contract,
+**Stage 7 was formally closed on 2026-09-18.** Tasks 7.1-7.30 and all 63
+Definition of Done criteria are satisfied. They establish the inspected
+baseline, frozen SQL contract,
 parser-independent AST/source spans, bounded handwritten lexer/parser,
 controlled diagnostics, Catalog-backed semantic binding without writes, and
 reusable SELECT plans with safe TableScan/B+/hash access paths and real Stage 6
 `ExternalSort`, `ExternalHashGroup`, `GraceHashJoin`, `NestedLoopJoin`, and
 eligible `IndexNestedLoopJoin` routes.
-`SqlEngine`, reusable `PreparedQuery`, and streaming `QueryResult` now own fresh
+`SqlEngine`, reusable `PreparedQuery`, and streaming `QueryResult` own fresh
 operator/context instances and distinguish complete, early-closed, and failed
-executions. Initial Task 7.26 reporting separates prepared descriptions from
-measured Stage 6 evidence. Do not mark Stage 7 complete until its remaining
-mutation, acceptance, reporting-closure, and documentation tasks are
-implemented and verified. Do not implement a buffer
-pool, WAL, concurrency, or other Stage 8
-work without a later explicit request.
+executions. Task 7.26 reporting separates prepared descriptions from measured
+Stage 6 evidence and identifies concrete storage and indexes. A shared
+maintenance service executes INSERT
+once, maintains or rebuilds every declared index, discovers DELETE targets into
+a bounded disk spool before writing, and exposes synchronous command results.
+Ordinary failures preserve confirmed DELETE prefixes, repair indexes from base
+storage, and persist an incomplete marker when repair cannot finish. Public
+acceptance, differential baselines, fresh restart, forced external paths,
+cleanup, and injected failures are verified. The complete warnings-as-errors
+suite passes 2,556 tests; evidence and limits are recorded in
+`docs/ETAPA_07_AUDIT.md`. Stage 8 is next in the roadmap, but no detailed
+`ETAPA_08.md` plan exists yet. Do not implement a buffer pool, WAL, concurrency,
+or other Stage 8 work without a later explicit request and stage plan.
 
-Current stage specification:
+Latest completed stage specification:
 
 > `ETAPA_07.md`
 
