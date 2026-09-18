@@ -88,6 +88,23 @@ cumplen y la suite estricta completa pasa **2556 pruebas**. Consulta la
 [auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md). La Parte 1 sigue pendiente:
 la Etapa 8 de transacciones y concurrencia es la siguiente y aún no comenzó.
 
+**Etapa 9: demo de emergencia lista (2026-09-18).** Por una excepción de orden
+autorizada (sección 1 de `ETAPA_09.md`), existe una interfaz gráfica local
+sobre el motor real, con los cuatro paneles exigidos: Archivos, Consulta,
+Resultados y Plan de Ejecución. Para probarla:
+
+```bash
+.venv/bin/python -m pip install -e ".[test,api]"
+.venv/bin/python scripts/setup_demo.py
+(cd frontend && npm ci && npm run build)
+.venv/bin/python -m api          # luego abrir http://127.0.0.1:8000
+```
+
+Funciona en modo solo lectura, con una operación del motor a la vez. **No**
+ofrece todavía transacciones ni control de concurrencia (Etapa 8). Consulta el
+[runbook de la demo](docs/demo.md) y el
+[informe de avance](docs/ETAPA_09_AVANCE.md).
+
 ## Requisitos e instalación
 
 - Python **3.11 o superior**; los comandos de Windows utilizan Python 3.12.
@@ -795,8 +812,9 @@ engine/
   query/         # AST, lexer/parser manual, binding, planes y ejecución SQL
   maintenance/   # Mantenimiento compartido de storage e índices para escrituras
   transactions/  # Reservado: transacciones y concurrencia
-api/             # Paquete reservado; aún sin servidor
-frontend/        # Reservado para la interfaz
+api/             # Demo de la Etapa 9: servicio del motor y rutas FastAPI
+frontend/        # GUI React + TypeScript + Vite con los cuatro paneles
+scripts/         # setup_demo.py: prepara la base de datos de la demo
 tests/
   doubles.py     # Implementaciones mínimas solo para pruebas; no son el motor
   conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
@@ -910,8 +928,12 @@ aceptación SQL, reinicio, rutas externas, recursos, mutaciones y diferencias.
   mutaciones, errores y límites soportados.
 - [Auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md): evidencia de los 63
   criterios y 2556 pruebas estrictas.
+- [ETAPA_09.md](ETAPA_09.md): plan de emergencia de la interfaz, previo a la
+  Etapa 8 por decisión del equipo.
+- [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-Las **Etapas 1–7 están completas y auditadas**. La **Etapa 8 — Transactions and
+Las **Etapas 1–7 están completas y auditadas**, y la demo de emergencia de la
+Etapa 9 está lista. La **Etapa 8 — Transactions and
 Concurrency** es la siguiente en `PLAN.md`; todavía no se ha iniciado y no se
 afirma que exista un plan detallado `ETAPA_08.md`.

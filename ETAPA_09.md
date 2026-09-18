@@ -6,7 +6,7 @@
 **Part:** Relational Database  
 **Starting point:** Stage 7 reported complete; Stage 8 not implemented  
 **Immediate objective:** A working local GUI over the real SQL engine for today's progress presentation  
-**Status:** Planned; no implementation or test result is certified by this document  
+**Status:** Emergency demo ready (2026-09-18); evidence in `docs/ETAPA_09_AVANCE.md`, runbook in `docs/demo.md`. Stage 9 is not closed: transaction integration waits for Stage 8\
 **Execution mode:** Single backend process, serialized engine access, read-only SQL by default  
 **Follow-up:** Stage 8, remaining Stage 9 integration, then Stage 10
 

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **3.6** — records the formal Stage 7 closure and Stage 8 handoff boundary.
+> Context version: **3.7** — records the formal Stage 7 closure, the emergency Stage 9 demo, and the Stage 8 handoff boundary.
 
 ## Purpose
 
@@ -376,6 +376,17 @@ suite passes 2,556 tests; evidence and limits are recorded in
 `docs/ETAPA_07_AUDIT.md`. Stage 8 is next in the roadmap, but no detailed
 `ETAPA_08.md` plan exists yet. Do not implement a buffer pool, WAL, concurrency,
 or other Stage 8 work without a later explicit request and stage plan.
+
+**Stage 9 emergency demo ready (2026-09-18)** under the authorized sequencing
+exception in `ETAPA_09.md`: `api/` (FastAPI) wraps `SqlEngine` behind one
+exclusive admission guard, a server-enforced SELECT-only default, and bounded
+row/byte previews; `frontend/` (React, TypeScript, Vite) shows the four
+required panels from real engine descriptors. Run it with
+`python scripts/setup_demo.py` and then `python -m api`, as documented in
+`docs/demo.md`. Keep the admission guard until Stage 8 protection is
+integrated and verified across HTTP requests; it is not Stage 8 concurrency
+control. The SQL parser is handwritten by team decision; do not introduce
+Lark or another parser generator.
 
 Latest completed stage specification:
 

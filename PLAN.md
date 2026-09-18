@@ -1,6 +1,6 @@
 # PLAN.md
 
-> Context version: **3.1** — records the formal Stage 7 closure and Stage 8 as the next roadmap stage.
+> Context version: **3.2** — records the formal Stage 7 closure, the authorized emergency Stage 9 demo, and Stage 8 as the next roadmap stage.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1320,7 +1320,7 @@ Part 1 is complete only when:
 [x] Stage 6 complete
 [x] Stage 7 complete (closed 2026-09-18; 63 criteria; 2556 strict tests)
 [ ] Stage 8 complete
-[ ] Stage 9 complete
+[ ] Stage 9 complete (emergency demo ready 2026-09-18; transaction integration pending until after Stage 8)
 [ ] Stage 10 complete
 ```
 
@@ -1337,6 +1337,15 @@ Latest completed stage:
 Next roadmap stage:
 
 > **Stage 8 — Transactions and Concurrency (not started)**
+
+Authorized sequencing exception: the team chose to build an emergency Stage 9
+demo before Stage 8 (see `ETAPA_09.md` Section 1). It is **demo ready** as of
+2026-09-18 (`docs/ETAPA_09_AVANCE.md`, `docs/demo.md`): a FastAPI adapter with
+exclusive engine admission, a read-only default, and bounded previews, plus a
+React GUI with the four required panels over the real engine. This changes the
+order only; transactions, concurrency, and Stage 10 remain required. The team
+also replaced the earlier Lark recommendation with the handwritten SQL parser
+delivered in Stage 7.
 
 Latest completed stage document:
 
