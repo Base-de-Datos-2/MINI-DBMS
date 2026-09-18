@@ -84,7 +84,11 @@ class TableScan(ExecutionOperator):
             cursor.close()
 
     def _details(self) -> tuple[tuple[str, str], ...]:
-        details = [("relation", self._relation), ("access", "sequential scan")]
+        details = [
+            ("relation", self._relation),
+            ("storage", type(self._storage).__name__),
+            ("access", "sequential scan"),
+        ]
         if self._ordering is not None:
             details.append(("ordered_by", self._ordering.qualified_name))
         return tuple(details)
@@ -285,6 +289,7 @@ class IndexScan(ExecutionOperator):
         )
         details = [
             ("relation", self._relation),
+            ("storage", type(self._storage).__name__),
             ("index", type(self._index).__name__),
             ("access", access),
         ]

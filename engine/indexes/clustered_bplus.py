@@ -297,6 +297,14 @@ class ClusteredBPlusIndex(OrderedIndex):
         self._consistent = True
         return metrics
 
+    def mark_incomplete(self) -> None:
+        """Persistently disable this adapter until a complete rebuild succeeds."""
+
+        self._require_open()
+        self._tree.mark_incomplete()
+        self._consistent = False
+        self._tree.flush()
+
     def insert_record(self, record: Record) -> RID:
         """Insert physically, then rebuild because existing RIDs may move."""
 

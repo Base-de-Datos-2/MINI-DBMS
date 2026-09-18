@@ -18,6 +18,8 @@ from .binder import (
 )
 from .environment import QueryEnvironment, RegisteredIndex
 from .executor import (
+    CommandExecutionReport,
+    CommandResult,
     PreparedQuery,
     QueryExecutionReport,
     QueryResult,
@@ -75,6 +77,8 @@ __all__ = [
     "BoundProjectionItem",
     "BoundRelation",
     "BoundSelect",
+    "CommandResult",
+    "CommandExecutionReport",
     "DeletePlanSpec",
     "ExternalHashGroupSpec",
     "ExternalSortSpec",

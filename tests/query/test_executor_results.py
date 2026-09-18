@@ -11,7 +11,7 @@ from engine.catalog import (
     Schema,
     TableMetadata,
 )
-from engine.errors import InvalidTypeError, UnsupportedAccessError, ValidationError
+from engine.errors import InvalidTypeError, ValidationError
 from engine.indexes.index_catalog import build_catalog_index
 from engine.operators.sorting import MINIMUM_FAN_IN, MINIMUM_SORT_BUDGET_BYTES
 from engine.query import (
@@ -197,7 +197,7 @@ def test_fetch_validation_does_not_open_the_result(environment):
     result.close()
 
 
-def test_one_active_result_owns_the_session_and_mutations_remain_read_only(
+def test_one_active_result_owns_the_session_and_mutations_execute_once_closed(
     environment,
 ):
     env, storage = environment
@@ -214,12 +214,14 @@ def test_one_active_result_owns_the_session_and_mutations_remain_read_only(
         insert.execute()
 
     active.close()
-    with pytest.raises(UnsupportedAccessError, match="Tasks 7.23-7.25"):
-        insert.execute()
-    assert storage.record_count == before
+    command = insert.execute()
+    assert command.kind is ResultKind.COMMAND
+    assert command.affected_rows == 1
+    assert command.report.affected_rows == 1
+    assert storage.record_count == before + 1
 
     following = engine.execute("SELECT COUNT(*) AS n FROM students")
-    assert _values(following.rows) == ((before,),)
+    assert _values(following.rows) == ((before + 1,),)
 
 
 def test_open_failure_is_recorded_and_releases_the_session(environment, monkeypatch):

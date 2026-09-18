@@ -72,9 +72,21 @@ streaming, y los **tres algoritmos externos obligatorios** de la Parte 1:
 `NestedLoopJoin` es la línea base de corrección, y las rutas opcionales
 `IndexNestedLoopJoin` e `IndexOrderedGroup` aprovechan los índices de las
 Etapas 4 y 5. Los 59 criterios se cumplen con 2252 pruebas estrictas; consulta
-[la auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md). Todavía no existen SQL,
-planificador, transacciones, API ejecutable ni interfaz gráfica: los planes se
-ensamblan a mano con objetos Python. La Parte 1 sigue pendiente.
+[la auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md). Esta capa física también
+puede ensamblarse y medirse directamente con objetos Python.
+
+**Etapa 7 completa y auditada (2026-09-18):** el lexer y parser SQL se
+implementan manualmente mediante descenso recursivo, con AST y ubicaciones de
+origen independientes. El binding usa `Catalog`; el planificador conecta SQL a
+TableScan, índices B+/hash y a los operadores externos reales de la Etapa 6.
+`SqlEngine` expone preparación, descripciones, resultados SELECT en streaming e
+INSERT/DELETE síncronos a través de una capa compartida de mantenimiento. Las
+pruebas públicas cubren el dataset de aceptación, reinicio, spills, fallbacks,
+limpieza, fallos inyectados y comparación con rutas base. Los 63 criterios se
+cumplen y la suite estricta completa pasa **2556 pruebas**. Consulta la
+[guía del motor SQL](docs/sql.md) y la
+[auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md). La Parte 1 sigue pendiente:
+la Etapa 8 de transacciones y concurrencia es la siguiente y aún no comenzó.
 
 ## Requisitos e instalación
 
@@ -108,7 +120,11 @@ La instalación inicial puede necesitar acceso a Internet para descargar las
 dependencias de construcción y pruebas. Una vez instalado el entorno, las
 pruebas no necesitan red, servicios externos ni un DBMS instalado.
 
-## Uso del modelo actual
+## Uso de las capas fundamentales
+
+Para configurar almacenamiento, índices y ejecutar el subconjunto SQL soportado,
+consulta la [guía del motor SQL](docs/sql.md). El ejemplo siguiente muestra
+solamente el modelo fundamental de catálogo, esquema, registro y RID.
 
 Abre el intérprete del entorno virtual e importa las clases del catálogo:
 
@@ -191,8 +207,8 @@ Si se desea guardar un entero en una columna `FLOAT`, el llamador debe convertir
 explícitamente, por ejemplo con `float(1)`. `None`/SQL `NULL` no está soportado.
 `Record` no limita los enteros lógicos; `RecordCodec` rechaza los que no caben
 en int64. `FLOAT` admite NaN e infinitos: el codec normaliza NaN y conserva los
-infinitos y el cero con signo. Los operadores SQL definirán sus propias reglas
-más adelante. Un esquema vacío admite un registro con una secuencia vacía.
+infinitos y el cero con signo. El motor SQL conserva tipos exactos y no soporta
+NULL. Un esquema vacío admite un registro con una secuencia vacía.
 
 ### Formato físico y codecs (Etapa 2)
 
@@ -776,7 +792,8 @@ engine/
   storage/       # Páginas, PageManager, HeapFile y PagedSequentialFile
   indexes/       # Contratos, B+ y Hashing Extensible completos hasta Etapa 5
   operators/     # Operadores físicos, algoritmos externos y runner de planes
-  query/         # Reservado: parser, planificador y ejecutor
+  query/         # AST, lexer/parser manual, binding, planes y ejecución SQL
+  maintenance/   # Mantenimiento compartido de storage e índices para escrituras
   transactions/  # Reservado: transacciones y concurrencia
 api/             # Paquete reservado; aún sin servidor
 frontend/        # Reservado para la interfaz
@@ -787,6 +804,7 @@ tests/
   storage/       # Modelo, codecs, páginas, archivos, organización/Heap y fallos de E/S
   indexes/       # Contratos y pruebas persistentes de B+ y Hashing Extensible
   operators/     # Ciclo de vida, operadores, temporales y algoritmos externos
+  query/         # Parser, binding, planificación, ejecución y aceptación SQL
   integration/   # Planes completos, persistencia, limpieza y pruebas diferenciales
   operator_helpers.py  # Fuentes de filas y fixtures de prueba de la Etapa 6
   test_contracts.py  # Firmas y obligatoriedad de los contratos abstractos
@@ -822,8 +840,10 @@ el codec canónico de claves y mantienen sus algoritmos visibles en
 `Storage` e `Index` y los adaptadores de índice sin conocer páginas ni nodos, y
 escriben sus temporales a través de `PageManager`; la gestión de directorios
 temporales vive en esta capa porque la de almacenamiento reserva el acceso a
-archivos para `PageManager`. Las demás capas se implementarán progresivamente
-según el plan.
+archivos para `PageManager`. `engine/query` construye planes sobre esos
+operadores y `engine/maintenance` coordina las escrituras de storage e índices
+sin depender del parser. Las capas de transacciones, API y frontend se
+implementarán progresivamente según el plan.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
 `OperatorDouble` viven solamente en `tests/`. Usan datos pequeños en memoria
@@ -842,7 +862,7 @@ En Windows, desde la raíz:
 .\.venv\Scripts\python.exe -m pytest tests/test_catalog_record_integration.py tests/test_architecture.py -q
 .\.venv\Scripts\python.exe -m pytest tests/test_codec_header_integration.py -q
 .\.venv\Scripts\python.exe -m pytest tests/storage/test_persistence.py tests/storage/test_malformed_files.py tests/test_stage2_persistence_pipeline.py -q -W error
-.\.venv\Scripts\python.exe -m pytest -ra -W error
+.\.venv\Scripts\python.exe -m pytest tests -q -W error -p no:cacheprovider
 .\.venv\Scripts\python.exe -m compileall -q engine api tests
 .\.venv\Scripts\python.exe -m pip check
 ```
@@ -859,13 +879,11 @@ usan archivos temporales de pytest y mantienen ese acceso separado del modelo.
 Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
-La verificación de cierre de la Etapa 6 se ejecutó en Linux (WSL2) con Python
-3.11.9 y pytest 8.4.2, ya integrada la revisión de la Etapa 5: **2252 pruebas
-aprobadas** con advertencias tratadas como
-errores, sin omisiones ni xfails. Las auditorías de etapas anteriores se
-ejecutaron en Windows con Python 3.12.4. Las operaciones físicas
-restantes deberán añadir sus propias pruebas de conformidad, persistencia y
-concurrencia. `compileall`, `pip check` y la revisión del diff también pasan.
+La verificación formal de cierre de la Etapa 7 se ejecutó en Windows con las
+advertencias tratadas como errores y sin caché de pytest: **2556 pruebas
+aprobadas en 936.76 segundos**. Incluye las suites anteriores y las pruebas de
+aceptación SQL, reinicio, rutas externas, recursos, mutaciones y diferencias.
+`compileall`, `pip check` y la revisión del diff también pasan.
 
 ## Documentos de coordinación y siguiente paso
 
@@ -887,12 +905,13 @@ concurrencia. `compileall`, `pip check` y la revisión del diff también pasan.
 - [ETAPA_06.md](ETAPA_06.md): etapa de operadores y algoritmos externos, cerrada.
 - [Auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md): evidencia de los 59
   criterios, 2252 pruebas, salvedades declaradas y traspaso a la Etapa 7.
+- [ETAPA_07.md](ETAPA_07.md): etapa SQL cerrada; tareas 7.1–7.30 completas.
+- [Guía del motor SQL](docs/sql.md): API pública, sintaxis, planes, resultados,
+  mutaciones, errores y límites soportados.
+- [Auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md): evidencia de los 63
+  criterios y 2556 pruebas estrictas.
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-Las Definitions of Done de las Etapas 1 y 2 están satisfechas. Consulta
-[la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md) para la evidencia de cada
-criterio, los comandos ejecutados y los límites de la validación.
-
-Las **Etapas 1–6 están completas y auditadas**. La **Etapa 7 — SQL Parser,
-Planner, and Executor** es la siguiente y todavía no se ha iniciado;
-`ETAPA_07.md` aún no existe y debe generarse antes de empezarla.
+Las **Etapas 1–7 están completas y auditadas**. La **Etapa 8 — Transactions and
+Concurrency** es la siguiente en `PLAN.md`; todavía no se ha iniciado y no se
+afirma que exista un plan detallado `ETAPA_08.md`.

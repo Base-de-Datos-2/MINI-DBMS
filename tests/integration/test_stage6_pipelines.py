@@ -109,7 +109,7 @@ def test_example_a_filtered_projection_runs_over_real_paged_storage(database):
     assert plan.describe().render().splitlines() == [
         "Projection(columns=name, career)",
         "  Filter(predicate=Compare(ColumnValue('age'), '>', Literal(20)))",
-        "    TableScan(relation=students, access=sequential scan)",
+        "    TableScan(relation=students, storage=HeapFile, access=sequential scan)",
     ]
 
 

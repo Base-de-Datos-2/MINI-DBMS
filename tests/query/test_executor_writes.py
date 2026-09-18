@@ -42,8 +42,11 @@ def environment(tmp_path):
     index = build_catalog_index(catalog, "ix_students_id", storage)
     env.register_index("ix_students_id", index)
 
-    yield env
-    storage.close()
+    try:
+        yield env
+    finally:
+        index.close()
+        storage.close()
 
 
 def test_insert_with_explicit_columns_and_index_maintenance(environment):
@@ -147,8 +150,8 @@ def test_close_reopen_storage_scan_and_index_agree(environment, tmp_path):
     run_sql(environment, "DELETE FROM students WHERE id = 5")
     run_sql(environment, "INSERT INTO students (id, name, age) VALUES (6, 'Eva', 25)")
 
-    environment.storage_for("students").close()
     environment.index_for("ix_students_id").close()
+    environment.storage_for("students").close()
 
     reopened_storage = HeapFile.open(tmp_path / "students.heap", STUDENTS).__enter__()
     catalog = environment.catalog

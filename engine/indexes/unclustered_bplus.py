@@ -124,11 +124,17 @@ class UnclusteredBPlusIndex(OrderedIndex):
         if self.closed:
             raise RuntimeError("Unclustered B+ index is closed")
 
+    def _require_ready(self) -> None:
+        self._require_open()
+        if not self._tree.header.build_complete:
+            raise ValidationError("B+ index is incomplete; rebuild before use")
+
     def _record_for_association(
         self,
         key: RecordValue,
         rid: RID,
     ) -> tuple[RecordValue, Record]:
+        self._require_ready()
         checked_key = BPlusKeyCodec.validate(self.tree.key_type, key)
         BPlusRIDCodec.encode(rid)
         record = self.heap.read(rid)
@@ -144,18 +150,18 @@ class UnclusteredBPlusIndex(OrderedIndex):
         self.tree.insert(checked_key, rid)
 
     def search(self, key: RecordValue) -> Generator[RID, None, None]:
-        self._require_open()
+        self._require_ready()
         return self.tree.search(key)
 
     def search_records(
         self,
         key: RecordValue,
     ) -> Generator[tuple[RID, Record], None, None]:
-        self._require_open()
+        self._require_ready()
         checked_key = BPlusKeyCodec.validate(self.tree.key_type, key)
 
         def iterator() -> Generator[tuple[RID, Record], None, None]:
-            self._require_open()
+            self._require_ready()
             with closing(self.tree.search(checked_key)) as matches:
                 for rid in matches:
                     _, record = self._record_for_association(checked_key, rid)
@@ -171,7 +177,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
         include_lower: bool = True,
         include_upper: bool = True,
     ) -> Generator[RID, None, None]:
-        self._require_open()
+        self._require_ready()
         return self.tree.range_search(
             lower,
             upper,
@@ -187,7 +193,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
         include_lower: bool = True,
         include_upper: bool = True,
     ) -> Generator[tuple[RID, Record], None, None]:
-        self._require_open()
+        self._require_ready()
         matches = self.tree.range_search(
             lower,
             upper,
@@ -196,7 +202,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
         )
 
         def iterator() -> Generator[tuple[RID, Record], None, None]:
-            self._require_open()
+            self._require_ready()
             previous_key: RecordValue | None = None
             has_previous = False
             with closing(matches):
@@ -244,7 +250,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
     def insert_record(self, record: Record) -> RID:
         """Insert one Heap row and its index association with best-effort undo."""
 
-        self._require_open()
+        self._require_ready()
         rid = self.heap.insert(record)
         try:
             self.tree.insert(record[self.key_column], rid)
@@ -262,7 +268,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
     def delete_record(self, rid: RID) -> None:
         """Remove the exact index association before freeing its Heap slot."""
 
-        self._require_open()
+        self._require_ready()
         BPlusRIDCodec.encode(rid)
         record = self.heap.read(rid)
         key = record[self.key_column]
@@ -288,6 +294,13 @@ class UnclusteredBPlusIndex(OrderedIndex):
 
         self._require_open()
         return self._tree.rebuild_from_storage(self.heap)
+
+    def mark_incomplete(self) -> None:
+        """Persistently disable this adapter until a complete rebuild succeeds."""
+
+        self._require_open()
+        self._tree.mark_incomplete()
+        self._tree.flush()
 
     def validate_structure(self) -> BPlusValidationReport:
         """Validate both the tree and its one-to-one live Heap associations."""

@@ -2,6 +2,11 @@
 
 **Date:** 2026-09-18
 
+> **Subsequent status:** Tasks 7.26-7.30 and Stage 7 were closed later on
+> 2026-09-18. See `docs/ETAPA_07_REVIEW_7_26_7_30.md` and
+> `docs/ETAPA_07_AUDIT.md`. Open-status statements below describe this earlier
+> review checkpoint.
+
 **Scope:** Block 6 of the revised `ETAPA_07.md`
 
 **Boundary:** reusable SELECT execution, streaming result ownership, public
@@ -16,11 +21,16 @@ each `PreparedQuery.execute()` instantiates a fresh Stage 6 operator tree and
 cleanup and retaining its final report. The engine can be used without an HTTP
 or frontend dependency.
 
-The mutation-facing clauses of Task 7.22 remain intentionally unavailable
-until Tasks 7.23-7.25 provide atomic INSERT/DELETE maintenance. Mutation plans
-can be prepared and inspected without writes, but attempting to execute one
-raises a controlled `UnsupportedAccessError`. This preserves the stage order
-and prevents a result iterator from becoming an accidental mutation trigger.
+At the time of this Block 6 review, the mutation-facing clauses of Task 7.22
+remained intentionally unavailable until Tasks 7.23-7.25 provided shared
+INSERT/DELETE maintenance. Mutation plans could be prepared and inspected
+without writes, but execution raised a controlled `UnsupportedAccessError`.
+This preserved the stage order and prevented a result iterator from becoming
+an accidental mutation trigger.
+
+Tasks 7.23-7.25 subsequently implemented that boundary. The current behavior
+is recorded in `docs/ETAPA_07_REVIEW_7_23_7_25.md`; this report retains the
+Block 6 evidence and test counts as historical facts.
 
 The initial SELECT-side reporting foundation of Task 7.26 is also implemented.
 Prepared descriptions are immutable planning facts; runtime reports are taken
@@ -60,8 +70,8 @@ matrix are available. Stage 7 remains open.
   drops rows.
 - Prepared descriptions do no I/O and never apply mutations. Runtime reports
   describe the instantiated operator tree and measured counters.
-- INSERT/DELETE execution is closed until the maintenance work in Tasks
-  7.23-7.25 can return one synchronous, completed command result.
+- At this review boundary, INSERT/DELETE execution remained closed pending the
+  synchronous command result added by Tasks 7.23-7.25.
 
 ## Implemented modules
 
@@ -119,8 +129,9 @@ Cross-stage strict regression:
 2519 passed in 635.70s (0:10:35)
 ```
 
-The two ignored files require INSERT/DELETE execution and index maintenance
-from Tasks 7.23-7.25. Unlike the previous Block 5B baseline,
+At this review boundary, the two ignored files required INSERT/DELETE execution
+and index maintenance from Tasks 7.23-7.25. The subsequent Block 7 review
+includes them. Unlike the previous Block 5B baseline,
 `test_planner_select.py` is now included in the strict suite because the public
 `QueryResult` and `run_sql` API exists.
 
@@ -128,8 +139,7 @@ from Tasks 7.23-7.25. Unlike the previous Block 5B baseline,
 
 ## Handoff to the next block
 
-Tasks 7.23-7.25 must add a shared mutation-maintenance service and synchronous
-command results without weakening this result lifecycle. Once both write paths
-exist, Task 7.26 can finish mutation reporting and Tasks 7.27-7.30 can run the
-complete end-to-end, restart, cleanup, documentation, and closure acceptance
-matrix.
+Tasks 7.23-7.25 subsequently added a shared mutation-maintenance service and
+synchronous command results without weakening this result lifecycle. Task 7.26
+can now finish reporting, and Tasks 7.27-7.30 can run the complete end-to-end,
+restart, cleanup, documentation, and closure acceptance matrix.
