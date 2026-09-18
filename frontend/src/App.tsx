@@ -43,6 +43,10 @@ export default function App() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [busy, setBusy] = useState(false);
   const gate = useRef(createRequestGate());
+  // React StrictMode runs effects twice in development. The initial load must
+  // still run once: two table requests would compete for the single engine
+  // admission, which the server answers with ENGINE_BUSY.
+  const loadStarted = useRef(false);
 
   const selectTable = useCallback(async (id: string) => {
     try {
@@ -60,6 +64,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (loadStarted.current) return;
+    loadStarted.current = true;
     // Health and presets never touch the engine, so they load together. Table
     // metadata does, so it follows sequentially rather than competing for the
     // single engine admission.

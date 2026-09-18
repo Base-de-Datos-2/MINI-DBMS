@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
+import socket
 import sys
 from time import perf_counter
 
@@ -25,6 +26,21 @@ from .engine_service import EngineService
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
+
+
+def port_is_free(host: str, port: int) -> bool:
+    """Report whether ``host:port`` can be bound right now.
+
+    Checked before the database is opened: a second server must fail without
+    ever touching the data directory the first one owns.
+    """
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        try:
+            probe.bind((host, port))
+        except OSError:
+            return False
+    return True
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -53,6 +69,11 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
+    if not port_is_free(args.host, args.port):
+        sys.exit(
+            f"El puerto {args.port} ya está en uso: probablemente ya hay un servidor "
+            "de la demo corriendo. Deténlo o usa --port. No se abrió ningún archivo."
+        )
     started = perf_counter()
     try:
         database = Database.open(
