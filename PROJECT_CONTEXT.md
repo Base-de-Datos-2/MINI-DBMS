@@ -2086,6 +2086,23 @@ Implemented so far:
   planner stores immutable operator specifications and constructs fresh Stage 6
   TableScan/IndexScan/Filter/Projection trees with deterministic compatible
   index selection, full residual predicates, and stale-plan rejection.
+- Stage 7 tasks 7.18–7.20: extended the same immutable specifications with
+  explicit resource and join-strategy options; SQL ordering always reaches
+  `ExternalSort` before final projection, grouping reaches
+  `ExternalHashGroup`, and supported joins choose an eligible exact inner
+  `IndexNestedLoopJoin` or default to `GraceHashJoin`. `NestedLoopJoin` remains
+  an explicit differential baseline. Hidden order fields, aggregate aliases,
+  full ON/WHERE scope, logical left/right output order, and duplicate
+  multiplicity are preserved.
+- Stage 7 tasks 7.21–7.22 and initial 7.26 reporting: `SqlEngine` exposes
+  read-only prepare/describe and streaming SELECT execution independently of
+  HTTP/UI code. Reusable `PreparedQuery` objects instantiate fresh operator
+  trees and `ExecutionContext` objects; `QueryResult` owns only transient
+  execution resources, supports bounded batches/materialization, records
+  complete/early-close/failure states, and retains measured `PlanReport`
+  evidence after cleanup. One open result owns a session. Permanent storage
+  and index managers remain borrowed. Mutation plans are inspectable but cannot
+  execute before Tasks 7.23–7.25.
 
 **Stage 1 is formally complete**, audited on 2026-08-31 against the entire
 Definition of Done in `ETAPA_01.md`, with 400 passing tests. Evidence and the
@@ -2116,18 +2133,23 @@ strict-suite tests pass after integrating the reviewed Stage 5; the three
 required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
 by forced disk spills. Evidence, per-increment reports and the declared
 caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 is in
-progress.** Tasks 7.1-7.17 reconcile the baseline and contract, freeze the
+progress.** Tasks 7.1-7.22 reconcile the baseline and contract, freeze the
 handwritten grammar, implement the located bounded lexer/parser, and add the
 Catalog-backed semantic layer for names, exact types, joins, projections,
 ordering, grouping, aggregates, and no-write mutation validation, then connect
-basic single-relation SELECTs to reusable TableScan/B+/hash physical plans.
-ORDER BY, GROUP BY, JOIN planning, execution, and the `engine/maintenance/`
-write service remain unimplemented, so Stage 7 is not closed. The invalid former closure report is
+basic SELECTs to reusable TableScan/B+/hash physical plans, then connect SQL to
+the real Stage 6 external sort, hash-group and join routes. Streaming SELECT
+execution, lifecycle ownership, the public Python API, and the initial
+prepared/runtime report boundary are implemented. The `engine/maintenance/`
+write service remains unimplemented, so Stage 7 is not
+closed. The invalid former closure report is
 retained only as historical evidence; the current status is documented in
 `docs/ETAPA_07_REVIEW_7_1_7_4.md` and
 `docs/ETAPA_07_REVIEW_7_5_7_7.md`, and
 `docs/ETAPA_07_REVIEW_7_8_7_12.md`, and
-`docs/ETAPA_07_REVIEW_7_13_7_17.md`. Part 1 remains incomplete. The
+`docs/ETAPA_07_REVIEW_7_13_7_17.md`, and
+`docs/ETAPA_07_REVIEW_7_18_7_20.md`, and
+`docs/ETAPA_07_REVIEW_7_21_7_22.md`. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2160,6 +2182,26 @@ precede range candidates and exact index names break ties; this is a stable
 rule, not a measured cost estimate. Missing/incomplete indexes fall back to
 TableScan, while a previously prepared index plan rejects changed Catalog or
 runtime identities.
+
+Resolved in Stage 7 Tasks 7.18-7.20: the baseline SQL ordering route always
+uses `ExternalSort`, including hidden keys and output-alias remapping. Grouping
+uses `ExternalHashGroup`; internal aggregate names are made collision-free and
+final projection restores SQL aliases. A supported join defaults to
+`GraceHashJoin`; AUTO may choose `IndexNestedLoopJoin` only for one equality key
+covered by an exact index on the logical right input. `GRACE_HASH` and
+`NESTED_LOOP` strategy controls exist for deterministic acceptance and
+differential testing, not as a cost model or join-order search.
+
+Resolved in Stage 7 Tasks 7.21-7.22: prepared queries are reusable and every
+execution owns a fresh operator tree and `ExecutionContext`. One active SELECT
+result owns its `SqlEngine` session until full consumption, early close, or
+failure. Results stream by default; `fetchmany` is explicitly bounded and
+`rows`/`fetchall` enforce hard limits rather than truncating. Exhaustion means
+`COMPLETE`, explicit early release means `CLOSED`, and execution/cleanup errors
+mean `FAILED`; partial delivery is never reported as success. The result closes
+temporary/operator resources but never borrowed table/index managers. Initial
+Task 7.26 reporting pairs immutable prepared descriptions with actual Stage 6
+`PlanReport` measurements and an honest fully-consumed flag.
 
 When one of these decisions is made, document it here.
 

@@ -23,7 +23,8 @@ from .context import (
     ResourceStatistics,
 )
 from .rows import ColumnReference, as_reference
-from .scan import IndexScan, TableScan
+from .index_strategies import IndexNestedLoopJoin, IndexOrderedGroup
+from .scan import IndexScan, TableScan, index_storage
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +158,12 @@ class PhysicalPlan:
             elif isinstance(node, IndexScan):
                 add("base", node._storage)
                 add("index", getattr(node.index, "tree", getattr(node.index, "index", None)))
+            elif isinstance(node, (IndexNestedLoopJoin, IndexOrderedGroup)):
+                add("base", index_storage(node.index))
+                add(
+                    "index",
+                    getattr(node.index, "tree", getattr(node.index, "index", None)),
+                )
             if isinstance(node, ExecutionOperator):
                 for child in node.children:
                     visit(child)

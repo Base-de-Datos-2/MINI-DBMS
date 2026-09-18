@@ -1,6 +1,6 @@
 # AGENTS.md
 
-> Context version: **3.2** — adds the reviewed Stage 7 basic physical-planning contract while Stage 6 remains the latest completed stage.
+> Context version: **3.4** — adds the reviewed Stage 7 execution/result contract while Stage 6 remains the latest completed stage.
 
 ## Purpose
 
@@ -354,12 +354,18 @@ scans, filter, projection, `ExternalSort`, `ExternalHashGroup`,
 and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. Stage 7 is
 in progress under the revised handwritten-parser plan. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated all tasks and criteria after corrections; 2295 strict tests pass.
-Tasks 7.1-7.17 establish the inspected baseline, frozen SQL contract,
+Tasks 7.1-7.22 establish the inspected baseline, frozen SQL contract,
 parser-independent AST/source spans, bounded handwritten lexer/parser,
 controlled diagnostics, Catalog-backed semantic binding without writes, and
-reusable basic SELECT plans with safe TableScan/B+/hash access paths.
-Do not mark Stage 7 complete until its remaining advanced planner, executor, mutation,
-and closure tasks are implemented and verified. Do not implement a buffer
+reusable SELECT plans with safe TableScan/B+/hash access paths and real Stage 6
+`ExternalSort`, `ExternalHashGroup`, `GraceHashJoin`, `NestedLoopJoin`, and
+eligible `IndexNestedLoopJoin` routes.
+`SqlEngine`, reusable `PreparedQuery`, and streaming `QueryResult` now own fresh
+operator/context instances and distinguish complete, early-closed, and failed
+executions. Initial Task 7.26 reporting separates prepared descriptions from
+measured Stage 6 evidence. Do not mark Stage 7 complete until its remaining
+mutation, acceptance, reporting-closure, and documentation tasks are
+implemented and verified. Do not implement a buffer
 pool, WAL, concurrency, or other Stage 8
 work without a later explicit request.
 

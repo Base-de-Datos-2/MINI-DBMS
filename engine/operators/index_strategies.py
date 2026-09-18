@@ -19,7 +19,7 @@ from .base import ExecutionOperator
 from .expressions import BoundExpression, Expression, validate_comparable
 from .join import JoinSpec, join_key_of
 from .rows import ColumnReference, RowLayout, RowProvenance, as_reference
-from .scan import index_storage
+from .scan import index_storage, runtime_index_name
 
 
 def _require_index_key(index: Index, reference: ColumnReference) -> str:
@@ -204,13 +204,17 @@ class IndexNestedLoopJoin(ExecutionOperator):
             cursor.close()
 
     def _details(self) -> tuple[tuple[str, str], ...]:
-        return (
+        details = [
             ("condition", repr(self._spec)),
             ("strategy", "index nested loop"),
             ("index", type(self._index).__name__),
             ("inner_relation", self._relation),
             ("index_probes", str(self._metrics.index_probes)),
-        )
+        ]
+        index_name = runtime_index_name(self._index)
+        if index_name is not None:
+            details.append(("index_name", index_name))
+        return tuple(details)
 
 
 @dataclass(slots=True)
@@ -407,11 +411,15 @@ class IndexOrderedGroup(ExecutionOperator):
             cursor.close()
 
     def _details(self) -> tuple[tuple[str, str], ...]:
-        return (
+        details = [
             ("keys", self._group_keys[0].qualified_name),
             ("aggregates", ", ".join(a.alias for a in self._aggregate_specs)),
             ("strategy", "ordered index traversal"),
             ("index", type(self._index).__name__),
             ("rows_read", str(self._metrics.rows_read)),
             ("ordered_by", self._group_keys[0].name),
-        )
+        ]
+        index_name = runtime_index_name(self._index)
+        if index_name is not None:
+            details.append(("index_name", index_name))
+        return tuple(details)
