@@ -63,11 +63,20 @@ INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
 ```
 
 Opciones: `--port`, `--data-dir`, `--frontend-dir` y `--allow-writes`
-(sección 8).
+(sección 8). Si el puerto ya está ocupado (por ejemplo, otro servidor de la
+demo sigue abierto), el lanzador se detiene antes de abrir ningún archivo de
+datos.
+
+Para la demo basta este único proceso: sirve la API y el frontend compilado
+en `frontend/dist`. Después de cambiar el frontend hay que repetir
+`npm run build` para que el 8000 muestre los cambios.
 
 ### Modo desarrollo del frontend
 
-Con el servidor ya levantado, en otra terminal:
+Opcional: solo sirve para editar el frontend con recarga en caliente, no para
+presentar. No reemplaza al 8000: Vite sirve la interfaz desde el código fuente
+y reenvía las consultas al servidor de la API. Con el servidor ya levantado,
+en otra terminal:
 
 ```bash
 (cd frontend && npm run dev)
