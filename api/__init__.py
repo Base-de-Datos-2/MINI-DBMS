@@ -1,1 +1,4 @@
-"""Reserved for the future HTTP interface; no framework is required yet."""
+"""HTTP interface over the MINI-DBMS SQL engine (Stage 9).
+
+Run ``python -m api`` to serve the API and, when built, the GUI.
+"""
