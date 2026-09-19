@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **3.6** — records the formal Stage 7 closure, evidence contract, and Stage 8 handoff.
+> Context version: **3.7** — records the formal Stage 7 closure, the emergency Stage 9 API/GUI, and the Stage 8 handoff.
 
 ## Project identity
 
@@ -1859,17 +1859,26 @@ The frontend should consume the engine through a clean API rather than importing
 
 ## API
 
-FastAPI is the current recommended transport layer.
-
-Potential conceptual endpoints:
+Implemented in `api/` for the emergency Stage 9 demo (details in
+`docs/demo.md`):
 
 ```text
-GET  /tables
-GET  /tables/{table_name}
-POST /query
+GET  /api/health          cached status, mode and limits (no engine access)
+GET  /api/presets         verified presentation queries (no engine access)
+GET  /api/tables          Catalog table summaries
+GET  /api/tables/{id}     columns, types, organization, indexes
+POST /api/query           one statement, bounded preview, actual plan
 ```
 
-The exact API may evolve.
+`EngineService` owns the engine: one exclusive admission guard that rejects a
+competing request with `ENGINE_BUSY` (409), SELECT-only by the parsed
+statement kind unless `--allow-writes` is given, at most `max_rows + 1` rows
+consumed, a 1 MiB response cap, and cursor cleanup before admission is
+released. Values use a lossless per-column encoding. Errors share one envelope
+with a stable code and a request ID. Tables are declared in `api/demo.py` and
+created offline by `scripts/setup_demo.py`, because the SQL subset has no DDL
+and the Catalog lives in memory. The admission guard is temporary server
+control, not Stage 8 concurrency.
 
 The DBMS engine must be callable independently from the web layer.
 

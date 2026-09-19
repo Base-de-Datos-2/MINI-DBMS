@@ -11,7 +11,21 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-test = ["pytest>=8,<9"]
+# Starlette 1.6 still imports an alias that anyio 4.15 deprecates. The strict
+# suite runs with warnings as errors, so anyio stays below 4.15 until that is
+# fixed upstream; httpx2 is what Starlette's test client now expects.
+test = [
+    "pytest>=8,<9",
+    "fastapi>=0.110,<1",
+    "httpx2>=2,<3",
+    "anyio>=4,<4.15",
+]
+# Stage 9 HTTP interface: run it from the repository root with `python -m api`.
+api = [
+    "fastapi>=0.110,<1",
+    "uvicorn>=0.29,<1",
+    "anyio>=4,<4.15",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]
