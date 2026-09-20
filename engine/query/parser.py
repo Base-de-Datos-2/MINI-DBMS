@@ -18,8 +18,11 @@ from .ast import (
     BoolOr,
     BooleanLiteral,
     ColumnRef,
+    ColumnDefinition,
     Comparison,
+    CreateTableStatement,
     DeleteStatement,
+    ExplainStatement,
     FloatLiteral,
     InsertStatement,
     IntegerLiteral,
@@ -32,6 +35,7 @@ from .ast import (
     SqlExpr,
     Statement,
     TableRef,
+    TypeSpecification,
 )
 from .errors import SqlLimitError, SqlSyntaxError, SqlUnsupportedError
 from .lexer import Token, TokenType, tokenize
@@ -43,15 +47,17 @@ MAX_PARSE_NESTING = 128
 _AGGREGATE_FUNCTIONS = frozenset({"COUNT", "SUM", "AVG", "MIN", "MAX"})
 _COMPARISON_OPERATORS = frozenset({"=", "<>", "<", "<=", ">", ">="})
 _UNSUPPORTED_COMPARISON_KEYWORDS = frozenset({"BETWEEN", "IN", "IS", "LIKE"})
+_CONTEXTUAL_IDENTIFIER_KEYWORDS = frozenset(
+    {"ANALYZE", "INT", "INTEGER", "KEY", "PRIMARY", "VARCHAR"}
+)
 _UNSUPPORTED_STATEMENTS = frozenset(
     {
         "ALTER",
+        "ANALYZE",
         "BEGIN",
         "COMMIT",
-        "CREATE",
         "DROP",
         "END",
-        "EXPLAIN",
         "ROLLBACK",
         "UPDATE",
         "WITH",
@@ -187,9 +193,19 @@ class _Parser:
         return token
 
     def _expect_identifier(self) -> Token:
-        if self._current.type is not TokenType.IDENTIFIER:
+        if not self._at_identifier():
             raise self._expected("an identifier")
-        return self._advance()
+        token = self._advance()
+        if token.type is TokenType.KEYWORD:
+            return replace(token, value=token.lexeme, decoded=token.lexeme)
+        return token
+
+    def _at_identifier(self) -> bool:
+        token = self._current
+        return token.type is TokenType.IDENTIFIER or (
+            token.type is TokenType.KEYWORD
+            and token.value in _CONTEXTUAL_IDENTIFIER_KEYWORDS
+        )
 
     def _parse_comma_list(self, parse_item: Callable[[], _T]) -> tuple[_T, ...]:
         """Parse a non-empty comma list while enforcing cursor progress."""
@@ -212,6 +228,10 @@ class _Parser:
             statement = self._parse_insert()
         elif self._at_keyword("DELETE"):
             statement = self._parse_delete()
+        elif self._at_keyword("CREATE"):
+            statement = self._parse_create_table()
+        elif self._at_keyword("EXPLAIN"):
+            statement = self._parse_explain()
         elif self._word(self._current) in _UNSUPPORTED_STATEMENTS:
             word = self._word(self._current)
             raise self._error(
@@ -219,7 +239,7 @@ class _Parser:
                 error_type=SqlUnsupportedError,
             )
         else:
-            raise self._expected("SELECT, INSERT, or DELETE")
+            raise self._expected("SELECT, INSERT, DELETE, CREATE, or EXPLAIN")
 
         semicolon = self._match_punct(";")
         if semicolon is not None and statement.span is not None:
@@ -236,7 +256,7 @@ class _Parser:
         word = self._word(token)
         if self._at_punct(";"):
             return self._error("Only one optional final semicolon is allowed")
-        if word in {"SELECT", "INSERT", "DELETE"}:
+        if word in {"SELECT", "INSERT", "DELETE", "CREATE", "EXPLAIN"}:
             return self._error("Only one SQL statement may be submitted at a time")
         if word in _UNSUPPORTED_TRAILING_KEYWORDS:
             return self._error(
@@ -290,8 +310,8 @@ class _Parser:
             alias_token = self._expect_identifier()
             alias = alias_token.value
             end_span = alias_token.span
-        elif self._current.type is TokenType.IDENTIFIER:
-            alias_token = self._advance()
+        elif self._at_identifier():
+            alias_token = self._expect_identifier()
             alias = alias_token.value
             end_span = alias_token.span
         if expr.span is None or end_span is None:
@@ -301,7 +321,7 @@ class _Parser:
     def _parse_select_expr(self) -> SqlExpr:
         token = self._current
         if (
-            token.type is TokenType.IDENTIFIER
+            self._at_identifier()
             and self._peek(1).type is TokenType.PUNCTUATION
             and self._peek(1).value == "("
         ):
@@ -385,8 +405,8 @@ class _Parser:
         if self._match_keyword("AS") is not None:
             end = self._expect_identifier()
             alias = end.value
-        elif self._current.type is TokenType.IDENTIFIER:
-            end = self._advance()
+        elif self._at_identifier():
+            end = self._expect_identifier()
             alias = end.value
         return TableRef(
             name.value,
@@ -590,7 +610,7 @@ class _Parser:
     def _parse_value_expr(self) -> SqlExpr:
         if self._at_literal_start():
             return self._parse_literal()
-        if self._current.type is TokenType.IDENTIFIER:
+        if self._at_identifier():
             return self._parse_column_ref()
         if self._at_punct("(") and self._peek(1).value == "SELECT":
             raise self._error(
@@ -653,6 +673,121 @@ class _Parser:
             table=table,
             where=where,
             span=self._cover(start.span, self._previous.span),
+        )
+
+    # -- CREATE TABLE / EXPLAIN ------------------------------------------ #
+
+    def _parse_create_table(self) -> CreateTableStatement:
+        start = self._expect_keyword("CREATE")
+        if not self._at_keyword("TABLE"):
+            if not self._at_end:
+                raise self._error(
+                    "Only CREATE TABLE is supported by the adopted SQL subset",
+                    error_type=SqlUnsupportedError,
+                )
+            raise self._expected("keyword TABLE")
+        self._advance()
+        table = self._expect_identifier()
+        self._expect_punct("(")
+        if self._at_punct(")"):
+            raise self._error(
+                "CREATE TABLE requires at least one column definition",
+                expected="a column definition",
+            )
+        columns = self._parse_comma_list(self._parse_column_definition)
+        close = self._expect_punct(")")
+        return CreateTableStatement(
+            table=table.value,
+            columns=columns,
+            span=self._cover(start.span, close.span),
+        )
+
+    def _parse_column_definition(self) -> ColumnDefinition:
+        if self._at_keyword("PRIMARY") and self._peek(1).value == "KEY":
+            raise self._error(
+                "Table-level PRIMARY KEY constraints are not supported",
+                error_type=SqlUnsupportedError,
+            )
+        name = self._expect_identifier()
+        data_type = self._parse_type_specification()
+        primary_key = False
+        end_span = data_type.span
+        primary = self._match_keyword("PRIMARY")
+        if primary is not None:
+            key = self._expect_keyword("KEY")
+            primary_key = True
+            end_span = key.span
+        elif self._at_keyword("KEY"):
+            raise self._error(
+                "KEY must be preceded by PRIMARY in a column definition",
+                expected="PRIMARY KEY",
+            )
+        if data_type.span is None or end_span is None:
+            raise RuntimeError("Parser-created type specification lacks a span")
+        return ColumnDefinition(
+            name=name.value,
+            data_type=data_type,
+            primary_key=primary_key,
+            span=self._cover(name.span, end_span),
+        )
+
+    def _parse_type_specification(self) -> TypeSpecification:
+        integer_type = self._match_keyword("INT", "INTEGER")
+        if integer_type is not None:
+            return TypeSpecification("INTEGER", span=integer_type.span)
+
+        varchar = self._match_keyword("VARCHAR")
+        if varchar is not None:
+            self._expect_punct("(")
+            length = self._current
+            if length.type is not TokenType.INTEGER or type(length.decoded) is not int:
+                raise self._expected("a positive integer VARCHAR length")
+            self._advance()
+            if length.decoded <= 0:
+                raise self._error(
+                    "VARCHAR length must be positive",
+                    token=length,
+                    expected="a positive integer VARCHAR length",
+                )
+            close = self._expect_punct(")")
+            return TypeSpecification(
+                "VARCHAR",
+                length.decoded,
+                span=self._cover(varchar.span, close.span),
+            )
+
+        token = self._current
+        if self._at_identifier() or token.type is TokenType.KEYWORD:
+            raise self._error(
+                f"Data type {token.lexeme!r} is not supported by CREATE TABLE",
+                token=token,
+                error_type=SqlUnsupportedError,
+            )
+        raise self._expected("INT, INTEGER, or VARCHAR(n)")
+
+    def _parse_explain(self) -> ExplainStatement:
+        start = self._expect_keyword("EXPLAIN")
+        analyze = self._match_keyword("ANALYZE") is not None
+        if self._at_keyword("EXPLAIN"):
+            raise self._error(
+                "Nested EXPLAIN statements are not supported",
+                error_type=SqlUnsupportedError,
+            )
+        if not self._at_keyword("SELECT"):
+            word = self._word(self._current)
+            if word in {"CREATE", "INSERT", "DELETE", "UPDATE", "DROP", "ALTER"}:
+                raise self._error(
+                    "EXPLAIN and EXPLAIN ANALYZE support SELECT only",
+                    error_type=SqlUnsupportedError,
+                )
+            raise self._expected("a SELECT statement after EXPLAIN")
+        select = self._parse_select()
+        if select.span is None:
+            raise RuntimeError("Parser-created SELECT statement lacks a span")
+        return ExplainStatement(
+            select=select,
+            analyze=analyze,
+            span=self._cover(start.span, select.span),
         )
 
 

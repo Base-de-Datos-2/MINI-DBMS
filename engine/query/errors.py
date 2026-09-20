@@ -11,10 +11,15 @@ def _source_excerpt(source: str, offset: int, *, limit: int = 120) -> str:
     """Return a bounded single-line excerpt around ``offset``."""
 
     offset = min(max(offset, 0), len(source))
-    line_start = source.rfind("\n", 0, offset) + 1
-    line_end = source.find("\n", offset)
-    if line_end < 0:
-        line_end = len(source)
+    line_start = max(
+        source.rfind("\n", 0, offset),
+        source.rfind("\r", 0, offset),
+    ) + 1
+    endings = tuple(
+        end for end in (source.find("\n", offset), source.find("\r", offset))
+        if end >= 0
+    )
+    line_end = min(endings, default=len(source))
     line = source[line_start:line_end]
     relative = offset - line_start
     if len(line) <= limit:

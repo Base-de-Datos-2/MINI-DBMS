@@ -277,7 +277,6 @@ def test_submission_requires_exactly_one_statement_and_at_most_one_semicolon(sql
         "COMMIT",
         "ROLLBACK",
         "UPDATE t SET a = 1",
-        "CREATE TABLE t",
     ],
 )
 def test_unsupported_statement_families_have_a_distinct_error(sql):

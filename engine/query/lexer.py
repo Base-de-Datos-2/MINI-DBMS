@@ -41,8 +41,14 @@ KEYWORDS = frozenset(
         "INTO",
         "VALUES",
         "DELETE",
+        "ANALYZE",
+        "INT",
+        "INTEGER",
+        "KEY",
+        "PRIMARY",
         "TRUE",
         "FALSE",
+        "VARCHAR",
         # Recognized so unsupported SQL cannot be mistaken for an identifier
         # or implicit alias. The parser reports the subset boundary.
         "ALTER",
@@ -108,9 +114,19 @@ class _SourceMap:
 
     def __init__(self, text: str) -> None:
         self._line_starts = [0]
-        self._line_starts.extend(
-            offset + 1 for offset, char in enumerate(text) if char == "\n"
-        )
+        offset = 0
+        while offset < len(text):
+            char = text[offset]
+            if char == "\r":
+                offset += 1
+                if offset < len(text) and text[offset] == "\n":
+                    offset += 1
+                self._line_starts.append(offset)
+            elif char == "\n":
+                offset += 1
+                self._line_starts.append(offset)
+            else:
+                offset += 1
 
     def _line_column(self, offset: int) -> tuple[int, int]:
         line_index = bisect_right(self._line_starts, offset) - 1
@@ -171,7 +187,7 @@ def tokenize(text: str) -> list[Token]:
             continue
 
         if char == "-" and i + 1 < n and text[i + 1] == "-":
-            while i < n and text[i] != "\n":
+            while i < n and text[i] not in "\r\n":
                 i += 1
             continue
 

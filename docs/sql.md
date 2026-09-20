@@ -1,9 +1,11 @@
 # Stage 7 SQL engine guide
 
 > **Current status (2026-09-19):** this guide documents the verified Stage 7
-> Tasks 7.1–7.30 implementation. Task 7.31 has frozen a limited CREATE/EXPLAIN
-> extension, but Tasks 7.32–7.40 are not implemented yet. See
-> [the Task 7.31 decision note](ETAPA_07_TASK_7_31_DECISIONS.md).
+> Tasks 7.1–7.30 implementation plus Task 7.32 syntax. Limited CREATE/EXPLAIN
+> statements now parse into located ASTs, but their binding and execution
+> remain pending in Tasks 7.33–7.38. See the
+> [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
+> [Task 7.32 evidence](ETAPA_07_TASK_7_32.md).
 
 This guide describes the SQL engine implemented by Stage 7. The normative
 grammar, token/span conventions, parser limits, and production-to-function map
@@ -11,11 +13,11 @@ are in [sql-grammar.md](sql-grammar.md).
 
 ## Public setup and execution
 
-The currently executable baseline does not add SQL DDL. Applications create
-schemas, table metadata, storage managers, and indexes through the existing
-Python APIs, then register their live handles in `QueryEnvironment`. The
-pending manifest-backed CREATE route does not become available until Tasks
-7.32–7.40 are implemented and verified.
+The currently executable baseline still does not execute SQL DDL. Applications
+create schemas, table metadata, storage managers, and indexes through the
+existing Python APIs, then register their live handles in `QueryEnvironment`.
+The parsed CREATE route does not become executable until Tasks 7.33–7.35 are
+implemented and verified.
 
 ```python
 from engine.catalog import Catalog, Column, DataType, Schema, TableMetadata
@@ -75,6 +77,21 @@ INSERT INTO <table> [(<column> [, ...])] VALUES (<literal> [, ...])
 
 DELETE FROM <table> [WHERE <predicate>]
 ```
+
+The syntax-only Task 7.32 extension additionally accepts these forms:
+
+```text
+CREATE TABLE <table> (
+    <column> <INT|INTEGER|VARCHAR(positive-integer)> [PRIMARY KEY]
+    [, ...]
+)
+
+EXPLAIN [ANALYZE] <supported-select-statement>
+```
+
+`parse_sql` returns located ASTs for these forms. The public engine returns a
+controlled unsupported diagnostic until their semantic and execution tasks are
+complete.
 
 Supported projection items are `*`, columns, and the aggregates `COUNT(*)`,
 `COUNT(column)`, `SUM`, `AVG`, `MIN`, and `MAX`. One inner join is supported.
@@ -183,19 +200,20 @@ multiple files.
 ## Unsupported syntax
 
 The list below describes the currently executable baseline. `CREATE TABLE`,
-`EXPLAIN SELECT`, and `EXPLAIN ANALYZE SELECT` are approved pending work, not
-current capabilities. Multiple statements remain unsupported after the
-extension.
+`EXPLAIN SELECT`, and `EXPLAIN ANALYZE SELECT` are accepted by `parse_sql`, but
+`SqlEngine.prepare/execute` returns a controlled unsupported diagnostic until
+their downstream tasks are complete. Multiple statements remain unsupported.
 
 The following remain outside the Stage 7 subset:
 
-- UPDATE, UPSERT, MERGE, DDL, subqueries, set operations, and more than one
-  JOIN;
+- UPDATE, UPSERT, MERGE, DDL other than the limited parsed CREATE TABLE form,
+  subqueries, set operations, and more than one JOIN;
 - outer, cross, natural, and non-equality-only joins;
-- NULL, defaults, constraints declared through SQL, arithmetic expressions,
-  positional ORDER BY, DISTINCT, HAVING, LIMIT/OFFSET, and window functions;
+- NULL, defaults, constraints other than the parsed inline PRIMARY KEY,
+  arithmetic expressions, positional ORDER BY, DISTINCT, HAVING, LIMIT/OFFSET,
+  and window functions;
 - BEGIN/COMMIT/ROLLBACK and every transaction or concurrency command;
-- SQL EXPLAIN and EXPLAIN ANALYZE;
+- execution of SQL EXPLAIN and EXPLAIN ANALYZE until Tasks 7.36–7.38;
 - multiple statements or trailing tokens after the optional final semicolon.
 
 Recognized out-of-scope syntax raises `SqlUnsupportedError`. Malformed accepted

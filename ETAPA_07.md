@@ -1,7 +1,7 @@
 # ETAPA_07.md
 
-> Documentation baseline: REQUIREMENTS.md v1.1, PROJECT_CONTEXT.md v3.8,
-> PLAN.md v3.3, the verified Tasks 7.1–7.30 audit, and ETAPA_06.md. This file
+> Documentation baseline: REQUIREMENTS.md v1.1, PROJECT_CONTEXT.md v3.9,
+> PLAN.md v3.4, the verified Tasks 7.1–7.30 audit, and ETAPA_06.md. This file
 > is an implementation plan; it does not add or override academic requirements.
 
 ## Stage 7 - SQL Parser, Planner, and Executor
@@ -11,13 +11,14 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Revision:** 2026-09-19 — Task 7.31 extension contract frozen
-**Status:** Original Stage 7 baseline complete; Task 7.31 complete; extension Tasks 7.32–7.40 pending implementation and verification. This revision does not certify the pending functionality or reset completed baseline work.
+**Revision:** 2026-09-19 — Task 7.32 handwritten syntax extension complete
+**Status:** Original Stage 7 baseline and Tasks 7.31–7.32 complete; extension Tasks 7.33–7.40 pending implementation and verification. CREATE/EXPLAIN execution is not yet certified, and completed baseline work remains preserved.
 
 Tasks 7.1–7.30 were closed on 2026-09-18 and Stage 8 remains unimplemented.
 Task 7.31 inspected commit `87f442a` and froze the extension decisions in
-`docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Preserve the completed baseline and
-describe Tasks 7.32–7.40 as planned until their implementation is verified.
+`docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Task 7.32 implements the syntax-only
+boundary. Preserve the completed baseline and describe Tasks 7.33–7.40 as
+planned until their implementation is verified.
 
 ### Adopted team decision and revision scope
 
@@ -1079,6 +1080,13 @@ commands and the corrected pre-existing API test fragility. The historical
 
 ### Task 7.32 - Extend the handwritten lexer, AST, and statement parser
 
+**Status:** Complete on 2026-09-19. The handwritten parser now produces
+fully-spanned `CreateTableStatement` and SELECT-only `ExplainStatement` trees,
+supports LF/CRLF/CR/EOF comments, preserves contextual-keyword identifiers,
+and rejects malformed, nested, unsupported-child, and multi-statement input
+before binding or execution. `SqlEngine` reports a controlled unsupported
+diagnostic until Tasks 7.33–7.38 add the semantic and execution routes.
+
 **Dependencies:** 7.31; existing Tasks 7.3–7.7.
 
 **Actions:**
@@ -1094,6 +1102,10 @@ commands and the corrected pre-existing API test fragility. The historical
 **Tests:** All six exact submissions in Section 12.M; lowercase/mixed-case keywords; CRLF and EOF comments; `'Pérez, Juan'`, `'O''Brien'`, and `'A; -- B'`; malformed length and parentheses; missing KEY; second statements; unsupported block comments and EXPLAIN children.
 
 **Acceptance:** All required statements produce the correct AST; malformed suffixes and extra statements cannot cause partial execution.
+
+**Verification:** The focused Task 7.32 parser/lexer/AST/API gate passed 181
+tests under warnings-as-errors. Broader query/API/architecture results are
+recorded in `docs/ETAPA_07_TASK_7_32.md`.
 
 ### Task 7.33 - Extend schema metadata and validate CREATE definitions
 
@@ -1717,9 +1729,9 @@ passes and the separate Tasks 7.31–7.40 checklist is implemented and verified.
 ### Required extension completion checklist (Tasks 7.31–7.40)
 
 - [x] Current baseline and adopted capabilities are recorded without resetting verified progress.
-- [ ] Manual parsing supports CREATE TABLE with INT/INTEGER, VARCHAR(n), and one inline PRIMARY KEY.
-- [ ] The exact accented string and required line comments parse without altering their meaning.
-- [ ] Exactly one statement is accepted; second statements are rejected before any execution.
+- [x] Manual parsing supports CREATE TABLE with INT/INTEGER, VARCHAR(n), and one inline PRIMARY KEY.
+- [x] The exact accented string and required line comments parse without altering their meaning.
+- [x] Exactly one statement is accepted; second statements are rejected before any execution.
 - [ ] CREATE validation rejects duplicate names, unsupported definitions, and invalid lengths.
 - [ ] SQL creation delegates to existing storage and primary-key index services.
 - [ ] Schema, constraints, table discovery, and index registration survive fresh-process reopen.
@@ -1732,7 +1744,7 @@ passes and the separate Tasks 7.31–7.40 checklist is implemented and verified.
 - [ ] Execution counts, elapsed time, and available counters have precise scopes and no fabricated values.
 - [ ] Empty and populated alumnos scenarios produce the specified outputs.
 - [ ] Command, row, explanation, and analysis results have compatible, documented ownership and completion semantics.
-- [ ] EXPLAIN wrappers around writes/DDL and nested EXPLAIN fail without mutation.
+- [x] EXPLAIN wrappers around writes/DDL and nested EXPLAIN fail without mutation.
 - [ ] Ordinary errors close resources and permit subsequent valid statements.
 - [ ] Stage 1–7 regression results and extension evidence are recorded for the actual implementation.
 - [ ] Task 7.40 documentation updates are completed with historical claims preserved and current contradictions resolved.

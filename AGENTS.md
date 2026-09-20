@@ -1,8 +1,8 @@
 # AGENTS.md
 
-> Context version: **3.8** — preserves the formal Stage 7 baseline closure,
-> records the active CREATE/EXPLAIN extension contract, and retains the
-> emergency Stage 9 and Stage 8 boundaries.
+> Context version: **3.9** — preserves the formal Stage 7 baseline closure,
+> records Tasks 7.31–7.32 of the active CREATE/EXPLAIN extension, and retains
+> the emergency Stage 9 and Stage 8 boundaries.
 
 ## Purpose
 
@@ -321,7 +321,7 @@ Latest formally completed baseline:
 
 Current implementation block:
 
-> **Stage 7 extension Tasks 7.32–7.40; Task 7.31 is complete**
+> **Stage 7 extension Tasks 7.33–7.40; Tasks 7.31–7.32 are complete**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -380,9 +380,11 @@ storage, and persist an incomplete marker when repair cannot finish. Public
 acceptance, differential baselines, fresh restart, forced external paths,
 cleanup, and injected failures are verified. The complete warnings-as-errors
 suite passes 2,556 tests; evidence and limits are recorded in
-`docs/ETAPA_07_AUDIT.md`. Task 7.31 froze the approved CREATE/EXPLAIN extension
-on 2026-09-19; Tasks 7.32–7.40 remain pending. Its decisions are recorded in
-`docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Stage 8 follows this extension in the
+`docs/ETAPA_07_AUDIT.md`. Tasks 7.31–7.32 froze the approved CREATE/EXPLAIN
+extension and implemented its syntax boundary on 2026-09-19; Tasks 7.33–7.40
+remain pending. Decisions and syntax evidence are recorded in
+`docs/ETAPA_07_TASK_7_31_DECISIONS.md` and
+`docs/ETAPA_07_TASK_7_32.md`. Stage 8 follows this extension in the
 roadmap, but no detailed `ETAPA_08.md` plan exists yet. Do not implement a
 buffer pool, WAL, concurrency, or other Stage 8 work without a later explicit
 request and stage plan.

@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **3.8** — preserves the formal Stage 7 baseline closure and
-> records the Task 7.31 contract for the pending CREATE/EXPLAIN extension.
+> Context version: **3.9** — preserves the formal Stage 7 baseline closure and
+> records Tasks 7.31–7.32 of the CREATE/EXPLAIN extension.
 
 ## Project identity
 
@@ -1768,8 +1768,9 @@ Do not add advanced SQL syntax at the cost of required features.
 ### Pending Stage 7 extension contract
 
 Tasks 7.1–7.30 remain the formally closed SQL baseline. On 2026-09-19 Task
-7.31 froze a team-approved extension; Tasks 7.32–7.40 are still pending and
-must not be described as implemented.
+7.31 froze a team-approved extension and Task 7.32 implemented its handwritten
+syntax boundary. Tasks 7.33–7.40 remain pending and must not be described as
+implemented.
 
 The extension adds one-statement `CREATE TABLE` for `INT`/`INTEGER`,
 `VARCHAR(n)`, and one optional inline single-column primary key, plus
@@ -1810,6 +1811,17 @@ The stable design is:
   Read-only mode permits SELECT and both SELECT-only explanation forms;
   write-enabled mode additionally permits INSERT, DELETE, and CREATE. Unknown
   future kinds fail closed.
+
+The implemented Task 7.32 boundary adds parser-independent
+`CreateTableStatement`, `ColumnDefinition`, `TypeSpecification`, and
+`ExplainStatement` nodes with complete source spans. The lexer recognizes the
+new grammar words without splitting longer identifiers; newly introduced words
+remain contextual in identifier positions so accepted columns such as `key`
+continue to parse. Line comments and diagnostics share LF, CRLF, CR, and EOF
+newline semantics. EXPLAIN wraps SELECT only, the outer statement owns the
+optional semicolon, and complete-input validation rejects every second
+statement. Until later tasks exist, `SqlEngine` rejects the new parsed families
+with a controlled `SqlUnsupportedError` before binding, planning, or mutation.
 
 The complete ownership, publication, compensation, compatibility, API, and
 affected-module decisions are in
@@ -2060,7 +2072,7 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 7 extension Tasks 7.32–7.40 (Task 7.31 complete)**
+> **Stage 7 extension Tasks 7.33–7.40 (Tasks 7.31–7.32 complete)**
 
 Next roadmap stage after the extension:
 
@@ -2230,8 +2242,9 @@ restart, cleanup, injected failures, and optimized-versus-baseline results are
 verified. The complete warnings-as-errors suite passes 2,556 tests. Evidence
 and declared limits are in the [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md),
 [SQL engine guide](docs/sql.md), and [Stage 7 audit](docs/ETAPA_07_AUDIT.md).
-Task 7.31 subsequently froze the limited CREATE/EXPLAIN extension on
-2026-09-19; Tasks 7.32–7.40 remain pending. Stage 8 follows that extension in
+Tasks 7.31–7.32 subsequently froze and implemented the syntax boundary of the
+limited CREATE/EXPLAIN extension on 2026-09-19; Tasks 7.33–7.40 remain pending.
+Stage 8 follows that extension in
 the roadmap; no detailed `ETAPA_08.md` plan or Stage 8 implementation is
 claimed. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)

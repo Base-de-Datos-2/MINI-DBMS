@@ -4,6 +4,10 @@
 **Inspected commit:** `87f442a` (`DOCS: Nueva versión de ETAPA_07.md`)  
 **Scope:** design and coordination only; Tasks 7.32–7.40 remain unimplemented
 
+> **Subsequent status:** Task 7.32 implemented the syntax boundary later on
+> 2026-09-19. This note preserves the decisions and baseline as inspected; see
+> `docs/ETAPA_07_TASK_7_32.md` for the implementation evidence.
+
 ## Authority and status
 
 Tasks 7.1–7.30 remain the closed, verified Stage 7 baseline recorded in
