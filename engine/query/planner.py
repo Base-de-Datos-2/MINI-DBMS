@@ -66,6 +66,7 @@ from engine.storage.record import RecordValue
 from .ast import (
     CreateTableStatement,
     DeleteStatement,
+    ExplainStatement,
     InsertStatement,
     SelectStatement,
     Statement,
@@ -769,13 +770,48 @@ class SelectPlanSpec:
     def describe(self) -> PlanSpecDescriptor:
         return self.root.describe()
 
-    def instantiate(self) -> ExecutionOperator:
+    def validate(self) -> None:
+        """Recheck every borrowed identity without constructing operators."""
+
         for relation in self.bound.relations:
             _validate_relation(self.environment, relation)
+
+        def visit(spec: PhysicalPlanSpec) -> None:
+            if isinstance(spec, IndexScanSpec):
+                _validate_index(self.environment, spec.registered)
+            elif isinstance(spec, IndexNestedLoopJoinSpec):
+                _validate_index(self.environment, spec.registered)
+            for child in spec.children:
+                visit(child)
+
+        visit(self.root)
+
+    def instantiate(self) -> ExecutionOperator:
+        self.validate()
         operator = self.root.instantiate()
         if operator.output_schema != self.bound.output_schema:
             raise StalePlanError("Prepared SELECT output schema changed")
         return operator
+
+
+@dataclass(frozen=True, slots=True)
+class ExplainPlanSpec:
+    """A SELECT specification tagged for inspection or one measured run."""
+
+    select: SelectPlanSpec
+    analyze: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.select, SelectPlanSpec):
+            raise InvalidTypeError("ExplainPlanSpec requires a SelectPlanSpec")
+        if type(self.analyze) is not bool:
+            raise InvalidTypeError("ExplainPlanSpec analyze must be a bool")
+
+    def validate(self) -> None:
+        self.select.validate()
+
+    def describe(self) -> PlanSpecDescriptor:
+        return self.select.describe()
 
 
 def _validate_mutation_snapshot(
@@ -1395,7 +1431,7 @@ def prepare_plan(
     use_indexes: bool = True,
     options: PhysicalPlanningOptions | None = None,
     ddl_service: DdlService | None = None,
-) -> SelectPlanSpec | InsertPlanSpec | DeletePlanSpec | CreatePlanSpec:
+) -> SelectPlanSpec | InsertPlanSpec | DeletePlanSpec | CreatePlanSpec | ExplainPlanSpec:
     """Prepare one supported statement without performing its effects."""
 
     if not isinstance(environment, QueryEnvironment):
@@ -1406,6 +1442,14 @@ def prepare_plan(
         raise InvalidTypeError("options must be PhysicalPlanningOptions or None")
     if ddl_service is not None and not isinstance(ddl_service, DdlService):
         raise InvalidTypeError("ddl_service must implement DdlService or be None")
+    if isinstance(statement, ExplainStatement):
+        select = prepare_select_plan(
+            environment,
+            statement.select,
+            use_indexes=use_indexes,
+            options=options,
+        )
+        return ExplainPlanSpec(select, statement.analyze)
     if isinstance(
         statement,
         (SelectStatement, InsertStatement, DeleteStatement, CreateTableStatement),
@@ -1454,6 +1498,7 @@ def prepare_plan(
 __all__ = [
     "DeletePlanSpec",
     "CreatePlanSpec",
+    "ExplainPlanSpec",
     "ExternalHashGroupSpec",
     "ExternalSortSpec",
     "FilterSpec",

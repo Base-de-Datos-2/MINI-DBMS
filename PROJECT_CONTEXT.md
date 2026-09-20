@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.0** — preserves the formal Stage 7 baseline closure and
-> records Tasks 7.31–7.35 of the CREATE/EXPLAIN extension.
+> Context version: **4.1** — preserves the formal Stage 7 baseline closure and
+> records Tasks 7.31–7.38 of the CREATE/EXPLAIN extension.
 
 ## Project identity
 
@@ -1769,8 +1769,9 @@ Do not add advanced SQL syntax at the cost of required features.
 
 Tasks 7.1–7.30 remain the formally closed SQL baseline. Task 7.31 froze the
 team-approved extension, Task 7.32 implemented its handwritten syntax boundary,
-and Tasks 7.33–7.35 implemented metadata, durable CREATE, and shared constraint
-enforcement by 2026-09-20. Tasks 7.36–7.40 remain pending.
+Tasks 7.33–7.35 implemented metadata, durable CREATE, and shared constraint
+enforcement, and Tasks 7.36–7.38 implemented explanation execution and public
+result contracts by 2026-09-20. Tasks 7.39–7.40 remain pending.
 
 The extension adds one-statement `CREATE TABLE` for `INT`/`INTEGER`,
 `VARCHAR(n)`, and one optional inline single-column primary key, plus
@@ -1806,7 +1807,10 @@ The stable design is:
   migration. SQL CREATE requires manifest-backed mode;
 - engine result kinds distinguish streaming rows, mutation commands,
   definitions, and explanations. EXPLAIN has no execution metrics; EXPLAIN
-  ANALYZE consumes exactly one SELECT execution to EOF and keeps no result rows;
+  ANALYZE consumes exactly one SELECT execution to EOF and keeps no result
+  rows. Prepared and runtime trees remain separate; planning and execution wall
+  times have separate scopes. A failed analysis exposes its original cause and
+  an explicit incomplete partial report after cleanup;
 - Stage 9 uses explicit statement allowlists and exhaustive result dispatch.
   Read-only mode permits SELECT and both SELECT-only explanation forms;
   write-enabled mode additionally permits INSERT, DELETE, and CREATE. Unknown
@@ -1823,8 +1827,10 @@ optional semicolon, and complete-input validation rejects every second
 statement. Tasks 7.33–7.35 add a side-effect-free CREATE binder/specification,
 an injected DDL protocol, an engine-owned manifest database, and synchronous
 CREATE execution. A `SqlEngine` without that DDL service still rejects CREATE
-with a controlled diagnostic; EXPLAIN remains controlled-unsupported until
-Tasks 7.36–7.38.
+with a controlled diagnostic. Tasks 7.36–7.38 reuse complete SELECT binding and
+physical planning for both explanation forms: plain EXPLAIN validates and
+returns the prepared descriptor without constructing operators, while ANALYZE
+drains one fresh tree to EOF and returns its post-cleanup Stage 6 report.
 
 The managed `engine.database.Database` creates or opens a database solely from
 the strict version-1 manifest, owns its Catalog/environment and permanent
@@ -2087,7 +2093,7 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 7 extension Tasks 7.36–7.40 (Tasks 7.31–7.35 complete)**
+> **Stage 7 extension Tasks 7.39–7.40 (Tasks 7.31–7.38 complete)**
 
 Next roadmap stage after the extension:
 
@@ -2257,11 +2263,12 @@ restart, cleanup, injected failures, and optimized-versus-baseline results are
 verified. The complete warnings-as-errors suite passes 2,556 tests. Evidence
 and declared limits are in the [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md),
 [SQL engine guide](docs/sql.md), and [Stage 7 audit](docs/ETAPA_07_AUDIT.md).
-Tasks 7.31–7.35 subsequently froze and implemented the syntax, durable CREATE,
-and constraint boundary of the limited CREATE/EXPLAIN extension by 2026-09-20;
-Tasks 7.36–7.40 remain pending. The post-Task-7.35 warnings-as-errors suite
-passes 2,724 tests; implementation evidence is in
-`docs/ETAPA_07_TASK_7_33_7_35.md`.
+Tasks 7.31–7.38 subsequently froze and implemented the syntax, durable CREATE,
+constraint boundary, explanation execution, and public result contract of the
+limited CREATE/EXPLAIN extension by 2026-09-20; Tasks 7.39–7.40 remain pending.
+The post-Task-7.38 warnings-as-errors suite passes 2,734 tests. Implementation
+evidence is in `docs/ETAPA_07_TASK_7_33_7_35.md` and
+`docs/ETAPA_07_TASK_7_36_7_38.md`.
 Stage 8 follows that extension in
 the roadmap; no detailed `ETAPA_08.md` plan or Stage 8 implementation is
 claimed. Part 1 remains incomplete. The

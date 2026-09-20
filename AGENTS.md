@@ -1,7 +1,7 @@
 # AGENTS.md
 
-> Context version: **4.0** — preserves the formal Stage 7 baseline closure,
-> records Tasks 7.31–7.35 of the active CREATE/EXPLAIN extension, and retains
+> Context version: **4.1** — preserves the formal Stage 7 baseline closure,
+> records Tasks 7.31–7.38 of the active CREATE/EXPLAIN extension, and retains
 > the emergency Stage 9 and Stage 8 boundaries.
 
 ## Purpose
@@ -321,7 +321,7 @@ Latest formally completed baseline:
 
 Current implementation block:
 
-> **Stage 7 extension Tasks 7.36–7.40; Tasks 7.31–7.35 are complete**
+> **Stage 7 extension Tasks 7.39–7.40; Tasks 7.31–7.38 are complete**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -380,13 +380,15 @@ storage, and persist an incomplete marker when repair cannot finish. Public
 acceptance, differential baselines, fresh restart, forced external paths,
 cleanup, and injected failures are verified. The complete warnings-as-errors
 suite passes 2,556 tests; evidence and limits are recorded in
-`docs/ETAPA_07_AUDIT.md`. Tasks 7.31–7.35 froze the approved CREATE/EXPLAIN
-extension, implemented its syntax boundary, and added durable manifest-backed
-CREATE with shared VARCHAR/primary-key enforcement on 2026-09-20; Tasks
-7.36–7.40 remain pending. Decisions and implementation evidence are recorded in
+`docs/ETAPA_07_AUDIT.md`. Tasks 7.31–7.38 froze the approved CREATE/EXPLAIN
+extension, implemented its syntax and durable manifest-backed CREATE with
+shared VARCHAR/primary-key enforcement, and added EXPLAIN, EXPLAIN ANALYZE, and
+their public result contract on 2026-09-20; Tasks 7.39–7.40 remain pending.
+Decisions and implementation evidence are recorded in
 `docs/ETAPA_07_TASK_7_31_DECISIONS.md` and
-`docs/ETAPA_07_TASK_7_32.md` plus `docs/ETAPA_07_TASK_7_33_7_35.md`. Stage 8 follows this extension in the
-roadmap. The post-Task-7.35 warnings-as-errors suite passes 2,724 tests. No
+`docs/ETAPA_07_TASK_7_32.md`, `docs/ETAPA_07_TASK_7_33_7_35.md`, and
+`docs/ETAPA_07_TASK_7_36_7_38.md`. Stage 8 follows this extension in the
+roadmap. The post-Task-7.38 warnings-as-errors suite passes 2,734 tests. No
 detailed `ETAPA_08.md` plan exists yet. Do not implement a
 buffer pool, WAL, concurrency, or other Stage 8 work without a later explicit
 request and stage plan.

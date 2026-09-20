@@ -12,9 +12,10 @@ the practical [SQL engine guide](sql.md) and the
 **Extension status:** Task 7.32 added limited `CREATE TABLE`, `EXPLAIN SELECT`,
 and `EXPLAIN ANALYZE SELECT` parsing on 2026-09-19. Tasks 7.33–7.35 added CREATE
 binding, durable manifest registration, and shared constraint enforcement on
-2026-09-20. A manifest-backed `SqlEngine` executes CREATE; a legacy engine
-without a DDL service rejects it without mutation. Explanation execution remains
-pending in Tasks 7.36–7.38. See the
+2026-09-20. Tasks 7.36–7.38 added non-executing explanation, one-run measured
+analysis, and explicit public result variants. A manifest-backed `SqlEngine`
+executes CREATE; a legacy engine without a DDL service rejects it without
+mutation. Every valid query environment supports SELECT-only explanation. See the
 [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
 [Task 7.32 evidence](ETAPA_07_TASK_7_32.md). Multiple statements and automatic
 script splitting remain unsupported.
@@ -124,8 +125,8 @@ numeric literal, and rejects arbitrary unary arithmetic.
 | Stars | `*`, `relation.*`, and `COUNT(*)` are distinct AST forms |
 | Comments | `--` through LF, CRLF, CR, or EOF is accepted; block comments are rejected |
 | CREATE TABLE | Ordered non-empty columns, INT/INTEGER, VARCHAR(1..4075), optional inline PRIMARY KEY; executable only with the manifest DDL service |
-| EXPLAIN | Syntax only in Task 7.32: SELECT child only; optional ANALYZE; no nested wrapper |
-| Extension execution | CREATE implemented in Tasks 7.33–7.35; EXPLAIN remains controlled-unsupported until Tasks 7.36–7.38 |
+| EXPLAIN | SELECT child only; optional ANALYZE; no nested wrapper; plain form describes without row execution and ANALYZE drains one execution |
+| Extension execution | CREATE implemented in Tasks 7.33–7.35; EXPLAIN and EXPLAIN ANALYZE implemented in Tasks 7.36–7.38 |
 | DELETE | Whole-table `DELETE FROM table` is adopted; the executor must use the same validation and index-maintenance path as filtered DELETE |
 | INSERT | One row only; an optional column list is adopted |
 | JOIN | At most one explicit inner `JOIN`; its executable baseline is an equality key plus any supported residual predicate |
@@ -167,7 +168,7 @@ The table names the implemented route and its completed Stage 7 evidence.
 | filtered/whole-table DELETE | 7.6 | implemented in 7.12 | disk-backed stable targets + shared maintenance implemented in 7.24-7.25 | bounded discovery, confirmed-prefix failure, repair, report, and fresh-restart agreement verified in 7.27-7.29 |
 | signed numbers | lexer 7.4; parser 7.5 | target range implemented in 7.9/7.12 | existing typed expressions/mutations | syntax and semantic ranges verified |
 | CREATE TABLE | Task 7.32 parser and located AST implemented | immutable constraints and resolved definition implemented in 7.33 | managed Heap/unique B+ creation, compensated publication, strict manifest reopen, and shared writes implemented in 7.34–7.35 | syntax, semantic rejection, persistence, failure injection, Unicode bounds, uniqueness, DELETE/reinsert, and restart verified |
-| EXPLAIN / EXPLAIN ANALYZE SELECT | Task 7.32 wrapper and SELECT-child AST implemented | pending reuse in 7.36 | pending 7.36–7.38 | exact scenario, SELECT-only children, nesting, spans, and semicolon ownership verified |
+| EXPLAIN / EXPLAIN ANALYZE SELECT | Task 7.32 wrapper and SELECT-child AST implemented | reuses complete SELECT binding in 7.36 | immutable prepared description; optional one-run Stage 6 execution and explicit explanation result implemented in 7.36–7.38 | non-execution, index/scan plans, exact-once counts, forced spill cleanup, partial failure, nesting, spans, and semicolon ownership verified |
 
 ## Semantic binding policy
 

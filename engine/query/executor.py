@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from time import perf_counter
 
 from engine.catalog import Schema
-from engine.errors import InvalidTypeError, UnsupportedAccessError, ValidationError
+from engine.errors import (
+    DatabaseError,
+    InvalidTypeError,
+    UnsupportedAccessError,
+    ValidationError,
+)
 from engine.maintenance import (
     DeleteTargetSpool,
     MaintenanceError,
@@ -25,7 +31,6 @@ from engine.storage import Record
 from .ast import (
     CreateTableStatement,
     DeleteStatement,
-    ExplainStatement,
     InsertStatement,
 )
 from .environment import QueryEnvironment
@@ -40,6 +45,7 @@ from .parser import parse_sql
 from .planner import (
     CreatePlanSpec,
     DeletePlanSpec,
+    ExplainPlanSpec,
     InsertPlanSpec,
     PhysicalPlanningOptions,
     PlanSpecDescriptor,
@@ -51,29 +57,22 @@ from .planner import (
 DEFAULT_MATERIALIZATION_LIMIT = 10_000
 
 
-def _reject_unplanned_extension(
+def _reject_unavailable_extension(
     statement,
     source: str,
     ddl_service: DdlService | None,
 ) -> None:
-    """Keep newly parsed syntax controlled until its later execution tasks."""
+    """Reject CREATE when no manifest-backed DDL service was injected."""
 
     if isinstance(statement, CreateTableStatement) and ddl_service is None:
         feature = "CREATE TABLE execution"
         offending = "CREATE"
-    elif isinstance(statement, ExplainStatement):
-        feature = (
-            "EXPLAIN ANALYZE execution"
-            if statement.analyze
-            else "EXPLAIN execution"
-        )
-        offending = "EXPLAIN"
     else:
         return
     if statement.span is None:
         raise RuntimeError("Parser-created extension statement lacks a span")
     raise SqlUnsupportedError(
-        f"{feature} is not available until its later Stage 7 extension task",
+        f"{feature} requires a manifest-backed database service",
         span=statement.span,
         source=source,
         offending=offending,
@@ -87,14 +86,17 @@ class StatementKind(Enum):
     INSERT = "INSERT"
     DELETE = "DELETE"
     CREATE = "CREATE"
+    EXPLAIN = "EXPLAIN"
+    EXPLAIN_ANALYZE = "EXPLAIN_ANALYZE"
 
 
 class ResultKind(Enum):
-    """Public result shape for streaming rows or a completed command."""
+    """Public result shape for every supported single-statement family."""
 
     ROWS = "ROWS"
     COMMAND = "COMMAND"
     DEFINITION = "DEFINITION"
+    EXPLANATION = "EXPLANATION"
 
 
 class ResultState(Enum):
@@ -155,32 +157,98 @@ class DefinitionExecutionReport:
     primary_index_name: str | None
 
 
-PlanSpec = SelectPlanSpec | InsertPlanSpec | DeletePlanSpec | CreatePlanSpec
+@dataclass(frozen=True, slots=True)
+class ExplanationExecutionReport:
+    """Prepared plan and optional evidence from one complete analysis run."""
+
+    prepared: PlanSpecDescriptor
+    runtime: PlanReport | None
+    state: ResultState
+    executed: bool
+    complete: bool
+    output_rows: int | None
+    planning_seconds: float
+    execution_seconds: float | None
+    error_type: str | None = None
+    error_message: str | None = None
+
+
+class AnalysisExecutionError(DatabaseError, RuntimeError):
+    """EXPLAIN ANALYZE failed after cleanup, with its partial evidence."""
+
+    def __init__(
+        self,
+        report: ExplanationExecutionReport,
+        cause: BaseException,
+    ) -> None:
+        if not isinstance(report, ExplanationExecutionReport):
+            raise InvalidTypeError(
+                "AnalysisExecutionError requires an ExplanationExecutionReport"
+            )
+        if not isinstance(cause, BaseException):
+            raise InvalidTypeError("AnalysisExecutionError requires an exception")
+        self.report = report
+        self.cause = cause
+        super().__init__(
+            "EXPLAIN ANALYZE failed after "
+            f"{report.output_rows or 0} output rows: "
+            f"{type(cause).__name__}: {cause}"
+        )
+
+
+PlanSpec = (
+    SelectPlanSpec
+    | InsertPlanSpec
+    | DeletePlanSpec
+    | CreatePlanSpec
+    | ExplainPlanSpec
+)
 
 
 class PreparedQuery:
     """Reusable parse/bind/plan result with no live cursor or execution context."""
 
-    __slots__ = ("_engine", "_spec", "_kind")
+    __slots__ = ("_engine", "_spec", "_kind", "_planning_seconds")
 
-    def __init__(self, engine: "SqlEngine", spec: PlanSpec) -> None:
+    def __init__(
+        self,
+        engine: "SqlEngine",
+        spec: PlanSpec,
+        *,
+        planning_seconds: float = 0.0,
+    ) -> None:
         if not isinstance(engine, SqlEngine):
             raise InvalidTypeError("PreparedQuery requires a SqlEngine")
         if not isinstance(
             spec,
-            (SelectPlanSpec, InsertPlanSpec, DeletePlanSpec, CreatePlanSpec),
+            (
+                SelectPlanSpec,
+                InsertPlanSpec,
+                DeletePlanSpec,
+                CreatePlanSpec,
+                ExplainPlanSpec,
+            ),
         ):
             raise InvalidTypeError("PreparedQuery requires a supported plan specification")
+        if type(planning_seconds) is not float:
+            raise InvalidTypeError("planning_seconds must be a float")
+        if planning_seconds < 0:
+            raise ValidationError("planning_seconds must be non-negative")
         self._engine = engine
         self._spec = spec
+        self._planning_seconds = planning_seconds
         if isinstance(spec, SelectPlanSpec):
             self._kind = StatementKind.SELECT
         elif isinstance(spec, InsertPlanSpec):
             self._kind = StatementKind.INSERT
         elif isinstance(spec, DeletePlanSpec):
             self._kind = StatementKind.DELETE
-        else:
+        elif isinstance(spec, CreatePlanSpec):
             self._kind = StatementKind.CREATE
+        elif spec.analyze:
+            self._kind = StatementKind.EXPLAIN_ANALYZE
+        else:
+            self._kind = StatementKind.EXPLAIN
 
     @property
     def kind(self) -> StatementKind:
@@ -193,6 +261,12 @@ class PreparedQuery:
         return None
 
     @property
+    def planning_seconds(self) -> float:
+        """Return parse/bind/plan wall time measured for this preparation."""
+
+        return self._planning_seconds
+
+    @property
     def reusable(self) -> bool:
         """Prepared queries always create fresh physical state per execution."""
 
@@ -203,7 +277,9 @@ class PreparedQuery:
 
         return self._spec.describe()
 
-    def execute(self) -> "QueryResult | CommandResult | DefinitionResult":
+    def execute(
+        self,
+    ) -> "QueryResult | CommandResult | DefinitionResult | ExplanationResult":
         """Create one fresh execution through the owning single-session engine."""
 
         return self._engine.execute(self)
@@ -212,7 +288,7 @@ class PreparedQuery:
 class CommandResult:
     """One already-completed INSERT or DELETE result with no row stream."""
 
-    __slots__ = ("_prepared_description", "_statistics")
+    __slots__ = ("_prepared_description", "_statistics", "_statement_kind")
 
     def __init__(self, prepared: PreparedQuery, statistics: MutationReport) -> None:
         if not isinstance(prepared, PreparedQuery):
@@ -223,10 +299,15 @@ class CommandResult:
             raise InvalidTypeError("CommandResult requires a MutationReport")
         self._prepared_description = prepared.describe()
         self._statistics = statistics
+        self._statement_kind = prepared.kind
 
     @property
     def kind(self) -> ResultKind:
         return ResultKind.COMMAND
+
+    @property
+    def statement_kind(self) -> StatementKind:
+        return self._statement_kind
 
     @property
     def state(self) -> ResultState:
@@ -322,6 +403,10 @@ class DefinitionResult:
         return ResultKind.DEFINITION
 
     @property
+    def statement_kind(self) -> StatementKind:
+        return StatementKind.CREATE
+
+    @property
     def state(self) -> ResultState:
         return ResultState.COMPLETE
 
@@ -393,6 +478,146 @@ class DefinitionResult:
         return False
 
 
+class ExplanationResult:
+    """Completed plan inspection, optionally with one measured SELECT run."""
+
+    __slots__ = ("_statement_kind", "_report")
+
+    def __init__(
+        self,
+        prepared: PreparedQuery,
+        *,
+        runtime: PlanReport | None = None,
+        execution_seconds: float | None = None,
+    ) -> None:
+        if not isinstance(prepared, PreparedQuery):
+            raise InvalidTypeError("ExplanationResult requires a PreparedQuery")
+        if prepared.kind not in {
+            StatementKind.EXPLAIN,
+            StatementKind.EXPLAIN_ANALYZE,
+        }:
+            raise ValidationError("ExplanationResult requires an EXPLAIN plan")
+        analyzed = prepared.kind is StatementKind.EXPLAIN_ANALYZE
+        if analyzed:
+            if not isinstance(runtime, PlanReport):
+                raise InvalidTypeError(
+                    "EXPLAIN ANALYZE requires a measured PlanReport"
+                )
+            if type(execution_seconds) is not float:
+                raise InvalidTypeError(
+                    "EXPLAIN ANALYZE execution_seconds must be a float"
+                )
+            if execution_seconds < 0:
+                raise ValidationError("execution_seconds must be non-negative")
+        elif runtime is not None or execution_seconds is not None:
+            raise ValidationError("Plain EXPLAIN cannot contain runtime evidence")
+        self._statement_kind = prepared.kind
+        self._report = ExplanationExecutionReport(
+            prepared=prepared.describe(),
+            runtime=runtime,
+            state=ResultState.COMPLETE,
+            executed=analyzed,
+            complete=True,
+            output_rows=None if runtime is None else runtime.rows_produced,
+            planning_seconds=prepared.planning_seconds,
+            execution_seconds=execution_seconds,
+        )
+
+    @property
+    def kind(self) -> ResultKind:
+        return ResultKind.EXPLANATION
+
+    @property
+    def statement_kind(self) -> StatementKind:
+        return self._statement_kind
+
+    @property
+    def state(self) -> ResultState:
+        return self._report.state
+
+    @property
+    def schema(self) -> None:
+        return None
+
+    @property
+    def plan(self) -> PlanSpecDescriptor:
+        return self._report.prepared
+
+    @property
+    def statistics(self) -> PlanReport | None:
+        return self._report.runtime
+
+    @property
+    def executed(self) -> bool:
+        return self._report.executed
+
+    @property
+    def complete(self) -> bool:
+        return self._report.complete
+
+    @property
+    def output_rows(self) -> int | None:
+        return self._report.output_rows
+
+    @property
+    def planning_seconds(self) -> float:
+        return self._report.planning_seconds
+
+    @property
+    def execution_seconds(self) -> float | None:
+        return self._report.execution_seconds
+
+    @property
+    def rows_delivered(self) -> int:
+        return 0
+
+    @property
+    def fully_consumed(self) -> bool:
+        return True
+
+    @property
+    def completed(self) -> bool:
+        return True
+
+    @property
+    def closed(self) -> bool:
+        return True
+
+    @property
+    def partial(self) -> bool:
+        return False
+
+    @property
+    def error(self) -> None:
+        return None
+
+    @property
+    def rows(self):
+        raise UnsupportedAccessError("Explanation results do not contain rows")
+
+    @property
+    def report(self) -> ExplanationExecutionReport:
+        return self._report
+
+    def fetchmany(self, size: int):
+        raise UnsupportedAccessError("Explanation results do not contain rows")
+
+    def fetchall(self, *, limit: int):
+        raise UnsupportedAccessError("Explanation results do not contain rows")
+
+    def close(self) -> None:
+        """Explanations are synchronous and retain no live resources."""
+
+    def __iter__(self):
+        raise UnsupportedAccessError("Explanation results are not iterable")
+
+    def __enter__(self) -> "ExplanationResult":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        return False
+
+
 class QueryResult:
     """One bounded, streaming SELECT execution and its owned transient state.
 
@@ -444,6 +669,10 @@ class QueryResult:
     @property
     def kind(self) -> ResultKind:
         return ResultKind.ROWS
+
+    @property
+    def statement_kind(self) -> StatementKind:
+        return StatementKind.SELECT
 
     @property
     def state(self) -> ResultState:
@@ -814,13 +1043,14 @@ class SqlEngine:
     ) -> PreparedQuery:
         """Parse, bind, and plan without opening cursors or applying mutations."""
 
+        started = perf_counter()
         options = self._planning_options if planning_options is None else planning_options
         if not isinstance(options, PhysicalPlanningOptions):
             raise InvalidTypeError(
                 "planning_options must be PhysicalPlanningOptions or None"
             )
         statement = parse_sql(sql)
-        _reject_unplanned_extension(statement, sql, self._ddl_service)
+        _reject_unavailable_extension(statement, sql, self._ddl_service)
         spec = prepare_plan(
             self._environment,
             statement,
@@ -828,7 +1058,11 @@ class SqlEngine:
             options=options,
             ddl_service=self._ddl_service,
         )
-        return PreparedQuery(self, spec)
+        return PreparedQuery(
+            self,
+            spec,
+            planning_seconds=perf_counter() - started,
+        )
 
     @staticmethod
     def _maintenance_indexes(spec: InsertPlanSpec | DeletePlanSpec):
@@ -842,13 +1076,73 @@ class SqlEngine:
             for item in spec.bound.indexes
         )
 
+    def _execute_explanation(self, prepared: PreparedQuery) -> ExplanationResult:
+        spec = prepared._spec
+        if not isinstance(spec, ExplainPlanSpec):
+            raise RuntimeError("An EXPLAIN prepared query lost its plan")
+        if not spec.analyze:
+            spec.validate()
+            return ExplanationResult(prepared)
+
+        plan: PhysicalPlan | None = None
+        started = perf_counter()
+        try:
+            root = spec.select.instantiate()
+            plan = PhysicalPlan(
+                root,
+                memory_budget_bytes=self._memory_budget_bytes,
+                max_open_handles=self._max_open_handles,
+                label="sql-explain-analyze",
+            )
+            with plan:
+                for _ in plan.rows():
+                    pass
+            runtime = plan.report()
+        except BaseException as error:
+            elapsed = perf_counter() - started
+            runtime = None
+            if plan is not None:
+                try:
+                    runtime = plan.report()
+                except BaseException as reporting_error:
+                    try:
+                        error.add_note(
+                            "EXPLAIN ANALYZE could not capture its partial report: "
+                            f"{type(reporting_error).__name__}: {reporting_error}"
+                        )
+                    except AttributeError:  # pragma: no cover - Python 3.11+
+                        pass
+            output_rows = (
+                runtime.rows_produced
+                if runtime is not None
+                else (0 if plan is None else plan.rows_produced)
+            )
+            report = ExplanationExecutionReport(
+                prepared=prepared.describe(),
+                runtime=runtime,
+                state=ResultState.FAILED,
+                executed=True,
+                complete=False,
+                output_rows=output_rows,
+                planning_seconds=prepared.planning_seconds,
+                execution_seconds=elapsed,
+                error_type=type(error).__name__,
+                error_message=str(error),
+            )
+            raise AnalysisExecutionError(report, error) from error
+        return ExplanationResult(
+            prepared,
+            runtime=runtime,
+            execution_seconds=perf_counter() - started,
+        )
+
     def execute(
         self,
         query: str | PreparedQuery,
         *,
         use_indexes: bool | None = None,
         planning_options: PhysicalPlanningOptions | None = None,
-    ) -> QueryResult | CommandResult | DefinitionResult:
+    ) -> QueryResult | CommandResult | DefinitionResult | ExplanationResult:
         """Execute one statement under the single-session lifecycle contract."""
 
         self._require_idle()
@@ -861,6 +1155,7 @@ class SqlEngine:
                 "planning_options must be PhysicalPlanningOptions or None"
             )
         if isinstance(query, str):
+            planning_started = perf_counter()
             indexes_enabled = True if use_indexes is None else use_indexes
             options = (
                 self._planning_options
@@ -868,7 +1163,7 @@ class SqlEngine:
                 else planning_options
             )
             statement = parse_sql(query)
-            _reject_unplanned_extension(statement, query, self._ddl_service)
+            _reject_unavailable_extension(statement, query, self._ddl_service)
             try:
                 spec = prepare_plan(
                     self._environment,
@@ -890,7 +1185,11 @@ class SqlEngine:
                         failures=(error,),
                     ) from error
                 raise
-            prepared = PreparedQuery(self, spec)
+            prepared = PreparedQuery(
+                self,
+                spec,
+                planning_seconds=perf_counter() - planning_started,
+            )
         elif isinstance(query, PreparedQuery):
             prepared = query
             if prepared._engine is not self:
@@ -902,6 +1201,11 @@ class SqlEngine:
                 )
         else:
             raise InvalidTypeError("execute requires SQL text or PreparedQuery")
+        if prepared.kind in {
+            StatementKind.EXPLAIN,
+            StatementKind.EXPLAIN_ANALYZE,
+        }:
+            return self._execute_explanation(prepared)
         if prepared.kind is StatementKind.CREATE:
             spec = prepared._spec
             if not isinstance(spec, CreatePlanSpec):
@@ -1045,8 +1349,8 @@ def run_sql(
     materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
     planning_options: PhysicalPlanningOptions | None = None,
     ddl_service: DdlService | None = None,
-) -> QueryResult | CommandResult | DefinitionResult:
-    """Execute SQL, returning a lazy row result or completed command result."""
+) -> QueryResult | CommandResult | DefinitionResult | ExplanationResult:
+    """Execute SQL and return its explicit public result variant."""
 
     engine = SqlEngine(
         environment,
@@ -1064,10 +1368,13 @@ def run_sql(
 
 
 __all__ = [
+    "AnalysisExecutionError",
     "CommandExecutionReport",
     "CommandResult",
     "DefinitionExecutionReport",
     "DefinitionResult",
+    "ExplanationExecutionReport",
+    "ExplanationResult",
     "PreparedQuery",
     "QueryExecutionReport",
     "QueryResult",

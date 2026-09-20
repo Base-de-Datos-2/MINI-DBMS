@@ -17,6 +17,7 @@ from engine.query.environment import QueryEnvironment
 from engine.query.errors import (
     SqlLexicalError,
     SqlSyntaxError,
+    SqlUnknownTableError,
     SqlUnsupportedError,
 )
 from engine.query.executor import SqlEngine
@@ -258,20 +259,31 @@ def test_empty_comment_only_and_block_comment_inputs_remain_controlled():
         parse_sql("/* unsupported */ CREATE TABLE t (id INT)")
 
 
+def test_engine_rejects_create_without_a_manifest_backed_service():
+    engine = SqlEngine(QueryEnvironment(Catalog()))
+    try:
+        with pytest.raises(SqlUnsupportedError, match="manifest-backed"):
+            engine.prepare("CREATE TABLE t (id INT)")
+        with pytest.raises(SqlUnsupportedError, match="manifest-backed"):
+            engine.execute("CREATE TABLE t (id INT)")
+        assert engine.active_result is None
+    finally:
+        engine.close()
+
+
 @pytest.mark.parametrize(
     "sql",
     [
-        "CREATE TABLE t (id INT)",
         "EXPLAIN SELECT * FROM missing",
         "EXPLAIN ANALYZE SELECT * FROM missing",
     ],
 )
-def test_engine_rejects_parsed_but_unplanned_extension_without_internal_errors(sql):
+def test_explain_reaches_semantic_binding_and_reports_unknown_tables(sql):
     engine = SqlEngine(QueryEnvironment(Catalog()))
     try:
-        with pytest.raises(SqlUnsupportedError, match="later Stage 7 extension"):
+        with pytest.raises(SqlUnknownTableError):
             engine.prepare(sql)
-        with pytest.raises(SqlUnsupportedError, match="later Stage 7 extension"):
+        with pytest.raises(SqlUnknownTableError):
             engine.execute(sql)
         assert engine.active_result is None
     finally:

@@ -105,6 +105,7 @@ def test_result_streams_in_bounded_batches_and_closes_early_without_closing_stor
     result = engine.execute("SELECT id FROM students ORDER BY id")
 
     assert result.kind is ResultKind.ROWS
+    assert result.statement_kind is StatementKind.SELECT
     assert result.state is ResultState.CREATED
     assert [column.name for column in result.schema] == ["id"]
     assert result.statistics is None
@@ -216,6 +217,7 @@ def test_one_active_result_owns_the_session_and_mutations_execute_once_closed(
     active.close()
     command = insert.execute()
     assert command.kind is ResultKind.COMMAND
+    assert command.statement_kind is StatementKind.INSERT
     assert command.affected_rows == 1
     assert command.report.affected_rows == 1
     assert storage.record_count == before + 1

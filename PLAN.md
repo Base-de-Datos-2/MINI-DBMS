@@ -1,7 +1,7 @@
 # PLAN.md
 
-> Context version: **3.5** — preserves the formal Stage 7 baseline closure,
-> records Tasks 7.31–7.35 of the active CREATE/EXPLAIN extension, and keeps
+> Context version: **3.6** — preserves the formal Stage 7 baseline closure,
+> records Tasks 7.31–7.38 of the active CREATE/EXPLAIN extension, and keeps
 > Stage 8 as the next roadmap stage after that extension.
 
 ## Part 1 Implementation Plan — Relational Database
@@ -895,9 +895,10 @@ The team subsequently authorized Tasks 7.31–7.40 in `ETAPA_07.md` for:
 - explicit definition/explanation result contracts and safe Stage 9 handoff.
 
 Task 7.31 completed the architecture freeze, Task 7.32 completed the
-handwritten AST/lexer/parser extension, and Tasks 7.33–7.35 implemented durable
-CREATE plus shared constraints by 2026-09-20. Tasks 7.36–7.40 remain pending
-and are the current implementation block. These features are
+handwritten AST/lexer/parser extension, Tasks 7.33–7.35 implemented durable
+CREATE plus shared constraints, and Tasks 7.36–7.38 implemented EXPLAIN,
+EXPLAIN ANALYZE, and the public result contract by 2026-09-20. Tasks 7.39–7.40
+remain pending and are the current implementation block. These features are
 team additions, not new academic requirements. Their stable ownership,
 persistence, naming, limit, compatibility, and API decisions are recorded in
 `docs/ETAPA_07_TASK_7_31_DECISIONS.md` and `PROJECT_CONTEXT.md`.
@@ -1345,7 +1346,7 @@ Part 1 is complete only when:
 [x] Stage 5 complete
 [x] Stage 6 complete
 [x] Stage 7 baseline complete (Tasks 7.1–7.30 closed 2026-09-18; 63 criteria; 2556 strict tests)
-[ ] Stage 7 CREATE/EXPLAIN extension complete (Tasks 7.31–7.35 complete; Tasks 7.36–7.40 pending)
+[ ] Stage 7 CREATE/EXPLAIN extension complete (Tasks 7.31–7.38 complete; Tasks 7.39–7.40 pending)
 [ ] Stage 8 complete
 [ ] Stage 9 complete (emergency demo ready 2026-09-18; transaction integration pending until after Stage 8)
 [ ] Stage 10 complete
@@ -1363,7 +1364,7 @@ Latest formally completed baseline:
 
 Current implementation block:
 
-> **Stage 7 extension Tasks 7.36–7.40 (Tasks 7.31–7.35 complete)**
+> **Stage 7 extension Tasks 7.39–7.40 (Tasks 7.31–7.38 complete)**
 
 Next roadmap stage after the extension:
 
@@ -1453,10 +1454,12 @@ restart, forced spills/fallbacks, early close, injected resource failure, and
 temporary cleanup are verified. The complete warnings-as-errors suite passes
 2,556 tests. See the [SQL engine guide](docs/sql.md), [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md), and [closure audit](docs/ETAPA_07_AUDIT.md).
 
-Tasks 7.31–7.35 froze the team-approved CREATE/EXPLAIN extension and completed
-its syntax, durable CREATE, and constraint boundary by 2026-09-20; Tasks
-7.36–7.40 remain pending. The post-Task-7.35 warnings-as-errors suite passes
-2,724 tests; evidence is in `docs/ETAPA_07_TASK_7_33_7_35.md`. Stage 8
+Tasks 7.31–7.38 froze the team-approved CREATE/EXPLAIN extension and completed
+its syntax, durable CREATE, constraint boundary, explanation execution, and
+public result contract by 2026-09-20; Tasks 7.39–7.40 remain pending. Focused
+evidence is in `docs/ETAPA_07_TASK_7_33_7_35.md` and
+`docs/ETAPA_07_TASK_7_36_7_38.md`; the post-Task-7.38 warnings-as-errors suite
+passes 2,734 tests. Stage 8
 follows that extension in the roadmap.
 No detailed `ETAPA_08.md` plan is claimed to exist, and no transaction,
 concurrency, locking, WAL, or recovery behavior was implemented as part of
