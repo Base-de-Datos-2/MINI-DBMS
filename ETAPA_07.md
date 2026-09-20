@@ -11,15 +11,16 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Revision:** 2026-09-20 — Tasks 7.36–7.38 EXPLAIN execution and result contracts complete
-**Status:** Original Stage 7 baseline and Tasks 7.31–7.38 complete; extension Tasks 7.39–7.40 remain pending. CREATE, EXPLAIN, and EXPLAIN ANALYZE are implemented at the engine boundary; completed baseline work remains preserved.
+**Revision:** 2026-09-20 — CREATE/EXPLAIN extension Tasks 7.31–7.40 closed
+**Status:** Complete. The original Tasks 7.1–7.30 baseline remains preserved, and Tasks 7.31–7.40 are implemented and verified. CREATE, EXPLAIN, and EXPLAIN ANALYZE are supported at the engine boundary; Stage 8 remains unimplemented.
 
 Tasks 7.1–7.30 were closed on 2026-09-18 and Stage 8 remains unimplemented.
 Task 7.31 inspected commit `87f442a` and froze the extension decisions in
 `docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Task 7.32 implements the syntax boundary,
 Tasks 7.33–7.35 implement durable CREATE and shared constraints, and Tasks
-7.36–7.38 implement the explanation/result boundary. Preserve the completed
-baseline and describe Tasks 7.39–7.40 as planned until verified.
+7.36–7.38 implement the explanation/result boundary. Tasks 7.39–7.40 verify
+the exact persisted scenario and synchronize closure documentation. Final
+evidence is recorded in `docs/ETAPA_07_EXTENSION_AUDIT.md`.
 
 ### Adopted team decision and revision scope
 
@@ -1296,6 +1297,11 @@ warnings-as-errors. Detailed implementation and verification evidence is in
 
 ### Task 7.39 - Verify the exact scenario, restart, and regression behavior
 
+**Status:** Complete on 2026-09-20. The exact six submissions run separately
+against one SQL-created database when empty, after the prescribed inserts, and
+after a clean manifest-only reopen. Constraint, failure, scan/index, and
+complete-input boundaries are verified without fixture-side table creation.
+
 **Dependencies:** 7.35–7.38.
 
 **Actions:**
@@ -1309,7 +1315,18 @@ warnings-as-errors. Detailed implementation and verification evidence is in
 
 **Acceptance:** Section 12.M passes end to end; failures have explicit expected behavior; previous accepted SQL and external algorithms remain functional. Missing tests or tools are recorded, not represented as passes.
 
+**Verification:** The exact scenario passes 8 tests; the restart/injected
+failure gate passes 54; query/database/API compatibility passes 436; and the
+complete warnings-as-errors repository suite passes 2,742 tests. Commands,
+versions, elapsed times, and checked-out revision are recorded in
+`docs/ETAPA_07_EXTENSION_AUDIT.md`.
+
 ### Task 7.40 - Synchronize documentation and close the extension
+
+**Status:** Complete on 2026-09-20. Current capability, grammar, ownership,
+persistence, result, failure, Stage 8, and Stage 9 handoff claims are
+reconciled. Historical audits remain dated records and point to the new
+extension audit rather than being rewritten as if they included later work.
 
 **Dependencies:** Begin scope corrections during 7.31; finalize after 7.39.
 
@@ -1340,6 +1357,13 @@ warnings-as-errors. Detailed implementation and verification evidence is in
 **Tests/evidence:** Review grammar, examples, feature tables, architecture decisions, and scope/status references against the tested implementation; run each documented new example individually.
 
 **Acceptance:** No current document contradicts the implemented supported subset, one-statement boundary, persistence policy, or Stage 8 status. The extension cannot be closed while required documentation synchronization is unfinished.
+
+**Verification:** `README.md`, `PROJECT_CONTEXT.md`, `PLAN.md`, `AGENTS.md`,
+the SQL guides, incremental evidence, and demo handoff are synchronized.
+`REQUIREMENTS.md` and ETAPA_01–ETAPA_06 were reviewed and intentionally left
+unchanged because the extension does not alter official requirements or
+historical earlier-stage plans. `compileall`, `pip check`, and `git diff
+--check` pass within the documented limits.
 
 ## 10. Planner decision tables
 
@@ -1796,12 +1820,12 @@ passes and the separate Tasks 7.31–7.40 checklist is implemented and verified.
 - [x] EXPLAIN binds/plans but never executes row operators or creates sort runs.
 - [x] EXPLAIN ANALYZE executes SELECT exactly once to EOF within the memory contract.
 - [x] Execution counts, elapsed time, and available counters have precise scopes and no fabricated values.
-- [ ] Empty and populated alumnos scenarios produce the specified outputs.
+- [x] Empty and populated alumnos scenarios produce the specified outputs.
 - [x] Command, row, explanation, and analysis results have compatible, documented ownership and completion semantics.
 - [x] EXPLAIN wrappers around writes/DDL and nested EXPLAIN fail without mutation.
 - [x] Ordinary errors close resources and permit subsequent valid statements.
 - [x] Stage 1–7 regression results and extension evidence are recorded for the actual implementation.
-- [ ] Task 7.40 documentation updates are completed with historical claims preserved and current contradictions resolved.
+- [x] Task 7.40 documentation updates are completed with historical claims preserved and current contradictions resolved.
 - [x] The single-statement editor contract is documented without claiming unverified API/UI integration.
 - [x] Stage 8 remains pending; no transaction, concurrency, WAL, or crash-atomicity claims are introduced.
 

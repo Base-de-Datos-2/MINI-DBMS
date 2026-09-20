@@ -9,16 +9,19 @@ restart, external-path, cleanup, differential, and full regression suites. See
 the practical [SQL engine guide](sql.md) and the
 [Stage 7 closure audit](ETAPA_07_AUDIT.md).
 
-**Extension status:** Task 7.32 added limited `CREATE TABLE`, `EXPLAIN SELECT`,
-and `EXPLAIN ANALYZE SELECT` parsing on 2026-09-19. Tasks 7.33–7.35 added CREATE
-binding, durable manifest registration, and shared constraint enforcement on
-2026-09-20. Tasks 7.36–7.38 added non-executing explanation, one-run measured
-analysis, and explicit public result variants. A manifest-backed `SqlEngine`
-executes CREATE; a legacy engine without a DDL service rejects it without
-mutation. Every valid query environment supports SELECT-only explanation. See the
+**Extension status:** Tasks 7.31–7.40 closed on 2026-09-20. Task 7.32 added
+limited `CREATE TABLE`, `EXPLAIN SELECT`, and `EXPLAIN ANALYZE SELECT` parsing.
+Tasks 7.33–7.35 added CREATE binding, durable manifest registration, and shared
+constraint enforcement. Tasks 7.36–7.38 added non-executing explanation,
+one-run measured analysis, and explicit public result variants. Tasks
+7.39–7.40 verified the exact scenario, restart/failure behavior, full
+regression, and documentation closure. A manifest-backed `SqlEngine` executes
+CREATE; a legacy engine without a DDL service rejects it without mutation.
+Every valid query environment supports SELECT-only explanation. See the
 [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
-[Task 7.32 evidence](ETAPA_07_TASK_7_32.md). Multiple statements and automatic
-script splitting remain unsupported.
+[Task 7.32 evidence](ETAPA_07_TASK_7_32.md). Final acceptance and regression
+evidence is in the [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
+Multiple statements and automatic script splitting remain unsupported.
 
 ## Source and token conventions
 

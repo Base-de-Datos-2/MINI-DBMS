@@ -6,6 +6,10 @@ compatible public result contract.
 **Excluded:** Stage 9 HTTP/frontend serialization, Stage 8 transactions and
 concurrency, cost estimation, and PostgreSQL-compatible formatting.
 
+> **Subsequent status (2026-09-20):** Tasks 7.39–7.40 later completed exact
+> acceptance, regression, documentation synchronization, and extension closure.
+> See `ETAPA_07_EXTENSION_AUDIT.md`.
+
 ## Implemented behavior
 
 `ExplainPlanSpec` wraps the same immutable `SelectPlanSpec` produced for an
@@ -63,8 +67,8 @@ values, and storage failures retain their existing domain errors. Incomplete
 analysis is the one new execution-specific public error described above.
 
 The Stage 9 service keeps its earlier explicit allowlists and result dispatch
-until Tasks 7.39–7.40 or a separately requested integration updates its HTTP
-contract. Adding enum members did not grant access automatically.
+until a separately requested integration updates its HTTP contract. Completing
+Tasks 7.39–7.40 did not grant access automatically.
 
 ## Verification
 
@@ -102,5 +106,7 @@ Complete repository gate:
 .venv\Scripts\python.exe -m pytest -q -W error -p no:cacheprovider
 ```
 
-Result: **2,734 passed in 1,320.15 seconds (22:00)**. Tasks 7.39–7.40 remain
-pending and this document does not close the extension.
+Result: **2,734 passed in 1,320.15 seconds (22:00)**. At this incremental
+checkpoint, Tasks 7.39–7.40 remained pending and this document did not close
+the extension. They are now closed; see `ETAPA_07_EXTENSION_AUDIT.md` for the
+final 2,742-test gate.

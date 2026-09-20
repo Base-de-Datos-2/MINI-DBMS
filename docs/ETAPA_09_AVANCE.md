@@ -1,5 +1,11 @@
 # Etapa 9 — avance: demo de emergencia lista
 
+> **Registro histórico (2026-09-18).** Este informe conserva la interfaz del
+> cierre original de la Etapa 7. La extensión 7.31–7.40 añadió después CREATE,
+> EXPLAIN y nuevos resultados al motor. La demo sigue usando su owner legacy y
+> sus allowlists originales; la integración HTTP de esos tipos permanece como
+> trabajo explícito y no invalida la evidencia histórica que sigue.
+
 Fecha: **2026-09-18**. Alcance: tareas **9.1–9.18** de
 [ETAPA_09.md](../ETAPA_09.md). Estado: **«Stage 9 emergency demo ready»**.
 

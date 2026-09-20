@@ -5,6 +5,11 @@
 final scenario acceptance, API/editor integration, and extension closure remain
 in Tasks 7.36–7.40.
 
+> **Subsequent status (2026-09-20):** Tasks 7.36–7.40 completed explanation
+> execution, exact acceptance, and extension closure. This file remains the
+> incremental evidence for Tasks 7.33–7.35; final evidence is in
+> `ETAPA_07_EXTENSION_AUDIT.md`.
+
 ## Outcome
 
 The handwritten CREATE syntax from Task 7.32 now binds into durable logical

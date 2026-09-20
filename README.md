@@ -75,7 +75,7 @@ Etapas 4 y 5. Los 59 criterios se cumplen con 2252 pruebas estrictas; consulta
 [la auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md). Esta capa física también
 puede ensamblarse y medirse directamente con objetos Python.
 
-**Etapa 7 completa y auditada (2026-09-18):** el lexer y parser SQL se
+**Línea base de la Etapa 7 completa y auditada (2026-09-18):** el lexer y parser SQL se
 implementan manualmente mediante descenso recursivo, con AST y ubicaciones de
 origen independientes. El binding usa `Catalog`; el planificador conecta SQL a
 TableScan, índices B+/hash y a los operadores externos reales de la Etapa 6.
@@ -87,6 +87,14 @@ cumplen y la suite estricta completa pasa **2556 pruebas**. Consulta la
 [guía del motor SQL](docs/sql.md) y la
 [auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md). La Parte 1 sigue pendiente:
 la Etapa 8 de transacciones y concurrencia es la siguiente y aún no comenzó.
+
+**Extensión CREATE/EXPLAIN de la Etapa 7 cerrada (2026-09-20):** las tareas
+7.31–7.40 añaden CREATE TABLE limitado y persistente, `VARCHAR(n)`, una clave
+primaria opcional, comentarios `--`, `EXPLAIN SELECT`, `EXPLAIN ANALYZE
+SELECT` y resultados públicos explícitos. El escenario exacto de `alumnos` se
+verifica vacío, poblado y tras reabrir únicamente desde el manifiesto. Consulta
+la [auditoría de la extensión](docs/ETAPA_07_EXTENSION_AUDIT.md). La suite
+estricta completa pasa **2742 pruebas**.
 
 **Etapa 9: demo de emergencia lista (2026-09-18).** Por una excepción de orden
 autorizada (sección 1 de `ETAPA_09.md`), existe una interfaz gráfica local
@@ -104,6 +112,54 @@ Funciona en modo solo lectura, con una operación del motor a la vez. **No**
 ofrece todavía transacciones ni control de concurrencia (Etapa 8). Consulta el
 [runbook de la demo](docs/demo.md) y el
 [informe de avance](docs/ETAPA_09_AVANCE.md).
+
+La extensión CREATE/EXPLAIN está disponible en la API Python del motor. La
+demo HTTP conserva por ahora su base legacy y sus allowlists originales, por
+lo que todavía no expone CREATE ni serializa resultados EXPLAIN.
+
+## SQL manifest-backed de la Etapa 7
+
+El motor acepta una sentencia completa por llamada: SELECT, INSERT, DELETE,
+CREATE TABLE limitado, EXPLAIN SELECT o EXPLAIN ANALYZE SELECT. Los envíos con
+dos sentencias se rechazan antes de cualquier efecto. La creación y reapertura
+persistentes usan `engine.database.Database`:
+
+```python
+from engine.database import Database
+
+with Database.create("universidad-db", name="universidad") as database:
+    database.engine.execute("""
+        -- una llamada independiente
+        CREATE TABLE alumnos (
+            id INT PRIMARY KEY,
+            nombre VARCHAR(100),
+            carrera_id INT,
+            nota INT
+        );
+    """)
+    database.engine.execute(
+        "INSERT INTO alumnos VALUES (1, 'Pérez, Juan', 2, 17)"
+    )
+    explanation = database.engine.execute(
+        "EXPLAIN SELECT * FROM alumnos WHERE nota >= 14 ORDER BY id"
+    )
+    assert explanation.executed is False
+    assert explanation.statistics is None
+
+with Database.open("universidad-db") as database:
+    analysis = database.engine.execute(
+        "EXPLAIN ANALYZE SELECT * FROM alumnos WHERE nota >= 14 ORDER BY id"
+    )
+    assert analysis.executed and analysis.complete
+    assert analysis.output_rows == 1
+```
+
+`Database.open()` descubre esquema, restricciones, almacenamiento e índice
+primario desde `database.catalog.json`; el llamador no vuelve a declarar la
+tabla. CREATE admite `INT`/`INTEGER`, `VARCHAR(1..4075)` y como máximo una
+cláusula inline `PRIMARY KEY`. No existen NULL, defaults ni rollback
+transaccional en esta etapa. La sintaxis, resultados, errores y los seis envíos
+exactos del escenario `alumnos` están en la [guía SQL](docs/sql.md).
 
 ## Requisitos e instalación
 
@@ -897,11 +953,15 @@ usan archivos temporales de pytest y mantienen ese acceso separado del modelo.
 Las de persistencia e integración completa usan archivos temporales reales;
 las de procesos independientes no comparten objetos del escritor con el lector.
 
-La verificación formal de cierre de la Etapa 7 se ejecutó en Windows con las
+La verificación formal de la línea base de la Etapa 7 se ejecutó en Windows con las
 advertencias tratadas como errores y sin caché de pytest: **2556 pruebas
 aprobadas en 936.76 segundos**. Incluye las suites anteriores y las pruebas de
 aceptación SQL, reinicio, rutas externas, recursos, mutaciones y diferencias.
 `compileall`, `pip check` y la revisión del diff también pasan.
+
+El cierre de la extensión CREATE/EXPLAIN se verificó después con la suite
+estricta completa: **2742 pruebas aprobadas en 1283.57 segundos**. También
+pasaron `compileall`, `pip check` y la revisión del diff.
 
 ## Documentos de coordinación y siguiente paso
 
@@ -923,11 +983,14 @@ aceptación SQL, reinicio, rutas externas, recursos, mutaciones y diferencias.
 - [ETAPA_06.md](ETAPA_06.md): etapa de operadores y algoritmos externos, cerrada.
 - [Auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md): evidencia de los 59
   criterios, 2252 pruebas, salvedades declaradas y traspaso a la Etapa 7.
-- [ETAPA_07.md](ETAPA_07.md): etapa SQL cerrada; tareas 7.1–7.30 completas.
+- [ETAPA_07.md](ETAPA_07.md): etapa SQL cerrada; tareas 7.1–7.40 completas.
 - [Guía del motor SQL](docs/sql.md): API pública, sintaxis, planes, resultados,
   mutaciones, errores y límites soportados.
 - [Auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md): evidencia de los 63
-  criterios y 2556 pruebas estrictas.
+  criterios y 2556 pruebas estrictas de la línea base.
+- [Auditoría de la extensión de la Etapa 7](docs/ETAPA_07_EXTENSION_AUDIT.md):
+  CREATE/EXPLAIN, escenario exacto, reinicio, fallos, regresión y cierre de las
+  tareas 7.31–7.40.
 - [ETAPA_09.md](ETAPA_09.md): plan de emergencia de la interfaz, previo a la
   Etapa 8 por decisión del equipo.
 - [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).

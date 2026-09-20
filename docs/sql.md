@@ -1,11 +1,11 @@
 # Stage 7 SQL engine guide
 
 > **Current status (2026-09-20):** this guide documents the verified Stage 7
-> Tasks 7.1–7.38 implementation. Limited CREATE is executable in an engine-owned
+> Tasks 7.1–7.40 implementation. Limited CREATE is executable in an engine-owned
 > manifest database; EXPLAIN and EXPLAIN ANALYZE execute through the public
 > engine result contract. See the
 > [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
-> [Tasks 7.36–7.38 evidence](ETAPA_07_TASK_7_36_7_38.md).
+> [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
 
 This guide describes the SQL engine implemented by Stage 7. The normative
 grammar, token/span conventions, parser limits, and production-to-function map
@@ -146,6 +146,88 @@ is checked by character count without normalization or truncation, then by
 strict UTF-8 encoding and the complete 4,079-byte record capacity. A VARCHAR
 primary-key value also has the existing 255-byte B+ key limit. All columns
 require concrete values because this dialect has no SQL NULL representation.
+
+## Exact one-statement alumnos scenario
+
+Each block below is one independent `engine.execute(...)` call against the
+same manifest-backed database. They are not a script and must not be joined or
+split automatically.
+
+```sql
+-- Crear la tabla
+CREATE TABLE alumnos (
+    id INT PRIMARY KEY,
+    nombre VARCHAR(100),
+    carrera_id INT,
+    nota INT
+);
+```
+
+```sql
+-- 1
+SELECT * FROM alumnos
+WHERE nombre = 'Pérez, Juan';
+```
+
+```sql
+-- 2
+SELECT * FROM alumnos
+WHERE nota >= 14
+ORDER BY id;
+```
+
+```sql
+-- 3
+SELECT * FROM alumnos
+WHERE id = 999;
+```
+
+```sql
+-- 4
+EXPLAIN
+SELECT * FROM alumnos
+WHERE nota >= 14
+ORDER BY id;
+```
+
+```sql
+-- 5
+EXPLAIN ANALYZE
+SELECT * FROM alumnos
+WHERE nota >= 14
+ORDER BY id;
+```
+
+Immediately after CREATE, the three SELECT statements succeed with the
+four-column schema and no rows. Plain EXPLAIN returns the prepared
+Projection/ExternalSort/Filter/TableScan tree with no runtime evidence;
+ANALYZE runs that SELECT once and reports zero output rows.
+
+After submitting these three INSERT statements individually:
+
+```sql
+INSERT INTO alumnos VALUES (3, 'Pérez, Juan', 1, 17);
+```
+
+```sql
+INSERT INTO alumnos VALUES (1, 'Ana', 2, 14);
+```
+
+```sql
+INSERT INTO alumnos VALUES (2, 'Luis', 1, 10);
+```
+
+query 1 returns `(3, 'Pérez, Juan', 1, 17)`, query 2 returns id 1 followed by
+id 3, query 3 remains a successful empty result, and ANALYZE reports two
+output rows. Closing the owner and calling `Database.open(database_path)`
+reconstructs the schema and primary index from `database.catalog.json`; the
+same submissions then produce the same results without caller-supplied
+metadata.
+
+A request such as `CREATE TABLE ...; SELECT ...` or `INSERT ...; SELECT ...`
+raises `SqlSyntaxError` before the first statement has an effect. One optional
+final semicolon followed by whitespace or `--` comments is accepted, and
+semicolon/comment text inside a quoted string remains data.
 
 ## Planning and execution routes
 
@@ -304,19 +386,22 @@ explicit incomplete partial report.
 
 ## Reproducible verification
 
-The Section 12 dataset from `ETAPA_07.md` is executed through the public API in
-`tests/query/test_stage7_acceptance.py`. External and restart behavior is in
-`tests/query/test_stage7_resources.py`. EXPLAIN non-execution, measured
-analysis, spill cleanup, failure, and public result contracts are in
-`tests/query/test_explain.py`.
+The original Section 12 dataset is executed through the public API in
+`tests/query/test_stage7_acceptance.py`. The exact CREATE/EXPLAIN extension
+scenario, its empty/populated/reopened phases, constraints, and one-statement
+boundary are in `tests/query/test_stage7_extension_acceptance.py`. External
+and restart behavior is in `tests/query/test_stage7_resources.py`. EXPLAIN
+non-execution, measured analysis, spill cleanup, failure, and public result
+contracts are in `tests/query/test_explain.py`.
 
 ```powershell
 .venv\Scripts\python.exe -m pytest tests/query tests/test_architecture.py `
   -q -W error -p no:cacheprovider
 ```
 
-The Stage 7 closure audit records the complete cross-stage command and exact
-test counts.
+The original Stage 7 audit records the baseline closure. The extension closure
+audit records the exact CREATE/EXPLAIN scenario, restart/failure matrix, and
+the final complete result of **2,742 passing tests** under warnings-as-errors.
 
 ## Stage 8 integration points
 
