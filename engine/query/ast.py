@@ -159,4 +159,43 @@ class DeleteStatement(SyntaxNode):
     where: SqlExpr | None = None
 
 
-Statement = SelectStatement | InsertStatement | DeleteStatement
+@dataclass(frozen=True, slots=True)
+class TypeSpecification(SyntaxNode):
+    """One CREATE type spelling normalized independently from Catalog types."""
+
+    name: str
+    length: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ColumnDefinition(SyntaxNode):
+    """One ordered CREATE column definition with an inline key marker."""
+
+    name: str
+    data_type: TypeSpecification
+    primary_key: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class CreateTableStatement(SyntaxNode):
+    """Pure syntax for the limited single-table CREATE form."""
+
+    table: str
+    columns: tuple[ColumnDefinition, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ExplainStatement(SyntaxNode):
+    """A SELECT-only explanation wrapper; execution is decided downstream."""
+
+    select: SelectStatement
+    analyze: bool = False
+
+
+Statement = (
+    SelectStatement
+    | InsertStatement
+    | DeleteStatement
+    | CreateTableStatement
+    | ExplainStatement
+)

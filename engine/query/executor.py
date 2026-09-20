@@ -22,9 +22,19 @@ from engine.operators.context import (
 )
 from engine.storage import Record
 
-from .ast import DeleteStatement, InsertStatement
+from .ast import (
+    CreateTableStatement,
+    DeleteStatement,
+    ExplainStatement,
+    InsertStatement,
+)
 from .environment import QueryEnvironment
-from .errors import SqlBindingError, SqlUnknownColumnError, SqlUnknownTableError
+from .errors import (
+    SqlBindingError,
+    SqlUnknownColumnError,
+    SqlUnknownTableError,
+    SqlUnsupportedError,
+)
 from .parser import parse_sql
 from .planner import (
     DeletePlanSpec,
@@ -37,6 +47,31 @@ from .planner import (
 
 
 DEFAULT_MATERIALIZATION_LIMIT = 10_000
+
+
+def _reject_unplanned_extension(statement, source: str) -> None:
+    """Keep newly parsed syntax controlled until its later execution tasks."""
+
+    if isinstance(statement, CreateTableStatement):
+        feature = "CREATE TABLE execution"
+        offending = "CREATE"
+    elif isinstance(statement, ExplainStatement):
+        feature = (
+            "EXPLAIN ANALYZE execution"
+            if statement.analyze
+            else "EXPLAIN execution"
+        )
+        offending = "EXPLAIN"
+    else:
+        return
+    if statement.span is None:
+        raise RuntimeError("Parser-created extension statement lacks a span")
+    raise SqlUnsupportedError(
+        f"{feature} is not available until its later Stage 7 extension task",
+        span=statement.span,
+        source=source,
+        offending=offending,
+    )
 
 
 class StatementKind(Enum):
@@ -666,6 +701,7 @@ class SqlEngine:
                 "planning_options must be PhysicalPlanningOptions or None"
             )
         statement = parse_sql(sql)
+        _reject_unplanned_extension(statement, sql)
         spec = prepare_plan(
             self._environment,
             statement,
@@ -712,6 +748,7 @@ class SqlEngine:
                 else planning_options
             )
             statement = parse_sql(query)
+            _reject_unplanned_extension(statement, query)
             try:
                 spec = prepare_plan(
                     self._environment,

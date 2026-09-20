@@ -9,12 +9,14 @@ restart, external-path, cleanup, differential, and full regression suites. See
 the practical [SQL engine guide](sql.md) and the
 [Stage 7 closure audit](ETAPA_07_AUDIT.md).
 
-**Pending extension:** Task 7.31 froze limited `CREATE TABLE`, `EXPLAIN
-SELECT`, and `EXPLAIN ANALYZE SELECT` contracts on 2026-09-19. The grammar and
-parser mapping below remain the verified Tasks 7.1–7.30 implementation until
-Tasks 7.32–7.40 update them. See
-[the Task 7.31 decision note](ETAPA_07_TASK_7_31_DECISIONS.md). Multiple
-statements and automatic script splitting remain unsupported.
+**Syntax extension verified:** Task 7.32 added limited `CREATE TABLE`,
+`EXPLAIN SELECT`, and `EXPLAIN ANALYZE SELECT` parsing on 2026-09-19. Binding,
+persistence, constraints, and explanation execution remain pending in Tasks
+7.33–7.38, so `SqlEngine` rejects these parsed statement families with a
+controlled `SqlUnsupportedError` until their downstream routes exist. See the
+[Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
+[Task 7.32 evidence](ETAPA_07_TASK_7_32.md). Multiple statements and automatic
+script splitting remain unsupported.
 
 ## Source and token conventions
 
@@ -30,6 +32,10 @@ statements and automatic script splitting remain unsupported.
   so words such as `LEFT`, `DISTINCT`, `NULL`, `RETURNING`, and transaction/DDL
   verbs cannot be misread as implicit aliases. Aggregate names remain ordinary
   identifiers and become calls only when followed by `(` in a SELECT item.
+- `ANALYZE`, `INT`, `INTEGER`, `KEY`, `PRIMARY`, and `VARCHAR` are contextual
+  keywords. They are recognized as whole keyword tokens for the extension but
+  retain their original spelling when an existing identifier position consumes
+  them. This preserves previously accepted columns such as `relation.key`.
 - `!=` and `<>` are both accepted and normalized to `<>`. `+` and `-` are
   separate token kinds; the parser may attach one sign only to a numeric
   literal. General arithmetic expressions are outside the Stage 7 contract.
@@ -38,9 +44,10 @@ statements and automatic script splitting remain unsupported.
 - SQL input is limited to 65,536 Python characters. A numeric literal is
   limited to 1,024 digits; decimal values must decode to a finite Python float.
   The binder must still check the target `DataType` range.
-- Whitespace and `--` line comments are discarded outside strings. Block
-  comments and quoted identifiers are rejected. Text resembling a comment
-  inside a string remains string content.
+- Whitespace and `--` line comments are discarded outside strings. LF, CRLF,
+  CR, and EOF terminate a line comment, and the same newline model drives
+  token/error spans. Block comments and quoted identifiers are rejected. Text
+  resembling a comment inside a string remains string content.
 - Strings use single quotes and decode doubled single quotes. Integer syntax is
   ASCII digits only before an optional parser-attached sign. Decimal syntax requires
   digits on both sides of the decimal point. Exponents, `NaN`, and infinity are
@@ -52,7 +59,16 @@ The notation is EBNF. Brackets mean optional content, braces mean repetition,
 and keyword spelling is case-insensitive.
 
 ```ebnf
-statement       = (select_stmt | insert_stmt | delete_stmt), [";"], EOF ;
+statement       = (select_stmt | insert_stmt | delete_stmt
+                  | create_table_stmt | explain_stmt), [";"], EOF ;
+
+create_table_stmt = "CREATE", "TABLE", identifier, "(",
+                    column_definition, {",", column_definition}, ")" ;
+column_definition = identifier, type_spec, ["PRIMARY", "KEY"] ;
+type_spec         = ("INT" | "INTEGER")
+                  | "VARCHAR", "(", positive_integer, ")" ;
+positive_integer  = integer with a value greater than zero ;
+explain_stmt      = "EXPLAIN", ["ANALYZE"], select_stmt ;
 
 select_stmt     = "SELECT", select_list, "FROM", table_ref,
                   [join_clause], [where_clause],
@@ -105,13 +121,16 @@ numeric literal, and rejects arbitrary unary arithmetic.
 | Nesting | Maximum Boolean nesting is 128 across NOT and parentheses; the parser enforces it as a controlled `SqlLimitError` |
 | Aliases | Relation and output aliases accept `AS` or the unambiguous implicit form |
 | Stars | `*`, `relation.*`, and `COUNT(*)` are distinct AST forms |
-| Comments | `--` through end of line is accepted; block comments are rejected |
+| Comments | `--` through LF, CRLF, CR, or EOF is accepted; block comments are rejected |
+| CREATE TABLE | Syntax only in Task 7.32: ordered non-empty columns, INT/INTEGER, VARCHAR(positive integer), optional inline PRIMARY KEY |
+| EXPLAIN | Syntax only in Task 7.32: SELECT child only; optional ANALYZE; no nested wrapper |
+| Extension execution | Controlled unsupported diagnostic until Tasks 7.33–7.38 provide binding/planning/execution |
 | DELETE | Whole-table `DELETE FROM table` is adopted; the executor must use the same validation and index-maintenance path as filtered DELETE |
 | INSERT | One row only; an optional column list is adopted |
 | JOIN | At most one explicit inner `JOIN`; its executable baseline is an equality key plus any supported residual predicate |
 | Aggregates | `COUNT(*)`, `COUNT(column)`, `SUM`, `AVG`, `MIN`, and `MAX`, subject to Stage 6 type rules |
 | NULL | No SQL `NULL` literal or three-valued logic is adopted because the current row model does not support it |
-| Unsupported | UPDATE, DDL, transactions, subqueries, expressions, multi-row VALUES, quoted identifiers, and multiple statements |
+| Unsupported | UPDATE, DDL other than the limited CREATE TABLE syntax, transactions, subqueries, expressions, multi-row VALUES, quoted identifiers, and multiple statements |
 
 `DELETE` without `WHERE`, implicit aliases, qualified stars, line comments,
 multiple ORDER/GROUP keys, and the optional INSERT column list are explicit
@@ -121,11 +140,13 @@ project choices. They are not claimed as academic requirements.
 
 | Grammar area | Parser method / AST result |
 |---|---|
-| complete statement | `parse_sql` / `SelectStatement`, `InsertStatement`, `DeleteStatement` |
+| complete statement | `parse_sql` / `SelectStatement`, `InsertStatement`, `DeleteStatement`, `CreateTableStatement`, `ExplainStatement` |
 | SELECT and clauses | `_parse_select`, clause helpers / `SelectItem`, `TableRef`, `JoinClause`, `OrderItem` |
 | Boolean precedence | `_parse_or`, `_parse_and`, `_parse_not`, `_parse_comparison` / Boolean and comparison expressions |
 | names and literals | `_parse_select_reference`, `_parse_column_ref`, `_parse_literal`, `_parse_value_expr` / unresolved references and literals |
 | writes | `_parse_insert`, `_parse_delete` / write statement AST nodes |
+| CREATE TABLE | `_parse_create_table`, `_parse_column_definition`, `_parse_type_specification` / `CreateTableStatement`, `ColumnDefinition`, `TypeSpecification` |
+| explanations | `_parse_explain` delegates its child to `_parse_select` / `ExplainStatement` with `SelectStatement` child |
 
 The AST contains syntax and source locations only. It cannot contain Catalog
 objects, RIDs, storage objects, physical operators, or mutation behavior.
@@ -144,6 +165,8 @@ The table names the implemented route and its completed Stage 7 evidence.
 | INSERT | 7.6 | implemented in 7.12 | shared maintenance path implemented in 7.23-7.25 | success, uniqueness recheck, rebuild, compensation, report, and fresh-restart agreement verified in 7.27-7.29 |
 | filtered/whole-table DELETE | 7.6 | implemented in 7.12 | disk-backed stable targets + shared maintenance implemented in 7.24-7.25 | bounded discovery, confirmed-prefix failure, repair, report, and fresh-restart agreement verified in 7.27-7.29 |
 | signed numbers | lexer 7.4; parser 7.5 | target range implemented in 7.9/7.12 | existing typed expressions/mutations | syntax and semantic ranges verified |
+| CREATE TABLE | Task 7.32 parser and located AST implemented | pending 7.33 | pending 7.34–7.35 | exact scenario, malformed syntax, contextual keywords, comments, spans, and one-statement rejection verified |
+| EXPLAIN / EXPLAIN ANALYZE SELECT | Task 7.32 wrapper and SELECT-child AST implemented | pending reuse in 7.36 | pending 7.36–7.38 | exact scenario, SELECT-only children, nesting, spans, and semicolon ownership verified |
 
 ## Semantic binding policy
 
