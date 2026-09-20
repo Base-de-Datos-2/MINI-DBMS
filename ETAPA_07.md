@@ -9,22 +9,22 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Revision:** 2026-09-17 — handwritten lexer and parser  
-**Status:** Formally closed on 2026-09-18. Tasks 7.1-7.30 and all 63 Definition of Done criteria are implemented and verified. The complete warnings-as-errors regression suite passes 2,556 tests. Review evidence is recorded in `docs/ETAPA_07_REVIEW_7_1_7_4.md`, `docs/ETAPA_07_REVIEW_7_5_7_7.md`, `docs/ETAPA_07_REVIEW_7_8_7_12.md`, `docs/ETAPA_07_REVIEW_7_13_7_17.md`, `docs/ETAPA_07_REVIEW_7_18_7_20.md`, `docs/ETAPA_07_REVIEW_7_21_7_22.md`, `docs/ETAPA_07_REVIEW_7_23_7_25.md`, and `docs/ETAPA_07_REVIEW_7_26_7_30.md`. Formal evidence and declared limits are in `docs/ETAPA_07_AUDIT.md`.
+**Revision:** 2026-09-20 — single-statement CREATE TABLE and SQL EXPLAIN extension  
+**Status:** Original Stage 7 baseline reported complete; extension Tasks 7.31–7.40 pending implementation and verification. This revision does not certify new functionality or reset completed baseline work.
 
-The user reports Stage 6 as completed. This document uses that report as its starting point; it does not certify the actual repository or its test results. Task 7.1 verifies the implementation and its adopted decisions.
+The user reports Stages 1–7 as completed and Stage 8 as not implemented. Preserve the completed baseline and inspect the current code before extending it. The prior repository review used commit `32d07326e0ba441e3a012ca505e622ad09d53bf1`; this document does not assert that it is still the latest revision. Task 7.31 establishes the actual implementation baseline.
 
 ### Adopted team decision and revision scope
 
 The team has decided to implement the SQL lexer and parser manually. This decision supersedes the earlier recommendation to use Lark. Do not introduce Lark or another parser generator as an implementation shortcut.
 
-This revision retains all 30 main tasks and the existing SQL scope. It expands Tasks 7.4-7.7, refines Tasks 7.1-7.3, 7.29, and 7.30, and updates dependencies, modules, completion criteria, and working prompts. Tasks 7.8-7.28 retain their functional content. Existing completed work must be inspected and reused where compatible; this document does not reset verified progress.
+This revision preserves Tasks 7.1–7.30 as the baseline and adds Tasks 7.31–7.40 for limited CREATE TABLE, durable schema registration, constraints, EXPLAIN SELECT, and EXPLAIN ANALYZE SELECT. Existing tasks are clarified where the new scope changes their contracts. Every editor submission contains exactly one statement; complete scripts, batch execution, and automatic statement splitting remain excluded. Existing completed work must be inspected and reused.
 
 The recommended manual technique is recursive descent with explicit precedence levels. The team decision is manual construction; recursive descent is a proposed technique to record in Task 7.2, not an academic requirement. Preserve a compatible handwritten technique already adopted by the team.
 
 ## 1. Purpose and expected outcome
 
-Stage 7 connects the SQL language to the physical execution layer already built. A user should be able to submit a supported SQL statement through a Python engine interface and obtain either a result stream or a completed mutation result.
+Stage 7 connects the SQL language to the physical execution layer already built. A user should be able to submit a supported SQL statement through a Python engine interface and obtain a result stream, a completed command result, or an explanation result with explicitly identified execution status.
 
 The responsibilities are distinct:
 
@@ -53,7 +53,7 @@ At completion, the same storage and operator implementations used by manually as
 | AGENTS.md | Implementation constraints and testing rules |
 | ETAPA_07.md | Detailed tasks for the current stage |
 
-The previous version established scope from the coordination documents and the original assignment. This revision applies the team's explicit manual-parser decision to that plan; it does not claim a fresh source-code or assignment audit. The supplied file-organization material supports the distinction between B+ range access and hash equality access; it is not a SQL grammar specification.
+The previous version established scope from the coordination documents and the original assignment. This revision applies the team's explicit manual-parser and single-statement SQL-extension decisions to that plan; it does not claim a fresh source-code or assignment audit. The supplied file-organization material supports the distinction between B+ range access and hash equality access; it is not a SQL grammar specification.
 
 Some available coordination copies still contain historical Stage 1 status fields. During implementation, read the current repository versions and reconcile stale pointers with verified progress. Do not discard completed work because an older document names an earlier stage.
 
@@ -78,6 +78,18 @@ Creating this document does not modify the other project documents or the source
 
 A complete SQL standard, a cost-based optimizer, and a particular parser library are not required by the assignment.
 
+### Additional outcomes required by this team revision
+
+- Execute the exact CREATE TABLE declaration in Section 12.M as one statement.
+- Persist the table identity, ordered schema, declared VARCHAR limit, primary-key definition, and required index registration.
+- Preserve `--` comments and strings such as `'Pérez, Juan'` correctly.
+- Execute SQL EXPLAIN SELECT without running its SELECT.
+- Execute SQL EXPLAIN ANALYZE SELECT once to completion and report real measurements.
+- Reject any second statement before executing the first statement.
+- Complete Task 7.40's documentation synchronization before declaring this extension complete.
+
+These are explicit project-scope additions requested by the team. Do not relabel them as requirements taken from the academic assignment.
+
 ### Recommended route
 
 - Keep Python and the existing project stack.
@@ -89,7 +101,7 @@ A complete SQL standard, a cost-based optimizer, and a particular parser library
 - Reuse Stage 6 expression and operator APIs through narrow adapters.
 - Use existing table/index maintenance services for writes.
 - Provide a Python result cursor and a small bounded demonstration adapter.
-- Expose plan inspection through a Python API before adding optional EXPLAIN syntax.
+- Reuse Python plan inspection to implement required SQL EXPLAIN SELECT and EXPLAIN ANALYZE SELECT; see Tasks 7.36–7.37.
 
 Manual parsing is the adopted team decision. The specific parsing technique, AST class names, binding layer, and lexical details remain project-level choices. Reconcile stale parser recommendations in repository documentation with this decision. Do not change academic requirements or compatible downstream contracts.
 
@@ -109,14 +121,19 @@ Manual parsing is the adopted team decision. The specific parsing technique, AST
 - explicit ordinary-failure behavior for mutations;
 - real plan descriptions, result schemas, row counts, and statistics;
 - end-to-end SQL, persistence, negative, and regression tests;
-- documentation and a reproducible engine-level demonstration.
+- documentation and a reproducible engine-level demonstration;
+- limited CREATE TABLE with INT/INTEGER, VARCHAR(n), and one optional inline single-column PRIMARY KEY;
+- persistent database discovery metadata and shared constraint enforcement;
+- EXPLAIN SELECT and EXPLAIN ANALYZE SELECT as individual statements.
 
 ### Excluded unless already explicitly adopted
 
 - transaction grouping, locking, concurrency, WAL, MVCC, or crash recovery;
 - BEGIN TRANSACTION and END TRANSACTION execution, which belongs to Stage 8;
 - HTTP endpoints, GUI, SQL editor, and plan rendering;
-- DDL such as CREATE TABLE / CREATE INDEX / DROP;
+- other SQL DDL: CREATE INDEX, ALTER TABLE, DROP, schemas, and IF NOT EXISTS;
+- composite/table-level primary keys, foreign keys, defaults, and CHECK constraints;
+- EXPLAIN or EXPLAIN ANALYZE for CREATE/INSERT/DELETE and nested EXPLAIN;
 - UPDATE, RETURNING, INSERT SELECT, and multi-statement scripts;
 - outer joins, correlated subqueries, CTEs, windows, UNION, and recursive SQL;
 - DISTINCT, HAVING, and expression features not adopted in the supported subset;
@@ -124,7 +141,7 @@ Manual parsing is the adopted team decision. The specific parsing technique, AST
 - prepared-plan caching across schema changes;
 - final experimental campaigns and reports.
 
-Tests and demos create tables/indexes through the existing Catalog/storage setup API. They do not require new DDL.
+Existing fixtures may still use Catalog/storage setup APIs. The new acceptance scenario must create `alumnos` through SQL, without a predeclared Python schema. Physical storage creation remains delegated to existing implementations. Stage 7 owns this extension even when it changes components first created in Stages 1–6.
 
 Unsupported transaction statements must fail clearly; do not accept them as no-ops and imply protection exists.
 
@@ -136,13 +153,17 @@ Task 7.2 freezes the contract below against Stage 6 capabilities. These are prop
 
 | Area | Baseline contract |
 |---|---|
-| Submission | Exactly one complete statement; optional final semicolon |
+| Submission | Exactly one complete statement; optional final semicolon followed by whitespace/comments and EOF; reject multiple statements before any execution |
+| Comments | `--` through LF, CRLF, CR, or EOF outside strings; preserve source positions |
+| CREATE TABLE | Unquoted table and column names; INT/INTEGER and VARCHAR(n); optional inline PRIMARY KEY on at most one column |
+| EXPLAIN | EXPLAIN followed by a supported SELECT; describe only |
+| EXPLAIN ANALYZE | EXPLAIN ANALYZE followed by a supported SELECT; run once to EOF and report actual metrics |
 | Keywords | Case-insensitive keywords; identifiers follow the adopted Catalog case policy |
 | Identifiers | Simple unquoted names; optional relation qualification |
 | Strings | Single-quoted strings; doubled quote represents a literal quote |
 | Numbers | Integer and decimal literals, including approved signed values |
 | SELECT | SELECT * and explicit named-column lists |
-| Aliases | Relation aliases and output aliases with AS or an unambiguous implicit alias |
+| Aliases | Preserve adopted explicit and unambiguous implicit aliases |
 | FROM | One table; support one explicit INNER JOIN or JOIN for the minimum join demonstration |
 | WHERE | Approved comparisons; AND/OR/NOT with explicit precedence and parentheses |
 | ORDER BY | At least one bound key with ASC/DESC; default ASC |
@@ -150,13 +171,39 @@ Task 7.2 freezes the contract below against Stage 6 capabilities. These are prop
 | Aggregate minimum | COUNT(*) for an executable grouping demonstration |
 | JOIN ON | A supported equality key pair; additional residual conditions only if deliberately supported |
 | INSERT | One VALUES row; schema-order values required, optional column list recommended |
-| DELETE | DELETE FROM one table, with an optional WHERE predicate |
-| NULL | Only the semantics already supported and tested by the type/operator layer |
+| DELETE | Preserve adopted DELETE FROM one table with optional WHERE |
+| NULL | Current no-NULL dialect retained; require values for all inserted columns, reject NULL/None and omitted values; document this deviation from standard nullable SQL columns |
 | Errors | Unsupported or invalid input produces a structured error, never partial interpretation |
 
-For the baseline, SELECT without WHERE is supported. Task 7.2 adopts whole-table deletion, so DELETE without WHERE is accepted syntax. Tasks 7.12 and 7.24 must apply the same validation, stable-target, and index-maintenance rules to filtered and whole-table deletion.
+SELECT without WHERE and whole-table DELETE without WHERE were adopted in the reviewed implementation. Preserve those tested behaviors; this extension must not narrow existing SQL capabilities.
 
-Multiple ORDER BY/GROUP BY keys, qualified stars, `--` line comments, implicit aliases, optional INSERT column lists, and the Stage 6 aggregate set are adopted. Several joins, block comments, quoted identifiers, NULLS FIRST/LAST, IS NULL, and other functions remain unsupported unless a later contract revision provides consistent binder and operator behavior.
+Preserve adopted multiple ORDER BY/GROUP BY keys, qualified stars, implicit aliases, optional INSERT column lists, and implemented aggregates. `--` comments are required, not optional. Block comments (`/* ... */`), quoted identifiers, NULLS FIRST/LAST, IS NULL, and other unimplemented syntax remain explicitly unsupported. Comment markers inside a quoted string are ordinary data.
+
+### DDL and explanation contract
+
+The minimum new grammar, integrated into the existing handwritten grammar, is:
+
+~~~ebnf
+submission        = statement, [ ";" ], EOF ;
+statement         = select | insert | delete | create_table | explain ;
+create_table      = "CREATE", "TABLE", identifier, "(",
+                    column_definition, { ",", column_definition }, ")" ;
+column_definition = identifier, data_type, [ "PRIMARY", "KEY" ] ;
+data_type         = "INT" | "INTEGER" | "VARCHAR", "(", positive_integer, ")" ;
+explain           = "EXPLAIN", [ "ANALYZE" ], select ;
+~~~
+
+Keywords are case-insensitive. Existing SELECT/INSERT/DELETE productions remain in effect. This EBNF is documentation, not a parser-generator input. Existing additional types may remain supported where already implemented consistently.
+
+- Map INT and INTEGER to the same integer type and retain its existing range checks.
+- VARCHAR(n) counts Unicode code points in the decoded string; do not use UTF-8 byte length for the declared character limit. Independently enforce existing record/page byte capacity. Never silently truncate.
+- Preserve the original string value and current equality semantics; do not strip accents or normalize case implicitly.
+- At most one inline PRIMARY KEY is accepted. Enforce uniqueness and non-nullness, persist its definition, and reuse a verified unique index/maintenance route. A primary key does not imply physical clustering or ordered SELECT output.
+- Repeated CREATE of an existing table is an error and cannot truncate existing files. Reject duplicate columns, empty definitions, unsupported types/constraints, and nonpositive lengths before creating files.
+- The current engine has no SQL NULL representation. This extension keeps that restricted dialect: all inserted fields need concrete values, including non-key columns. Document that non-key columns do not yet acquire standard SQL nullable behavior. Do not add a NULL bitmap or three-valued logic merely to execute this scenario. A later nullable-SQL extension requires a separate end-to-end design.
+- EXPLAIN and EXPLAIN ANALYZE wrap SELECT only. No ANALYZE command, EXPLAIN options, JSON SQL syntax, or PostgreSQL output compatibility is required.
+- An empty result is a successful SELECT with its output schema. Missing `id = 999` is not an exception.
+- A fresh table contains no rows. The six user statements contain no INSERT; empty query results are therefore the correct initial outcome.
 
 ### Semantic rules
 
@@ -256,7 +303,20 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 | 7.27 | Add end-to-end SQL acceptance tests | Required execution paths |
 | 7.28 | Test restart, spilling, and resource cleanup | 7.27 |
 | 7.29 | Add negative, differential, and regression tests | 7.27-7.28 |
-| 7.30 | Document the supported engine and Stage 8 handoff | Required tasks complete |
+| 7.30 | Document the supported baseline and Stage 8 handoff | Baseline tasks complete |
+| 7.31 | Verify baseline and freeze extension decisions | Completed baseline |
+| 7.32 | Extend manual lexer, AST, and parser | 7.31 |
+| 7.33 | Extend schema metadata and definition validation | 7.31–7.32 |
+| 7.34 | Execute CREATE and persist database registration | 7.33 |
+| 7.35 | Enforce constraints through shared mutations | 7.33–7.34 |
+| 7.36 | Implement non-executing EXPLAIN SELECT | 7.32, existing plan description |
+| 7.37 | Implement measured EXPLAIN ANALYZE SELECT | 7.36 |
+| 7.38 | Extend one-statement engine/result contract | 7.34, 7.36–7.37 |
+| 7.39 | Validate exact SQL scenario and regressions | 7.35–7.38 |
+| 7.40 | Synchronize documentation and close extension | Start at 7.31; finish after 7.39 |
+
+
+The current implementation starts with Task 7.31. Revisit Tasks 7.1–7.30 only to address an actual integration change or regression. Tasks 7.31–7.40 own all new work; earlier numbered tasks below remain useful baseline specifications.
 
 ## 9. Detailed tasks
 
@@ -297,7 +357,7 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 - Map grammar productions to parsing functions and AST nodes, then link them to the feature coverage matrix.
 - Confirm COUNT(*) and any additional adopted aggregates.
 - Decide exact alias/case behavior, null rules, literal ranges, and statement terminators.
-- Decide one-statement submission and whether comments are supported.
+- Preserve exactly one statement per submission; require `--` comments outside strings. Complete the extension contract in Task 7.31.
 - Select access-path eligibility and deterministic tie-breaks.
 - Define result lifetime, re-execution, and partial/final statistics.
 - Specify mutation validation, index consistency, ordinary-failure behavior, and durability limits.
@@ -314,7 +374,7 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 
 **Actions:**
 
-- Define SelectStatement, InsertStatement, and DeleteStatement or existing equivalents.
+- Define SelectStatement, InsertStatement, and DeleteStatement or existing equivalents. Task 7.32 adds CreateTableStatement, column/type definitions, and ExplainStatement(select, analyze).
 - Define table references, aliases, join specifications, select items, sort items, and group keys.
 - Define literals, unresolved column references, comparisons, Boolean expressions, and aggregate calls.
 - Distinguish star selection from COUNT(*) and ordinary function arguments.
@@ -353,12 +413,12 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 - Use longest-match recognition for supported multi-character operators such as `<=`, `>=`, and the adopted inequality spelling(s), before single-character operators.
 - Scan quoted strings as a unit. Decode doubled single quotes, and retain spaces, commas, semicolons, and keyword text inside the string.
 - Specify decimal syntax, and reject malformed numeric forms. Exponent notation, special floating values, and additional literal forms require explicit adoption.
-- If comments are adopted, handle them only outside strings and report unterminated block comments where applicable. Otherwise reject comment syntax clearly.
+- Ignore required `--` line comments only outside strings, through line end or EOF; retain accurate source locations. Reject unsupported block comments explicitly. Preserve existing limits and progress guarantees.
 - Reject unsupported characters at their actual position; do not silently skip them.
 - Append exactly one EOF token after scanning the entire input.
 - Small regular expressions for individual token classes are compatible with a handwritten lexer. Do not use regular expressions or string splitting as a substitute for the statement parser.
 
-**Tests:** Empty/whitespace input, mixed case, `SELECTED` versus `SELECT`, quoted separators, `O''Brien`, decimals, adjacent operators, invalid characters, unterminated strings, and comments if adopted.
+**Tests:** Empty/whitespace input, mixed case, `SELECTED` versus `SELECT`, quoted separators, `O''Brien`, decimals, adjacent operators, invalid characters, unterminated strings, and required line-comment handling.
 
 **Acceptance:** Every character is consumed as a token or documented whitespace/comment, or causes a lexical error. Lexing performs no storage operations.
 
@@ -415,7 +475,7 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 
 **Actions:**
 
-- Implement SELECT lists, star, approved aggregate-call forms, and the adopted explicit/implicit aliases.
+- Implement SELECT lists, star, approved aggregate-call forms, and AS aliases.
 - Distinguish SELECT `*` from COUNT(*) and ordinary arguments. Do not accept arbitrary function calls as supported aggregates.
 - Implement FROM with adopted relation aliases and the supported JOIN/INNER JOIN plus ON syntax.
 - Parse WHERE with Task 7.5.2, then GROUP BY and ORDER BY in their allowed order; support the adopted ASC/DESC defaults.
@@ -439,12 +499,12 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 - Parse INSERT INTO table VALUES (one row), using the shared literal and comma-list helpers; support an optional column list only if adopted.
 - Retain literal kinds and values without validating table constraints or applying storage encodings.
 - Parse DELETE FROM table WHERE predicate using the shared expression parser, including identical Boolean precedence.
-- Enforce the policy frozen in Task 7.2: accept whole-table DELETE without WHERE and preserve the optional predicate when present. Later semantic/execution tasks must apply the same validation and maintenance guarantees to both forms.
+- Preserve the adopted whole-table DELETE behavior when WHERE is absent; apply the same validation, stable-target discovery, and index-maintenance policy as filtered DELETE.
 - Construct InsertStatement/DeleteStatement nodes directly, retaining useful spans.
 - Reject multi-row VALUES, UPDATE, RETURNING, and INSERT SELECT unless explicitly adopted across all layers.
 - Let the public entry point own the optional terminator and EOF check; do not return a successful prefix from a handler.
 
-**Tests:** Valid writes, optional column-list policy, signed numeric literals, escaped quotes, commas/semicolons inside strings, missing values, malformed punctuation, adopted whole-table DELETE, compound DELETE predicates, multiple rows, and two statements in one submission.
+**Tests:** Valid writes, optional column-list policy, signed numeric literals, escaped quotes, commas/semicolons inside strings, missing values, malformed punctuation, whole-table DELETE, compound DELETE predicates, multiple rows, and two statements in one submission.
 
 **Acceptance:** Parsing a write never changes table/index bytes. INSERT and DELETE use the same lexical, literal, error, and statement-boundary contracts as SELECT.
 
@@ -572,7 +632,7 @@ Projection may retain internal fields for downstream sorting/grouping, then remo
 - Define physical specifications containing operator type, children, arguments, schema, and capability metadata.
 - Use an operator factory to instantiate actual Stage 6 operators with fresh context.
 - Avoid building a large separate relational-algebra framework unless already present.
-- Provide a mutation-plan variant for INSERT and DELETE.
+- Provide a mutation-plan variant for INSERT and DELETE. Add a separate resolved CREATE command and explanation wrapper in the extension; DDL need not masquerade as a row operator.
 - Keep permanent Catalog identities separate from transient cursor handles.
 - Disable stale prepared-plan reuse across schema changes unless a version-check policy exists.
 - Make plan construction and inspection non-mutating.
@@ -745,7 +805,7 @@ with engine.execute(sql) as result:
         consume(row)
 ~~~
 
-INSERT/DELETE should execute synchronously once and return a completed command result, rather than relying on row iteration to trigger writes.
+INSERT/DELETE and CREATE TABLE execute synchronously once and return completed command results, rather than relying on row iteration to trigger writes. EXPLAIN returns a plan result; EXPLAIN ANALYZE returns a completed analysis result. Task 7.38 defines the compatible result extension.
 
 **Actions:**
 
@@ -844,7 +904,7 @@ INSERT/DELETE should execute synchronously once and return a completed command r
 - Do not double-count inclusive child statistics or add inclusive timings as independent costs.
 - Report whether a result was fully consumed; a preview does not establish total output cardinality.
 - Inspecting an INSERT/DELETE plan must never apply it.
-- Expose a Python describe/inspect API. SQL EXPLAIN is optional; EXPLAIN ANALYZE mutation behavior is outside the baseline.
+- Reuse the Python describe/inspect API for mandatory SQL EXPLAIN SELECT and EXPLAIN ANALYZE SELECT in Tasks 7.36–7.37. Explanation wrappers around mutations/DDL remain unsupported and must never execute those commands.
 
 **Tests:** Selected index versus actual cursor, table-scan fallback, real ExternalSort spills, group/join fallback metadata, no-write plan inspection, and partial-result counters.
 
@@ -942,16 +1002,211 @@ INSERT/DELETE should execute synchronously once and return a completed command r
 - Verify the public parser/AST contract remains compatible with binding, planning, and execution.
 - Update PROJECT_CONTEXT.md with AST/binding/plan boundaries, result ownership, access rules, and mutation failure semantics.
 - Record actual aggregate/join/null/case support instead of copying proposed features as implemented.
-- Document manual engine setup without requiring new DDL or a frontend.
+- Retain existing programmatic fixtures and document SQL CREATE TABLE setup for the new acceptance scenario. No frontend is required for engine-level verification.
 - Record real commands and verification results.
 - While implementing, set current-stage pointers to Stage 7 and ETAPA_07.md.
-- After closure, record Stage 7 completion and Stage 8 as next; generate ETAPA_08.md before claiming its plan exists.
+- Preserve the historical baseline closure, label Tasks 7.31–7.40 pending until verified, and record extension closure separately. Stage 8 remains unimplemented; preserve the already authorized emergency Stage 9 ordering if present.
 - Identify transaction-integration points: execution context/session ownership, write services, active cursors, and error states.
 - Preserve the explicit distinction between current ordinary-failure handling and future transaction/concurrency guarantees.
 
 **Tests/evidence:** Run the documented demo from persisted fixtures and verify the examples match supported grammar.
 
 **Acceptance:** Stage 8 can add transaction/concurrency behavior around a tested SQL engine without reconstructing missing contracts.
+
+
+### Task 7.31 - Inspect the completed baseline and freeze the extension contract
+
+**Dependencies:** Completed baseline; current repository documentation and tests.
+
+**Objective:** Extend the existing engine without repeating Stages 1–7 or shrinking accepted SQL.
+
+**Actions:**
+
+- Read current AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md, this plan, docs/sql-grammar.md, and docs/sql.md. Record the checked-out commit and actual test commands.
+- Inspect lexer/parser/AST, SqlEngine preparation and results, immutable schemas, organization metadata, Catalog factories, unique-index metadata, shared mutation maintenance, and metric ownership.
+- Confirm the current no-NULL dialect, line-comment handling, unique-index capabilities, single-active-result rule, and existing schema-signature checks.
+- Record this revision's CREATE/EXPLAIN/one-statement decisions as approved team scope. Synchronize conflicting current-scope documentation immediately; describe unimplemented features as planned, not working.
+- Select the engine-owned database registry location/format, versioning and clean-reopen boundary, default table organization, unique primary-key index route, and explanation result representation. Proposed minimum: HeapFile plus an existing unique unclustered B+ index for the primary key. Preserve an equally valid established route.
+- Keep pure Catalog metadata independent from live storage handles. Put creation/open orchestration in a database/DDL service rather than adding storage dependencies to basic schema classes.
+- Inventory ordinary-failure cleanup points and any existing persisted-format compatibility constraints. Do not require a new transaction manager to proceed.
+
+**Tests/evidence:** Reproduce the single-statement SELECT/comment baseline, record existing test results, and map each extension to its affected modules.
+
+**Acceptance:** A concrete compatibility/design note identifies every affected Stage 1–7 component. No unverified historical test count is presented as current evidence.
+
+### Task 7.32 - Extend the handwritten lexer, AST, and statement parser
+
+**Dependencies:** 7.31; existing Tasks 7.3–7.7.
+
+**Actions:**
+
+- Add or reuse token recognition for CREATE, TABLE, INT, INTEGER, VARCHAR, PRIMARY, KEY, EXPLAIN, and ANALYZE. Recognize whole keywords; do not split identifiers containing keyword text.
+- Add parser-independent CreateTableStatement, ColumnDefinition/TypeSpecification, and ExplainStatement with a SELECT child and an analyze flag, preserving source spans.
+- Parse the Section 5 grammar with existing manual helpers. Parse VARCHAR parentheses independently from the CREATE column-list parentheses.
+- EXPLAIN delegates to SELECT parsing without giving the child ownership of the final semicolon/EOF. Reject nested wrappers and unsupported child statement kinds.
+- Keep one public submission boundary. Parse the entire input before binding or execution; reject a second statement even when the first is valid CREATE or EXPLAIN.
+- Retain `--` comments before/between/after tokens, at EOF, and on different newline styles. Preserve commas, semicolons, doubled quotes, accents, and comment-looking text inside strings.
+- Empty or comment-only input returns the established empty-input diagnostic without side effects. Do not add script splitting, statement arrays, or execute-many functions.
+
+**Tests:** All six exact submissions in Section 12.M; lowercase/mixed-case keywords; CRLF and EOF comments; `'Pérez, Juan'`, `'O''Brien'`, and `'A; -- B'`; malformed length and parentheses; missing KEY; second statements; unsupported block comments and EXPLAIN children.
+
+**Acceptance:** All required statements produce the correct AST; malformed suffixes and extra statements cannot cause partial execution.
+
+### Task 7.33 - Extend schema metadata and validate CREATE definitions
+
+**Dependencies:** 7.31–7.32.
+
+**Actions:**
+
+- Represent declared VARCHAR length and the optional single-column primary key in immutable metadata. Preserve column order, existing imports/construction patterns, and old unrestricted VARCHAR definitions where compatibility requires them.
+- Preserve current identifier normalization and reject duplicate table/column identities according to it. Require at least one column and at most one primary key for the supported DDL subset.
+- Map INT/INTEGER consistently. Validate positive bounded integer length parameters and reject unsupported constraints instead of ignoring them.
+- Define one shared value/constraint validator used by SQL insertion and normal database write services. Count VARCHAR code points; distinguish declaration length, integer range, and physical record-size errors.
+- Enforce the documented no-NULL policy and full-row insertion contract. Optional INSERT column lists may reorder complete values but cannot invent omitted NULL/default values.
+- Audit schema equality, signatures, codecs, organization headers, and index factories affected by new metadata. Persist extension metadata through a versioned representation; do not reinterpret an old format silently.
+- Do not assume that extending Column automatically requires rewriting record pages. Keep byte layouts unchanged where compatible; document and test any necessary metadata-version migration separately.
+
+**Tests:** Compatible old schema construction; ordered metadata round trips; duplicate columns/keys; INT aliases; VARCHAR lengths 0, negative, fractional, oversized, 100, and 101-character values; accented/multibyte strings; NULL/None rejection.
+
+**Acceptance:** Definitions and constraints are represented and validated consistently; primary-key and VARCHAR syntax is never accepted then discarded.
+
+### Task 7.34 - Execute CREATE TABLE and persist database registration
+
+**Dependencies:** 7.33; existing storage/index creation and open APIs.
+
+**Actions:**
+
+- Add a resolved CREATE command and engine-owned DDL/database service callable from the ordinary SQL entry point. The parser/binder/prepare path remains free of creation side effects.
+- Validate predictable errors before mutation. Create the selected base organization and optional unique primary-key index with existing code. No data rows are inserted by CREATE.
+- Register the table/index only after successful initialization. Persist enough information to discover and reopen them without a hard-coded Python TableDefinition or caller-supplied schema.
+- Persist logical names, ordered types and VARCHAR bounds, primary-key definition, organization, relative file identities, index metadata, validity markers, and format version. Reuse metadata already stored by each structure rather than creating inconsistent parallel definitions.
+- Distinguish persistent database discovery metadata from the in-memory Catalog and existing per-file schema headers. On reopen, reconstruct metadata and handle ownership and cross-check referenced files before exposing the table.
+- Keep database files under the configured database directory. Derive managed file identities; do not treat SQL identifiers as arbitrary file paths.
+- Publish success only after the documented clean-reopen persistence boundary. On ordinary exceptions, close owned handles and remove only files created by this failed operation or leave a documented unavailable state. Preserve pre-existing files and earlier tables.
+- Repeated CREATE of an existing table must fail without replacement. Concurrent sessions, WAL, transaction rollback, and crash atomicity remain outside this stage.
+- Preserve existing programmatically defined databases. Record compatibility/import behavior instead of silently recreating them.
+
+**Tests:** Empty table immediately queryable; repeated CREATE retains original rows/files; injected allocation/index/registry failures; repeated create failure followed by valid CREATE; missing/malformed registry and missing index; fresh-process reopen without fixture definitions; old database compatibility.
+
+**Acceptance:** SQL creation produces usable empty storage and a durable discoverable schema. Failure cannot advertise a half-created table as valid.
+
+### Task 7.35 - Integrate constraints with INSERT, DELETE, and indexes
+
+**Dependencies:** 7.33–7.34; existing Tasks 7.23–7.25.
+
+**Actions:**
+
+- Route SQL writes through the shared validation/maintenance service. Validate type, character length, and required values before predictable invalid writes.
+- Enforce primary-key uniqueness with the selected existing unique index/maintenance route, checking duplicates before modifying base storage and using the existing failure policy if a later write fails.
+- Maintain all secondary indexes along with the primary-key index. Preserve the existing RID relocation/rebuild rules for each supported organization.
+- After deleting a row, allow its key to be inserted again; persist this behavior across reopen.
+- Revalidate constraints on execution when a prepared operation could otherwise use stale metadata. Do not add an unbounded schema cache.
+- Treat raw storage APIs as documented low-level primitives or make them use the shared validator; do not claim universal database constraint enforcement while a normal write path bypasses it.
+
+**Tests:** Duplicate primary key before/after reopen leaves rows and indexes unchanged; overlength Unicode string leaves no row; correct boundary-length insert; DELETE/reinsert key; forced-scan/index agreement; existing failure-repair behavior; multiple existing indexes.
+
+**Acceptance:** Constraints hold for normal SQL/database writes and survive restart. PRIMARY KEY does not merely label a column.
+
+### Task 7.36 - Execute EXPLAIN SELECT without executing SELECT
+
+**Dependencies:** 7.32; existing bind/plan/describe APIs and Task 7.26.
+
+**Actions:**
+
+- Bind and plan the SELECT child using the same planning options and index-selection rules used by normal execution.
+- Return a structured explanation identifying operators, table/index names, predicates, sort keys/direction, output columns, and parent/child relationships.
+- Reuse prepared.describe() or its actual equivalent. Do not open row cursors, consume rows, create sort runs, or execute mutations.
+- Mark `executed=false`; actual row counts and runtime timing are absent/null, not fabricated zero measurements. Metadata reads during preparation are allowed and must not be mislabeled as executed scan I/O.
+- Report only defined cost estimates if a model already exists. Cost estimation and PostgreSQL-compatible formatting are not required.
+- Unknown tables or columns still fail semantic validation. Unsupported explanation children fail before side effects.
+
+**Tests:** Explain the target filter/sort query; spies show no row-operator open/next calls and no temporary sort files; unchanged table/index contents; unknown names; correct selected index and scan fallback descriptions.
+
+**Acceptance:** The result describes the real prepared plan and cannot be confused with measurements of a completed query.
+
+### Task 7.37 - Execute EXPLAIN ANALYZE SELECT once and measure completion
+
+**Dependencies:** 7.36; existing operator metrics and lifecycle.
+
+**Actions:**
+
+- Instantiate and execute the planned SELECT exactly once. Consume it to EOF in bounded batches while counting final output rows; discard ordinary result rows after counting.
+- Reuse Stage 6 sorting, predicates, indexes, and temporary-file cleanup. Do not replace ExternalSort with a full in-memory list or run the query once for rows and again for metrics.
+- Return the plan and real execution metrics, including final output count and elapsed execution time. Reuse available per-operator rows, logical page reads/writes, temporary I/O, run/pass counts, and memory counters with their precise units and scope.
+- Separate planning time from execution time if both are measured. Query-local measurements use isolated counters or documented deltas; they must not include an earlier query. Do not call logical page counters physical device reads.
+- Mark `executed=true` and `complete=true` only after successful EOF and cleanup. Report errors/partial work according to existing failure contracts and never present a failed analysis as complete.
+- Report actual fallback operators where execution deviates from the planned strategy. Do not sum inclusive operator timing as if each value were exclusive.
+- Plain SELECT previews can remain bounded; their row cap must not truncate ANALYZE execution. A real cancellation or resource failure must remain explicitly incomplete.
+- Preserve permanent table/index data. Temporary sort writes during ANALYZE are legitimate execution work and should be measured.
+
+**Tests:** Empty table yields actual output rows 0; seeded query yields 2; execution counter proves one run; repeated analyses isolate counters; tiny memory budget triggers real external runs; injected operator error cleans resources and permits a later query.
+
+**Acceptance:** Analysis describes one completed execution with truthful metrics and bounded memory. Unsupported INSERT/DELETE/DDL analysis never mutates anything.
+
+### Task 7.38 - Extend the public single-statement result contract
+
+**Dependencies:** 7.34, 7.36–7.37.
+
+**Actions:**
+
+- Preserve the existing Python prepare/execute APIs and SELECT/INSERT/DELETE results. Add compatible tagged command/plan result variants or their existing equivalents.
+- CREATE returns command identity, created table identity, and completion state; do not invent an affected-row count of 1 for a table definition. EXPLAIN returns its plan; ANALYZE returns plan plus measured statistics and execution/completion flags.
+- Keep SELECT row schema separate from the explanation envelope. Decide and document whether a later adapter renders structured plans as text or a table.
+- Preserve the single-active-result rule: callers drain or close a SELECT result before submitting the next statement. A CREATE, EXPLAIN, or completed ANALYZE must release owned resources before the next call.
+- Validate the full input before executing any command. A request containing CREATE followed by SELECT is rejected, with no table created. Apply the same rule to INSERT followed by another statement.
+- Document engine error categories for unsupported SQL, invalid definitions, duplicate table/key, invalid values, storage failures, and incomplete analysis. Preserve useful source spans.
+- Publish an adapter-facing contract describing one input and one result/error per editor submission. Do not implement API endpoints or frontend rendering within these Stage 1–7 tasks.
+
+**Tests:** Separate CREATE then SELECT calls against the same database; early-close ownership; explanation variants; double-statement rejection with unchanged state; valid call after each error; existing clients remain compatible.
+
+**Acceptance:** All six user statements are callable individually through one engine interface. This stage makes no unsupported claim that an existing editor adapter is already wired to the new result types.
+
+### Task 7.39 - Verify the exact scenario, restart, and regression behavior
+
+**Dependencies:** 7.35–7.38.
+
+**Actions:**
+
+- Execute each Section 12.M code block with a separate engine call against one new database, retaining the actual comments and accented text.
+- Test both a freshly created empty table and the deterministic populated fixture. Never pre-create alumnos outside SQL in the new acceptance tests.
+- Verify constraints, clean reopen from persisted definitions, and the distinction between EXPLAIN and EXPLAIN ANALYZE.
+- Add negative tests for batch input, malformed suffixes, unsupported DDL, unsupported explanation children, invalid schema metadata, duplicate keys, and overlength values.
+- Verify ordinary error cleanup and scan/index equivalence after inserts and deletes; run the existing Stage 1–7 regression gates required by AGENTS.md.
+- Use the current project test paths, not illustrative paths copied blindly from this plan. Record commands, environment limitations, pass/fail counts, and the checked-out revision.
+
+**Acceptance:** Section 12.M passes end to end; failures have explicit expected behavior; previous accepted SQL and external algorithms remain functional. Missing tests or tools are recorded, not represented as passes.
+
+### Task 7.40 - Synchronize documentation and close the extension
+
+**Dependencies:** Begin scope corrections during 7.31; finalize after 7.39.
+
+**Objective:** Prevent contradictory scope, grammar, architecture, examples, and completion claims.
+
+| Document | Required action |
+|---|---|
+| ETAPA_07.md | Preserve baseline history; record each extension task and acceptance result; keep one-statement execution and Stage 8 exclusions explicit. |
+| PROJECT_CONTEXT.md | Record schema/constraint metadata, VARCHAR character semantics, no-NULL policy, registry persistence, DDL ownership, primary-key enforcement, result kinds, EXPLAIN behavior, failure guarantees, and pending/verified status. Replace blanket claims that SQL has no DDL or that tables can only be declared in Python. |
+| docs/sql-grammar.md | Add CREATE and explanation productions and their parser mapping. Require line comments and whole-input EOF validation. Preserve unsupported multi-statements and block comments. |
+| docs/sql.md or equivalent | Add each individually executable example, errors, empty/populated results, VARCHAR/primary-key rules, and the restricted no-NULL dialect. |
+| PLAN.md | Amend Stage 7 scope, deliverables, and closure references that conflict with this extension; preserve the authorized roadmap order. |
+| AGENTS.md | Correct explicit obsolete scope/status restrictions and pointers, where present. Preserve general operating and testing rules. |
+| README.md and applicable examples | Synchronize supported-statement lists, startup/reopen instructions, explanation output, and current limitations. |
+| Existing audit/review records | Preserve dated historical evidence. Add a new extension audit or explicit dated addendum; do not silently rewrite old results. |
+| REQUIREMENTS.md | Review for consistency; do not add team-selected features as official requirements or change academic scope without evidence of an assignment change. |
+| ETAPA_01.md–ETAPA_06.md | Preserve historical plans. Document affected components in Stage 7 and current architecture; rewrite earlier plans only if a genuine current contradiction requires a small note. |
+
+**Actions:**
+
+- Track proposed, implemented, and verified status separately. Update documentation alongside the relevant implementation, not only at the end.
+- Search current documentation for conflicting phrases such as "no DDL", "CREATE TABLE unsupported", "EXPLAIN optional", "Python-only table creation", "comments optional", and outdated completion claims. Classify historical notes before editing them.
+- Explicitly retain "multiple statements unsupported"; it is a deliberate requirement, not an obsolete limitation.
+- Keep Stage 8 transactions/concurrency listed as pending and distinguish clean-close persistence and ordinary failure handling from crash recovery or atomic rollback.
+- If emergency Stage 9 documentation exists, record the adapter handoff and any resulting stale capability claims as follow-up work. Do not expand this Stage 1–7 implementation into frontend/API work or claim editor support without verification.
+- Deliver a concise changed-document list and link real validation evidence. Generating this plan alone does not update those other files.
+
+**Tests/evidence:** Review grammar, examples, feature tables, architecture decisions, and scope/status references against the tested implementation; run each documented new example individually.
+
+**Acceptance:** No current document contradicts the implemented supported subset, one-statement boundary, persistence policy, or Stage 8 status. The extension cannot be closed while required documentation synchronization is unfinished.
 
 ## 10. Planner decision tables
 
@@ -1016,7 +1271,10 @@ Use current repository organization where compatible. Do not create parallel imp
 | C. Physical planning | 7.13-7.20 | Bound statements map to real compatible operators |
 | D. Execution and results | 7.21-7.22 | Streaming SELECT executes and closes correctly |
 | E. Mutations | 7.23-7.25 | INSERT/DELETE preserve the documented consistency contract |
-| F. Evidence and handoff | 7.26-7.30 | Actual plans, SQL tests, restart/resource checks, and documentation pass |
+| F. Baseline evidence and handoff | 7.26-7.30 | Preserve existing evidence and regression coverage |
+| G. Definition and creation | 7.31–7.35 | SQL creates a durable table with enforced constraints |
+| H. Explanations and interface | 7.36–7.38 | One-statement results distinguish planning from execution |
+| I. Extension verification and docs | 7.39–7.40 | Exact scenario, regressions, and documentation synchronization pass |
 
 Add tests alongside each task. The final testing tasks provide integration coverage, not permission to defer earlier tests.
 
@@ -1178,6 +1436,102 @@ Repeat equivalent ORDER BY/GROUP BY/JOIN queries using deterministic larger fixt
 - outputs agree with bounded test oracles and manual Stage 6 plans;
 - early close removes execution-owned temporary files.
 
+
+### M. Required alumnos scenario — one statement per submission
+
+Each code block below is a separate editor/engine submission. Keep one database open between submissions (or reopen it from persisted registration). Do not submit the blocks together, and do not split or batch them internally.
+
+**Submission 0 — create the table:**
+
+~~~sql
+-- Crear la tabla
+CREATE TABLE alumnos (
+    id INT PRIMARY KEY,
+    nombre VARCHAR(100),
+    carrera_id INT,
+    nota INT
+);
+~~~
+
+Expected: successful CREATE command; column order is id, nombre, carrera_id, nota; the table is empty; its schema and primary key are persisted. A second submission of the same CREATE produces a duplicate-table error and preserves existing contents.
+
+**Submission 1 — exact string equality:**
+
+~~~sql
+-- 1
+SELECT * FROM alumnos
+WHERE nombre = 'Pérez, Juan';
+~~~
+
+**Submission 2 — range predicate and ascending ordering:**
+
+~~~sql
+-- 2
+SELECT * FROM alumnos
+WHERE nota >= 14
+ORDER BY id;
+~~~
+
+**Submission 3 — absent key:**
+
+~~~sql
+-- 3
+SELECT * FROM alumnos
+WHERE id = 999;
+~~~
+
+**Submission 4 — plan without execution:**
+
+~~~sql
+-- 4
+EXPLAIN
+SELECT * FROM alumnos
+WHERE nota >= 14
+ORDER BY id;
+~~~
+
+**Submission 5 — plan with one complete execution:**
+
+~~~sql
+-- 5
+EXPLAIN ANALYZE
+SELECT * FROM alumnos
+WHERE nota >= 14
+ORDER BY id;
+~~~
+
+**Phase A: fresh empty table.** Submit 0–5 individually. Submissions 1–3 return empty results with all four output columns. Submission 4 describes the chosen filter/sort plan with no actual runtime metrics. Submission 5 executes successfully with actual final output count 0. Never infer that missing rows mean a failed SELECT.
+
+**Phase B: populated fixture.** After Phase A, submit these INSERT statements separately using the existing INSERT capability:
+
+~~~sql
+INSERT INTO alumnos VALUES (3, 'Pérez, Juan', 1, 17);
+~~~
+
+~~~sql
+INSERT INTO alumnos VALUES (1, 'Ana', 2, 14);
+~~~
+
+~~~sql
+INSERT INTO alumnos VALUES (2, 'Luis', 1, 10);
+~~~
+
+Repeat submissions 1–5 individually:
+
+| Submission | Required outcome |
+|---|---|
+| 1 | One row: `(3, 'Pérez, Juan', 1, 17)` |
+| 2 | Exactly `(1, 'Ana', 2, 14)` followed by `(3, 'Pérez, Juan', 1, 17)` |
+| 3 | Empty successful result, preserving its output schema |
+| 4 | Description of the same planned SELECT; no executed-row count or invented timings |
+| 5 | One full execution; actual final output rows = 2; truthful timing/I/O and completion state |
+
+For the reviewed baseline, expect a table access, residual filter, ExternalSort on id ASC, and final output projection as applicable. Assert meaningful operator properties rather than one printed tree layout. Use the actual eligible access path and retain correctness if a valid runtime fallback occurs. A primary-key index on id does not turn the predicate on nota into an index range on nota.
+
+**Phase C: durability and constraints.** Close all results and handles, discard objects, and reopen through a fresh database owner using only the database location and persisted metadata. Repeat queries and verify the same outputs. Reject another INSERT with id 1 without changing either base rows or index contents. Test a string of exactly 100 code points and one of 101 using an isolated fixture. Test deletion and subsequent reuse of a primary-key value separately so Phase B expectations remain deterministic.
+
+**Phase D: one-statement rejection.** In an isolated empty database, submit a CREATE followed by SELECT in the same request. Expect a structured error and verify that no table was created. Also reject two SELECTs and INSERT followed by SELECT. Accept an optional final semicolon followed only by comments/whitespace; preserve semicolons in strings. The editor's one-statement policy must be enforced at the engine boundary, even if the UI also checks it.
+
 ## 13. Validation commands and evidence
 
 Use the actual configured repository commands. Illustrative commands after these paths exist:
@@ -1208,88 +1562,113 @@ Do not assert a speedup because an index was selected. Controlled performance co
 
 ## 14. Definition of Done
 
-Stage 7 is complete only when the required functionality is implemented and verified.
+The original baseline completion remains historical evidence. The expanded Stage 7 is complete only when the baseline still passes and Tasks 7.31–7.40 plus the extension checklist below are implemented and verified. Unchecked boxes in this generated plan are not a claim that verified baseline work has been lost.
 
 ### Contracts and parsing
 
-- [x] Actual Stage 6 prerequisites and baseline tests were inspected.
-- [x] Supported SQL syntax and optional features are explicitly documented.
-- [x] The adopted handwritten lexer/parser is implemented without a parser generator.
-- [x] The documented grammar maps to parsing functions and the accepted feature matrix.
-- [x] Tokens retain original lexemes, meaningful decoded values, source spans, and EOF.
-- [x] Shared parser utilities serve SELECT, INSERT, and DELETE.
-- [x] The parser constructs parser-independent AST nodes directly.
-- [x] No parser/token-stream state leaks into binder/planner/executor interfaces.
-- [x] Lexer/parser loops make progress; input and nesting limits fail predictably.
-- [x] Parsing after a failed invocation uses fresh state.
-- [x] Source locations support useful diagnostics.
-- [x] Keywords, identifiers, strings, numeric literals, and punctuation follow the adopted policy.
-- [x] Boolean precedence and parentheses are tested.
-- [x] Every required statement family parses.
-- [x] Trailing garbage, extra statements, and unsupported syntax are rejected.
-- [x] Parsing and plan inspection do not mutate storage.
+- [ ] Actual Stage 6 prerequisites and baseline tests were inspected.
+- [ ] Supported SQL syntax and optional features are explicitly documented.
+- [ ] The adopted handwritten lexer/parser is implemented without a parser generator.
+- [ ] The documented grammar maps to parsing functions and the accepted feature matrix.
+- [ ] Tokens retain original lexemes, meaningful decoded values, source spans, and EOF.
+- [ ] Shared parser utilities serve SELECT, INSERT, DELETE, CREATE TABLE, and EXPLAIN wrappers while retaining one-statement EOF validation.
+- [ ] The parser constructs parser-independent AST nodes directly.
+- [ ] No parser/token-stream state leaks into binder/planner/executor interfaces.
+- [ ] Lexer/parser loops make progress; input and nesting limits fail predictably.
+- [ ] Parsing after a failed invocation uses fresh state.
+- [ ] Source locations support useful diagnostics.
+- [ ] Keywords, identifiers, strings, numeric literals, and punctuation follow the adopted policy.
+- [ ] Boolean precedence and parentheses are tested.
+- [ ] Every required statement family parses.
+- [ ] Trailing garbage, extra statements, and unsupported syntax are rejected.
+- [ ] Parsing and plan inspection do not mutate storage.
 
 ### Semantic analysis
 
-- [x] Tables and columns resolve through Catalog.
-- [x] Ambiguous/unknown names and duplicate relation aliases fail clearly.
-- [x] Types and literals follow Stage 6 semantics.
-- [x] SELECT output schema and aliases are correct.
-- [x] Hidden ORDER BY keys survive until sorting and disappear from final output.
-- [x] Grouped projections and aggregate signatures are validated.
-- [x] Join references and key types are correct.
-- [x] INSERT/DELETE validation happens before predictable invalid writes.
-- [x] NULL behavior, if supported, is consistent across predicates, indexes, grouping, and joins.
+- [ ] Tables and columns resolve through Catalog.
+- [ ] Ambiguous/unknown names and duplicate relation aliases fail clearly.
+- [ ] Types and literals follow Stage 6 semantics.
+- [ ] SELECT output schema and aliases are correct.
+- [ ] Hidden ORDER BY keys survive until sorting and disappear from final output.
+- [ ] Grouped projections and aggregate signatures are validated.
+- [ ] Join references and key types are correct.
+- [ ] INSERT/DELETE validation happens before predictable invalid writes.
+- [ ] NULL behavior, if supported, is consistent across predicates, indexes, grouping, and joins.
 
 ### Physical planning
 
-- [x] A table-scan baseline can execute the supported SELECT subset.
-- [x] Eligible equality queries use compatible hash or B+ indexes.
-- [x] Eligible ranges use B+ with correct endpoints.
-- [x] OR/NOT and residual predicates preserve the complete Boolean meaning.
-- [x] Index availability, key types, and coverage are checked.
-- [x] ORDER BY demonstrably reaches ExternalSort.
-- [x] GROUP BY reaches the Stage 6 required optimized route.
-- [x] JOIN reaches the Stage 6 required optimized route.
-- [x] Plans reference real implemented operators and use fresh execution state.
-- [x] Predicate/projection rewrites have equivalence tests.
+- [ ] A table-scan baseline can execute the supported SELECT subset.
+- [ ] Eligible equality queries use compatible hash or B+ indexes.
+- [ ] Eligible ranges use B+ with correct endpoints.
+- [ ] OR/NOT and residual predicates preserve the complete Boolean meaning.
+- [ ] Index availability, key types, and coverage are checked.
+- [ ] ORDER BY demonstrably reaches ExternalSort.
+- [ ] GROUP BY reaches the Stage 6 required optimized route.
+- [ ] JOIN reaches the Stage 6 required optimized route.
+- [ ] Plans reference real implemented operators and use fresh execution state.
+- [ ] Predicate/projection rewrites have equivalence tests.
 
 ### Execution and results
 
-- [x] Public Python prepare/execute interfaces work independently of HTTP/UI.
-- [x] SELECT results are streamed under the Stage 6 resource contract.
-- [x] Output rows preserve required duplicate multiplicity.
-- [x] Empty and combined-clause queries are correct.
-- [x] Full consumption, early stop, and exceptions close owned resources.
-- [x] Partial result delivery and final completion are distinguished.
-- [x] Repeated execution cannot reuse corrupt live state or repeat a mutation accidentally.
-- [x] Planned descriptions and measured execution details are distinguished.
+- [ ] Public Python prepare/execute interfaces work independently of HTTP/UI.
+- [ ] SELECT results are streamed under the Stage 6 resource contract.
+- [ ] Output rows preserve required duplicate multiplicity.
+- [ ] Empty and combined-clause queries are correct.
+- [ ] Full consumption, early stop, and exceptions close owned resources.
+- [ ] Partial result delivery and final completion are distinguished.
+- [ ] Repeated execution cannot reuse corrupt live state or repeat a mutation accidentally.
+- [ ] Planned descriptions and measured execution details are distinguished.
 
 ### Mutations
 
-- [x] INSERT updates the base storage and every affected index.
-- [x] DELETE discovers and applies a stable target set.
-- [x] Large DELETE target sets remain within the memory contract.
-- [x] RID movement/reorganization cannot delete the wrong row or stale remaining targets.
-- [x] Ordinary validation failures leave permanent state unchanged.
-- [x] Mid-operation failures follow a tested compensation/repair/unavailable-state policy.
-- [x] Failed statements do not return success or invented affected counts.
-- [x] Incomplete indexes cannot be selected silently after a failure/reopen.
-- [x] Successful writes persist according to the adopted flush boundary.
-- [x] Transaction isolation and crash atomicity are not falsely claimed.
+- [ ] INSERT updates the base storage and every affected index.
+- [ ] DELETE discovers and applies a stable target set.
+- [ ] Large DELETE target sets remain within the memory contract.
+- [ ] RID movement/reorganization cannot delete the wrong row or stale remaining targets.
+- [ ] Ordinary validation failures leave permanent state unchanged.
+- [ ] Mid-operation failures follow a tested compensation/repair/unavailable-state policy.
+- [ ] Failed statements do not return success or invented affected counts.
+- [ ] Incomplete indexes cannot be selected silently after a failure/reopen.
+- [ ] Successful writes persist according to the adopted flush boundary.
+- [ ] Transaction isolation and crash atomicity are not falsely claimed.
 
 ### Verification and handoff
 
-- [x] End-to-end SQL tests cover every required family.
-- [x] SQL output agrees with manual and unoptimized physical baselines.
-- [x] Tiny-budget SQL tests demonstrate required external behavior.
-- [x] Restart tests create fresh storage/index managers and operator objects.
-- [x] Read-only SQL preserves permanent data.
-- [x] Invalid syntax, semantic errors, corruption, and resource failures are tested.
-- [x] The configured Stage 1-7 regression suite passes.
-- [x] Descriptors and metrics report the operators actually executed.
-- [x] Documentation reflects implemented capabilities and known limits.
-- [x] Stage 8 integration points are documented without implementing its features.
+- [ ] End-to-end SQL tests cover every required family.
+- [ ] SQL output agrees with manual and unoptimized physical baselines.
+- [ ] Tiny-budget SQL tests demonstrate required external behavior.
+- [ ] Restart tests create fresh storage/index managers and operator objects.
+- [ ] Read-only SQL preserves permanent data.
+- [ ] Invalid syntax, semantic errors, corruption, and resource failures are tested.
+- [ ] The configured Stage 1-7 regression suite passes.
+- [ ] Descriptors and metrics report the operators actually executed.
+- [ ] Documentation reflects implemented capabilities and known limits.
+- [ ] Stage 8 integration points are documented without implementing its features.
+
+### Required extension completion checklist (Tasks 7.31–7.40)
+
+- [ ] Current baseline and adopted capabilities are recorded without resetting verified progress.
+- [ ] Manual parsing supports CREATE TABLE with INT/INTEGER, VARCHAR(n), and one inline PRIMARY KEY.
+- [ ] The exact accented string and required line comments parse without altering their meaning.
+- [ ] Exactly one statement is accepted; second statements are rejected before any execution.
+- [ ] CREATE validation rejects duplicate names, unsupported definitions, and invalid lengths.
+- [ ] SQL creation delegates to existing storage and primary-key index services.
+- [ ] Schema, constraints, table discovery, and index registration survive fresh-process reopen.
+- [ ] Existing persisted data has an explicit compatible-open or migration policy.
+- [ ] VARCHAR character limits, physical byte limits, integer ranges, and no-NULL behavior are documented and tested.
+- [ ] Duplicate keys and invalid values cannot create successful inconsistent writes.
+- [ ] Failed CREATE cleanup preserves pre-existing tables/files and leaves no usable partial registration.
+- [ ] EXPLAIN binds/plans but never executes row operators or creates sort runs.
+- [ ] EXPLAIN ANALYZE executes SELECT exactly once to EOF within the memory contract.
+- [ ] Execution counts, elapsed time, and available counters have precise scopes and no fabricated values.
+- [ ] Empty and populated alumnos scenarios produce the specified outputs.
+- [ ] Command, row, explanation, and analysis results have compatible, documented ownership and completion semantics.
+- [ ] EXPLAIN wrappers around writes/DDL and nested EXPLAIN fail without mutation.
+- [ ] Ordinary errors close resources and permit subsequent valid statements.
+- [ ] Stage 1–7 regression results and extension evidence are recorded for the actual implementation.
+- [ ] Task 7.40 documentation updates are completed with historical claims preserved and current contradictions resolved.
+- [ ] The single-statement editor contract is documented without claiming unverified API/UI integration.
+- [ ] Stage 8 remains pending; no transaction, concurrency, WAL, or crash-atomicity claims are introduced.
 
 ## 15. Main risks and controls
 
@@ -1333,6 +1712,29 @@ Stage 7 is complete only when the required functionality is implemented and veri
 12. Complete restart/resource/regression checks and documentation.
 
 This is a suggested organization for the user's repository workflow, not an instruction to push changes.
+
+### Current extension prompt
+
+~~~text
+Read the current AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md,
+ETAPA_07.md, docs/sql-grammar.md, and docs/sql.md. Preserve completed
+Stages 1–7 and the team's handwritten parser. Start with Task 7.31;
+then implement the next incomplete dependency-ready extension task.
+
+Required additions: limited CREATE TABLE with durable schema registration,
+VARCHAR character-length and primary-key enforcement, EXPLAIN SELECT,
+and EXPLAIN ANALYZE SELECT. Keep exactly one statement per submission
+and require -- comments outside strings. Do not add SQL script execution.
+
+Use existing storage/index/operators and mutation-maintenance services.
+Keep Stage 8 transactions/concurrency unimplemented. Follow Task 7.40
+to synchronize current documentation alongside the code; distinguish
+planned, implemented, and verified behavior. Validate every Section 12.M
+statement separately and record actual test evidence before closure.
+~~~
+
+The older prompts below describe baseline implementation. Use them only for
+an identified baseline gap; do not restart the completed 30 tasks.
 
 ### Inspection prompt
 
@@ -1424,6 +1826,6 @@ Stage 8 can begin when the supported SQL engine can reliably:
 - preserve prior-stage behavior across restart and failures;
 - pass the required Stage 7 Definition of Done.
 
-Generate ETAPA_08.md from the then-current implementation and PROJECT_CONTEXT.md before starting its work.
+Before starting Stage 8, use or update its plan against the then-current implementation and PROJECT_CONTEXT.md. This revision does not implement transactions, cancel the approved emergency Stage 9 order, or claim that an uninspected Stage 8 plan exists.
 
 Stage 8 adds BEGIN TRANSACTION / END TRANSACTION, concurrency control, and the required thread-based race-condition/protected-execution demonstration. Its design must establish the transactional guarantees that Stage 7 explicitly leaves unimplemented.
