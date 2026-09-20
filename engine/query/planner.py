@@ -63,8 +63,15 @@ from engine.operators.sorting import (
 from engine.storage import PagedSequentialFile, Storage
 from engine.storage.record import RecordValue
 
-from .ast import DeleteStatement, InsertStatement, SelectStatement, Statement
+from .ast import (
+    CreateTableStatement,
+    DeleteStatement,
+    InsertStatement,
+    SelectStatement,
+    Statement,
+)
 from .binder import (
+    BoundCreate,
     BoundDelete,
     BoundIndexCondition,
     BoundIndexMutation,
@@ -76,6 +83,7 @@ from .binder import (
     bind_select,
     bind_statement,
 )
+from .ddl import DdlService
 from .environment import QueryEnvironment, RegisteredIndex
 
 
@@ -829,6 +837,48 @@ class InsertPlanSpec:
 
 
 @dataclass(frozen=True, slots=True)
+class CreatePlanSpec:
+    """Side-effect-free CREATE definition owned by an injected database service."""
+
+    environment: QueryEnvironment
+    bound: BoundCreate
+    service: DdlService
+
+    def validate(self) -> None:
+        table = self.bound.table
+        if self.environment.catalog.has_table(table.name):
+            raise StalePlanError(f"Table {table.name!r} now exists")
+        if (
+            self.bound.primary_index_name is not None
+            and self.environment.catalog.has_index(self.bound.primary_index_name)
+        ):
+            raise StalePlanError(
+                f"Index {self.bound.primary_index_name!r} now exists"
+            )
+        self.service.validate_create(table)
+
+    def describe(self) -> PlanSpecDescriptor:
+        columns = ", ".join(
+            f"{column.name}:{column.data_type.value}"
+            for column in self.bound.table.schema
+        )
+        return PlanSpecDescriptor(
+            "CreateTable",
+            (),
+            (
+                ("table", self.bound.table.name),
+                ("organization", "HEAP"),
+                ("columns", columns),
+                ("primary_key", self.bound.table.primary_key or "(none)"),
+                (
+                    "primary_index",
+                    self.bound.primary_index_name or "(none)",
+                ),
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DeletePlanSpec:
     """Complete DELETE target plus a fresh RID-producing candidate factory."""
 
@@ -1340,12 +1390,13 @@ def build_select_plan(
 
 def prepare_plan(
     environment: QueryEnvironment,
-    statement: Statement | BoundSelect | BoundInsert | BoundDelete,
+    statement: Statement | BoundSelect | BoundInsert | BoundDelete | BoundCreate,
     *,
     use_indexes: bool = True,
     options: PhysicalPlanningOptions | None = None,
-) -> SelectPlanSpec | InsertPlanSpec | DeletePlanSpec:
-    """Prepare a SELECT/INSERT/DELETE without retaining raw SQL semantics."""
+    ddl_service: DdlService | None = None,
+) -> SelectPlanSpec | InsertPlanSpec | DeletePlanSpec | CreatePlanSpec:
+    """Prepare one supported statement without performing its effects."""
 
     if not isinstance(environment, QueryEnvironment):
         raise InvalidTypeError("prepare_plan requires a QueryEnvironment")
@@ -1353,9 +1404,14 @@ def prepare_plan(
         raise InvalidTypeError("use_indexes must be a bool")
     if options is not None and not isinstance(options, PhysicalPlanningOptions):
         raise InvalidTypeError("options must be PhysicalPlanningOptions or None")
-    if isinstance(statement, (SelectStatement, InsertStatement, DeleteStatement)):
+    if ddl_service is not None and not isinstance(ddl_service, DdlService):
+        raise InvalidTypeError("ddl_service must implement DdlService or be None")
+    if isinstance(
+        statement,
+        (SelectStatement, InsertStatement, DeleteStatement, CreateTableStatement),
+    ):
         bound = bind_statement(environment, statement)
-    elif isinstance(statement, (BoundSelect, BoundInsert, BoundDelete)):
+    elif isinstance(statement, (BoundSelect, BoundInsert, BoundDelete, BoundCreate)):
         bound = statement
     else:
         raise InvalidTypeError("prepare_plan requires a supported statement")
@@ -1369,6 +1425,14 @@ def prepare_plan(
         )
     if isinstance(bound, BoundInsert):
         plan = InsertPlanSpec(environment, bound)
+        plan.validate()
+        return plan
+    if isinstance(bound, BoundCreate):
+        if ddl_service is None:
+            raise UnsupportedAccessError(
+                "CREATE TABLE requires a manifest-backed DDL service"
+            )
+        plan = CreatePlanSpec(environment, bound, ddl_service)
         plan.validate()
         return plan
 
@@ -1389,6 +1453,7 @@ def prepare_plan(
 
 __all__ = [
     "DeletePlanSpec",
+    "CreatePlanSpec",
     "ExternalHashGroupSpec",
     "ExternalSortSpec",
     "FilterSpec",

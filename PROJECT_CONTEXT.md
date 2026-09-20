@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **3.9** — preserves the formal Stage 7 baseline closure and
-> records Tasks 7.31–7.32 of the CREATE/EXPLAIN extension.
+> Context version: **4.0** — preserves the formal Stage 7 baseline closure and
+> records Tasks 7.31–7.35 of the CREATE/EXPLAIN extension.
 
 ## Project identity
 
@@ -1765,12 +1765,12 @@ The project does not require a complete SQL standard implementation.
 
 Do not add advanced SQL syntax at the cost of required features.
 
-### Pending Stage 7 extension contract
+### Active Stage 7 extension contract
 
-Tasks 7.1–7.30 remain the formally closed SQL baseline. On 2026-09-19 Task
-7.31 froze a team-approved extension and Task 7.32 implemented its handwritten
-syntax boundary. Tasks 7.33–7.40 remain pending and must not be described as
-implemented.
+Tasks 7.1–7.30 remain the formally closed SQL baseline. Task 7.31 froze the
+team-approved extension, Task 7.32 implemented its handwritten syntax boundary,
+and Tasks 7.33–7.35 implemented metadata, durable CREATE, and shared constraint
+enforcement by 2026-09-20. Tasks 7.36–7.40 remain pending.
 
 The extension adds one-statement `CREATE TABLE` for `INT`/`INTEGER`,
 `VARCHAR(n)`, and one optional inline single-column primary key, plus
@@ -1820,8 +1820,23 @@ remain contextual in identifier positions so accepted columns such as `key`
 continue to parse. Line comments and diagnostics share LF, CRLF, CR, and EOF
 newline semantics. EXPLAIN wraps SELECT only, the outer statement owns the
 optional semicolon, and complete-input validation rejects every second
-statement. Until later tasks exist, `SqlEngine` rejects the new parsed families
-with a controlled `SqlUnsupportedError` before binding, planning, or mutation.
+statement. Tasks 7.33–7.35 add a side-effect-free CREATE binder/specification,
+an injected DDL protocol, an engine-owned manifest database, and synchronous
+CREATE execution. A `SqlEngine` without that DDL service still rejects CREATE
+with a controlled diagnostic; EXPLAIN remains controlled-unsupported until
+Tasks 7.36–7.38.
+
+The managed `engine.database.Database` creates or opens a database solely from
+the strict version-1 manifest, owns its Catalog/environment and permanent
+handles, and cross-checks manifest definitions with Heap/B+ headers. CREATE
+uses opaque contained filenames, validates and flushes a Heap and optional
+unique unclustered B+ primary index before live publication, then atomically
+replaces the manifest. Ordinary pre-commit failures compensate the new live
+registrations and files; a failed cleanup makes that owner unavailable.
+`TableMetadata` remains backward compatible while carrying immutable per-column
+VARCHAR bounds and the optional primary key. SQL INSERT and the managed
+database write API share logical, codec, row-size, and primary-key validation
+immediately before the existing maintenance service writes.
 
 The complete ownership, publication, compensation, compatibility, API, and
 affected-module decisions are in
@@ -1944,8 +1959,8 @@ released. Values use a lossless per-column encoding. Errors share one envelope
 with a stable code and a request ID. At the inspected Task 7.31 baseline,
 tables are declared in `api/demo.py` and created offline by
 `scripts/setup_demo.py`; CREATE/EXPLAIN API integration has not yet been
-implemented. The pending extension moves permanent database ownership below
-the API, and the later Stage 9 integration must use the explicit allowlists
+implemented. The extension now provides permanent database ownership below the
+API, and the later Stage 9 integration must delegate to it and use the explicit allowlists
 recorded above. The admission guard is temporary server control, not Stage 8
 concurrency.
 
@@ -2072,7 +2087,7 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 7 extension Tasks 7.33–7.40 (Tasks 7.31–7.32 complete)**
+> **Stage 7 extension Tasks 7.36–7.40 (Tasks 7.31–7.35 complete)**
 
 Next roadmap stage after the extension:
 
@@ -2242,8 +2257,11 @@ restart, cleanup, injected failures, and optimized-versus-baseline results are
 verified. The complete warnings-as-errors suite passes 2,556 tests. Evidence
 and declared limits are in the [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md),
 [SQL engine guide](docs/sql.md), and [Stage 7 audit](docs/ETAPA_07_AUDIT.md).
-Tasks 7.31–7.32 subsequently froze and implemented the syntax boundary of the
-limited CREATE/EXPLAIN extension on 2026-09-19; Tasks 7.33–7.40 remain pending.
+Tasks 7.31–7.35 subsequently froze and implemented the syntax, durable CREATE,
+and constraint boundary of the limited CREATE/EXPLAIN extension by 2026-09-20;
+Tasks 7.36–7.40 remain pending. The post-Task-7.35 warnings-as-errors suite
+passes 2,724 tests; implementation evidence is in
+`docs/ETAPA_07_TASK_7_33_7_35.md`.
 Stage 8 follows that extension in
 the roadmap; no detailed `ETAPA_08.md` plan or Stage 8 implementation is
 claimed. Part 1 remains incomplete. The

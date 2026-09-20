@@ -43,7 +43,7 @@ def imported_modules(module, path, tree):
 
 def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_libraries():
     allowed_layers = {
-        "engine": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions"},
+        "engine": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions", "database"},
         "errors": set(),
         "catalog": {"errors", "catalog"},
         "storage": {"errors", "catalog", "storage"},
@@ -57,6 +57,12 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         "maintenance": {"errors", "catalog", "storage", "indexes", "maintenance"},
         "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions"},
         "transactions": {"errors", "catalog", "storage", "indexes", "transactions"},
+        # The database owner is the composition root for persistent discovery,
+        # runtime handles, DDL, query execution, and mutation maintenance.
+        "database": {
+            "errors", "catalog", "storage", "indexes", "operators", "query",
+            "maintenance", "database",
+        },
     }
     for module, (path, tree) in engine_sources().items():
         layer = module.split(".")[1] if "." in module else "engine"

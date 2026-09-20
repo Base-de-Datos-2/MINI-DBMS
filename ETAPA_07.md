@@ -1,7 +1,7 @@
 # ETAPA_07.md
 
-> Documentation baseline: REQUIREMENTS.md v1.1, PROJECT_CONTEXT.md v3.9,
-> PLAN.md v3.4, the verified Tasks 7.1–7.30 audit, and ETAPA_06.md. This file
+> Documentation baseline: REQUIREMENTS.md v1.1, PROJECT_CONTEXT.md v4.0,
+> PLAN.md v3.5, the verified Tasks 7.1–7.30 audit, and ETAPA_06.md. This file
 > is an implementation plan; it does not add or override academic requirements.
 
 ## Stage 7 - SQL Parser, Planner, and Executor
@@ -11,14 +11,14 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Revision:** 2026-09-19 — Task 7.32 handwritten syntax extension complete
-**Status:** Original Stage 7 baseline and Tasks 7.31–7.32 complete; extension Tasks 7.33–7.40 pending implementation and verification. CREATE/EXPLAIN execution is not yet certified, and completed baseline work remains preserved.
+**Revision:** 2026-09-20 — Tasks 7.33–7.35 durable CREATE and constraints complete
+**Status:** Original Stage 7 baseline and Tasks 7.31–7.35 complete; extension Tasks 7.36–7.40 remain pending. CREATE is implemented for manifest-backed engine databases; EXPLAIN execution is not yet certified, and completed baseline work remains preserved.
 
 Tasks 7.1–7.30 were closed on 2026-09-18 and Stage 8 remains unimplemented.
 Task 7.31 inspected commit `87f442a` and froze the extension decisions in
-`docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Task 7.32 implements the syntax-only
-boundary. Preserve the completed baseline and describe Tasks 7.33–7.40 as
-planned until their implementation is verified.
+`docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Task 7.32 implements the syntax boundary,
+and Tasks 7.33–7.35 implement durable CREATE and shared constraints. Preserve
+the completed baseline and describe Tasks 7.36–7.40 as planned until verified.
 
 ### Adopted team decision and revision scope
 
@@ -1084,8 +1084,9 @@ commands and the corrected pre-existing API test fragility. The historical
 fully-spanned `CreateTableStatement` and SELECT-only `ExplainStatement` trees,
 supports LF/CRLF/CR/EOF comments, preserves contextual-keyword identifiers,
 and rejects malformed, nested, unsupported-child, and multi-statement input
-before binding or execution. `SqlEngine` reports a controlled unsupported
-diagnostic until Tasks 7.33–7.38 add the semantic and execution routes.
+before binding or execution. A manifest-backed `SqlEngine` now binds and
+executes CREATE through Tasks 7.33–7.35; EXPLAIN remains controlled-unsupported
+until Tasks 7.36–7.38.
 
 **Dependencies:** 7.31; existing Tasks 7.3–7.7.
 
@@ -1108,6 +1109,10 @@ tests under warnings-as-errors. Broader query/API/architecture results are
 recorded in `docs/ETAPA_07_TASK_7_32.md`.
 
 ### Task 7.33 - Extend schema metadata and validate CREATE definitions
+
+**Status:** Complete on 2026-09-20. Backward-compatible immutable table
+constraints, CREATE binding, and shared logical/physical record validation are
+implemented without changing physical schema or row formats.
 
 **Dependencies:** 7.31–7.32.
 
@@ -1136,6 +1141,10 @@ recorded in `docs/ETAPA_07_TASK_7_32.md`.
 **Acceptance:** Definitions and constraints are represented and validated consistently; primary-key and VARCHAR syntax is never accepted then discarded.
 
 ### Task 7.34 - Execute CREATE TABLE and persist database registration
+
+**Status:** Complete on 2026-09-20. The engine-owned database service supports
+strict manifest create/open, side-effect-free preparation, compensated CREATE,
+opaque managed files, and fresh-process schema/index discovery.
 
 **Dependencies:** 7.33; existing storage/index creation and open APIs.
 
@@ -1166,6 +1175,10 @@ recorded in `docs/ETAPA_07_TASK_7_32.md`.
 
 ### Task 7.35 - Integrate constraints with INSERT, DELETE, and indexes
 
+**Status:** Complete on 2026-09-20. SQL and managed database inserts share
+pre-write validation and the existing mutation maintenance path; primary-key
+uniqueness, DELETE/reinsert, restart, and index consistency are verified.
+
 **Dependencies:** 7.33–7.34; existing Tasks 7.23–7.25.
 
 **Actions:**
@@ -1180,6 +1193,11 @@ recorded in `docs/ETAPA_07_TASK_7_32.md`.
 **Tests:** Duplicate primary key before/after reopen leaves rows and indexes unchanged; overlength Unicode string leaves no row; correct boundary-length insert; DELETE/reinsert key; forced-scan/index agreement; existing failure-repair behavior; multiple existing indexes.
 
 **Acceptance:** Constraints hold for normal SQL/database writes and survive restart. PRIMARY KEY does not merely label a column.
+
+**Verification:** Focused binder/executor tests pass 84 cases, architecture
+tests pass 19 cases, and the complete warnings-as-errors repository suite passes
+2,724 tests. Detailed evidence and scope limits are recorded in
+`docs/ETAPA_07_TASK_7_33_7_35.md`.
 
 ### Task 7.36 - Execute EXPLAIN SELECT without executing SELECT
 
@@ -1732,24 +1750,24 @@ passes and the separate Tasks 7.31–7.40 checklist is implemented and verified.
 - [x] Manual parsing supports CREATE TABLE with INT/INTEGER, VARCHAR(n), and one inline PRIMARY KEY.
 - [x] The exact accented string and required line comments parse without altering their meaning.
 - [x] Exactly one statement is accepted; second statements are rejected before any execution.
-- [ ] CREATE validation rejects duplicate names, unsupported definitions, and invalid lengths.
-- [ ] SQL creation delegates to existing storage and primary-key index services.
-- [ ] Schema, constraints, table discovery, and index registration survive fresh-process reopen.
-- [ ] Existing persisted data has an explicit compatible-open or migration policy.
-- [ ] VARCHAR character limits, physical byte limits, integer ranges, and no-NULL behavior are documented and tested.
-- [ ] Duplicate keys and invalid values cannot create successful inconsistent writes.
-- [ ] Failed CREATE cleanup preserves pre-existing tables/files and leaves no usable partial registration.
+- [x] CREATE validation rejects duplicate names, unsupported definitions, and invalid lengths.
+- [x] SQL creation delegates to existing storage and primary-key index services.
+- [x] Schema, constraints, table discovery, and index registration survive fresh-process reopen.
+- [x] Existing persisted data has an explicit compatible-open or migration policy.
+- [x] VARCHAR character limits, physical byte limits, integer ranges, and no-NULL behavior are documented and tested.
+- [x] Duplicate keys and invalid values cannot create successful inconsistent writes.
+- [x] Failed CREATE cleanup preserves pre-existing tables/files and leaves no usable partial registration.
 - [ ] EXPLAIN binds/plans but never executes row operators or creates sort runs.
 - [ ] EXPLAIN ANALYZE executes SELECT exactly once to EOF within the memory contract.
 - [ ] Execution counts, elapsed time, and available counters have precise scopes and no fabricated values.
 - [ ] Empty and populated alumnos scenarios produce the specified outputs.
 - [ ] Command, row, explanation, and analysis results have compatible, documented ownership and completion semantics.
 - [x] EXPLAIN wrappers around writes/DDL and nested EXPLAIN fail without mutation.
-- [ ] Ordinary errors close resources and permit subsequent valid statements.
-- [ ] Stage 1–7 regression results and extension evidence are recorded for the actual implementation.
+- [x] Ordinary errors close resources and permit subsequent valid statements.
+- [x] Stage 1–7 regression results and extension evidence are recorded for the actual implementation.
 - [ ] Task 7.40 documentation updates are completed with historical claims preserved and current contradictions resolved.
-- [ ] The single-statement editor contract is documented without claiming unverified API/UI integration.
-- [ ] Stage 8 remains pending; no transaction, concurrency, WAL, or crash-atomicity claims are introduced.
+- [x] The single-statement editor contract is documented without claiming unverified API/UI integration.
+- [x] Stage 8 remains pending; no transaction, concurrency, WAL, or crash-atomicity claims are introduced.
 
 ## 15. Main risks and controls
 

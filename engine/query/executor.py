@@ -29,6 +29,7 @@ from .ast import (
     InsertStatement,
 )
 from .environment import QueryEnvironment
+from .ddl import CreatedTable, DdlService
 from .errors import (
     SqlBindingError,
     SqlUnknownColumnError,
@@ -37,6 +38,7 @@ from .errors import (
 )
 from .parser import parse_sql
 from .planner import (
+    CreatePlanSpec,
     DeletePlanSpec,
     InsertPlanSpec,
     PhysicalPlanningOptions,
@@ -49,10 +51,14 @@ from .planner import (
 DEFAULT_MATERIALIZATION_LIMIT = 10_000
 
 
-def _reject_unplanned_extension(statement, source: str) -> None:
+def _reject_unplanned_extension(
+    statement,
+    source: str,
+    ddl_service: DdlService | None,
+) -> None:
     """Keep newly parsed syntax controlled until its later execution tasks."""
 
-    if isinstance(statement, CreateTableStatement):
+    if isinstance(statement, CreateTableStatement) and ddl_service is None:
         feature = "CREATE TABLE execution"
         offending = "CREATE"
     elif isinstance(statement, ExplainStatement):
@@ -80,6 +86,7 @@ class StatementKind(Enum):
     SELECT = "SELECT"
     INSERT = "INSERT"
     DELETE = "DELETE"
+    CREATE = "CREATE"
 
 
 class ResultKind(Enum):
@@ -87,6 +94,7 @@ class ResultKind(Enum):
 
     ROWS = "ROWS"
     COMMAND = "COMMAND"
+    DEFINITION = "DEFINITION"
 
 
 class ResultState(Enum):
@@ -137,7 +145,17 @@ class CommandExecutionReport(MutationReport):
         )
 
 
-PlanSpec = SelectPlanSpec | InsertPlanSpec | DeletePlanSpec
+@dataclass(frozen=True, slots=True)
+class DefinitionExecutionReport:
+    """Prepared CREATE facts and the identity durably published by execution."""
+
+    prepared: PlanSpecDescriptor
+    state: ResultState
+    table_name: str
+    primary_index_name: str | None
+
+
+PlanSpec = SelectPlanSpec | InsertPlanSpec | DeletePlanSpec | CreatePlanSpec
 
 
 class PreparedQuery:
@@ -148,7 +166,10 @@ class PreparedQuery:
     def __init__(self, engine: "SqlEngine", spec: PlanSpec) -> None:
         if not isinstance(engine, SqlEngine):
             raise InvalidTypeError("PreparedQuery requires a SqlEngine")
-        if not isinstance(spec, (SelectPlanSpec, InsertPlanSpec, DeletePlanSpec)):
+        if not isinstance(
+            spec,
+            (SelectPlanSpec, InsertPlanSpec, DeletePlanSpec, CreatePlanSpec),
+        ):
             raise InvalidTypeError("PreparedQuery requires a supported plan specification")
         self._engine = engine
         self._spec = spec
@@ -156,8 +177,10 @@ class PreparedQuery:
             self._kind = StatementKind.SELECT
         elif isinstance(spec, InsertPlanSpec):
             self._kind = StatementKind.INSERT
-        else:
+        elif isinstance(spec, DeletePlanSpec):
             self._kind = StatementKind.DELETE
+        else:
+            self._kind = StatementKind.CREATE
 
     @property
     def kind(self) -> StatementKind:
@@ -173,14 +196,14 @@ class PreparedQuery:
     def reusable(self) -> bool:
         """Prepared queries always create fresh physical state per execution."""
 
-        return True
+        return self._kind is not StatementKind.CREATE
 
     def describe(self) -> PlanSpecDescriptor:
         """Inspect the physical specification without opening or mutating data."""
 
         return self._spec.describe()
 
-    def execute(self) -> "QueryResult | CommandResult":
+    def execute(self) -> "QueryResult | CommandResult | DefinitionResult":
         """Create one fresh execution through the owning single-session engine."""
 
         return self._engine.execute(self)
@@ -273,6 +296,97 @@ class CommandResult:
         raise UnsupportedAccessError("Command results are not iterable")
 
     def __enter__(self) -> "CommandResult":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        return False
+
+
+class DefinitionResult:
+    """One completed CREATE result with no row stream or affected-row count."""
+
+    __slots__ = ("_prepared_description", "_created")
+
+    def __init__(self, prepared: PreparedQuery, created: CreatedTable) -> None:
+        if not isinstance(prepared, PreparedQuery):
+            raise InvalidTypeError("DefinitionResult requires a PreparedQuery")
+        if prepared.kind is not StatementKind.CREATE:
+            raise ValidationError("DefinitionResult requires a CREATE plan")
+        if not isinstance(created, CreatedTable):
+            raise InvalidTypeError("DefinitionResult requires a CreatedTable")
+        self._prepared_description = prepared.describe()
+        self._created = created
+
+    @property
+    def kind(self) -> ResultKind:
+        return ResultKind.DEFINITION
+
+    @property
+    def state(self) -> ResultState:
+        return ResultState.COMPLETE
+
+    @property
+    def schema(self) -> None:
+        return None
+
+    @property
+    def table_name(self) -> str:
+        return self._created.table_name
+
+    @property
+    def primary_index_name(self) -> str | None:
+        return self._created.primary_index_name
+
+    @property
+    def rows_delivered(self) -> int:
+        return 0
+
+    @property
+    def fully_consumed(self) -> bool:
+        return True
+
+    @property
+    def completed(self) -> bool:
+        return True
+
+    @property
+    def closed(self) -> bool:
+        return True
+
+    @property
+    def partial(self) -> bool:
+        return False
+
+    @property
+    def error(self) -> None:
+        return None
+
+    @property
+    def rows(self):
+        raise UnsupportedAccessError("Definition results do not contain rows")
+
+    @property
+    def report(self) -> DefinitionExecutionReport:
+        return DefinitionExecutionReport(
+            prepared=self._prepared_description,
+            state=ResultState.COMPLETE,
+            table_name=self.table_name,
+            primary_index_name=self.primary_index_name,
+        )
+
+    def fetchmany(self, size: int):
+        raise UnsupportedAccessError("Definition results do not contain rows")
+
+    def fetchall(self, *, limit: int):
+        raise UnsupportedAccessError("Definition results do not contain rows")
+
+    def close(self) -> None:
+        """CREATE execution is synchronous, so there are no live resources."""
+
+    def __iter__(self):
+        raise UnsupportedAccessError("Definition results are not iterable")
+
+    def __enter__(self) -> "DefinitionResult":
         return self
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
@@ -618,6 +732,7 @@ class SqlEngine:
         "_materialization_limit",
         "_planning_options",
         "_active_result",
+        "_ddl_service",
     )
 
     def __init__(
@@ -628,6 +743,7 @@ class SqlEngine:
         max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
         materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
         planning_options: PhysicalPlanningOptions | None = None,
+        ddl_service: DdlService | None = None,
     ) -> None:
         if not isinstance(environment, QueryEnvironment):
             raise InvalidTypeError("SqlEngine requires a QueryEnvironment")
@@ -651,12 +767,15 @@ class SqlEngine:
             raise InvalidTypeError(
                 "planning_options must be PhysicalPlanningOptions or None"
             )
+        if ddl_service is not None and not isinstance(ddl_service, DdlService):
+            raise InvalidTypeError("ddl_service must implement DdlService or be None")
         self._environment = environment
         self._memory_budget_bytes = memory_budget_bytes
         self._max_open_handles = max_open_handles
         self._materialization_limit = materialization_limit
         self._planning_options = planning_options
         self._active_result: QueryResult | None = None
+        self._ddl_service = ddl_service
 
     @property
     def environment(self) -> QueryEnvironment:
@@ -701,12 +820,13 @@ class SqlEngine:
                 "planning_options must be PhysicalPlanningOptions or None"
             )
         statement = parse_sql(sql)
-        _reject_unplanned_extension(statement, sql)
+        _reject_unplanned_extension(statement, sql, self._ddl_service)
         spec = prepare_plan(
             self._environment,
             statement,
             use_indexes=use_indexes,
             options=options,
+            ddl_service=self._ddl_service,
         )
         return PreparedQuery(self, spec)
 
@@ -728,7 +848,7 @@ class SqlEngine:
         *,
         use_indexes: bool | None = None,
         planning_options: PhysicalPlanningOptions | None = None,
-    ) -> QueryResult | CommandResult:
+    ) -> QueryResult | CommandResult | DefinitionResult:
         """Execute one statement under the single-session lifecycle contract."""
 
         self._require_idle()
@@ -748,13 +868,14 @@ class SqlEngine:
                 else planning_options
             )
             statement = parse_sql(query)
-            _reject_unplanned_extension(statement, query)
+            _reject_unplanned_extension(statement, query, self._ddl_service)
             try:
                 spec = prepare_plan(
                     self._environment,
                     statement,
                     use_indexes=indexes_enabled,
                     options=options,
+                    ddl_service=self._ddl_service,
                 )
             except SqlBindingError as error:
                 if isinstance(statement, (InsertStatement, DeleteStatement)) and not isinstance(
@@ -781,6 +902,13 @@ class SqlEngine:
                 )
         else:
             raise InvalidTypeError("execute requires SQL text or PreparedQuery")
+        if prepared.kind is StatementKind.CREATE:
+            spec = prepared._spec
+            if not isinstance(spec, CreatePlanSpec):
+                raise RuntimeError("A CREATE prepared query lost its plan")
+            spec.validate()
+            created = spec.service.create_table(spec.bound.table)
+            return DefinitionResult(prepared, created)
         if prepared.kind is not StatementKind.SELECT:
             spec = prepared._spec
             if not isinstance(spec, (InsertPlanSpec, DeletePlanSpec)):
@@ -792,6 +920,7 @@ class SqlEngine:
                 spec.validate()
                 maintenance = service.insert(
                     table_name=bound.table.name,
+                    table_metadata=bound.table,
                     storage=bound.storage,
                     record=bound.record,
                     indexes=indexes,
@@ -891,6 +1020,7 @@ def prepare_sql(
     max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
     materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
     planning_options: PhysicalPlanningOptions | None = None,
+    ddl_service: DdlService | None = None,
 ) -> PreparedQuery:
     """Create an independently usable prepared query over one environment."""
 
@@ -900,6 +1030,7 @@ def prepare_sql(
         max_open_handles=max_open_handles,
         materialization_limit=materialization_limit,
         planning_options=planning_options,
+        ddl_service=ddl_service,
     )
     return engine.prepare(sql, use_indexes=use_indexes)
 
@@ -913,7 +1044,8 @@ def run_sql(
     max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
     materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
     planning_options: PhysicalPlanningOptions | None = None,
-) -> QueryResult | CommandResult:
+    ddl_service: DdlService | None = None,
+) -> QueryResult | CommandResult | DefinitionResult:
     """Execute SQL, returning a lazy row result or completed command result."""
 
     engine = SqlEngine(
@@ -922,6 +1054,7 @@ def run_sql(
         max_open_handles=max_open_handles,
         materialization_limit=materialization_limit,
         planning_options=planning_options,
+        ddl_service=ddl_service,
     )
     return engine.execute(
         sql,
@@ -933,6 +1066,8 @@ def run_sql(
 __all__ = [
     "CommandExecutionReport",
     "CommandResult",
+    "DefinitionExecutionReport",
+    "DefinitionResult",
     "PreparedQuery",
     "QueryExecutionReport",
     "QueryResult",

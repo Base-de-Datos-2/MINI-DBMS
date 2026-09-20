@@ -12,7 +12,14 @@ from __future__ import annotations
 from contextlib import closing
 from dataclasses import dataclass
 
-from engine.catalog import Column, DataType, IndexMetadata, Schema, TableMetadata
+from engine.catalog import (
+    Column,
+    ColumnConstraint,
+    DataType,
+    IndexMetadata,
+    Schema,
+    TableMetadata,
+)
 from engine.errors import (
     InvalidTypeError,
     UnknownColumnError,
@@ -41,8 +48,8 @@ from engine.operators import (
     RowLayout,
     Sum,
 )
-from engine.storage import PagedSequentialFile, Record, RecordCodec, Storage, ValueCodec
-from engine.storage.binary import MAX_RECORD_SIZE
+from engine.maintenance.validation import validate_record
+from engine.storage import PagedSequentialFile, Record, Storage, ValueCodec
 from engine.storage.record import RecordValue
 
 from .ast import (
@@ -53,6 +60,7 @@ from .ast import (
     BooleanLiteral,
     ColumnRef,
     Comparison,
+    CreateTableStatement,
     DeleteStatement,
     FloatLiteral,
     InsertStatement,
@@ -186,6 +194,14 @@ class BoundInsert:
     storage_may_move_rids: bool
     storage_key: RecordValue | None
     requires_storage_unique_check: bool
+
+
+@dataclass(frozen=True, slots=True)
+class BoundCreate:
+    """A validated logical table definition with no created physical objects."""
+
+    table: TableMetadata
+    primary_index_name: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -866,14 +882,9 @@ def bind_insert(
 
     try:
         record = Record(table.schema, [supplied[name] for name in schema_names])
-        payload = RecordCodec.serialize(record)
+        validate_record(table, record)
     except (InvalidTypeError, ValidationError) as error:
         raise _binding_error(statement, str(error)) from error
-    if len(payload) > MAX_RECORD_SIZE:
-        raise _binding_error(
-            statement,
-            f"Record payload exceeds page capacity of {MAX_RECORD_SIZE} bytes",
-        )
 
     storage_key: RecordValue | None = None
     requires_storage_unique_check = False
@@ -930,10 +941,69 @@ def bind_delete(
     )
 
 
+def bind_create(
+    environment: QueryEnvironment,
+    statement: CreateTableStatement,
+) -> BoundCreate:
+    """Resolve one CREATE definition without allocating or registering files."""
+
+    if not isinstance(environment, QueryEnvironment):
+        raise InvalidTypeError("bind_create requires a QueryEnvironment")
+    if not isinstance(statement, CreateTableStatement):
+        raise InvalidTypeError("bind_create requires a CreateTableStatement")
+
+    try:
+        columns: list[Column] = []
+        constraints: list[ColumnConstraint] = []
+        for definition in statement.columns:
+            if definition.data_type.name == "INTEGER":
+                data_type = DataType.INTEGER
+                varchar_length = None
+            elif definition.data_type.name == "VARCHAR":
+                data_type = DataType.VARCHAR
+                varchar_length = definition.data_type.length
+            else:  # pragma: no cover - parser owns accepted type spellings
+                raise _binding_error(
+                    definition.data_type,
+                    f"Unsupported CREATE type {definition.data_type.name!r}",
+                )
+            columns.append(Column(definition.name, data_type))
+            if varchar_length is not None or definition.primary_key:
+                constraints.append(
+                    ColumnConstraint(
+                        definition.name,
+                        varchar_length=varchar_length,
+                        primary_key=definition.primary_key,
+                    )
+                )
+        table = TableMetadata(
+            statement.table,
+            Schema(columns),
+            tuple(constraints),
+        )
+    except (InvalidTypeError, ValidationError) as error:
+        raise _binding_error(statement, str(error)) from error
+
+    if environment.catalog.has_table(table.name):
+        raise _binding_error(statement, f"Duplicate table name: {table.name!r}")
+    primary_index_name = (
+        f"__pk__{table.name}" if table.primary_key is not None else None
+    )
+    if (
+        primary_index_name is not None
+        and environment.catalog.has_index(primary_index_name)
+    ):
+        raise _binding_error(
+            statement,
+            f"Duplicate index name: {primary_index_name!r}",
+        )
+    return BoundCreate(table, primary_index_name)
+
+
 def bind_statement(
     environment: QueryEnvironment,
     statement: Statement,
-) -> BoundSelect | BoundInsert | BoundDelete:
+) -> BoundSelect | BoundInsert | BoundDelete | BoundCreate:
     """Dispatch one parsed statement to the matching read-only binder."""
 
     if isinstance(statement, SelectStatement):
@@ -942,11 +1012,14 @@ def bind_statement(
         return bind_insert(environment, statement)
     if isinstance(statement, DeleteStatement):
         return bind_delete(environment, statement)
+    if isinstance(statement, CreateTableStatement):
+        return bind_create(environment, statement)
     raise InvalidTypeError("bind_statement requires a supported SQL statement AST")
 
 
 __all__ = [
     "BoundDelete",
+    "BoundCreate",
     "BoundIndexCondition",
     "BoundIndexMutation",
     "BoundInsert",
@@ -957,6 +1030,7 @@ __all__ = [
     "BoundRelation",
     "BoundSelect",
     "bind_delete",
+    "bind_create",
     "bind_insert",
     "bind_select",
     "bind_statement",
