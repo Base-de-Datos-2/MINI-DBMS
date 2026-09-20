@@ -11,14 +11,15 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Revision:** 2026-09-20 — Tasks 7.33–7.35 durable CREATE and constraints complete
-**Status:** Original Stage 7 baseline and Tasks 7.31–7.35 complete; extension Tasks 7.36–7.40 remain pending. CREATE is implemented for manifest-backed engine databases; EXPLAIN execution is not yet certified, and completed baseline work remains preserved.
+**Revision:** 2026-09-20 — Tasks 7.36–7.38 EXPLAIN execution and result contracts complete
+**Status:** Original Stage 7 baseline and Tasks 7.31–7.38 complete; extension Tasks 7.39–7.40 remain pending. CREATE, EXPLAIN, and EXPLAIN ANALYZE are implemented at the engine boundary; completed baseline work remains preserved.
 
 Tasks 7.1–7.30 were closed on 2026-09-18 and Stage 8 remains unimplemented.
 Task 7.31 inspected commit `87f442a` and froze the extension decisions in
 `docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Task 7.32 implements the syntax boundary,
-and Tasks 7.33–7.35 implement durable CREATE and shared constraints. Preserve
-the completed baseline and describe Tasks 7.36–7.40 as planned until verified.
+Tasks 7.33–7.35 implement durable CREATE and shared constraints, and Tasks
+7.36–7.38 implement the explanation/result boundary. Preserve the completed
+baseline and describe Tasks 7.39–7.40 as planned until verified.
 
 ### Adopted team decision and revision scope
 
@@ -1085,8 +1086,8 @@ fully-spanned `CreateTableStatement` and SELECT-only `ExplainStatement` trees,
 supports LF/CRLF/CR/EOF comments, preserves contextual-keyword identifiers,
 and rejects malformed, nested, unsupported-child, and multi-statement input
 before binding or execution. A manifest-backed `SqlEngine` now binds and
-executes CREATE through Tasks 7.33–7.35; EXPLAIN remains controlled-unsupported
-until Tasks 7.36–7.38.
+executes CREATE through Tasks 7.33–7.35. EXPLAIN and EXPLAIN ANALYZE execute
+through the result contract defined by Tasks 7.36–7.38.
 
 **Dependencies:** 7.31; existing Tasks 7.3–7.7.
 
@@ -1201,6 +1202,10 @@ tests pass 19 cases, and the complete warnings-as-errors repository suite passes
 
 ### Task 7.36 - Execute EXPLAIN SELECT without executing SELECT
 
+**Status:** Complete on 2026-09-20. The SELECT child uses the ordinary binder
+and physical planner, while execution performs identity validation and returns
+the immutable prepared descriptor without constructing a row operator.
+
 **Dependencies:** 7.32; existing bind/plan/describe APIs and Task 7.26.
 
 **Actions:**
@@ -1216,7 +1221,17 @@ tests pass 19 cases, and the complete warnings-as-errors repository suite passes
 
 **Acceptance:** The result describes the real prepared plan and cannot be confused with measurements of a completed query.
 
+**Verification:** Focused tests prove that operator instantiation and temporary
+workspace creation do not occur, index selection and forced-scan policy agree
+with SELECT planning, semantic errors retain their categories, and table/index
+contents remain unchanged.
+
 ### Task 7.37 - Execute EXPLAIN ANALYZE SELECT once and measure completion
+
+**Status:** Complete on 2026-09-20. Analysis constructs one fresh physical
+tree, drains it once to EOF without retaining rows, closes all execution-owned
+resources, and publishes the actual Stage 6 report only after successful
+cleanup.
 
 **Dependencies:** 7.36; existing operator metrics and lifecycle.
 
@@ -1235,7 +1250,18 @@ tests pass 19 cases, and the complete warnings-as-errors repository suite passes
 
 **Acceptance:** Analysis describes one completed execution with truthful metrics and bounded memory. Unsupported INSERT/DELETE/DDL analysis never mutates anything.
 
+**Verification:** Empty and populated executions report exact cardinality;
+fresh-run counters remain isolated; a zero SELECT materialization cap does not
+truncate analysis; forced external sorting reports real spill I/O and removes
+its temporary workspace; and an injected row failure exposes an incomplete
+partial report, cleans up, and permits a later valid execution.
+
 ### Task 7.38 - Extend the public single-statement result contract
+
+**Status:** Complete on 2026-09-20. Public statement kinds now include CREATE,
+EXPLAIN, and EXPLAIN_ANALYZE, while result kinds distinguish rows, mutation
+commands, definitions, and explanations. Stage 9 dispatch remains deliberately
+unchanged until its later integration task.
 
 **Dependencies:** 7.34, 7.36–7.37.
 
@@ -1257,6 +1283,16 @@ tests pass 19 cases, and the complete warnings-as-errors repository suite passes
 **Tests:** Separate CREATE then SELECT calls against the same database; early-close ownership; explanation variants; double-statement rejection with unchanged state; valid call after each error; existing clients remain compatible.
 
 **Acceptance:** All six user statements are callable individually through one engine interface. This stage makes no unsupported claim that an existing editor adapter is already wired to the new result types.
+
+**Verification:** Explanation results carry a separate plan envelope, explicit
+execution/completion flags, nullable runtime evidence, and no row schema or
+affected-row fiction. Synchronous results leave no active engine result;
+unconsumed SELECT streams still block every later statement. Complete-input
+rejection precedes CREATE and INSERT effects.
+
+**Regression:** The complete repository suite passes 2,734 tests under
+warnings-as-errors. Detailed implementation and verification evidence is in
+`docs/ETAPA_07_TASK_7_36_7_38.md`.
 
 ### Task 7.39 - Verify the exact scenario, restart, and regression behavior
 
@@ -1757,11 +1793,11 @@ passes and the separate Tasks 7.31–7.40 checklist is implemented and verified.
 - [x] VARCHAR character limits, physical byte limits, integer ranges, and no-NULL behavior are documented and tested.
 - [x] Duplicate keys and invalid values cannot create successful inconsistent writes.
 - [x] Failed CREATE cleanup preserves pre-existing tables/files and leaves no usable partial registration.
-- [ ] EXPLAIN binds/plans but never executes row operators or creates sort runs.
-- [ ] EXPLAIN ANALYZE executes SELECT exactly once to EOF within the memory contract.
-- [ ] Execution counts, elapsed time, and available counters have precise scopes and no fabricated values.
+- [x] EXPLAIN binds/plans but never executes row operators or creates sort runs.
+- [x] EXPLAIN ANALYZE executes SELECT exactly once to EOF within the memory contract.
+- [x] Execution counts, elapsed time, and available counters have precise scopes and no fabricated values.
 - [ ] Empty and populated alumnos scenarios produce the specified outputs.
-- [ ] Command, row, explanation, and analysis results have compatible, documented ownership and completion semantics.
+- [x] Command, row, explanation, and analysis results have compatible, documented ownership and completion semantics.
 - [x] EXPLAIN wrappers around writes/DDL and nested EXPLAIN fail without mutation.
 - [x] Ordinary errors close resources and permit subsequent valid statements.
 - [x] Stage 1–7 regression results and extension evidence are recorded for the actual implementation.

@@ -1,11 +1,11 @@
 # Stage 7 SQL engine guide
 
 > **Current status (2026-09-20):** this guide documents the verified Stage 7
-> Tasks 7.1–7.35 implementation. Limited CREATE is executable in an engine-owned
-> manifest database; EXPLAIN statements parse but remain pending in Tasks
-> 7.36–7.38. See the
+> Tasks 7.1–7.38 implementation. Limited CREATE is executable in an engine-owned
+> manifest database; EXPLAIN and EXPLAIN ANALYZE execute through the public
+> engine result contract. See the
 > [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
-> [Task 7.32 evidence](ETAPA_07_TASK_7_32.md).
+> [Tasks 7.36–7.38 evidence](ETAPA_07_TASK_7_36_7_38.md).
 
 This guide describes the SQL engine implemented by Stage 7. The normative
 grammar, token/span conventions, parser limits, and production-to-function map
@@ -118,8 +118,8 @@ EXPLAIN [ANALYZE] <supported-select-statement>
 
 `parse_sql` returns located ASTs for both forms. Manifest-backed engines bind,
 prepare, and execute CREATE. Engines without an injected DDL service reject it
-without side effects. EXPLAIN remains a controlled unsupported diagnostic until
-Tasks 7.36–7.38.
+without side effects. Every engine with a valid query environment can prepare
+and execute the SELECT-only explanation forms.
 
 Supported projection items are `*`, columns, and the aggregates `COUNT(*)`,
 `COUNT(column)`, `SUM`, `AVG`, `MIN`, and `MAX`. One inner join is supported.
@@ -198,6 +198,23 @@ optional reserved primary-index name. It has no row stream and no
 definition is deliberately non-reusable because successful execution changes
 the catalog generation it was prepared against.
 
+Both explanation forms return a completed `ExplanationResult`, whose
+`statement_kind` distinguishes `EXPLAIN` from `EXPLAIN_ANALYZE`. Its structured
+`plan` is a `PlanSpecDescriptor`, separate from a SELECT row schema. Plain
+EXPLAIN validates the prepared table/index identities but never constructs or
+opens a row operator: `executed` is false, `complete` is true, and
+`statistics`, `output_rows`, and `execution_seconds` are `None`.
+
+EXPLAIN ANALYZE creates one fresh physical tree, drains it once to EOF without
+retaining result rows, and returns only after operator/context cleanup. Its
+`executed` and `complete` flags are true, `output_rows` is the final root
+cardinality, and `statistics` is the actual `PlanReport`. `planning_seconds`
+and `execution_seconds` have separate wall-time scopes. A failed analysis
+raises `AnalysisExecutionError`; its report is `FAILED`, `complete` is false,
+and any available partial runtime evidence remains accessible through the
+exception. The ordinary SELECT materialization limit does not apply to
+analysis.
+
 `PreparedQuery.describe()` returns immutable planning facts, including output
 columns, physical children, storage/index identities, predicates, and
 sort/group/join keys. `QueryResult.report.runtime` returns the measured Stage 6
@@ -210,6 +227,26 @@ together.
 DELETE command statistics additionally contain the real discovery
 `PlanReport`, target count, and spool bytes. INSERT reports association updates
 or complete index rebuilds.
+
+### Adapter-facing result contract
+
+One editor submission contains one complete SQL statement and produces either
+one result object or one exception. Adapters inspect both enums explicitly;
+they do not infer behavior from SQL text and must reject unknown future kinds.
+
+| `ResultKind` | `StatementKind` | Payload and ownership |
+|---|---|---|
+| `ROWS` | `SELECT` | Lazy row stream with a SELECT schema; caller drains or closes it |
+| `COMMAND` | `INSERT`, `DELETE` | Synchronous mutation report with `affected_rows`; no row stream |
+| `DEFINITION` | `CREATE` | Synchronous created table/index identity; no row stream or affected-row count |
+| `EXPLANATION` | `EXPLAIN` | Synchronous prepared plan; no runtime measurements or row schema |
+| `EXPLANATION` | `EXPLAIN_ANALYZE` | Synchronous prepared plan plus one completed run's measurements; no retained rows |
+
+All synchronous variants release operation-owned resources before return. An
+unconsumed `ROWS` result continues to block every new statement on the same
+engine. The existing Stage 9 HTTP adapter intentionally keeps its earlier
+allowlists until the separate integration task adds exhaustive serialization
+for definitions and explanations.
 
 ## Mutation consistency
 
@@ -239,10 +276,9 @@ multiple files.
 
 ## Unsupported syntax
 
-The list below describes the currently executable baseline. `CREATE TABLE`,
-`EXPLAIN SELECT`, and `EXPLAIN ANALYZE SELECT` are accepted by `parse_sql`, but
-`SqlEngine.prepare/execute` returns a controlled unsupported diagnostic until
-their downstream tasks are complete. Multiple statements remain unsupported.
+The list below describes the currently executable boundary. Limited
+`CREATE TABLE`, `EXPLAIN SELECT`, and `EXPLAIN ANALYZE SELECT` are implemented.
+Multiple statements remain unsupported.
 
 The following remain outside the Stage 7 subset:
 
@@ -253,7 +289,7 @@ The following remain outside the Stage 7 subset:
   arithmetic expressions, positional ORDER BY, DISTINCT, HAVING, LIMIT/OFFSET,
   and window functions;
 - BEGIN/COMMIT/ROLLBACK and every transaction or concurrency command;
-- execution of SQL EXPLAIN and EXPLAIN ANALYZE until Tasks 7.36–7.38;
+- EXPLAIN around INSERT, DELETE, CREATE, or another EXPLAIN statement;
 - multiple statements or trailing tokens after the optional final semicolon.
 
 Recognized out-of-scope syntax raises `SqlUnsupportedError`. Malformed accepted
@@ -261,12 +297,18 @@ syntax raises `SqlSyntaxError`; invalid characters/literals raise
 `SqlLexicalError`; bounded-input failures raise `SqlLimitError`; resolved-name
 or semantic failures raise `SqlBindingError` or its located table/column
 variants. These all derive from the project `ValidationError` hierarchy.
+Invalid definitions, duplicate tables/keys, invalid values, and storage
+failures retain their existing domain exceptions. An execution-time ANALYZE
+failure uses `AnalysisExecutionError` to keep its original cause and an
+explicit incomplete partial report.
 
 ## Reproducible verification
 
 The Section 12 dataset from `ETAPA_07.md` is executed through the public API in
 `tests/query/test_stage7_acceptance.py`. External and restart behavior is in
-`tests/query/test_stage7_resources.py`.
+`tests/query/test_stage7_resources.py`. EXPLAIN non-execution, measured
+analysis, spill cleanup, failure, and public result contracts are in
+`tests/query/test_explain.py`.
 
 ```powershell
 .venv\Scripts\python.exe -m pytest tests/query tests/test_architecture.py `

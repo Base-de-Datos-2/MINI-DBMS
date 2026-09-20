@@ -48,6 +48,7 @@ def test_create_is_preparable_side_effect_free_and_durably_queryable(tmp_path):
         result = prepared.execute()
         assert isinstance(result, DefinitionResult)
         assert result.kind is ResultKind.DEFINITION
+        assert result.statement_kind is StatementKind.CREATE
         assert result.table_name == "alumnos"
         assert result.primary_index_name == "__pk__alumnos"
         assert not hasattr(result, "affected_rows")

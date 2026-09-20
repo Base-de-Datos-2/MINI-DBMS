@@ -21,10 +21,13 @@ from .binder import (
 from .environment import QueryEnvironment, RegisteredIndex
 from .ddl import CreatedTable, DdlService
 from .executor import (
+    AnalysisExecutionError,
     CommandExecutionReport,
     CommandResult,
     DefinitionExecutionReport,
     DefinitionResult,
+    ExplanationExecutionReport,
+    ExplanationResult,
     PreparedQuery,
     QueryExecutionReport,
     QueryResult,
@@ -50,6 +53,7 @@ from .parser import parse_sql
 from .planner import (
     CreatePlanSpec,
     DeletePlanSpec,
+    ExplainPlanSpec,
     ExternalHashGroupSpec,
     ExternalSortSpec,
     FilterSpec,
@@ -73,6 +77,7 @@ from .planner import (
 )
 
 __all__ = [
+    "AnalysisExecutionError",
     "BoundCreate",
     "BoundDelete",
     "BoundIndexCondition",
@@ -94,6 +99,9 @@ __all__ = [
     "DeletePlanSpec",
     "ExternalHashGroupSpec",
     "ExternalSortSpec",
+    "ExplainPlanSpec",
+    "ExplanationExecutionReport",
+    "ExplanationResult",
     "FilterSpec",
     "GraceHashJoinSpec",
     "IndexScanSpec",
