@@ -207,9 +207,12 @@ La traza completa queda solo en el log del servidor, que se cruza con el
   clasificar, ejecutar, convertir la vista previa, copiar métricas y cerrar el
   cursor, y la toma y la libera el mismo hilo que hace el trabajo síncrono.
 - **Solo `SELECT` por defecto.** Se decide con el tipo de sentencia que
-  devuelve `SqlEngine.prepare()`, nunca por texto. `BEGIN/END TRANSACTION`,
-  `COMMIT`, `ROLLBACK`, DDL, `UPDATE` y los envíos con varias sentencias los
-  rechaza el parser de la Etapa 7.
+  devuelve `SqlEngine.prepare()`, nunca por texto. El motor de la Etapa 7 ya
+  implementa `EXPLAIN`, `EXPLAIN ANALYZE` y CREATE manifest-backed, pero este
+  adaptador conserva deliberadamente su allowlist y su base legacy: todavía no
+  serializa explicaciones ni expone DDL. `BEGIN/END TRANSACTION`, `COMMIT`,
+  `ROLLBACK`, `UPDATE`, el DDL restante y los envíos con varias sentencias
+  siguen rechazados por sus límites correspondientes.
 - **`--allow-writes` (opcional, tarea 9.16).** Habilita `INSERT` y `DELETE`
   sobre la base de demo desechable. Cada envío se ejecuta **una sola vez**, sin
   reintentos ni deduplicación. No hay transacción ni rollback. Si el motor
@@ -225,6 +228,8 @@ directorio de datos mientras corre el servidor: el guard es local al proceso.
 
 ## 9. Pendiente para después de la Etapa 8
 
+- Migrar la demo al owner manifest-backed y añadir dispatch exhaustivo para
+  `DEFINITION` y `EXPLANATION` antes de habilitar CREATE/EXPLAIN por HTTP.
 - Conectar sesiones y transacciones (`BEGIN/END TRANSACTION`) a la API y
   reflejarlas en la interfaz.
 - Alinear la vida del cursor, los fallos y las desconexiones con la semántica

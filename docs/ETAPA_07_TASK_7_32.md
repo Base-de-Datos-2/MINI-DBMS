@@ -5,10 +5,10 @@
 **Scope:** syntax and public pre-execution boundary only; Tasks 7.33–7.38 still
 own CREATE semantics and CREATE/EXPLAIN execution.
 
-> **Subsequent status (2026-09-20):** Tasks 7.33–7.35 now implement CREATE
-> semantics, manifest-backed execution, and constraints. The statements below
-> about unsupported CREATE describe the Task 7.32 checkpoint; current evidence
-> is in `ETAPA_07_TASK_7_33_7_35.md`. EXPLAIN remains pending.
+> **Subsequent status (2026-09-20):** Tasks 7.33–7.40 implemented and closed
+> CREATE/EXPLAIN execution and acceptance. Statements below about unsupported
+> execution describe the Task 7.32 checkpoint; current evidence is in
+> `ETAPA_07_EXTENSION_AUDIT.md`.
 
 ## Outcome
 

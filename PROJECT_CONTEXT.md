@@ -1,7 +1,8 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.1** — preserves the formal Stage 7 baseline closure and
-> records Tasks 7.31–7.38 of the CREATE/EXPLAIN extension.
+> Context version: **4.2** — preserves the formal Stage 7 baseline closure and
+> records the verified closure of the CREATE/EXPLAIN extension through Task
+> 7.40.
 
 ## Project identity
 
@@ -1765,13 +1766,15 @@ The project does not require a complete SQL standard implementation.
 
 Do not add advanced SQL syntax at the cost of required features.
 
-### Active Stage 7 extension contract
+### Closed Stage 7 extension contract
 
 Tasks 7.1–7.30 remain the formally closed SQL baseline. Task 7.31 froze the
 team-approved extension, Task 7.32 implemented its handwritten syntax boundary,
 Tasks 7.33–7.35 implemented metadata, durable CREATE, and shared constraint
-enforcement, and Tasks 7.36–7.38 implemented explanation execution and public
-result contracts by 2026-09-20. Tasks 7.39–7.40 remain pending.
+enforcement, Tasks 7.36–7.38 implemented explanation execution and public
+result contracts, and Tasks 7.39–7.40 completed exact acceptance,
+restart/failure coverage, full regression, and documentation closure on
+2026-09-20.
 
 The extension adds one-statement `CREATE TABLE` for `INT`/`INTEGER`,
 `VARCHAR(n)`, and one optional inline single-column primary key, plus
@@ -2083,19 +2086,15 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 ## Current stage
 
-Latest formally completed baseline:
+Latest formally completed SQL stage:
 
-> **Stage 7 Tasks 7.1–7.30 — SQL Parser, Planner, and Executor**
+> **Stage 7 Tasks 7.1–7.40 — SQL Parser, Planner, Executor, CREATE, and EXPLAIN**
 
 Overall Part 1 roadmap:
 
 > `PLAN.md`
 
 Current implementation block:
-
-> **Stage 7 extension Tasks 7.39–7.40 (Tasks 7.31–7.38 complete)**
-
-Next roadmap stage after the extension:
 
 > **Stage 8 — Transactions and Concurrency (not started)**
 
@@ -2263,13 +2262,14 @@ restart, cleanup, injected failures, and optimized-versus-baseline results are
 verified. The complete warnings-as-errors suite passes 2,556 tests. Evidence
 and declared limits are in the [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md),
 [SQL engine guide](docs/sql.md), and [Stage 7 audit](docs/ETAPA_07_AUDIT.md).
-Tasks 7.31–7.38 subsequently froze and implemented the syntax, durable CREATE,
-constraint boundary, explanation execution, and public result contract of the
-limited CREATE/EXPLAIN extension by 2026-09-20; Tasks 7.39–7.40 remain pending.
-The post-Task-7.38 warnings-as-errors suite passes 2,734 tests. Implementation
-evidence is in `docs/ETAPA_07_TASK_7_33_7_35.md` and
-`docs/ETAPA_07_TASK_7_36_7_38.md`.
-Stage 8 follows that extension in
+Tasks 7.31–7.40 subsequently completed the limited CREATE/EXPLAIN extension on
+2026-09-20, including syntax, durable CREATE, constraint enforcement,
+explanation execution, public result contracts, the exact acceptance scenario,
+restart/failure evidence, and documentation reconciliation. The complete
+warnings-as-errors suite passes 2,742 tests. Implementation evidence is in
+`docs/ETAPA_07_TASK_7_33_7_35.md` and `docs/ETAPA_07_TASK_7_36_7_38.md`; final
+closure evidence is in `docs/ETAPA_07_EXTENSION_AUDIT.md`.
+Stage 8 follows that closed extension in
 the roadmap; no detailed `ETAPA_08.md` plan or Stage 8 implementation is
 claimed. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)

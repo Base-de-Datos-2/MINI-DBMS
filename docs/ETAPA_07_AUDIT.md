@@ -6,6 +6,10 @@
 
 **Result:** Tasks 7.1-7.30 and all 63 Definition of Done criteria are satisfied.
 
+> This is the preserved audit of the original baseline. The separately
+> authorized Tasks 7.31–7.40 were closed on 2026-09-20; see
+> `docs/ETAPA_07_EXTENSION_AUDIT.md`.
+
 ## Reproducible evidence
 
 The formal cross-stage command was run from the repository root with the
