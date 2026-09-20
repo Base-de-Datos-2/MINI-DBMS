@@ -40,6 +40,17 @@ class Catalog:
             raise UnknownTableError(f"Unknown table: {name!r}")
         return self._tables[name]
 
+    def unregister_table(self, name: str) -> TableMetadata:
+        """Remove metadata only when no registered index still references it."""
+
+        table = self.get_table(name)
+        if any(index.table_name == name for index in self._indexes.values()):
+            raise InvalidReferenceError(
+                f"Cannot unregister table {name!r} while indexes reference it"
+            )
+        del self._tables[name]
+        return table
+
     def list_tables(self) -> tuple[TableMetadata, ...]:
         """Return a snapshot in registration order."""
         return tuple(self._tables.values())
@@ -85,6 +96,13 @@ class Catalog:
         if name not in self._indexes:
             raise InvalidReferenceError(f"Unknown index: {name!r}")
         return self._indexes[name]
+
+    def has_index(self, name: str) -> bool:
+        """Return whether an exact index name is registered."""
+
+        if not isinstance(name, str):
+            raise InvalidTypeError("Index name must be a string")
+        return name in self._indexes
 
     def unregister_index(self, name: str) -> IndexMetadata:
         """Remove and return metadata without touching its physical index file."""

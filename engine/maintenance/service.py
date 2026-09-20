@@ -9,6 +9,7 @@ from pathlib import Path
 import struct
 from tempfile import TemporaryDirectory
 
+from engine.catalog import TableMetadata
 from engine.errors import (
     DuplicateError,
     InvalidTypeError,
@@ -16,6 +17,7 @@ from engine.errors import (
     ValidationError,
 )
 from engine.indexes import Index
+from engine.maintenance.validation import validate_record
 from engine.storage import RID, Record, RecordCodec, Storage
 from engine.storage.binary import UINT32_MAX
 
@@ -391,6 +393,7 @@ class MutationService:
         self,
         *,
         table_name: str,
+        table_metadata: TableMetadata | None = None,
         storage: Storage,
         record: Record,
         indexes: Sequence[MaintenanceIndex],
@@ -401,6 +404,14 @@ class MutationService:
         indexes = self._validate_common(table_name, storage, indexes)
         if not isinstance(record, Record):
             raise InvalidTypeError("INSERT maintenance requires a Record")
+        if table_metadata is not None:
+            if not isinstance(table_metadata, TableMetadata):
+                raise InvalidTypeError("table_metadata must be TableMetadata or None")
+            if table_metadata.name != table_name:
+                raise ValidationError(
+                    "INSERT table metadata name does not match the mutation target"
+                )
+            validate_record(table_metadata, record)
         if type(storage_may_move_rids) is not bool:
             raise InvalidTypeError("storage_may_move_rids must be a bool")
         if type(requires_storage_unique_check) is not bool:

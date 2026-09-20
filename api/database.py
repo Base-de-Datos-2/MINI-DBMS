@@ -7,14 +7,14 @@ that owner. It opens or creates files **only** through the engine's public
 constructors and catalog index factories; it contains no storage, indexing,
 planning or execution logic of its own.
 
-The currently executable Stage 7 baseline has no ``CREATE TABLE``, and the
-engine ``Catalog`` lives in memory, so tables are declared in Python.
-:meth:`Database.create` builds and seeds the declared files once, offline;
-:meth:`Database.open` only reopens files that already exist and refuses a
-missing or partial directory. Data therefore survives a server restart without
-inventing a catalog format, and a page refresh or a query never reseeds
-anything. Task 7.31 freezes a future engine-level manifest owner; this adapter
-must delegate to that owner when Tasks 7.32–7.40 implement the extension.
+This is the explicit legacy, definition-driven open mode retained for the
+Stage 9 demo. Tables are declared in Python: :meth:`Database.create` builds and
+seeds them once, offline, while :meth:`Database.open` reopens only the declared
+files and refuses a missing or partial directory. It neither infers nor writes
+the Stage 7 database manifest, and its ``SqlEngine`` intentionally has no DDL
+service, so SQL CREATE is rejected. New manifest-backed databases use
+``engine.database.Database``. The later Stage 9 integration must delegate to
+that engine owner before exposing CREATE through HTTP.
 """
 
 from __future__ import annotations

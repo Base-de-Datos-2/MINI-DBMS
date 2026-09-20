@@ -1,9 +1,9 @@
 # Stage 7 SQL engine guide
 
-> **Current status (2026-09-19):** this guide documents the verified Stage 7
-> Tasks 7.1–7.30 implementation plus Task 7.32 syntax. Limited CREATE/EXPLAIN
-> statements now parse into located ASTs, but their binding and execution
-> remain pending in Tasks 7.33–7.38. See the
+> **Current status (2026-09-20):** this guide documents the verified Stage 7
+> Tasks 7.1–7.35 implementation. Limited CREATE is executable in an engine-owned
+> manifest database; EXPLAIN statements parse but remain pending in Tasks
+> 7.36–7.38. See the
 > [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
 > [Task 7.32 evidence](ETAPA_07_TASK_7_32.md).
 
@@ -13,11 +13,38 @@ are in [sql-grammar.md](sql-grammar.md).
 
 ## Public setup and execution
 
-The currently executable baseline still does not execute SQL DDL. Applications
-create schemas, table metadata, storage managers, and indexes through the
-existing Python APIs, then register their live handles in `QueryEnvironment`.
-The parsed CREATE route does not become executable until Tasks 7.33–7.35 are
-implemented and verified.
+Manifest-backed applications create or open one engine-owned database. It owns
+the persistent manifest, Catalog, runtime registry, permanent Heap/B+ handles,
+and configured `SqlEngine`:
+
+```python
+from engine.database import Database
+
+with Database.create("university-db", name="university") as database:
+    definition = database.engine.execute("""
+        CREATE TABLE students (
+            id INT PRIMARY KEY,
+            name VARCHAR(100),
+            age INT
+        )
+    """)
+    assert definition.table_name == "students"
+    database.engine.execute("INSERT INTO students VALUES (1, 'Eva', 21)")
+
+with Database.open("university-db") as database:
+    with database.engine.execute("SELECT * FROM students") as rows:
+        print([row.values for row in rows])
+```
+
+`Database.open()` discovers the schema and primary index from
+`database.catalog.json`; callers do not supply a Python schema. CREATE is
+available only through this manifest-backed owner. It allocates opaque managed
+filenames and publishes success after the new Heap, optional unique B+ primary
+index, live registrations, and manifest are ready.
+
+The explicit legacy setup remains supported for existing definition-driven
+databases. Applications create schemas and physical managers through the
+existing Python APIs and register borrowed handles in `QueryEnvironment`:
 
 ```python
 from engine.catalog import Catalog, Column, DataType, Schema, TableMetadata
@@ -78,7 +105,7 @@ INSERT INTO <table> [(<column> [, ...])] VALUES (<literal> [, ...])
 DELETE FROM <table> [WHERE <predicate>]
 ```
 
-The syntax-only Task 7.32 extension additionally accepts these forms:
+The extension additionally accepts these forms:
 
 ```text
 CREATE TABLE <table> (
@@ -89,9 +116,10 @@ CREATE TABLE <table> (
 EXPLAIN [ANALYZE] <supported-select-statement>
 ```
 
-`parse_sql` returns located ASTs for these forms. The public engine returns a
-controlled unsupported diagnostic until their semantic and execution tasks are
-complete.
+`parse_sql` returns located ASTs for both forms. Manifest-backed engines bind,
+prepare, and execute CREATE. Engines without an injected DDL service reject it
+without side effects. EXPLAIN remains a controlled unsupported diagnostic until
+Tasks 7.36–7.38.
 
 Supported projection items are `*`, columns, and the aggregates `COUNT(*)`,
 `COUNT(column)`, `SUM`, `AVG`, `MIN`, and `MAX`. One inner join is supported.
@@ -112,6 +140,12 @@ VARCHAR.
 not exist in the Stage 6/7 row model. An optional column list may reorder fields
 but may not omit or repeat them. `DELETE FROM table` without `WHERE` is the
 adopted whole-table form.
+
+SQL-created `VARCHAR(n)` columns accept 1–4,075 Unicode code points. Each value
+is checked by character count without normalization or truncation, then by
+strict UTF-8 encoding and the complete 4,079-byte record capacity. A VARCHAR
+primary-key value also has the existing 255-byte B+ key limit. All columns
+require concrete values because this dialect has no SQL NULL representation.
 
 ## Planning and execution routes
 
@@ -157,6 +191,12 @@ reservations, and handles without closing Catalog-owned storage/index managers.
 INSERT and DELETE return a completed `CommandResult` with `affected_rows` and
 no row stream. Fetching or inspecting a command result cannot execute the
 mutation again.
+
+CREATE returns a completed `DefinitionResult` with the exact table name and
+optional reserved primary-index name. It has no row stream and no
+`affected_rows`. CREATE preparation is side-effect free; the prepared
+definition is deliberately non-reusable because successful execution changes
+the catalog generation it was prepared against.
 
 `PreparedQuery.describe()` returns immutable planning facts, including output
 columns, physical children, storage/index identities, predicates, and

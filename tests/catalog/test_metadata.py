@@ -16,7 +16,11 @@ def test_table_metadata_preserves_name_and_schema(schema):
     table = TableMetadata("Students", schema)
     assert table.name == "Students"
     assert table.schema is schema
-    assert {field.name for field in fields(table)} == {"name", "schema"}
+    assert {field.name for field in fields(table)} == {
+        "name", "schema", "constraints",
+    }
+    assert table.constraints == ()
+    assert table.primary_key is None
 
 
 @pytest.mark.parametrize("name", ["", " ", "\t\n"])

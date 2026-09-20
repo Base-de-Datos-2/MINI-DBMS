@@ -1,6 +1,7 @@
 """Handwritten SQL parsing, binding, planning, and streaming execution."""
 
 from .binder import (
+    BoundCreate,
     BoundDelete,
     BoundIndexCondition,
     BoundIndexMutation,
@@ -12,14 +13,18 @@ from .binder import (
     BoundRelation,
     BoundSelect,
     bind_delete,
+    bind_create,
     bind_insert,
     bind_select,
     bind_statement,
 )
 from .environment import QueryEnvironment, RegisteredIndex
+from .ddl import CreatedTable, DdlService
 from .executor import (
     CommandExecutionReport,
     CommandResult,
+    DefinitionExecutionReport,
+    DefinitionResult,
     PreparedQuery,
     QueryExecutionReport,
     QueryResult,
@@ -43,6 +48,7 @@ from .errors import (
 )
 from .parser import parse_sql
 from .planner import (
+    CreatePlanSpec,
     DeletePlanSpec,
     ExternalHashGroupSpec,
     ExternalSortSpec,
@@ -67,6 +73,7 @@ from .planner import (
 )
 
 __all__ = [
+    "BoundCreate",
     "BoundDelete",
     "BoundIndexCondition",
     "BoundIndexMutation",
@@ -78,6 +85,11 @@ __all__ = [
     "BoundRelation",
     "BoundSelect",
     "CommandResult",
+    "CreatedTable",
+    "CreatePlanSpec",
+    "DefinitionExecutionReport",
+    "DefinitionResult",
+    "DdlService",
     "CommandExecutionReport",
     "DeletePlanSpec",
     "ExternalHashGroupSpec",
@@ -115,6 +127,7 @@ __all__ = [
     "TableScanSpec",
     "StatementKind",
     "bind_delete",
+    "bind_create",
     "bind_insert",
     "bind_select",
     "bind_statement",

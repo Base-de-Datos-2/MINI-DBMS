@@ -99,6 +99,17 @@ class QueryEnvironment:
             )
         return storage
 
+    def unregister_storage(self, table_name: str) -> Storage:
+        """Remove and return one borrowed storage association without closing it."""
+
+        table = self._catalog.get_table(table_name)
+        try:
+            return self._storages.pop(table.name)
+        except KeyError as error:
+            raise InvalidReferenceError(
+                f"No runtime storage is registered for table {table.name!r}"
+            ) from error
+
     def register_index(self, index_name: str, index: Index) -> None:
         """Pair an exact Catalog index definition with a borrowed adapter."""
 
@@ -215,6 +226,17 @@ class QueryEnvironment:
         self.storage_for(metadata.table_name)
         self._validate_index_identity(metadata, index)
         return index
+
+    def unregister_index(self, index_name: str) -> Index:
+        """Remove and return one borrowed index association without closing it."""
+
+        metadata = self._catalog.get_index(index_name)
+        try:
+            return self._indexes.pop(metadata.name)
+        except KeyError as error:
+            raise InvalidReferenceError(
+                f"No runtime index is registered for {metadata.name!r}"
+            ) from error
 
     def registered_indexes_for(self, table_name: str) -> tuple[RegisteredIndex, ...]:
         """Return available table indexes in deterministic Catalog order."""
