@@ -1,6 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **3.7** — records the formal Stage 7 closure, the emergency Stage 9 API/GUI, and the Stage 8 handoff.
+> Context version: **3.8** — preserves the formal Stage 7 baseline closure and
+> records the Task 7.31 contract for the pending CREATE/EXPLAIN extension.
 
 ## Project identity
 
@@ -1764,6 +1765,59 @@ The project does not require a complete SQL standard implementation.
 
 Do not add advanced SQL syntax at the cost of required features.
 
+### Pending Stage 7 extension contract
+
+Tasks 7.1–7.30 remain the formally closed SQL baseline. On 2026-09-19 Task
+7.31 froze a team-approved extension; Tasks 7.32–7.40 are still pending and
+must not be described as implemented.
+
+The extension adds one-statement `CREATE TABLE` for `INT`/`INTEGER`,
+`VARCHAR(n)`, and one optional inline single-column primary key, plus
+`EXPLAIN SELECT` and `EXPLAIN ANALYZE SELECT`. It does not add batch execution,
+other DDL, nullable SQL, transactions, locking, or crash-atomic multi-file DDL.
+
+The stable design is:
+
+- an engine-level database owner, below the API, owns the database directory,
+  persistent manifest, live Catalog/environment, and permanent handles;
+- Catalog remains pure in-memory metadata and `QueryEnvironment` continues to
+  borrow runtime objects;
+- manifest-backed databases use canonical UTF-8
+  `database.catalog.json` with magic `MINIDB_CATALOG`, version 1, exact fields,
+  atomic same-directory replacement, and cross-checks against file headers;
+- SQL logical identifiers never become paths; table/index files use opaque
+  UUID4 identities (`t_<uuid32>.heap`, `i_<uuid32>.bpt`) under the database
+  root;
+- SQL-created tables use Heap storage, and a primary key uses the existing
+  unique unclustered B+ route with reserved logical name
+  `__pk__<exact-table-name>`;
+- Catalog names remain exact and case-sensitive while keywords remain
+  case-insensitive;
+- CREATE accepts only the declared SQL types above. Existing programmatic
+  schemas may retain FLOAT, BOOLEAN, and unrestricted VARCHAR;
+- `VARCHAR(n)` accepts 1–4075 Unicode code points. Strict UTF-8, the complete
+  4,079-byte record limit, and the B+ 255-byte VARCHAR-key limit are separate
+  pre-write checks;
+- logical VARCHAR bounds and primary-key constraints extend immutable
+  `TableMetadata`; physical `Column`/`Schema`, organization metadata v1, record
+  pages, and index signatures retain their current layout meaning;
+- legacy definition-driven databases continue to open without silent
+  migration. SQL CREATE requires manifest-backed mode;
+- engine result kinds distinguish streaming rows, mutation commands,
+  definitions, and explanations. EXPLAIN has no execution metrics; EXPLAIN
+  ANALYZE consumes exactly one SELECT execution to EOF and keeps no result rows;
+- Stage 9 uses explicit statement allowlists and exhaustive result dispatch.
+  Read-only mode permits SELECT and both SELECT-only explanation forms;
+  write-enabled mode additionally permits INSERT, DELETE, and CREATE. Unknown
+  future kinds fail closed.
+
+The complete ownership, publication, compensation, compatibility, API, and
+affected-module decisions are in
+[`docs/ETAPA_07_TASK_7_31_DECISIONS.md`](docs/ETAPA_07_TASK_7_31_DECISIONS.md).
+Ordinary CREATE failures must compensate without replacing earlier files.
+Transaction rollback, concurrent DDL, WAL, and crash-atomic commit remain
+outside Stage 7.
+
 ---
 
 ## Query planning
@@ -1875,10 +1929,13 @@ competing request with `ENGINE_BUSY` (409), SELECT-only by the parsed
 statement kind unless `--allow-writes` is given, at most `max_rows + 1` rows
 consumed, a 1 MiB response cap, and cursor cleanup before admission is
 released. Values use a lossless per-column encoding. Errors share one envelope
-with a stable code and a request ID. Tables are declared in `api/demo.py` and
-created offline by `scripts/setup_demo.py`, because the SQL subset has no DDL
-and the Catalog lives in memory. The admission guard is temporary server
-control, not Stage 8 concurrency.
+with a stable code and a request ID. At the inspected Task 7.31 baseline,
+tables are declared in `api/demo.py` and created offline by
+`scripts/setup_demo.py`; CREATE/EXPLAIN API integration has not yet been
+implemented. The pending extension moves permanent database ownership below
+the API, and the later Stage 9 integration must use the explicit allowlists
+recorded above. The admission guard is temporary server control, not Stage 8
+concurrency.
 
 The DBMS engine must be callable independently from the web layer.
 
@@ -1993,15 +2050,19 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 ## Current stage
 
-Latest completed stage:
+Latest formally completed baseline:
 
-> **Stage 7 — SQL Parser, Planner, and Executor**
+> **Stage 7 Tasks 7.1–7.30 — SQL Parser, Planner, and Executor**
 
 Overall Part 1 roadmap:
 
 > `PLAN.md`
 
-Next roadmap stage:
+Current implementation block:
+
+> **Stage 7 extension Tasks 7.32–7.40 (Task 7.31 complete)**
+
+Next roadmap stage after the extension:
 
 > **Stage 8 — Transactions and Concurrency (not started)**
 
@@ -2160,16 +2221,19 @@ audited as of 2026-09-11.** All 59 Definition of Done criteria and 2252
 strict-suite tests pass after integrating the reviewed Stage 5; the three
 required external algorithms of `REQUIREMENTS.md` section 5 are demonstrated
 by forced disk spills. Evidence, per-increment reports and the declared
-caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **Stage 7 is
-formally complete and audited as of 2026-09-18.** Tasks 7.1-7.30 and all 63
+caveats are in [the Stage 6 audit](docs/ETAPA_06_AUDIT.md). **The original
+Stage 7 baseline is formally complete and audited as of 2026-09-18.** Tasks
+7.1-7.30 and all 63
 Definition of Done criteria are satisfied under the frozen handwritten-parser
 contract. The exact public acceptance dataset, real external paths, fresh
 restart, cleanup, injected failures, and optimized-versus-baseline results are
 verified. The complete warnings-as-errors suite passes 2,556 tests. Evidence
 and declared limits are in the [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md),
 [SQL engine guide](docs/sql.md), and [Stage 7 audit](docs/ETAPA_07_AUDIT.md).
-Stage 8 is next in the roadmap; no detailed `ETAPA_08.md` plan or Stage 8
-implementation is claimed. Part 1 remains incomplete. The
+Task 7.31 subsequently froze the limited CREATE/EXPLAIN extension on
+2026-09-19; Tasks 7.32–7.40 remain pending. Stage 8 follows that extension in
+the roadmap; no detailed `ETAPA_08.md` plan or Stage 8 implementation is
+claimed. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2185,9 +2249,6 @@ When the project advances to a new stage, update this section and point it to th
 
 The following should not be guessed silently:
 
-- eventual persistence of the complete table/index catalog and its integration
-  timing (organization files now persist their own schema, while `Catalog`
-  remains in memory);
 - exact transaction syntax details beyond the assignment's `BEGIN TRANSACTION` / `END TRANSACTION`;
 - deadlock handling strategy.
 

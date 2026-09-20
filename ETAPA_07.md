@@ -1,6 +1,8 @@
 # ETAPA_07.md
 
-> Documentation baseline: context v1.1 and ETAPA_06.md. This file is an implementation plan; it does not add or override academic requirements.
+> Documentation baseline: REQUIREMENTS.md v1.1, PROJECT_CONTEXT.md v3.8,
+> PLAN.md v3.3, the verified Tasks 7.1–7.30 audit, and ETAPA_06.md. This file
+> is an implementation plan; it does not add or override academic requirements.
 
 ## Stage 7 - SQL Parser, Planner, and Executor
 
@@ -9,10 +11,13 @@
 **Previous stage:** Stage 6 - Relational Operators and External Algorithms  
 **Next stage:** Stage 8 - Transactions and Concurrency  
 **Roadmap:** PLAN.md, Section 12  
-**Revision:** 2026-09-20 — single-statement CREATE TABLE and SQL EXPLAIN extension  
-**Status:** Original Stage 7 baseline reported complete; extension Tasks 7.31–7.40 pending implementation and verification. This revision does not certify new functionality or reset completed baseline work.
+**Revision:** 2026-09-19 — Task 7.31 extension contract frozen
+**Status:** Original Stage 7 baseline complete; Task 7.31 complete; extension Tasks 7.32–7.40 pending implementation and verification. This revision does not certify the pending functionality or reset completed baseline work.
 
-The user reports Stages 1–7 as completed and Stage 8 as not implemented. Preserve the completed baseline and inspect the current code before extending it. The prior repository review used commit `32d07326e0ba441e3a012ca505e622ad09d53bf1`; this document does not assert that it is still the latest revision. Task 7.31 establishes the actual implementation baseline.
+Tasks 7.1–7.30 were closed on 2026-09-18 and Stage 8 remains unimplemented.
+Task 7.31 inspected commit `87f442a` and froze the extension decisions in
+`docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Preserve the completed baseline and
+describe Tasks 7.32–7.40 as planned until their implementation is verified.
 
 ### Adopted team decision and revision scope
 
@@ -141,7 +146,13 @@ Manual parsing is the adopted team decision. The specific parsing technique, AST
 - prepared-plan caching across schema changes;
 - final experimental campaigns and reports.
 
-Existing fixtures may still use Catalog/storage setup APIs. The new acceptance scenario must create `alumnos` through SQL, without a predeclared Python schema. Physical storage creation remains delegated to existing implementations. Stage 7 owns this extension even when it changes components first created in Stages 1–6.
+Existing fixtures may still use Catalog/storage setup APIs. The new acceptance
+scenario must use a manifest-backed engine database and create `alumnos`
+through SQL, without a predeclared Python schema. Physical storage creation
+remains delegated to existing implementations. Engine-level acceptance is
+required; API/editor acceptance follows the separately reviewed Stage 9
+integration. Stage 7 owns this extension even when it changes components first
+created in Stages 1–6.
 
 Unsupported transaction statements must fail clearly; do not accept them as no-ops and imply protection exists.
 
@@ -193,13 +204,27 @@ data_type         = "INT" | "INTEGER" | "VARCHAR", "(", positive_integer, ")" ;
 explain           = "EXPLAIN", [ "ANALYZE" ], select ;
 ~~~
 
-Keywords are case-insensitive. Existing SELECT/INSERT/DELETE productions remain in effect. This EBNF is documentation, not a parser-generator input. Existing additional types may remain supported where already implemented consistently.
+Keywords are case-insensitive. Existing SELECT/INSERT/DELETE productions remain
+in effect. This EBNF is documentation, not a parser-generator input. CREATE
+accepts exactly the three spellings above; legacy programmatic schemas may
+continue using existing FLOAT, BOOLEAN, and unrestricted VARCHAR metadata.
 
 - Map INT and INTEGER to the same integer type and retain its existing range checks.
-- VARCHAR(n) counts Unicode code points in the decoded string; do not use UTF-8 byte length for the declared character limit. Independently enforce existing record/page byte capacity. Never silently truncate.
+- VARCHAR(n) requires `1 <= n <= 4075`, where 4075 is the current
+  `MAX_RECORD_SIZE` minus the four-byte VARCHAR prefix. It counts Unicode code
+  points in the decoded string; do not use UTF-8 byte length for the declared
+  character limit. Independently enforce strict UTF-8 and the complete
+  record/page byte capacity. Never normalize or silently truncate.
 - Preserve the original string value and current equality semantics; do not strip accents or normalize case implicitly.
-- At most one inline PRIMARY KEY is accepted. Enforce uniqueness and non-nullness, persist its definition, and reuse a verified unique index/maintenance route. A primary key does not imply physical clustering or ordered SELECT output.
-- Repeated CREATE of an existing table is an error and cannot truncate existing files. Reject duplicate columns, empty definitions, unsupported types/constraints, and nonpositive lengths before creating files.
+- At most one inline PRIMARY KEY is accepted on INTEGER or VARCHAR. Enforce
+  uniqueness and non-nullness, persist its definition, and reuse a unique
+  unclustered B+ index. A VARCHAR primary-key value also obeys the existing
+  255-byte UTF-8 B+ key limit. A primary key does not imply physical clustering
+  or ordered SELECT output.
+- Repeated CREATE of an exact case-sensitive table name is an error and cannot
+  truncate existing files. Reject duplicate exact column names, the reserved
+  `__pk__<table>` index-name collision, empty definitions, unsupported
+  types/constraints, and lengths outside 1–4075 before creating files.
 - The current engine has no SQL NULL representation. This extension keeps that restricted dialect: all inserted fields need concrete values, including non-key columns. Document that non-key columns do not yet acquire standard SQL nullable behavior. Do not add a NULL bitmap or three-valued logic merely to execute this scenario. A later nullable-SQL extension requires a separate end-to-end design.
 - EXPLAIN and EXPLAIN ANALYZE wrap SELECT only. No ANALYZE command, EXPLAIN options, JSON SQL syntax, or PostgreSQL output compatibility is required.
 - An empty result is a successful SELECT with its output schema. Missing `id = 999` is not an exception.
@@ -1016,6 +1041,9 @@ INSERT/DELETE and CREATE TABLE execute synchronously once and return completed c
 
 ### Task 7.31 - Inspect the completed baseline and freeze the extension contract
 
+**Status:** Complete on 2026-09-19. Decisions and inspected evidence are in
+`docs/ETAPA_07_TASK_7_31_DECISIONS.md`.
+
 **Dependencies:** Completed baseline; current repository documentation and tests.
 
 **Objective:** Extend the existing engine without repeating Stages 1–7 or shrinking accepted SQL.
@@ -1033,6 +1061,21 @@ INSERT/DELETE and CREATE TABLE execute synchronously once and return completed c
 **Tests/evidence:** Reproduce the single-statement SELECT/comment baseline, record existing test results, and map each extension to its affected modules.
 
 **Acceptance:** A concrete compatibility/design note identifies every affected Stage 1–7 component. No unverified historical test count is presented as current evidence.
+
+**Frozen outcome:** The engine-level database owner uses a versioned canonical
+manifest, opaque UUID-backed physical file identities, Heap storage by default,
+and an existing unique unclustered B+ primary-key index. Logical names remain
+exact and case-sensitive. `VARCHAR(n)` accepts 1–4075 Unicode code points while
+physical UTF-8 row limits and the 255-byte VARCHAR B+ key limit remain separate.
+Legacy definition-driven databases keep an explicit non-migrating open path.
+Engine and Stage 9 statement/result dispatch use explicit allowlists and fail
+closed for future enum members. See the decision note for ownership,
+publication, compensation, result, and module-boundary details.
+
+**Verification:** The post-change warnings-as-errors gates passed 97 API tests
+and 97 lexer/parser/architecture tests. The decision note records the exact
+commands and the corrected pre-existing API test fragility. The historical
+2,556-test baseline count remains attributed only to its 2026-09-18 audit.
 
 ### Task 7.32 - Extend the handwritten lexer, AST, and statement parser
 
@@ -1058,12 +1101,22 @@ INSERT/DELETE and CREATE TABLE execute synchronously once and return completed c
 
 **Actions:**
 
-- Represent declared VARCHAR length and the optional single-column primary key in immutable metadata. Preserve column order, existing imports/construction patterns, and old unrestricted VARCHAR definitions where compatibility requires them.
+- Represent declared VARCHAR length and the optional single-column primary key
+  in backward-compatible immutable `TableMetadata` constraints. Keep physical
+  `Column`/`Schema` layout identity unchanged, preserve column order and
+  existing construction patterns, and retain old unrestricted VARCHAR
+  definitions.
 - Preserve current identifier normalization and reject duplicate table/column identities according to it. Require at least one column and at most one primary key for the supported DDL subset.
-- Map INT/INTEGER consistently. Validate positive bounded integer length parameters and reject unsupported constraints instead of ignoring them.
+- Map INT/INTEGER consistently. Validate integer length parameters in the
+  frozen 1–4075 range and reject unsupported constraints instead of ignoring
+  them.
 - Define one shared value/constraint validator used by SQL insertion and normal database write services. Count VARCHAR code points; distinguish declaration length, integer range, and physical record-size errors.
 - Enforce the documented no-NULL policy and full-row insertion contract. Optional INSERT column lists may reorder complete values but cannot invent omitted NULL/default values.
-- Audit schema equality, signatures, codecs, organization headers, and index factories affected by new metadata. Persist extension metadata through a versioned representation; do not reinterpret an old format silently.
+- Audit schema equality, signatures, codecs, organization headers, and index
+  factories affected by new metadata. Keep the current physical schemas and
+  `OrganizationMetadata` v1 unchanged; persist logical constraints in the
+  version-1 database manifest and cross-check its names/types against physical
+  headers. Do not reinterpret an old format silently.
 - Do not assume that extending Column automatically requires rewriting record pages. Keep byte layouts unchanged where compatible; document and test any necessary metadata-version migration separately.
 
 **Tests:** Compatible old schema construction; ordered metadata round trips; duplicate columns/keys; INT aliases; VARCHAR lengths 0, negative, fractional, oversized, 100, and 101-character values; accented/multibyte strings; NULL/None rejection.
@@ -1076,15 +1129,24 @@ INSERT/DELETE and CREATE TABLE execute synchronously once and return completed c
 
 **Actions:**
 
-- Add a resolved CREATE command and engine-owned DDL/database service callable from the ordinary SQL entry point. The parser/binder/prepare path remains free of creation side effects.
+- Add a resolved CREATE command and engine-owned DDL/database service callable
+  from the ordinary SQL entry point through an injected narrow protocol. The
+  parser/binder/prepare path remains free of creation side effects, and the
+  query layer does not import the API.
 - Validate predictable errors before mutation. Create the selected base organization and optional unique primary-key index with existing code. No data rows are inserted by CREATE.
-- Register the table/index only after successful initialization. Persist enough information to discover and reopen them without a hard-coded Python TableDefinition or caller-supplied schema.
+- Register the table/index only after successful initialization. Persist the
+  frozen `MINIDB_CATALOG` version-1 manifest so the database can reopen without
+  a hard-coded Python `TableDefinition` or caller-supplied schema.
 - Persist logical names, ordered types and VARCHAR bounds, primary-key definition, organization, relative file identities, index metadata, validity markers, and format version. Reuse metadata already stored by each structure rather than creating inconsistent parallel definitions.
 - Distinguish persistent database discovery metadata from the in-memory Catalog and existing per-file schema headers. On reopen, reconstruct metadata and handle ownership and cross-check referenced files before exposing the table.
-- Keep database files under the configured database directory. Derive managed file identities; do not treat SQL identifiers as arbitrary file paths.
+- Keep database files under the configured database directory. Use the frozen
+  `t_<uuid32>.heap` and `i_<uuid32>.bpt` managed identities with containment
+  validation; never treat SQL identifiers as file paths.
 - Publish success only after the documented clean-reopen persistence boundary. On ordinary exceptions, close owned handles and remove only files created by this failed operation or leave a documented unavailable state. Preserve pre-existing files and earlier tables.
 - Repeated CREATE of an existing table must fail without replacement. Concurrent sessions, WAL, transaction rollback, and crash atomicity remain outside this stage.
-- Preserve existing programmatically defined databases. Record compatibility/import behavior instead of silently recreating them.
+- Preserve existing programmatically defined databases through the explicit
+  legacy definition-driven open mode. Do not infer or migrate a legacy
+  directory silently; SQL CREATE requires manifest-backed mode.
 
 **Tests:** Empty table immediately queryable; repeated CREATE retains original rows/files; injected allocation/index/registry failures; repeated create failure followed by valid CREATE; missing/malformed registry and missing index; fresh-process reopen without fixture definitions; old database compatibility.
 
@@ -1149,13 +1211,18 @@ INSERT/DELETE and CREATE TABLE execute synchronously once and return completed c
 
 **Actions:**
 
-- Preserve the existing Python prepare/execute APIs and SELECT/INSERT/DELETE results. Add compatible tagged command/plan result variants or their existing equivalents.
+- Preserve the existing Python prepare/execute APIs and SELECT/INSERT/DELETE
+  results. Add explicit definition and explanation result variants and
+  `CREATE`, `EXPLAIN`, and `EXPLAIN_ANALYZE` statement identities.
 - CREATE returns command identity, created table identity, and completion state; do not invent an affected-row count of 1 for a table definition. EXPLAIN returns its plan; ANALYZE returns plan plus measured statistics and execution/completion flags.
 - Keep SELECT row schema separate from the explanation envelope. Decide and document whether a later adapter renders structured plans as text or a table.
 - Preserve the single-active-result rule: callers drain or close a SELECT result before submitting the next statement. A CREATE, EXPLAIN, or completed ANALYZE must release owned resources before the next call.
 - Validate the full input before executing any command. A request containing CREATE followed by SELECT is rejected, with no table created. Apply the same rule to INSERT followed by another statement.
 - Document engine error categories for unsupported SQL, invalid definitions, duplicate table/key, invalid values, storage failures, and incomplete analysis. Preserve useful source spans.
-- Publish an adapter-facing contract describing one input and one result/error per editor submission. Do not implement API endpoints or frontend rendering within these Stage 1–7 tasks.
+- Publish an adapter-facing contract describing one input and one result/error
+  per editor submission. Freeze explicit Stage 9 allowlists and exhaustive
+  result dispatch, but do not implement frontend rendering within these Stage
+  1–7 tasks.
 
 **Tests:** Separate CREATE then SELECT calls against the same database; early-close ownership; explanation variants; double-statement rejection with unchanged state; valid call after each error; existing clients remain compatible.
 
@@ -1562,92 +1629,94 @@ Do not assert a speedup because an index was selected. Controlled performance co
 
 ## 14. Definition of Done
 
-The original baseline completion remains historical evidence. The expanded Stage 7 is complete only when the baseline still passes and Tasks 7.31–7.40 plus the extension checklist below are implemented and verified. Unchecked boxes in this generated plan are not a claim that verified baseline work has been lost.
+The original 63-item baseline below is preserved verbatim as completed
+historical evidence. The extension is complete only when that baseline still
+passes and the separate Tasks 7.31–7.40 checklist is implemented and verified.
 
 ### Contracts and parsing
 
-- [ ] Actual Stage 6 prerequisites and baseline tests were inspected.
-- [ ] Supported SQL syntax and optional features are explicitly documented.
-- [ ] The adopted handwritten lexer/parser is implemented without a parser generator.
-- [ ] The documented grammar maps to parsing functions and the accepted feature matrix.
-- [ ] Tokens retain original lexemes, meaningful decoded values, source spans, and EOF.
-- [ ] Shared parser utilities serve SELECT, INSERT, DELETE, CREATE TABLE, and EXPLAIN wrappers while retaining one-statement EOF validation.
-- [ ] The parser constructs parser-independent AST nodes directly.
-- [ ] No parser/token-stream state leaks into binder/planner/executor interfaces.
-- [ ] Lexer/parser loops make progress; input and nesting limits fail predictably.
-- [ ] Parsing after a failed invocation uses fresh state.
-- [ ] Source locations support useful diagnostics.
-- [ ] Keywords, identifiers, strings, numeric literals, and punctuation follow the adopted policy.
-- [ ] Boolean precedence and parentheses are tested.
-- [ ] Every required statement family parses.
-- [ ] Trailing garbage, extra statements, and unsupported syntax are rejected.
-- [ ] Parsing and plan inspection do not mutate storage.
+- [x] Actual Stage 6 prerequisites and baseline tests were inspected.
+- [x] Supported SQL syntax and optional features are explicitly documented.
+- [x] The adopted handwritten lexer/parser is implemented without a parser generator.
+- [x] The documented grammar maps to parsing functions and the accepted feature matrix.
+- [x] Tokens retain original lexemes, meaningful decoded values, source spans, and EOF.
+- [x] Shared parser utilities serve SELECT, INSERT, and DELETE.
+- [x] The parser constructs parser-independent AST nodes directly.
+- [x] No parser/token-stream state leaks into binder/planner/executor interfaces.
+- [x] Lexer/parser loops make progress; input and nesting limits fail predictably.
+- [x] Parsing after a failed invocation uses fresh state.
+- [x] Source locations support useful diagnostics.
+- [x] Keywords, identifiers, strings, numeric literals, and punctuation follow the adopted policy.
+- [x] Boolean precedence and parentheses are tested.
+- [x] Every required statement family parses.
+- [x] Trailing garbage, extra statements, and unsupported syntax are rejected.
+- [x] Parsing and plan inspection do not mutate storage.
 
 ### Semantic analysis
 
-- [ ] Tables and columns resolve through Catalog.
-- [ ] Ambiguous/unknown names and duplicate relation aliases fail clearly.
-- [ ] Types and literals follow Stage 6 semantics.
-- [ ] SELECT output schema and aliases are correct.
-- [ ] Hidden ORDER BY keys survive until sorting and disappear from final output.
-- [ ] Grouped projections and aggregate signatures are validated.
-- [ ] Join references and key types are correct.
-- [ ] INSERT/DELETE validation happens before predictable invalid writes.
-- [ ] NULL behavior, if supported, is consistent across predicates, indexes, grouping, and joins.
+- [x] Tables and columns resolve through Catalog.
+- [x] Ambiguous/unknown names and duplicate relation aliases fail clearly.
+- [x] Types and literals follow Stage 6 semantics.
+- [x] SELECT output schema and aliases are correct.
+- [x] Hidden ORDER BY keys survive until sorting and disappear from final output.
+- [x] Grouped projections and aggregate signatures are validated.
+- [x] Join references and key types are correct.
+- [x] INSERT/DELETE validation happens before predictable invalid writes.
+- [x] NULL behavior, if supported, is consistent across predicates, indexes, grouping, and joins.
 
 ### Physical planning
 
-- [ ] A table-scan baseline can execute the supported SELECT subset.
-- [ ] Eligible equality queries use compatible hash or B+ indexes.
-- [ ] Eligible ranges use B+ with correct endpoints.
-- [ ] OR/NOT and residual predicates preserve the complete Boolean meaning.
-- [ ] Index availability, key types, and coverage are checked.
-- [ ] ORDER BY demonstrably reaches ExternalSort.
-- [ ] GROUP BY reaches the Stage 6 required optimized route.
-- [ ] JOIN reaches the Stage 6 required optimized route.
-- [ ] Plans reference real implemented operators and use fresh execution state.
-- [ ] Predicate/projection rewrites have equivalence tests.
+- [x] A table-scan baseline can execute the supported SELECT subset.
+- [x] Eligible equality queries use compatible hash or B+ indexes.
+- [x] Eligible ranges use B+ with correct endpoints.
+- [x] OR/NOT and residual predicates preserve the complete Boolean meaning.
+- [x] Index availability, key types, and coverage are checked.
+- [x] ORDER BY demonstrably reaches ExternalSort.
+- [x] GROUP BY reaches the Stage 6 required optimized route.
+- [x] JOIN reaches the Stage 6 required optimized route.
+- [x] Plans reference real implemented operators and use fresh execution state.
+- [x] Predicate/projection rewrites have equivalence tests.
 
 ### Execution and results
 
-- [ ] Public Python prepare/execute interfaces work independently of HTTP/UI.
-- [ ] SELECT results are streamed under the Stage 6 resource contract.
-- [ ] Output rows preserve required duplicate multiplicity.
-- [ ] Empty and combined-clause queries are correct.
-- [ ] Full consumption, early stop, and exceptions close owned resources.
-- [ ] Partial result delivery and final completion are distinguished.
-- [ ] Repeated execution cannot reuse corrupt live state or repeat a mutation accidentally.
-- [ ] Planned descriptions and measured execution details are distinguished.
+- [x] Public Python prepare/execute interfaces work independently of HTTP/UI.
+- [x] SELECT results are streamed under the Stage 6 resource contract.
+- [x] Output rows preserve required duplicate multiplicity.
+- [x] Empty and combined-clause queries are correct.
+- [x] Full consumption, early stop, and exceptions close owned resources.
+- [x] Partial result delivery and final completion are distinguished.
+- [x] Repeated execution cannot reuse corrupt live state or repeat a mutation accidentally.
+- [x] Planned descriptions and measured execution details are distinguished.
 
 ### Mutations
 
-- [ ] INSERT updates the base storage and every affected index.
-- [ ] DELETE discovers and applies a stable target set.
-- [ ] Large DELETE target sets remain within the memory contract.
-- [ ] RID movement/reorganization cannot delete the wrong row or stale remaining targets.
-- [ ] Ordinary validation failures leave permanent state unchanged.
-- [ ] Mid-operation failures follow a tested compensation/repair/unavailable-state policy.
-- [ ] Failed statements do not return success or invented affected counts.
-- [ ] Incomplete indexes cannot be selected silently after a failure/reopen.
-- [ ] Successful writes persist according to the adopted flush boundary.
-- [ ] Transaction isolation and crash atomicity are not falsely claimed.
+- [x] INSERT updates the base storage and every affected index.
+- [x] DELETE discovers and applies a stable target set.
+- [x] Large DELETE target sets remain within the memory contract.
+- [x] RID movement/reorganization cannot delete the wrong row or stale remaining targets.
+- [x] Ordinary validation failures leave permanent state unchanged.
+- [x] Mid-operation failures follow a tested compensation/repair/unavailable-state policy.
+- [x] Failed statements do not return success or invented affected counts.
+- [x] Incomplete indexes cannot be selected silently after a failure/reopen.
+- [x] Successful writes persist according to the adopted flush boundary.
+- [x] Transaction isolation and crash atomicity are not falsely claimed.
 
 ### Verification and handoff
 
-- [ ] End-to-end SQL tests cover every required family.
-- [ ] SQL output agrees with manual and unoptimized physical baselines.
-- [ ] Tiny-budget SQL tests demonstrate required external behavior.
-- [ ] Restart tests create fresh storage/index managers and operator objects.
-- [ ] Read-only SQL preserves permanent data.
-- [ ] Invalid syntax, semantic errors, corruption, and resource failures are tested.
-- [ ] The configured Stage 1-7 regression suite passes.
-- [ ] Descriptors and metrics report the operators actually executed.
-- [ ] Documentation reflects implemented capabilities and known limits.
-- [ ] Stage 8 integration points are documented without implementing its features.
+- [x] End-to-end SQL tests cover every required family.
+- [x] SQL output agrees with manual and unoptimized physical baselines.
+- [x] Tiny-budget SQL tests demonstrate required external behavior.
+- [x] Restart tests create fresh storage/index managers and operator objects.
+- [x] Read-only SQL preserves permanent data.
+- [x] Invalid syntax, semantic errors, corruption, and resource failures are tested.
+- [x] The configured Stage 1-7 regression suite passes.
+- [x] Descriptors and metrics report the operators actually executed.
+- [x] Documentation reflects implemented capabilities and known limits.
+- [x] Stage 8 integration points are documented without implementing its features.
 
 ### Required extension completion checklist (Tasks 7.31–7.40)
 
-- [ ] Current baseline and adopted capabilities are recorded without resetting verified progress.
+- [x] Current baseline and adopted capabilities are recorded without resetting verified progress.
 - [ ] Manual parsing supports CREATE TABLE with INT/INTEGER, VARCHAR(n), and one inline PRIMARY KEY.
 - [ ] The exact accented string and required line comments parse without altering their meaning.
 - [ ] Exactly one statement is accepted; second statements are rejected before any execution.

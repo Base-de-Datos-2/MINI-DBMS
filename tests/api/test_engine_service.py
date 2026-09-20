@@ -5,7 +5,7 @@ import threading
 import pytest
 
 from engine.maintenance import MaintenanceError
-from engine.query import SqlEngine
+from engine.query import SqlEngine, StatementKind
 from api import engine_service
 from api.database import Database
 from api.engine_service import EngineService, ServiceError
@@ -75,6 +75,20 @@ def test_the_service_requires_an_open_database(prepared_directory):
 
 
 # --- Task 9.5: exclusive admission and statement policy --------------------
+
+def test_statement_allowlists_fail_closed_for_future_engine_kinds(
+    service, writable_directory
+):
+    assert service._allowed() == frozenset({StatementKind.SELECT})
+
+    writable = open_service(writable_directory, allow_writes=True)
+    try:
+        assert writable._allowed() == frozenset(
+            {StatementKind.SELECT, StatementKind.INSERT, StatementKind.DELETE}
+        )
+    finally:
+        writable.close()
+
 
 def test_a_competing_operation_is_refused_immediately(service):
     admitted = threading.Event()
@@ -250,9 +264,20 @@ def test_a_row_that_cannot_fit_is_an_error_not_an_empty_success(
     service, monkeypatch
 ):
     sql = "SELECT name FROM students"
-    metadata_only = engine_service.encoded_size(run(service, sql, max_rows=0))
-    # Room for the metadata but not for a single encoded row.
-    monkeypatch.setattr(engine_service, "MAX_RESPONSE_BYTES", metadata_only + 3)
+
+    # Runtime timings make two real response envelopes differ by a few encoded
+    # bytes.  Model only this boundary here: metadata fits at 100 bytes, while
+    # the same envelope containing at least one row needs 110 bytes.  Other
+    # tests exercise the real JSON-size implementation.
+    real_encoded_size = engine_service.encoded_size
+
+    def boundary_size(value):
+        if isinstance(value, dict) and value.get("kind") == "rows":
+            return 100 + (10 if value["rows"] else 0)
+        return real_encoded_size(value)
+
+    monkeypatch.setattr(engine_service, "encoded_size", boundary_size)
+    monkeypatch.setattr(engine_service, "MAX_RESPONSE_BYTES", 105)
 
     error = fail(service, sql)
 
