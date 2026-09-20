@@ -1,6 +1,8 @@
 # AGENTS.md
 
-> Context version: **3.7** — records the formal Stage 7 closure, the emergency Stage 9 demo, and the Stage 8 handoff boundary.
+> Context version: **3.8** — preserves the formal Stage 7 baseline closure,
+> records the active CREATE/EXPLAIN extension contract, and retains the
+> emergency Stage 9 and Stage 8 boundaries.
 
 ## Purpose
 
@@ -313,9 +315,13 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 > `PLAN.md`
 
-Latest completed stage:
+Latest formally completed baseline:
 
-> **Stage 7 — SQL Parser, Planner, and Executor**
+> **Stage 7 Tasks 7.1–7.30 — SQL Parser, Planner, and Executor**
+
+Current implementation block:
+
+> **Stage 7 extension Tasks 7.32–7.40; Task 7.31 is complete**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -353,7 +359,8 @@ scans, filter, projection, `ExternalSort`, `ExternalHashGroup`,
 `PhysicalPlan` runner with truthful descriptors and measured reports. Evidence
 and three declared caveats are recorded in `docs/ETAPA_06_AUDIT.md`. A [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated all tasks and criteria after corrections; 2295 strict tests pass.
-**Stage 7 was formally closed on 2026-09-18.** Tasks 7.1-7.30 and all 63
+**The original Stage 7 baseline was formally closed on 2026-09-18.** Tasks
+7.1-7.30 and all 63
 Definition of Done criteria are satisfied. They establish the inspected
 baseline, frozen SQL contract,
 parser-independent AST/source spans, bounded handwritten lexer/parser,
@@ -373,9 +380,12 @@ storage, and persist an incomplete marker when repair cannot finish. Public
 acceptance, differential baselines, fresh restart, forced external paths,
 cleanup, and injected failures are verified. The complete warnings-as-errors
 suite passes 2,556 tests; evidence and limits are recorded in
-`docs/ETAPA_07_AUDIT.md`. Stage 8 is next in the roadmap, but no detailed
-`ETAPA_08.md` plan exists yet. Do not implement a buffer pool, WAL, concurrency,
-or other Stage 8 work without a later explicit request and stage plan.
+`docs/ETAPA_07_AUDIT.md`. Task 7.31 froze the approved CREATE/EXPLAIN extension
+on 2026-09-19; Tasks 7.32–7.40 remain pending. Its decisions are recorded in
+`docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Stage 8 follows this extension in the
+roadmap, but no detailed `ETAPA_08.md` plan exists yet. Do not implement a
+buffer pool, WAL, concurrency, or other Stage 8 work without a later explicit
+request and stage plan.
 
 **Stage 9 emergency demo ready (2026-09-18)** under the authorized sequencing
 exception in `ETAPA_09.md`: `api/` (FastAPI) wraps `SqlEngine` behind one

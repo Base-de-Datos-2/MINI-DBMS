@@ -9,6 +9,13 @@ restart, external-path, cleanup, differential, and full regression suites. See
 the practical [SQL engine guide](sql.md) and the
 [Stage 7 closure audit](ETAPA_07_AUDIT.md).
 
+**Pending extension:** Task 7.31 froze limited `CREATE TABLE`, `EXPLAIN
+SELECT`, and `EXPLAIN ANALYZE SELECT` contracts on 2026-09-19. The grammar and
+parser mapping below remain the verified Tasks 7.1–7.30 implementation until
+Tasks 7.32–7.40 update them. See
+[the Task 7.31 decision note](ETAPA_07_TASK_7_31_DECISIONS.md). Multiple
+statements and automatic script splitting remain unsupported.
+
 ## Source and token conventions
 
 - A source span uses a zero-based inclusive `start` offset and exclusive `end`

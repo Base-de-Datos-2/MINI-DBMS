@@ -66,6 +66,16 @@ CLOSED = "closed"
 #: done by the web framework and the browser round trip.
 ELAPSED_SCOPE = "backend: prepare through cursor cleanup, including preview conversion"
 
+# Keep authorization closed over the statement families this adapter actually
+# knows how to serialize.  Building this set from the enum would silently
+# authorize future engine statements before the API has an explicit policy and
+# result-dispatch branch for them.
+_READ_ONLY_STATEMENTS = frozenset({StatementKind.SELECT})
+_WRITE_STATEMENTS = frozenset(
+    {StatementKind.SELECT, StatementKind.INSERT, StatementKind.DELETE}
+)
+_COMMAND_STATEMENTS = frozenset({StatementKind.INSERT, StatementKind.DELETE})
+
 
 class ServiceError(Exception):
     """A failure with a stable code, safe to show to the user as-is."""
@@ -131,8 +141,8 @@ class EngineService:
 
     def _allowed(self) -> frozenset[StatementKind]:
         if self.mode == SERIALIZED_WRITES:
-            return frozenset(StatementKind)
-        return frozenset({StatementKind.SELECT})
+            return _WRITE_STATEMENTS
+        return _READ_ONLY_STATEMENTS
 
     def health(self) -> dict[str, Any]:
         """Return cached readiness without touching storage or the engine."""
@@ -225,8 +235,15 @@ class EngineService:
             try:
                 if prepared.kind is StatementKind.SELECT:
                     body = self._run_select(prepared, request, plan)
-                else:
+                elif prepared.kind in _COMMAND_STATEMENTS:
                     body = self._run_command(prepared, plan)
+                else:  # defensive if policy/dispatch drift in a later stage
+                    raise ServiceError(
+                        "INTERNAL_ERROR",
+                        f"No existe un adaptador de resultado para {statement}.",
+                        statement=statement,
+                        execution_plan=plan,
+                    )
             finally:
                 self._verify_engine_idle(engine)
             body["statement"] = statement

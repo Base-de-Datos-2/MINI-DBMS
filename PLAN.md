@@ -1,6 +1,8 @@
 # PLAN.md
 
-> Context version: **3.2** — records the formal Stage 7 closure, the authorized emergency Stage 9 demo, and Stage 8 as the next roadmap stage.
+> Context version: **3.3** — preserves the formal Stage 7 baseline closure,
+> records the active CREATE/EXPLAIN extension, and keeps Stage 8 as the next
+> roadmap stage after that extension.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -879,6 +881,28 @@ JOIN syntax/coverage must be sufficient to demonstrate the required join impleme
 - indexes can be chosen when appropriate;
 - the reported execution plan matches actual execution.
 
+## 12.5 Authorized Stage 7 extension
+
+Tasks 7.1–7.30 and their 63 criteria remain closed historical baseline work.
+The team subsequently authorized Tasks 7.31–7.40 in `ETAPA_07.md` for:
+
+- one-statement `CREATE TABLE` with `INT`/`INTEGER`, `VARCHAR(n)`, and one
+  optional inline single-column primary key;
+- a persistent engine-owned database manifest and clean-close discovery;
+- shared VARCHAR and primary-key constraint enforcement;
+- `EXPLAIN SELECT` without execution;
+- `EXPLAIN ANALYZE SELECT` with one complete measured execution;
+- explicit definition/explanation result contracts and safe Stage 9 handoff.
+
+Task 7.31 completed the architecture freeze on 2026-09-19. Tasks 7.32–7.40
+remain pending and are the current implementation block. These features are
+team additions, not new academic requirements. Their stable ownership,
+persistence, naming, limit, compatibility, and API decisions are recorded in
+`docs/ETAPA_07_TASK_7_31_DECISIONS.md` and `PROJECT_CONTEXT.md`.
+
+Stage 8 follows this extension. The extension does not add transactions,
+locking, WAL, concurrent DDL, or crash-atomic multi-file commits.
+
 ---
 
 # 13. Stage 8 — Transactions and Concurrency
@@ -1318,7 +1342,8 @@ Part 1 is complete only when:
 [x] Stage 4 complete
 [x] Stage 5 complete
 [x] Stage 6 complete
-[x] Stage 7 complete (closed 2026-09-18; 63 criteria; 2556 strict tests)
+[x] Stage 7 baseline complete (Tasks 7.1–7.30 closed 2026-09-18; 63 criteria; 2556 strict tests)
+[ ] Stage 7 CREATE/EXPLAIN extension complete (Task 7.31 complete; Tasks 7.32–7.40 pending)
 [ ] Stage 8 complete
 [ ] Stage 9 complete (emergency demo ready 2026-09-18; transaction integration pending until after Stage 8)
 [ ] Stage 10 complete
@@ -1330,11 +1355,15 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 # 19. Current status
 
-Latest completed stage:
+Latest formally completed baseline:
 
-> **Stage 7 — SQL Parser, Planner, and Executor**
+> **Stage 7 Tasks 7.1–7.30 — SQL Parser, Planner, and Executor**
 
-Next roadmap stage:
+Current implementation block:
+
+> **Stage 7 extension Tasks 7.32–7.40 (Task 7.31 complete)**
+
+Next roadmap stage after the extension:
 
 > **Stage 8 — Transactions and Concurrency (not started)**
 
@@ -1410,8 +1439,8 @@ demonstrated by forced disk spills; the optional index-assisted routes of task
 caveats: [Stage 6 closure audit](docs/ETAPA_06_AUDIT.md). The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria with 2295 strict tests passing.
-**Stage 7 was formally closed on 2026-09-18 under the handwritten-parser
-revision of `ETAPA_07.md`.** Tasks 7.1-7.30 and all 63 Definition of Done
+**The original Stage 7 baseline was formally closed on 2026-09-18 under the
+handwritten-parser revision of `ETAPA_07.md`.** Tasks 7.1-7.30 and all 63
 criteria are satisfied. The engine provides bounded located lexing and manual
 recursive-descent parsing, Catalog-backed binding, immutable reusable physical
 specifications, safe TableScan/B+/hash access, real Stage 6 external
@@ -1422,8 +1451,10 @@ restart, forced spills/fallbacks, early close, injected resource failure, and
 temporary cleanup are verified. The complete warnings-as-errors suite passes
 2,556 tests. See the [SQL engine guide](docs/sql.md), [Block 8 review](docs/ETAPA_07_REVIEW_7_26_7_30.md), and [closure audit](docs/ETAPA_07_AUDIT.md).
 
-Stage 8 is next in the roadmap. No detailed `ETAPA_08.md` plan is claimed to
-exist, and no transaction, concurrency, locking, WAL, or recovery behavior was
-implemented as part of Stage 7. Part 1 is not complete.
+Task 7.31 froze the team-approved CREATE/EXPLAIN extension on 2026-09-19;
+Tasks 7.32–7.40 remain pending. Stage 8 follows that extension in the roadmap.
+No detailed `ETAPA_08.md` plan is claimed to exist, and no transaction,
+concurrency, locking, WAL, or recovery behavior was implemented as part of
+Stage 7. Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

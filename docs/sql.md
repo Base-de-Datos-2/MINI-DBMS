@@ -1,14 +1,21 @@
 # Stage 7 SQL engine guide
 
+> **Current status (2026-09-19):** this guide documents the verified Stage 7
+> Tasks 7.1–7.30 implementation. Task 7.31 has frozen a limited CREATE/EXPLAIN
+> extension, but Tasks 7.32–7.40 are not implemented yet. See
+> [the Task 7.31 decision note](ETAPA_07_TASK_7_31_DECISIONS.md).
+
 This guide describes the SQL engine implemented by Stage 7. The normative
 grammar, token/span conventions, parser limits, and production-to-function map
 are in [sql-grammar.md](sql-grammar.md).
 
 ## Public setup and execution
 
-Stage 7 does not add SQL DDL. Applications create schemas, table metadata,
-storage managers, and indexes through the existing Python APIs, then register
-their live handles in `QueryEnvironment`.
+The currently executable baseline does not add SQL DDL. Applications create
+schemas, table metadata, storage managers, and indexes through the existing
+Python APIs, then register their live handles in `QueryEnvironment`. The
+pending manifest-backed CREATE route does not become available until Tasks
+7.32–7.40 are implemented and verified.
 
 ```python
 from engine.catalog import Catalog, Column, DataType, Schema, TableMetadata
@@ -174,6 +181,11 @@ safety, WAL recovery, statement rollback, or crash-atomic commits across
 multiple files.
 
 ## Unsupported syntax
+
+The list below describes the currently executable baseline. `CREATE TABLE`,
+`EXPLAIN SELECT`, and `EXPLAIN ANALYZE SELECT` are approved pending work, not
+current capabilities. Multiple statements remain unsupported after the
+extension.
 
 The following remain outside the Stage 7 subset:
 
