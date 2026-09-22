@@ -1,8 +1,8 @@
 # AGENTS.md
 
-> Context version: **4.2** — preserves the formal Stage 7 baseline closure,
-> records the verified closure of the CREATE/EXPLAIN extension through Task
-> 7.40, and retains the emergency Stage 9 and Stage 8 boundaries.
+> Context version: **4.4** — preserves the formal Stage 7 baseline closure,
+> records the verified CREATE/EXPLAIN extension through Task 7.40, and
+> identifies the Stage 8 plan and completed Tasks 8.1–8.6 foundation.
 
 ## Purpose
 
@@ -321,7 +321,7 @@ Latest formally completed SQL stage:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (not started; no detailed plan yet)**
+> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.6 foundation complete; locking/undo/data integration pending)**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -389,10 +389,14 @@ acceptance and failure coverage. Decisions and implementation evidence are recor
 `docs/ETAPA_07_TASK_7_32.md`, `docs/ETAPA_07_TASK_7_33_7_35.md`, and
 `docs/ETAPA_07_TASK_7_36_7_38.md`; final closure evidence is in
 `docs/ETAPA_07_EXTENSION_AUDIT.md`. The complete warnings-as-errors suite
-passes 2,742 tests. Stage 8 follows this extension in the roadmap. No detailed
-`ETAPA_08.md` plan exists yet. Do not implement a
-buffer pool, WAL, concurrency, or other Stage 8 work without a later explicit
-request and stage plan.
+passes 2,742 tests. Stage 8 follows this extension in the roadmap. Its detailed
+plan is `ETAPA_08.md`; the Task 8.1 inspection, Task 8.2 adopted contract,
+and Tasks 8.3–8.6 foundation are recorded in
+`docs/ETAPA_08_TASK_8_1_INSPECTION.md`, `docs/transactions.md`,
+`docs/ETAPA_08_TASK_8_3_8_6.md`, and `PROJECT_CONTEXT.md`. Control-only empty
+groups and access intents exist, but real lock grants, undo, and transactional
+data execution remain pending. Follow the stage plan and explicit task scope;
+a buffer pool, WAL, and crash recovery remain outside Stage 8.
 
 **Stage 9 emergency demo ready (2026-09-18)** under the authorized sequencing
 exception in `ETAPA_09.md`: `api/` (FastAPI) wraps `SqlEngine` behind one

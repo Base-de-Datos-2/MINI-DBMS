@@ -13,6 +13,7 @@ from typing import TypeVar
 
 from .ast import (
     AggregateCall,
+    BeginTransactionStatement,
     BoolAnd,
     BoolNot,
     BoolOr,
@@ -22,12 +23,14 @@ from .ast import (
     Comparison,
     CreateTableStatement,
     DeleteStatement,
+    EndTransactionStatement,
     ExplainStatement,
     FloatLiteral,
     InsertStatement,
     IntegerLiteral,
     JoinClause,
     OrderItem,
+    RollbackStatement,
     SelectItem,
     SelectStatement,
     Star,
@@ -54,11 +57,8 @@ _UNSUPPORTED_STATEMENTS = frozenset(
     {
         "ALTER",
         "ANALYZE",
-        "BEGIN",
         "COMMIT",
         "DROP",
-        "END",
-        "ROLLBACK",
         "UPDATE",
         "WITH",
     }
@@ -232,6 +232,12 @@ class _Parser:
             statement = self._parse_create_table()
         elif self._at_keyword("EXPLAIN"):
             statement = self._parse_explain()
+        elif self._at_keyword("BEGIN"):
+            statement = self._parse_begin_transaction()
+        elif self._at_keyword("END"):
+            statement = self._parse_end_transaction()
+        elif self._at_keyword("ROLLBACK"):
+            statement = self._parse_rollback()
         elif self._word(self._current) in _UNSUPPORTED_STATEMENTS:
             word = self._word(self._current)
             raise self._error(
@@ -239,7 +245,10 @@ class _Parser:
                 error_type=SqlUnsupportedError,
             )
         else:
-            raise self._expected("SELECT, INSERT, DELETE, CREATE, or EXPLAIN")
+            raise self._expected(
+                "SELECT, INSERT, DELETE, CREATE, EXPLAIN, BEGIN TRANSACTION, "
+                "END TRANSACTION, or ROLLBACK"
+            )
 
         semicolon = self._match_punct(";")
         if semicolon is not None and statement.span is not None:
@@ -256,7 +265,10 @@ class _Parser:
         word = self._word(token)
         if self._at_punct(";"):
             return self._error("Only one optional final semicolon is allowed")
-        if word in {"SELECT", "INSERT", "DELETE", "CREATE", "EXPLAIN"}:
+        if word in {
+            "SELECT", "INSERT", "DELETE", "CREATE", "EXPLAIN",
+            "BEGIN", "END", "ROLLBACK",
+        }:
             return self._error("Only one SQL statement may be submitted at a time")
         if word in _UNSUPPORTED_TRAILING_KEYWORDS:
             return self._error(
@@ -270,6 +282,25 @@ class _Parser:
         )
 
     # -- SELECT ----------------------------------------------------------- #
+
+    def _parse_begin_transaction(self) -> BeginTransactionStatement:
+        start = self._expect_keyword("BEGIN")
+        end = self._expect_keyword("TRANSACTION")
+        return BeginTransactionStatement(span=self._cover(start.span, end.span))
+
+    def _parse_end_transaction(self) -> EndTransactionStatement:
+        start = self._expect_keyword("END")
+        end = self._expect_keyword("TRANSACTION")
+        return EndTransactionStatement(span=self._cover(start.span, end.span))
+
+    def _parse_rollback(self) -> RollbackStatement:
+        token = self._expect_keyword("ROLLBACK")
+        if self._at_keyword("TRANSACTION"):
+            raise self._error(
+                "ROLLBACK takes no TRANSACTION option in this SQL subset",
+                error_type=SqlUnsupportedError,
+            )
+        return RollbackStatement(span=token.span)
 
     def _parse_select(self) -> SelectStatement:
         start = self._expect_keyword("SELECT")

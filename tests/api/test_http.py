@@ -171,12 +171,12 @@ def test_malformed_requests_are_invalid_request_envelopes(client, payload):
 
 
 def test_an_unexpected_failure_hides_its_details_behind_a_request_id(
-    prepared_directory, monkeypatch
+    writable_directory, monkeypatch
 ):
-    service = open_service(prepared_directory)
+    service = open_service(writable_directory)
 
     def exploding(request, request_id):
-        raise RuntimeError(f"secret detail at {prepared_directory}/students.heap")
+        raise RuntimeError(f"secret detail at {writable_directory}/students.heap")
 
     monkeypatch.setattr(EngineService, "execute", lambda self, r, i: exploding(r, i))
     try:
@@ -191,11 +191,11 @@ def test_an_unexpected_failure_hides_its_details_behind_a_request_id(
     assert error["code"] == "INTERNAL_ERROR"
     assert error["request_id"] == response.headers["X-Request-ID"]
     assert "secret" not in response.text
-    assert str(prepared_directory) not in response.text
+    assert str(writable_directory) not in response.text
 
 
-def test_an_unavailable_engine_is_a_503_envelope(prepared_directory):
-    service = open_service(prepared_directory)
+def test_an_unavailable_engine_is_a_503_envelope(writable_directory):
+    service = open_service(writable_directory)
     service._state = "unavailable"
     try:
         with TestClient(create_app(service)) as test_client:

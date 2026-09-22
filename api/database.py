@@ -29,6 +29,10 @@ from engine.indexes import build_catalog_index, open_catalog_index
 from engine.operators.context import DEFAULT_BUDGET_BYTES, DEFAULT_MAX_OPEN_HANDLES
 from engine.query import QueryEnvironment, SqlEngine
 from engine.storage import HeapFile, PagedSequentialFile, Record
+from engine.transactions.ownership import DirectoryLease, claim_directory
+from engine.transactions.resources import TableFiles
+from engine.transactions.session import SessionCoordinator, SqlSession
+from engine.transactions.errors import TransactionUnavailableError
 
 
 class DatabaseSetupError(ValidationError):
@@ -143,6 +147,8 @@ class Database:
         "_indexes",
         "_paths",
         "_closed",
+        "_coordinator",
+        "_owner_lease",
     )
 
     def __init__(self) -> None:
@@ -161,18 +167,23 @@ class Database:
 
         if not isinstance(definition, DatabaseDefinition):
             raise TypeError("definition must be a DatabaseDefinition")
-        root = Path(directory)
-        root.mkdir(parents=True, exist_ok=True)
-        existing = [path.name for path in cls._declared_paths(definition, root)
-                    if path.exists()]
-        if existing:
-            raise DatabaseSetupError(
-                f"{root} already holds database files ({', '.join(existing)}); "
-                "reset it explicitly instead of creating over them"
+        root = Path(directory).resolve()
+        lease = claim_directory(root)
+        try:
+            root.mkdir(parents=True, exist_ok=True)
+            existing = [path.name for path in cls._declared_paths(definition, root)
+                        if path.exists()]
+            if existing:
+                raise DatabaseSetupError(
+                    f"{root} already holds database files ({', '.join(existing)}); "
+                    "reset it explicitly instead of creating over them"
+                )
+            return cls._assemble(
+                definition, root, True, memory_budget_bytes, max_open_handles, lease
             )
-        return cls._assemble(
-            definition, root, True, memory_budget_bytes, max_open_handles
-        )
+        except BaseException:
+            lease.release()
+            raise
 
     @classmethod
     def open(
@@ -187,16 +198,21 @@ class Database:
 
         if not isinstance(definition, DatabaseDefinition):
             raise TypeError("definition must be a DatabaseDefinition")
-        root = Path(directory)
-        missing = [path.name for path in cls._declared_paths(definition, root)
-                   if not path.is_file()]
-        if missing:
-            raise DatabaseSetupError(
-                f"{root} is not a prepared database: missing {', '.join(missing)}"
+        root = Path(directory).resolve()
+        lease = claim_directory(root)
+        try:
+            missing = [path.name for path in cls._declared_paths(definition, root)
+                       if not path.is_file()]
+            if missing:
+                raise DatabaseSetupError(
+                    f"{root} is not a prepared database: missing {', '.join(missing)}"
+                )
+            return cls._assemble(
+                definition, root, False, memory_budget_bytes, max_open_handles, lease
             )
-        return cls._assemble(
-            definition, root, False, memory_budget_bytes, max_open_handles
-        )
+        except BaseException:
+            lease.release()
+            raise
 
     @staticmethod
     def _declared_paths(definition: DatabaseDefinition, root: Path) -> list[Path]:
@@ -215,6 +231,7 @@ class Database:
         create: bool,
         memory_budget_bytes: int,
         max_open_handles: int,
+        lease: DirectoryLease,
     ) -> "Database":
         if not isinstance(definition, DatabaseDefinition):
             raise TypeError("definition must be a DatabaseDefinition")
@@ -227,6 +244,8 @@ class Database:
         database._indexes = {}
         database._paths = {}
         database._closed = False
+        database._coordinator = None
+        database._owner_lease = lease
         try:
             for table in definition.tables:
                 database._open_table(table, create)
@@ -234,6 +253,28 @@ class Database:
                 database._environment,
                 memory_budget_bytes=memory_budget_bytes,
                 max_open_handles=max_open_handles,
+            )
+            database._coordinator = SessionCoordinator(
+                database_identity=str(root),
+                environment=database._environment,
+                table_files=tuple(
+                    TableFiles(
+                        table.name,
+                        table.name,
+                        database._paths[table.name],
+                        tuple(
+                            (index.name, database._paths[index.name])
+                            for index in table.indexes
+                        ),
+                    )
+                    for table in definition.tables
+                ),
+                engine_factory=lambda: SqlEngine(
+                    database._environment,
+                    memory_budget_bytes=memory_budget_bytes,
+                    max_open_handles=max_open_handles,
+                ),
+                default_engine=database._engine,
             )
         except BaseException:
             database.close()
@@ -323,6 +364,17 @@ class Database:
         return self._engine
 
     @property
+    def session_coordinator(self) -> SessionCoordinator:
+        return self._coordinator
+
+    def open_session(self) -> SqlSession:
+        """Open an independent control session; protected data is pending."""
+
+        if self._closed:
+            raise TransactionUnavailableError("Database is closed")
+        return self._coordinator.open_session()
+
+    @property
     def closed(self) -> bool:
         """Report whether every handle has been released."""
 
@@ -373,6 +425,9 @@ class Database:
 
         if self._closed:
             return
+        coordinator = self._coordinator
+        if coordinator is not None:
+            coordinator.close()
         self._closed = True
         failures: list[BaseException] = []
         engine = getattr(self, "_engine", None)
@@ -388,6 +443,7 @@ class Database:
                 failures.append(error)
         self._indexes.clear()
         self._storages.clear()
+        self._owner_lease.release()
         if failures:
             raise failures[0]
 
