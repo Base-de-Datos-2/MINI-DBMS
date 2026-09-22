@@ -1,0 +1,29 @@
+# Stage 8 Tasks 8.7–8.10 — concurrency primitives and physical safety
+
+**Checkout:** `main` at `cead24f998f5c323ef7ff2bdf786c47913b98e97` with uncommitted Block 3 changes. **Runtime:** Python 3.12.4 on Windows. **Status:** primitives and their focused evidence complete; coordinated SQL data execution, undo and final transaction lifecycle remain later Stage 8 tasks.
+
+## Implemented
+
+| Task | Implementation | Evidence |
+|---|---|---|
+| 8.7 | Owner-local schema/table S/X lock domain, transaction registration, same-owner reacquisition, ordered access-plan acquisition, immutable holder/waiter snapshots, and release only from completed COMMITTED/ABORTED reports. | Compatible S/S and independent-table X grants overlap; conflicting S/X and X/X wait; schema gate precedes table grants; terminal release is idempotent. |
+| 8.8 | One condition variable protects short metadata changes and releases its mutex while waiting. FIFO queue admits compatible leading readers, stops new readers behind a writer, preserves S during upgrade, supports spurious wakeups, finite deadline and cooperative cancellation. | Controlled waiter, writer-preference, schema queue, upgrade and cancellation/grant-race tests in `tests/transactions/test_locks.py`. |
+| 8.9 | Wait-for dependencies include incompatible holders **and earlier incompatible queued requests**. The request closing a cycle becomes the victim; prior grants remain held until its caller completes abort. Timeout has its own error code; quarantine refuses grants and wakes waiters. | Opposite-table cycle, two-upgrade cycle and three-party queue-order cycle have deterministic victim and survivor outcomes. Wait graph empties after terminal cleanup. |
+| 8.10 | `PageManager` latches whole seek/read, write, allocation/header/counter update, replacement, flush and close per handle. Hash directory/bucket typed counters use the same page latch for transfer attribution and one short index metrics latch. Catalog and QueryEnvironment registration use short metadata latches; runtime bindings increment a per-table generation checked by access plans. | Forced pause between seek and read proves another reader/close or file replacement cannot move/swap the handle; concurrent Heap/B+/Hash reads preserve results and counts; registry rebinding invalidates an old plan; busy owner close does not partially close the default session. |
+
+The physical latch order is hash typed-I/O/metrics → PageManager. QueryEnvironment validation takes its registry latch before Catalog metadata; ResourceCatalog takes its own short latch before inspecting either. No logical lock-manager condition is held while acquiring these latches or performing I/O. Page latches end before row iterator yields. This permits two S holders on one table and independent-table operations to be live at once; page transfers on one shared handle are briefly serialized for offset safety.
+
+Deadlock or timeout detection removes the pending request and raises a structured error **outside** the manager mutex. It does not release the victim's earlier grants. The caller must restore its changes before publishing a terminal ABORTED report and releasing locks. In Block 3 no data-bearing coordinated session can be created; `SqlSession.execute` still refuses data before effects. Thus these tests prove the concurrency primitives and physical reads, not complete SQL transaction isolation.
+
+## Verification
+
+- `.venv\Scripts\python.exe -m pytest tests/transactions -q -W error -p no:cacheprovider`: **46 passed** after the busy-close, cancellation/grant-race and replacement tests; one later quarantine-cleanup test was included in the final focused gate below.
+- `.venv\Scripts\python.exe -m pytest tests/storage tests/indexes tests/transactions -q -W error -p no:cacheprovider`: **1,510 passed in 131.39 seconds** (before the last two focused tests and shared hash metrics latch).
+- `.venv\Scripts\python.exe -m pytest tests/query tests/database tests/api -q -W error -p no:cacheprovider`: **434 passed in 239.69 seconds** (before the busy-close fix, which has its own passing focused test).
+- `.venv\Scripts\python.exe -m pytest tests/indexes/test_extendible_hash.py tests/indexes/test_hash_integration.py tests/transactions/test_physical_concurrency.py -q -W error -p no:cacheprovider`: **34 passed in 20.05 seconds** after the shared hash metrics latch (before the replacement test was added).
+- `.venv\Scripts\python.exe -m pytest tests/indexes/test_hash_restart_differential.py tests/indexes/test_hash_integrity_review.py tests/transactions/test_physical_concurrency.py -q -W error -p no:cacheprovider`: **36 passed in 33.88 seconds** after restoring the shared latch on hash rebuild.
+- `.venv\Scripts\python.exe -m pytest tests/operators tests/test_architecture.py tests/transactions -q -W error -p no:cacheprovider`: **462 passed, one architecture guard failed** because its Stage 1–7 allowed-layer table had not listed the Stage 8 database→transactions and transactions→query edges. The guard was updated without weakening its independent acyclicity check. A subsequent `.venv\Scripts\python.exe -m pytest tests/test_architecture.py -q -W error -p no:cacheprovider` passed **19 tests**. The 462 other tests in the combined gate passed.
+- Final focused gate after all fixes: `.venv\Scripts\python.exe -m pytest tests/transactions tests/test_architecture.py -q -W error -p no:cacheprovider`: **66 passed in 23.97 seconds**.
+- `.venv\Scripts\python.exe -m compileall -q engine tests/transactions` and `git diff --check`: passed at the code checkpoint.
+
+Task 8.11 starts complete before-image capture. Tasks 8.13–8.15 connect terminal cleanup and protected SQL execution; Task 8.20 handles per-query I/O reporting under concurrent sessions. Stage 9 retains its admission guard. The full Stage 1–7 regression and protected business-operation demonstration remain their later planned gates.

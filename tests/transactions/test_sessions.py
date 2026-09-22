@@ -27,8 +27,7 @@ def test_independent_control_sessions_share_one_owner_and_preserve_default_engin
         assert first._engine.environment is second._engine.environment is database.environment
         assert database.session_coordinator.default_session._engine is database.engine
         assert database.session_coordinator.locks.database_identity == database.identity
-        with pytest.raises(TransactionUnavailableError, match="Task 8.7"):
-            database.session_coordinator.locks.acquire(None)
+        assert database.session_coordinator.locks.snapshot().resources == ()
         assert database.session_coordinator.session_count == 3
 
         started_first = first.execute("BEGIN TRANSACTION")
@@ -54,7 +53,7 @@ def test_separate_session_facades_have_independent_result_slots(tmp_path):
         first = database.open_session()
         second = database.open_session()
         # The raw facades are used sequentially here only to verify ownership;
-        # coordinated data execution remains gated until locking and undo exist.
+        # coordinated data execution remains gated until undo and lock integration.
         first_result = first._engine.execute("SELECT id FROM t")
         second_result = second._engine.execute("SELECT id FROM t")
         assert first.active_result is first_result
@@ -85,7 +84,7 @@ def test_protocol_errors_data_refusal_and_one_statement_boundary(tmp_path):
             session.execute("END TRANSACTION")
 
         session.execute("BEGIN TRANSACTION")
-        with pytest.raises(TransactionUnavailableError, match="pending S/X") as caught:
+        with pytest.raises(TransactionUnavailableError, match="pending undo") as caught:
             session.execute("INSERT INTO t VALUES (1)")
         assert caught.value.transaction_id is not None
         assert session.active_transaction is None
@@ -144,3 +143,30 @@ def test_legacy_owner_has_same_coordinator_and_independent_control_sessions(tmp_
         first.close()
         assert not second.closed
         second.close()
+
+
+def test_owner_close_preflights_busy_sessions_before_closing_default(tmp_path, monkeypatch):
+    with Database.create(tmp_path) as database:
+        session = database.open_session()
+        entered, release = Event(), Event()
+        original_parse = session_module.parse_sql
+
+        def blocking_parse(sql):
+            if sql == "BEGIN TRANSACTION":
+                entered.set()
+                assert release.wait(5)
+            return original_parse(sql)
+
+        monkeypatch.setattr(session_module, "parse_sql", blocking_parse)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            executing = pool.submit(session.execute, "BEGIN TRANSACTION")
+            assert entered.wait(5)
+            with pytest.raises(SessionBusyError, match="deferred"):
+                database.close()
+            assert not database.closed
+            assert not database.session_coordinator.default_session.closed
+            assert database.session_coordinator.session_count == 2
+            release.set()
+            executing.result(timeout=5)
+        database.close()
+        assert database.closed and session.closed

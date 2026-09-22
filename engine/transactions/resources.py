@@ -24,6 +24,7 @@ from engine.query.ast import (
     SelectStatement,
     Statement,
 )
+from engine.query.environment import QueryEnvironment
 
 
 class LockMode(Enum):
@@ -77,6 +78,7 @@ class TableIntent:
     mode: LockMode
     generation: int
     files: tuple[Path, ...]
+    runtime_generation: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,6 +104,7 @@ class ResourceCatalog:
         database_identity: str,
         catalog: Catalog,
         tables: tuple[TableFiles, ...],
+        environment: QueryEnvironment | None = None,
     ) -> None:
         if not database_identity:
             raise ValidationError("Database identity must be nonempty")
@@ -109,6 +112,9 @@ class ResourceCatalog:
             raise InvalidTypeError("ResourceCatalog requires a Catalog")
         self._database_identity = database_identity
         self._catalog = catalog
+        if environment is not None and environment.catalog is not catalog:
+            raise ValidationError("Runtime environment must borrow the same Catalog")
+        self._environment = environment
         self._mutex = RLock()
         self._tables: dict[str, TableFiles] = {}
         self._generations: dict[str, int] = {}
@@ -218,6 +224,7 @@ class ResourceCatalog:
                         mode,
                         self._generations[name],
                         files.physical_files,
+                        0 if self._environment is None else self._environment.runtime_generation(name),
                     )
                 )
             intents.sort(key=lambda item: item.resource)
@@ -236,4 +243,11 @@ class ResourceCatalog:
                         or intent.files != current.physical_files):
                     raise StaleAccessPlanError(
                         f"Runtime resource for {intent.table_name!r} changed"
+                    )
+                if (self._environment is not None
+                        and intent.runtime_generation != self._environment.runtime_generation(
+                            intent.table_name
+                        )):
+                    raise StaleAccessPlanError(
+                        f"Runtime registry for {intent.table_name!r} changed"
                     )

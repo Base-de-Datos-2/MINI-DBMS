@@ -1,8 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.2** — preserves the formal Stage 7 baseline closure and
-> records the verified closure of the CREATE/EXPLAIN extension through Task
-> 7.40.
+> Context version: **4.3** — preserves the formal Stage 7 closure and records
+> the Stage 8 contract and implemented Tasks 8.1–8.10 foundations.
 
 ## Project identity
 
@@ -1899,12 +1898,13 @@ The frontend's execution-plan panel should visualize this real plan.
 
 The project requires transaction grouping and concurrency control.
 
-**Stage 8 Tasks 8.1–8.6 complete; coordinated data execution pending.** The full
+**Stage 8 Tasks 8.1–8.10 complete; coordinated data execution pending.** The full
 session, failure, quota, and recovery-boundary contract is in
 [`docs/transactions.md`](docs/transactions.md). The foundation evidence is in
-`docs/ETAPA_08_TASK_8_3_8_6.md`. The decisions below describe the target
-contract; real S/X grants, undo, and transactional data execution are not yet
-implemented.
+`docs/ETAPA_08_TASK_8_3_8_6.md` and
+`docs/ETAPA_08_TASK_8_7_8_10.md`. The decisions below describe the target
+contract; S/X lock primitives and physical latches exist, while undo and
+transactional data execution are not yet implemented.
 
 - One canonical in-process database owner per physical directory will share
   Catalog, runtime registry, a Transaction Manager, and a Lock Manager among
@@ -1945,8 +1945,19 @@ Stage 7 default data facade until Task 8.15 integrates it with transaction
 protection. The metadata-only resource planner maps SELECT/joins/ANALYZE to
 table S intents, INSERT/DELETE to table X intents, CREATE to schema X, and
 plain EXPLAIN to schema S. It includes every declared index file and detects
-runtime generation changes. The shared lock-manager boundary currently
-rejects acquisition; Task 8.7 adds grants. The Stage 9 HTTP guard remains.
+runtime generation changes. The shared lock manager now grants schema/table
+S/X, queues incompatible requests FIFO, supports upgrades, cooperative
+cancellation and finite timeouts, and detects cycles from holder and queue
+dependencies. The requesting transaction is the deadlock victim. Failed
+waiters retain prior grants until completed abort cleanup releases them;
+`ABORT_FAILED` requires quarantine. The condition is released during waits
+and never encloses physical I/O. `PageManager` latches complete transfers,
+allocation, replacement, counters, flush and close per handle. Hash typed-I/O
+counters are attributed under that handle latch; Catalog and QueryEnvironment
+use short metadata latches. Runtime registry changes increment per-table
+generations, making old resource plans stale. No latch spans a yielded row.
+Raw Stage 7 execution is still not a protected concurrent data path; the Stage
+9 HTTP guard remains.
 
 ---
 
@@ -2133,7 +2144,7 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.6 foundation complete; locking, undo and data integration pending)**
+> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.10 foundations complete; undo and data integration pending)**
 
 Current stage specification:
 

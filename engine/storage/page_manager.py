@@ -1,8 +1,11 @@
-"""Single-owner page file I/O, without a buffer pool or record-level policies."""
+"""Page file I/O with short per-handle latches, without a buffer pool."""
 
 from dataclasses import replace
+from contextlib import contextmanager
+from functools import wraps
 import os
 from pathlib import Path
+from threading import RLock
 from uuid import uuid4
 
 from engine.errors import InvalidReferenceError, InvalidTypeError, ValidationError
@@ -11,11 +14,24 @@ from engine.storage.file_header import FileHeader
 from engine.storage.page import Page
 
 
+def _latched(method):
+    """Keep one physical operation, including seek and transfer, indivisible."""
+
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        with self._mutex:
+            return method(self, *args, **kwargs)
+
+    return call
+
+
 class PageManager:
     """Own an unbuffered binary handle; callers explicitly write modified Pages.
 
     create() is exclusive, open() never creates/truncates. Only one owner/writer
-    is supported; there are no locks, WAL, recovery, checksums or page cache.
+    is supported. A short reentrant latch protects shared handle offset,
+    headers, counters, replacement and close. Logical transaction locks,
+    WAL, recovery, checksums and page caching are separate concerns.
     flush()/close() request OS synchronization, not atomic multi-page commits.
 
     Counters measure completed page-sized transfers through this handle (not
@@ -32,6 +48,7 @@ class PageManager:
             raise InvalidTypeError("path must be a text path, not bytes")
         if type(create) is not bool:
             raise InvalidTypeError("create must be a bool")
+        self._mutex = RLock()
         self._path = Path(path).absolute()
         self._pages_read = 0
         self._pages_written = 0
@@ -59,20 +76,24 @@ class PageManager:
         return cls(path)
 
     @property
+    @_latched
     def header(self) -> FileHeader:
         return self._header
 
     @property
+    @_latched
     def path(self) -> Path:
         """Return the stable absolute path owned by this manager."""
 
         return self._path
 
     @property
+    @_latched
     def allocated_page_count(self) -> int:
         return self._header.allocated_page_count
 
     @property
+    @_latched
     def file_size(self) -> int:
         """Return the validated physical file size without changing counters."""
 
@@ -80,26 +101,39 @@ class PageManager:
         return self._check_file_size()
 
     @property
+    @_latched
     def closed(self) -> bool:
         return self._file.closed
 
     @property
+    @_latched
     def pages_read(self) -> int:
         return self._pages_read
 
     @property
+    @_latched
     def pages_written(self) -> int:
         return self._pages_written
 
     @property
+    @_latched
     def pages_allocated(self) -> int:
         return self._pages_allocated
 
+    @_latched
     def reset_counters(self) -> None:
         """Reset this open manager's session metrics, without touching the file."""
         self._require_open()
         self._pages_read = self._pages_written = self._pages_allocated = 0
 
+    @contextmanager
+    def counter_scope(self):
+        """Attribute a short transfer and its counter delta to one adapter."""
+
+        with self._mutex:
+            yield
+
+    @_latched
     def temporary_replacement_path(self) -> Path:
         """Return a unique, uncreated sibling path for a validated rewrite."""
 
@@ -124,6 +158,7 @@ class PageManager:
             raise ValidationError("Invalid sibling replacement path")
         return candidate
 
+    @_latched
     def discard_replacement(self, path: object) -> None:
         """Remove an uncommitted sibling candidate, if one exists."""
 
@@ -138,6 +173,7 @@ class PageManager:
         self._pages_written = reopened._pages_written
         self._pages_allocated = reopened._pages_allocated
 
+    @_latched
     def commit_replacement(self, path: object) -> None:
         """Atomically replace this file with a prevalidated sibling candidate.
 
@@ -213,6 +249,7 @@ class PageManager:
             self._file.close()
             raise
 
+    @_latched
     def allocate_page(self) -> int:
         """Append a valid empty page and update the header, returning its id.
 
@@ -232,6 +269,7 @@ class PageManager:
         self._pages_allocated += 1
         return page_id
 
+    @_latched
     def read_page(self, page_id: int) -> Page:
         """Read a fresh Page; reject unallocated ids and malformed physical data."""
         self._require_open()
@@ -247,6 +285,7 @@ class PageManager:
             )
         return page
 
+    @_latched
     def write_page(self, page: Page) -> None:
         """Rewrite one allocated page; reject invalid data before touching disk."""
         self._require_open()
@@ -259,12 +298,14 @@ class PageManager:
         self._write_at(self._physical_offset(page_id), payload)
         self._pages_written += 1
 
+    @_latched
     def flush(self) -> None:
         """Request synchronization of prior writes, including the file header."""
         self._require_open()
         self._file.flush()
         os.fsync(self._file.fileno())
 
+    @_latched
     def close(self) -> None:
         """Flush and release the handle; idempotent, even after a failed write."""
         if not self.closed:
@@ -273,6 +314,7 @@ class PageManager:
             finally:
                 self._file.close()
 
+    @_latched
     def __enter__(self) -> "PageManager":
         self._require_open()
         return self

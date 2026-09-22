@@ -54,7 +54,9 @@ class SessionCoordinator:
         self.environment = environment
         self.transactions = TransactionManager()
         self.locks = LockManager(database_identity)
-        self.resources = ResourceCatalog(database_identity, environment.catalog, table_files)
+        self.resources = ResourceCatalog(
+            database_identity, environment.catalog, table_files, environment
+        )
         self._engine_factory = engine_factory
         self._mutex = RLock()
         self._next_session_id = 2
@@ -95,12 +97,28 @@ class SessionCoordinator:
                 return
             self._closed = True
             sessions = tuple(self._sessions.values())
-        failures = []
+        acquired: list[SqlSession] = []
         for session in sessions:
-            try:
-                session.close()
-            except BaseException as error:
-                failures.append(error)
+            if not session._call.acquire(blocking=False):
+                for locked in reversed(acquired):
+                    locked._call.release()
+                with self._mutex:
+                    self._closed = False
+                raise SessionBusyError(
+                    "A session is executing; database close is deferred",
+                    session_id=session.id,
+                )
+            acquired.append(session)
+        failures = []
+        try:
+            for session in sessions:
+                try:
+                    session._close_locked()
+                except BaseException as error:
+                    failures.append(error)
+        finally:
+            for session in reversed(acquired):
+                session._call.release()
         if failures:
             with self._mutex:
                 self._closed = False
@@ -145,7 +163,7 @@ class SqlSession:
             except SqlQueryError as error:
                 if self._transaction_id is not None:
                     transaction_id = self._transaction_id
-                    self._owner.transactions.abort_empty(transaction_id)
+                    self._abort_empty(transaction_id)
                     self._transaction_id = None
                     error.add_note(
                         f"Transaction {transaction_id.value} aborted after execute error"
@@ -164,6 +182,11 @@ class SqlSession:
                         transaction_id=self._transaction_id.value,
                     )
                 transaction = self._owner.transactions.begin(self.id)
+                try:
+                    self._owner.locks.register(transaction)
+                except BaseException:
+                    self._owner.transactions.abort_empty(transaction.id)
+                    raise
                 self._transaction_id = transaction.id
                 return TransactionReport.from_transaction(transaction)
             if isinstance(statement, EndTransactionStatement):
@@ -175,21 +198,22 @@ class SqlSession:
                         transaction_id=transaction_id.value,
                     )
                 report = self._owner.transactions.commit_empty(transaction_id)
+                self._owner.locks.release_all(report)
                 self._transaction_id = None
                 return report
             if isinstance(statement, RollbackStatement):
                 transaction_id = self._require_active()
                 self._engine.close()
-                report = self._owner.transactions.abort_empty(transaction_id)
+                report = self._abort_empty(transaction_id)
                 self._transaction_id = None
                 return report
 
             transaction_id = self._transaction_id
             if transaction_id is not None:
-                self._owner.transactions.abort_empty(transaction_id)
+                self._abort_empty(transaction_id)
                 self._transaction_id = None
             raise TransactionUnavailableError(
-                "Coordinated data execution is pending S/X locking and undo integration",
+                "Coordinated data execution is pending undo and S/X integration",
                 session_id=self.id,
                 transaction_id=None if transaction_id is None else transaction_id.value,
             )
@@ -203,20 +227,28 @@ class SqlSession:
             )
         return self._transaction_id
 
+    def _abort_empty(self, transaction_id: TransactionId) -> TransactionReport:
+        report = self._owner.transactions.abort_empty(transaction_id)
+        self._owner.locks.release_all(report)
+        return report
+
     def close(self) -> None:
         if not self._call.acquire(blocking=False):
             raise SessionBusyError("Session is executing", session_id=self.id)
         try:
-            if self._closed:
-                return
-            self._engine.close()
-            if self._transaction_id is not None:
-                self._owner.transactions.abort_empty(self._transaction_id)
-                self._transaction_id = None
-            self._closed = True
-            self._owner._release(self)
+            self._close_locked()
         finally:
             self._call.release()
+
+    def _close_locked(self) -> None:
+        if self._closed:
+            return
+        self._engine.close()
+        if self._transaction_id is not None:
+            self._abort_empty(self._transaction_id)
+            self._transaction_id = None
+        self._closed = True
+        self._owner._release(self)
 
     def __enter__(self) -> "SqlSession":
         return self

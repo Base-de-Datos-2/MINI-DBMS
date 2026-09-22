@@ -3,16 +3,19 @@
 ## Stage 8 — Transactions and Concurrency
 
 **Part:** Relational Database  
-**Revision:** 2026-09-21  
-**Status:** Tasks 8.1–8.6 inspection, contract and transaction foundation completed; Tasks 8.7–8.30 pending implementation/evidence.
+**Revision:** 2026-09-22
+
+**Status:** Tasks 8.1–8.10 foundations completed; Tasks 8.11–8.30 pending implementation/evidence.
 
 **Prerequisite:** Stage 7 Tasks 7.1–7.40 completed, including CREATE and EXPLAIN.  
 **Roadmap:** PLAN.md, Section 13.  
 **Repository inspected:** Base-de-Datos-2/MINI-DBMS, `main`, commit `25fb7916d15e7dd4f43911b415ede00c09257a48`.  
-**Task 8.1 current checkout:** `main`, commit `bf381e3d98673509f928b4a95fe410658e5312c6`; inspection and 436 passing focused baseline tests in `docs/ETAPA_08_TASK_8_1_INSPECTION.md`.
-**Task 8.2 adopted contract:** `docs/transactions.md` and `PROJECT_CONTEXT.md`; this is a design decision, not running transaction support.
-**Tasks 8.3–8.6 foundation:** `docs/ETAPA_08_TASK_8_3_8_6.md`; control-only empty groups and access intents exist, while data execution still awaits locks and undo.
-**Following work:** Complete the remaining Stage 9 integration, then Stage 10 experiments and delivery. Preserve the authorized emergency Stage 9 work.
+
+- **Task 8.1 current checkout:** `main`, commit `bf381e3d98673509f928b4a95fe410658e5312c6`; inspection and 436 passing focused baseline tests in `docs/ETAPA_08_TASK_8_1_INSPECTION.md`.
+- **Task 8.2 adopted contract:** `docs/transactions.md` and `PROJECT_CONTEXT.md`; this is a design decision, not running transaction support.
+- **Tasks 8.3–8.6 foundation:** `docs/ETAPA_08_TASK_8_3_8_6.md`; control-only empty groups and access intents exist.
+- **Tasks 8.7–8.10 concurrency primitives:** `docs/ETAPA_08_TASK_8_7_8_10.md`; S/X grants, waits, deadlock detection and short physical latches exist. Coordinated data execution still awaits undo and engine integration.
+- **Following work:** Complete the remaining Stage 9 integration, then Stage 10 experiments and delivery. Preserve the authorized emergency Stage 9 work.
 
 This is an implementation plan, not a new academic specification or a claim that transaction support already exists. The repository records Stage 7 extension closure and 2,742 passing tests in its audit; that is historical repository evidence. Task 8.1 records the current-checkout test result separately.
 
