@@ -9,6 +9,8 @@ ownership of either object and without performing any I/O during lookup.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import wraps
+from threading import RLock
 
 from engine.catalog import Catalog, IndexMetadata
 from engine.errors import (
@@ -20,6 +22,15 @@ from engine.errors import (
 )
 from engine.indexes import Index, OrderedIndex
 from engine.storage import Storage
+
+
+def _registry_latched(method):
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        with self._mutex:
+            return method(self, *args, **kwargs)
+
+    return call
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,14 +49,26 @@ class QueryEnvironment:
     a storage/index object; the caller retains lifecycle ownership.
     """
 
-    __slots__ = ("_catalog", "_storages", "_indexes")
+    __slots__ = ("_catalog", "_storages", "_indexes", "_generations", "_mutex")
 
     def __init__(self, catalog: Catalog) -> None:
         if not isinstance(catalog, Catalog):
             raise InvalidTypeError("QueryEnvironment requires a Catalog")
         self._catalog = catalog
+        self._mutex = RLock()
         self._storages: dict[str, Storage] = {}
         self._indexes: dict[str, Index] = {}
+        self._generations: dict[str, int] = {}
+
+    @_registry_latched
+    def runtime_generation(self, table_name: str) -> int:
+        """Change whenever a table's borrowed storage or index binding changes."""
+
+        table = self._catalog.get_table(table_name)
+        return self._generations.get(table.name, 0)
+
+    def _bump_generation(self, table_name: str) -> None:
+        self._generations[table_name] = self._generations.get(table_name, 0) + 1
 
     @property
     def catalog(self) -> Catalog:
@@ -53,6 +76,7 @@ class QueryEnvironment:
 
         return self._catalog
 
+    @_registry_latched
     def register_storage(self, table_name: str, storage: Storage) -> None:
         """Pair an exact table name with one borrowed storage adapter."""
 
@@ -82,7 +106,9 @@ class QueryEnvironment:
                 f"Storage schema does not match table {table.name!r} metadata"
             )
         self._storages[table.name] = storage
+        self._bump_generation(table.name)
 
+    @_registry_latched
     def storage_for(self, table_name: str) -> Storage:
         """Return the borrowed storage for an existing Catalog table."""
 
@@ -99,17 +125,21 @@ class QueryEnvironment:
             )
         return storage
 
+    @_registry_latched
     def unregister_storage(self, table_name: str) -> Storage:
         """Remove and return one borrowed storage association without closing it."""
 
         table = self._catalog.get_table(table_name)
         try:
-            return self._storages.pop(table.name)
+            storage = self._storages.pop(table.name)
+            self._bump_generation(table.name)
+            return storage
         except KeyError as error:
             raise InvalidReferenceError(
                 f"No runtime storage is registered for table {table.name!r}"
             ) from error
 
+    @_registry_latched
     def register_index(self, index_name: str, index: Index) -> None:
         """Pair an exact Catalog index definition with a borrowed adapter."""
 
@@ -134,6 +164,7 @@ class QueryEnvironment:
         self.storage_for(metadata.table_name)
         self._validate_index_identity(metadata, index)
         self._indexes[metadata.name] = index
+        self._bump_generation(metadata.table_name)
 
     def _validate_index_identity(
         self,
@@ -205,6 +236,7 @@ class QueryEnvironment:
                 "storage object than its table"
             )
 
+    @_registry_latched
     def index_for(self, index_name: str) -> Index:
         """Return a registered runtime index after validating its definition."""
 
@@ -227,17 +259,21 @@ class QueryEnvironment:
         self._validate_index_identity(metadata, index)
         return index
 
+    @_registry_latched
     def unregister_index(self, index_name: str) -> Index:
         """Remove and return one borrowed index association without closing it."""
 
         metadata = self._catalog.get_index(index_name)
         try:
-            return self._indexes.pop(metadata.name)
+            index = self._indexes.pop(metadata.name)
+            self._bump_generation(metadata.table_name)
+            return index
         except KeyError as error:
             raise InvalidReferenceError(
                 f"No runtime index is registered for {metadata.name!r}"
             ) from error
 
+    @_registry_latched
     def registered_indexes_for(self, table_name: str) -> tuple[RegisteredIndex, ...]:
         """Return available table indexes in deterministic Catalog order."""
 
@@ -247,6 +283,7 @@ class QueryEnvironment:
             if metadata.name in self._indexes
         )
 
+    @_registry_latched
     def require_indexes_for(self, table_name: str) -> tuple[RegisteredIndex, ...]:
         """Return every declared index or reject an unsafe mutation setup."""
 

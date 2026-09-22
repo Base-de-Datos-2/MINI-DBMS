@@ -1,8 +1,7 @@
 # PLAN.md
 
-> Context version: **3.7** — preserves the formal Stage 7 baseline closure,
-> records the verified closure of the CREATE/EXPLAIN extension through Task
-> 7.40, and keeps Stage 8 as the next roadmap stage.
+> Context version: **3.8** — preserves the formal Stage 7 closure and records
+> the Stage 8 plan with Tasks 8.1–8.10 foundations implemented.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -913,9 +912,10 @@ locking, WAL, concurrent DDL, or crash-atomic multi-file commits.
 
 Detailed implementation sequence: `ETAPA_08.md`. Tasks 8.1–8.2 inspect the
 current checkout and adopt the design in `docs/transactions.md`. Tasks 8.3–8.6
-provide state, owner sessions, control syntax, and access intents; Tasks
-8.7–8.30 remain locking, undo, integration, evidence, and closure work. The
-foundation does not yet provide concurrent transactional data execution.
+provide state, owner sessions, control syntax, and access intents. Tasks
+8.7–8.10 add S/X lock primitives and physical latches; Tasks 8.11–8.30
+remain undo, integration, evidence, and closure work. The foundations do not
+yet provide concurrent transactional data execution.
 
 ## Objective
 
@@ -1371,7 +1371,7 @@ Latest formally completed SQL stage:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.6 foundation complete; locking/undo/data integration pending)**
+> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.10 foundations complete; undo/data integration pending)**
 
 Authorized sequencing exception: the team chose to build an emergency Stage 9
 demo before Stage 8 (see `ETAPA_09.md` Section 1). It is **demo ready** as of
@@ -1466,9 +1466,10 @@ evidence is in `docs/ETAPA_07_TASK_7_33_7_35.md` and
 `docs/ETAPA_07_TASK_7_36_7_38.md`; final evidence is in
 `docs/ETAPA_07_EXTENSION_AUDIT.md`. Stage 8 follows this closed extension in
 the roadmap.
-`ETAPA_08.md` now supplies its detailed plan. Tasks 8.1–8.6 record the
-inspection, adopted contract, and control/session/resource foundation. The
-Stage 7 data path still has no transaction isolation or rollback; Stage 8
-locking, undo, and data integration remain. Part 1 is not complete.
+`ETAPA_08.md` supplies its detailed plan. Tasks 8.1–8.10 record the
+inspection, adopted contract, control/session/resource foundation, S/X lock
+primitives, and physical latches. The Stage 7 data path still has no
+transaction isolation or rollback; Stage 8 undo and data integration remain.
+Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

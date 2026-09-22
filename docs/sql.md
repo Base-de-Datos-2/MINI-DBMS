@@ -412,9 +412,9 @@ the final complete result of **2,742 passing tests** under warnings-as-errors.
 
 ## Stage 8 integration points
 
-Stage 8 Tasks 8.3–8.6 added control sessions and resource access plans around
-these existing boundaries. Protected data execution still requires locking and
-undo:
+Stage 8 Tasks 8.3–8.10 added control sessions, resource access plans, S/X lock
+primitives and short physical latches around these existing boundaries.
+Protected data execution still requires undo and engine integration:
 
 - `SqlEngine` owns one session and the active SELECT cursor policy.
 - `QueryResult` owns operator/context lifetime and exposes completion,
@@ -427,5 +427,6 @@ undo:
 
 The transaction contract now defines identity, sessions, lock policy, commit
 and abort boundaries, deadlock behavior, and recovery limits. The implemented
-foundation provides identity and sessions; later Stage 8 tasks implement the
-data guarantees. The current compensation path is not WAL-backed rollback.
+foundations provide identity, sessions, locks and physical handle safety;
+later Stage 8 tasks implement the data guarantees. The current compensation
+path is not WAL-backed rollback.

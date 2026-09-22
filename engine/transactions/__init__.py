@@ -11,7 +11,9 @@ from .errors import (
     TransactionUnavailableError,
 )
 from .manager import TransactionManager
-from .locks import LockManager
+from .locks import (
+    LockManager, LockSnapshot, ResourceSnapshot, SchemaResource, WaitSnapshot,
+)
 from .model import Transaction, TransactionId, TransactionReport, TransactionState
 from .resources import (
     AccessPlan,
@@ -30,9 +32,12 @@ __all__ = [
     "DeadlockVictimError",
     "LockMode",
     "LockManager",
+    "LockSnapshot",
     "LockTimeoutError",
     "ResourceCatalog",
+    "ResourceSnapshot",
     "SchemaMode",
+    "SchemaResource",
     "SessionBusyError",
     "SessionCoordinator",
     "SqlSession",
@@ -50,4 +55,5 @@ __all__ = [
     "TransactionReport",
     "TransactionState",
     "TransactionUnavailableError",
+    "WaitSnapshot",
 ]

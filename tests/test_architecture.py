@@ -56,12 +56,17 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         # operators/indexes rather than inside engine.query.
         "maintenance": {"errors", "catalog", "storage", "indexes", "maintenance"},
         "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions"},
-        "transactions": {"errors", "catalog", "storage", "indexes", "transactions"},
+        # The Stage 8 coordinator wraps the existing query facade and AST;
+        # query modules do not import the coordinator, keeping the module
+        # dependency graph acyclic (checked below).
+        "transactions": {
+            "errors", "catalog", "storage", "indexes", "query", "transactions",
+        },
         # The database owner is the composition root for persistent discovery,
         # runtime handles, DDL, query execution, and mutation maintenance.
         "database": {
             "errors", "catalog", "storage", "indexes", "operators", "query",
-            "maintenance", "database",
+            "maintenance", "transactions", "database",
         },
     }
     for module, (path, tree) in engine_sources().items():

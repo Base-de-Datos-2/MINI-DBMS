@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from functools import wraps
+from threading import RLock
+
 from engine.catalog.types import DataType
 from engine.errors import InvalidTypeError, ValidationError
 from engine.storage.page import Page
@@ -14,6 +17,15 @@ from .hash_header import HashFileHeader
 
 _HEADER_PAGE_ID = 0
 _ONLY_SLOT_ID = 0
+
+
+def _latched(method):
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        with self._mutex:
+            return method(self, *args, **kwargs)
+
+    return call
 
 
 def _require_manager(manager: object) -> PageManager:
@@ -67,13 +79,15 @@ class HashHeaderPageIO:
 class HashDirectoryPageIO:
     """Transfer strict directory chunks through the shared page manager."""
 
-    def __init__(self, manager: PageManager) -> None:
+    def __init__(self, manager: PageManager, *, counter_lock: RLock | None = None) -> None:
         self._manager = _require_manager(manager)
+        self._mutex = RLock() if counter_lock is None else counter_lock
         # Typed counters complement PageManager's aggregate physical counters.
         self.pages_read = 0
         self.pages_written = 0
         self.pages_allocated = 0
 
+    @_latched
     def allocate_page(self) -> int:
         page_id = self._manager.allocate_page()
         if page_id == _HEADER_PAGE_ID:
@@ -81,28 +95,31 @@ class HashDirectoryPageIO:
         self.pages_allocated += 1
         return page_id
 
+    @_latched
     def write_page(self, page_id: int, directory_page: HashDirectoryPage) -> None:
         self._manager.write_page(
             _frame(page_id, HashDirectoryCodec.serialize(directory_page))
         )
         self.pages_written += 1
 
+    @_latched
     def read_page(self, page_id: int) -> HashDirectoryPage:
         if type(page_id) is not int:
             raise InvalidTypeError("directory page_id must be a built-in int")
         if page_id == _HEADER_PAGE_ID:
             raise ValidationError("Hash directory cannot use metadata page 0")
-        reads_before = self._manager.pages_read
-        try:
-            physical_page = self._manager.read_page(page_id)
-        finally:
-            # PageManager can complete a transfer then reject its outer Page
-            # frame. Count that read, but not a rejection before any transfer.
-            self.pages_read += self._manager.pages_read - reads_before
+        with self._manager.counter_scope():
+            reads_before = self._manager.pages_read
+            try:
+                physical_page = self._manager.read_page(page_id)
+            finally:
+                # Include a completed transfer even if its Page frame is bad.
+                self.pages_read += self._manager.pages_read - reads_before
         return HashDirectoryCodec.deserialize(
             _payload(physical_page, "hash directory")
         )
 
+    @_latched
     def reset_counters(self) -> None:
         """Reset only the counters owned by this typed I/O adapter."""
 
@@ -112,8 +129,12 @@ class HashDirectoryPageIO:
 class HashBucketPageIO:
     """Transfer bucket models while validating physical/stored page identity."""
 
-    def __init__(self, manager: PageManager, key_type: DataType) -> None:
+    def __init__(
+        self, manager: PageManager, key_type: DataType, *,
+        counter_lock: RLock | None = None,
+    ) -> None:
         self._manager = _require_manager(manager)
+        self._mutex = RLock() if counter_lock is None else counter_lock
         if not isinstance(key_type, DataType):
             raise InvalidTypeError("key_type must be a DataType")
         self._key_type = key_type
@@ -123,6 +144,7 @@ class HashBucketPageIO:
         # Merge is deferred in format v1, so no bucket is currently freed.
         self.pages_freed = 0
 
+    @_latched
     def allocate_page(self) -> int:
         page_id = self._manager.allocate_page()
         if page_id == _HEADER_PAGE_ID:
@@ -130,6 +152,7 @@ class HashBucketPageIO:
         self.pages_allocated += 1
         return page_id
 
+    @_latched
     def write_bucket(self, bucket: HashBucket) -> None:
         if not isinstance(bucket, HashBucket):
             raise InvalidTypeError("bucket must be a HashBucket")
@@ -140,16 +163,18 @@ class HashBucketPageIO:
         )
         self.pages_written += 1
 
+    @_latched
     def read_bucket(self, page_id: int) -> HashBucket:
         if type(page_id) is not int:
             raise InvalidTypeError("bucket page_id must be a built-in int")
         if page_id == _HEADER_PAGE_ID:
             raise ValidationError("Hash bucket cannot use metadata page 0")
-        reads_before = self._manager.pages_read
-        try:
-            physical_page = self._manager.read_page(page_id)
-        finally:
-            self.pages_read += self._manager.pages_read - reads_before
+        with self._manager.counter_scope():
+            reads_before = self._manager.pages_read
+            try:
+                physical_page = self._manager.read_page(page_id)
+            finally:
+                self.pages_read += self._manager.pages_read - reads_before
         bucket = HashBucketCodec.deserialize(
             self._key_type,
             _payload(physical_page, "hash bucket"),
@@ -158,6 +183,7 @@ class HashBucketPageIO:
             raise ValidationError("Stored hash bucket page_id differs from its location")
         return bucket
 
+    @_latched
     def reset_counters(self) -> None:
         """Reset only the counters owned by this typed I/O adapter."""
 

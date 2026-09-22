@@ -3,8 +3,10 @@ from __future__ import annotations
 from collections.abc import Generator
 from contextlib import closing
 from dataclasses import dataclass, replace
+from functools import wraps
 import os
 from pathlib import Path
+from threading import RLock
 from time import perf_counter
 
 from engine.catalog.schema import Schema
@@ -36,6 +38,15 @@ from .hash_directory import HashDirectory, HashDirectoryPage
 from .hash_header import HashFileHeader
 from .hash_io import HashBucketPageIO, HashDirectoryPageIO, HashHeaderPageIO
 from .hash_metrics import HashBuildMetrics, HashMetrics, HashStructuralMetrics
+
+
+def _metric_latched(method):
+    @wraps(method)
+    def call(self, *args, **kwargs):
+        with self._metrics_mutex:
+            return method(self, *args, **kwargs)
+
+    return call
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,9 +85,14 @@ class ExtendibleHashIndex(Index):
         if manager.allocated_page_count != header.index_page_count + 1:
             raise ValidationError("Hash header page count does not match the file")
         self._manager = manager
+        self._metrics_mutex = RLock()
         self._header = header
-        self._directories = HashDirectoryPageIO(manager)
-        self._buckets = HashBucketPageIO(manager, header.key_type)
+        self._directories = HashDirectoryPageIO(
+            manager, counter_lock=self._metrics_mutex
+        )
+        self._buckets = HashBucketPageIO(
+            manager, header.key_type, counter_lock=self._metrics_mutex
+        )
         self._build_metrics: HashBuildMetrics | None = None
         self._structural_metrics = HashStructuralMetrics()
 
@@ -324,6 +340,7 @@ class ExtendibleHashIndex(Index):
         return self._build_metrics
 
     @property
+    @_metric_latched
     def structural_metrics(self) -> HashStructuralMetrics:
         
 
@@ -331,6 +348,7 @@ class ExtendibleHashIndex(Index):
         return self._structural_metrics
 
     @property
+    @_metric_latched
     def metrics(self) -> HashMetrics:
         """combina la I/O física tipada con datos de topología lógica y duradera."""
 
@@ -388,6 +406,7 @@ class ExtendibleHashIndex(Index):
         directory, _ = self._read_directory()
         return directory.entries
 
+    @_metric_latched
     def reset_counters(self) -> None:
         self._require_open()
         self._manager.reset_counters()
@@ -396,11 +415,11 @@ class ExtendibleHashIndex(Index):
         self._structural_metrics = HashStructuralMetrics()
 
     def _count_structural(self, field: str, amount: int = 1) -> None:
-
-        self._structural_metrics = replace(
-            self._structural_metrics,
-            **{field: getattr(self._structural_metrics, field) + amount},
-        )
+        with self._metrics_mutex:
+            self._structural_metrics = replace(
+                self._structural_metrics,
+                **{field: getattr(self._structural_metrics, field) + amount},
+            )
 
     def mark_incomplete(self) -> None:
 
@@ -455,8 +474,13 @@ class ExtendibleHashIndex(Index):
             if not header.build_complete:
                 raise ValidationError("Replacement hash build is incomplete")
             self._header = header
-            self._directories = HashDirectoryPageIO(self._manager)
-            self._buckets = HashBucketPageIO(self._manager, header.key_type)
+            self._directories = HashDirectoryPageIO(
+                self._manager, counter_lock=self._metrics_mutex
+            )
+            self._buckets = HashBucketPageIO(
+                self._manager, header.key_type,
+                counter_lock=self._metrics_mutex,
+            )
             self._build_metrics = metrics
             self._structural_metrics = structural_metrics
             return metrics
