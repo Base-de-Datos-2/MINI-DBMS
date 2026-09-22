@@ -20,6 +20,9 @@ from engine.maintenance.validation import build_validated_record
 from engine.storage import HeapFile
 from engine.storage.organization import OrganizationMetadata, OrganizationType
 from engine.storage.record import RecordValue
+from engine.transactions.ownership import DirectoryLease, claim_directory
+from engine.transactions.resources import TableFiles
+from engine.transactions.session import SessionCoordinator, SqlSession
 
 from .manifest import (
     DatabaseManifest,
@@ -58,6 +61,8 @@ class Database:
         "_paths",
         "_closed",
         "_available",
+        "_coordinator",
+        "_owner_lease",
     )
 
     def __init__(self) -> None:
@@ -75,19 +80,22 @@ class Database:
     ) -> "Database":
         """Create an empty manifest-backed database in an empty directory."""
 
-        root = Path(directory)
-        if root.exists():
-            if not root.is_dir():
-                raise DatabaseSetupError("Database root must be a directory")
-            if any(root.iterdir()):
-                raise DatabaseSetupError(
-                    "Manifest-backed database creation requires an empty directory"
-                )
-        else:
-            root.mkdir(parents=True)
-        manifest = new_manifest(name)
+        root = Path(directory).resolve()
+        lease = claim_directory(root)
         path = root / MANIFEST_FILENAME
+        initialized_empty = False
         try:
+            if root.exists():
+                if not root.is_dir():
+                    raise DatabaseSetupError("Database root must be a directory")
+                if any(root.iterdir()):
+                    raise DatabaseSetupError(
+                        "Manifest-backed database creation requires an empty directory"
+                    )
+            else:
+                root.mkdir(parents=True)
+            initialized_empty = True
+            manifest = new_manifest(name)
             write_manifest_atomic(path, manifest)
             return cls._assemble(
                 root,
@@ -95,12 +103,15 @@ class Database:
                 memory_budget_bytes,
                 max_open_handles,
                 materialization_limit,
+                lease,
             )
         except BaseException:
-            try:
-                path.unlink(missing_ok=True)
-            except OSError:
-                pass
+            if initialized_empty:
+                try:
+                    path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            lease.release()
             raise
 
     @classmethod
@@ -114,17 +125,23 @@ class Database:
     ) -> "Database":
         """Open a managed database solely from its strict persisted manifest."""
 
-        root = Path(directory)
-        if not root.is_dir():
-            raise DatabaseSetupError("Database root does not exist")
-        manifest = read_manifest(root / MANIFEST_FILENAME)
-        return cls._assemble(
-            root,
-            manifest,
-            memory_budget_bytes,
-            max_open_handles,
-            materialization_limit,
-        )
+        root = Path(directory).resolve()
+        lease = claim_directory(root)
+        try:
+            if not root.is_dir():
+                raise DatabaseSetupError("Database root does not exist")
+            manifest = read_manifest(root / MANIFEST_FILENAME)
+            return cls._assemble(
+                root,
+                manifest,
+                memory_budget_bytes,
+                max_open_handles,
+                materialization_limit,
+                lease,
+            )
+        except BaseException:
+            lease.release()
+            raise
 
     @classmethod
     def _assemble(
@@ -134,6 +151,7 @@ class Database:
         memory_budget_bytes: int,
         max_open_handles: int,
         materialization_limit: int,
+        lease: DirectoryLease,
     ) -> "Database":
         database = object.__new__(cls)
         database._directory = root.resolve()
@@ -147,6 +165,8 @@ class Database:
         database._closed = False
         database._available = True
         database._engine = None
+        database._coordinator = None
+        database._owner_lease = lease
         try:
             for table in manifest.tables:
                 database._open_table(table)
@@ -156,6 +176,30 @@ class Database:
                 max_open_handles=max_open_handles,
                 materialization_limit=materialization_limit,
                 ddl_service=database,
+            )
+            database._coordinator = SessionCoordinator(
+                database_identity=manifest.identity,
+                environment=database._environment,
+                table_files=tuple(
+                    TableFiles(
+                        table.name,
+                        table.identity,
+                        managed_path(database._directory, table.filename),
+                        tuple(
+                            (index.name, managed_path(database._directory, index.filename))
+                            for index in table.indexes
+                        ),
+                    )
+                    for table in manifest.tables
+                ),
+                engine_factory=lambda: SqlEngine(
+                    database._environment,
+                    memory_budget_bytes=memory_budget_bytes,
+                    max_open_handles=max_open_handles,
+                    materialization_limit=materialization_limit,
+                    ddl_service=database,
+                ),
+                default_engine=database._engine,
             )
         except BaseException as error:
             try:
@@ -244,6 +288,17 @@ class Database:
     def engine(self) -> SqlEngine:
         self._require_available()
         return self._engine
+
+    @property
+    def session_coordinator(self) -> SessionCoordinator:
+        self._require_available()
+        return self._coordinator
+
+    def open_session(self) -> SqlSession:
+        """Open an independent control session; protected data is pending."""
+
+        self._require_available()
+        return self._coordinator.open_session()
 
     @property
     def closed(self) -> bool:
@@ -461,6 +516,7 @@ class Database:
         storage_registered = False
         index_catalog_registered = False
         index_runtime_registered = False
+        resource_registered = False
         try:
             storage = HeapFile.create(table_path, table.schema)
             index_metadata = None
@@ -501,11 +557,25 @@ class Database:
             if index_metadata is not None:
                 self._indexes[index_metadata.name] = runtime_index
                 self._paths[index_metadata.name] = index_path
+            self._coordinator.resources.register(
+                TableFiles(
+                    table.name,
+                    table_id,
+                    table_path,
+                    () if index_metadata is None else ((index_metadata.name, index_path),),
+                )
+            )
+            resource_registered = True
             write_manifest_atomic(self._manifest_path, next_manifest)
             self._manifest = next_manifest
             return CreatedTable(table.name, primary_index_name)
         except BaseException as error:
             cleanup_failures: list[BaseException] = []
+            if resource_registered:
+                try:
+                    self._coordinator.resources.unregister(table.name)
+                except BaseException as cleanup:
+                    cleanup_failures.append(cleanup)
             if table_catalog_registered:
                 cleanup_failures.extend(
                     self._rollback_publication(
@@ -569,6 +639,9 @@ class Database:
     def close(self) -> None:
         if self._closed:
             return
+        coordinator = self._coordinator
+        if coordinator is not None:
+            coordinator.close()
         self._closed = True
         failures: list[BaseException] = []
         engine = self._engine
@@ -584,6 +657,7 @@ class Database:
                 failures.append(error)
         self._indexes.clear()
         self._storages.clear()
+        self._owner_lease.release()
         if failures:
             raise failures[0]
 

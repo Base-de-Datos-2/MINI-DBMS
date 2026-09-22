@@ -273,9 +273,7 @@ def test_submission_requires_exactly_one_statement_and_at_most_one_semicolon(sql
 @pytest.mark.parametrize(
     "sql",
     [
-        "BEGIN TRANSACTION",
         "COMMIT",
-        "ROLLBACK",
         "UPDATE t SET a = 1",
     ],
 )

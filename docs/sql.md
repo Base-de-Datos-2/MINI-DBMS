@@ -7,6 +7,11 @@
 > [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
 > [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
 
+> **Stage 8 foundation:** Owner-created sessions now support control-only
+> `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK` calls. They refuse data
+> execution until S/X locking and undo are integrated. The examples below use
+> the existing Stage 7 engine and do not demonstrate transaction isolation.
+
 This guide describes the SQL engine implemented by Stage 7. The normative
 grammar, token/span conventions, parser limits, and production-to-function map
 are in [sql-grammar.md](sql-grammar.md).
@@ -370,7 +375,9 @@ The following remain outside the Stage 7 subset:
 - NULL, defaults, constraints other than the parsed inline PRIMARY KEY,
   arithmetic expressions, positional ORDER BY, DISTINCT, HAVING, LIMIT/OFFSET,
   and window functions;
-- BEGIN/COMMIT/ROLLBACK and every transaction or concurrency command;
+- COMMIT, savepoints and other transaction or concurrency commands. Stage 8
+  sessions parse `BEGIN TRANSACTION`, `END TRANSACTION` and `ROLLBACK` for
+  control-only empty groups; the raw Stage 7 `SqlEngine` rejects their execution;
 - EXPLAIN around INSERT, DELETE, CREATE, or another EXPLAIN statement;
 - multiple statements or trailing tokens after the optional final semicolon.
 
@@ -405,8 +412,9 @@ the final complete result of **2,742 passing tests** under warnings-as-errors.
 
 ## Stage 8 integration points
 
-Stage 8 can add transaction and concurrency behavior around these existing
-boundaries:
+Stage 8 Tasks 8.3–8.6 added control sessions and resource access plans around
+these existing boundaries. Protected data execution still requires locking and
+undo:
 
 - `SqlEngine` owns one session and the active SELECT cursor policy.
 - `QueryResult` owns operator/context lifetime and exposes completion,
@@ -417,6 +425,7 @@ boundaries:
 - storage/index managers remain borrowed durable resources registered in
   `QueryEnvironment`.
 
-Stage 8 must define transaction identity, locks, competing sessions, commit and
-abort boundaries, deadlock behavior, and recovery separately. It must not
-reinterpret the current compensation path as WAL-backed rollback.
+The transaction contract now defines identity, sessions, lock policy, commit
+and abort boundaries, deadlock behavior, and recovery limits. The implemented
+foundation provides identity and sessions; later Stage 8 tasks implement the
+data guarantees. The current compensation path is not WAL-backed rollback.

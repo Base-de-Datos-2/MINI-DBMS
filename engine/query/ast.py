@@ -192,10 +192,28 @@ class ExplainStatement(SyntaxNode):
     analyze: bool = False
 
 
+@dataclass(frozen=True, slots=True)
+class BeginTransactionStatement(SyntaxNode):
+    """Start an explicit group in the owning database session."""
+
+
+@dataclass(frozen=True, slots=True)
+class EndTransactionStatement(SyntaxNode):
+    """Commit an explicit group in the owning database session."""
+
+
+@dataclass(frozen=True, slots=True)
+class RollbackStatement(SyntaxNode):
+    """Abort an explicit group in the owning database session."""
+
+
 Statement = (
     SelectStatement
     | InsertStatement
     | DeleteStatement
     | CreateTableStatement
     | ExplainStatement
+    | BeginTransactionStatement
+    | EndTransactionStatement
+    | RollbackStatement
 )

@@ -23,6 +23,13 @@ Every valid query environment supports SELECT-only explanation. See the
 evidence is in the [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
 Multiple statements and automatic script splitting remain unsupported.
 
+**Stage 8 foundation (Tasks 8.3–8.6):** The same handwritten parser now
+recognizes `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK` as complete
+single statements. They are dispatched only by an owner-created session.
+The existing Stage 7 `SqlEngine` rejects direct control execution with a
+located diagnostic; coordinated data execution is gated until locking and
+undo are integrated. The Stage 7 syntax and evidence above remain historical.
+
 ## Source and token conventions
 
 - A source span uses a zero-based inclusive `start` offset and exclusive `end`
@@ -65,7 +72,12 @@ and keyword spelling is case-insensitive.
 
 ```ebnf
 statement       = (select_stmt | insert_stmt | delete_stmt
-                  | create_table_stmt | explain_stmt), [";"], EOF ;
+                  | create_table_stmt | explain_stmt | transaction_control),
+                  [";"], EOF ;
+
+transaction_control = "BEGIN", "TRANSACTION"
+                    | "END", "TRANSACTION"
+                    | "ROLLBACK" ;
 
 create_table_stmt = "CREATE", "TABLE", identifier, "(",
                     column_definition, {",", column_definition}, ")" ;
@@ -135,7 +147,8 @@ numeric literal, and rejects arbitrary unary arithmetic.
 | JOIN | At most one explicit inner `JOIN`; its executable baseline is an equality key plus any supported residual predicate |
 | Aggregates | `COUNT(*)`, `COUNT(column)`, `SUM`, `AVG`, `MIN`, and `MAX`, subject to Stage 6 type rules |
 | NULL | No SQL `NULL` literal or three-valued logic is adopted because the current row model does not support it |
-| Unsupported | UPDATE, DDL other than the limited CREATE TABLE syntax, transactions, subqueries, expressions, multi-row VALUES, quoted identifiers, and multiple statements |
+| Transaction controls | BEGIN TRANSACTION, END TRANSACTION, and ROLLBACK parse as one complete statement; owner-created sessions currently execute only empty control groups |
+| Unsupported | UPDATE, DDL other than the limited CREATE TABLE syntax, COMMIT alias, savepoints, transactional data execution pending Stage 8 integration, subqueries, expressions, multi-row VALUES, quoted identifiers, and multiple statements |
 
 `DELETE` without `WHERE`, implicit aliases, qualified stars, line comments,
 multiple ORDER/GROUP keys, and the optional INSERT column list are explicit
@@ -145,13 +158,14 @@ project choices. They are not claimed as academic requirements.
 
 | Grammar area | Parser method / AST result |
 |---|---|
-| complete statement | `parse_sql` / `SelectStatement`, `InsertStatement`, `DeleteStatement`, `CreateTableStatement`, `ExplainStatement` |
+| complete statement | `parse_sql` / `SelectStatement`, `InsertStatement`, `DeleteStatement`, `CreateTableStatement`, `ExplainStatement`, and the three transaction control nodes |
 | SELECT and clauses | `_parse_select`, clause helpers / `SelectItem`, `TableRef`, `JoinClause`, `OrderItem` |
 | Boolean precedence | `_parse_or`, `_parse_and`, `_parse_not`, `_parse_comparison` / Boolean and comparison expressions |
 | names and literals | `_parse_select_reference`, `_parse_column_ref`, `_parse_literal`, `_parse_value_expr` / unresolved references and literals |
 | writes | `_parse_insert`, `_parse_delete` / write statement AST nodes |
 | CREATE TABLE | `_parse_create_table`, `_parse_column_definition`, `_parse_type_specification` / `CreateTableStatement`, `ColumnDefinition`, `TypeSpecification` |
 | explanations | `_parse_explain` delegates its child to `_parse_select` / `ExplainStatement` with `SelectStatement` child |
+| transaction controls | `_parse_begin_transaction`, `_parse_end_transaction`, `_parse_rollback` / `BeginTransactionStatement`, `EndTransactionStatement`, `RollbackStatement` |
 
 The AST contains syntax and source locations only. It cannot contain Catalog
 objects, RIDs, storage objects, physical operators, or mutation behavior.

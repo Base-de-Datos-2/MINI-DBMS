@@ -29,9 +29,12 @@ from engine.operators.context import (
 from engine.storage import Record
 
 from .ast import (
+    BeginTransactionStatement,
     CreateTableStatement,
     DeleteStatement,
+    EndTransactionStatement,
     InsertStatement,
+    RollbackStatement,
 )
 from .environment import QueryEnvironment
 from .ddl import CreatedTable, DdlService
@@ -62,8 +65,21 @@ def _reject_unavailable_extension(
     source: str,
     ddl_service: DdlService | None,
 ) -> None:
-    """Reject CREATE when no manifest-backed DDL service was injected."""
+    """Reject unsupported owner-specific statements before binding."""
 
+    if isinstance(
+        statement,
+        (BeginTransactionStatement, EndTransactionStatement, RollbackStatement),
+    ):
+        if statement.span is None:
+            raise RuntimeError("Parser-created transaction control lacks a span")
+        raise SqlUnsupportedError(
+            "Transaction controls require a database session; coordinated data "
+            "execution is not enabled yet",
+            span=statement.span,
+            source=source,
+            offending=source[statement.span.start:statement.span.end],
+        )
     if isinstance(statement, CreateTableStatement) and ddl_service is None:
         feature = "CREATE TABLE execution"
         offending = "CREATE"

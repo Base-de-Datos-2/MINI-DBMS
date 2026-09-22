@@ -1899,17 +1899,54 @@ The frontend's execution-plan panel should visualize this real plan.
 
 The project requires transaction grouping and concurrency control.
 
-Current recommended strategy:
+**Stage 8 Tasks 8.1–8.6 complete; coordinated data execution pending.** The full
+session, failure, quota, and recovery-boundary contract is in
+[`docs/transactions.md`](docs/transactions.md). The foundation evidence is in
+`docs/ETAPA_08_TASK_8_3_8_6.md`. The decisions below describe the target
+contract; real S/X grants, undo, and transactional data execution are not yet
+implemented.
 
-- a Transaction Manager;
-- a Lock Manager;
-- shared locks for compatible reads;
-- exclusive locks for writes;
-- a simple locking protocol sufficient to demonstrate safe concurrent execution.
+- One canonical in-process database owner per physical directory will share
+  Catalog, runtime registry, a Transaction Manager, and a Lock Manager among
+  independent sessions. Each session owns its group and result; the existing
+  `Database.engine` remains a compatibility default session. Legacy registered
+  environments need the same coordination adapter. Multiple processes sharing
+  one directory are unsupported.
+- The required `BEGIN TRANSACTION` starts a group and `END TRANSACTION` commits
+  it. Team-selected `ROLLBACK` aborts. Standalone statements use implicit
+  transactions; one SQL statement per call remains the grammar boundary.
+  Execute failures abort an explicit group, while pure prepare/describe errors
+  and session protocol errors do not silently change it.
+- Table-level S/X locks are held until successful commit or completed abort
+  (rigorous 2PL). A schema S gate precedes table locks; standalone CREATE uses
+  schema X and is excluded from explicit groups. FIFO waits, upgrades, a
+  wait-for graph with requesting-transaction victim selection, finite timeouts,
+  and cancellation have distinct outcomes. Physical I/O and registry latches
+  are separate and short; compatible readers and independent tables must
+  overlap. The emergency HTTP admission guard stays until Stage 9 integration.
+- A bounded, streamed before-image of a first-written table's complete base
+  and index file set supplies ordinary in-process undo. Abort restores bytes,
+  lengths, runtime objects, and prepared-plan generations while locks remain
+  held. END synchronizes the modified set before marking COMMITTED and
+  releasing locks; failed restoration quarantines the owner. An unclean marker
+  or orphan undo artifacts cause fresh open to refuse normal access pending
+  explicit inspection. This is not WAL, automatic crash recovery, or
+  crash-atomic multi-file commit.
 
-A simplified strict two-phase-locking design is acceptable as a project decision if implemented consistently.
+The exact initial resource limits and event/error contract are in
+`docs/transactions.md`. Do not implement MVCC unless explicitly chosen later.
 
-Do not implement MVCC unless explicitly chosen later.
+The implemented foundation adds immutable transaction state snapshots and
+structured errors, one owner-scoped ID allocator, a session coordinator for
+managed and legacy owners, duplicate in-process directory rejection, and the
+handwritten control grammar. New sessions execute only empty control groups;
+their data statements fail before effects. `Database.engine` remains the
+Stage 7 default data facade until Task 8.15 integrates it with transaction
+protection. The metadata-only resource planner maps SELECT/joins/ANALYZE to
+table S intents, INSERT/DELETE to table X intents, CREATE to schema X, and
+plain EXPLAIN to schema S. It includes every declared index file and detects
+runtime generation changes. The shared lock-manager boundary currently
+rejects acquisition; Task 8.7 adds grants. The Stage 9 HTTP guard remains.
 
 ---
 
@@ -2096,11 +2133,11 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (not started)**
+> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.6 foundation complete; locking, undo and data integration pending)**
 
-Latest completed stage specification:
+Current stage specification:
 
-> `ETAPA_07.md`
+> `ETAPA_08.md`
 
 Implemented so far:
 
@@ -2270,8 +2307,10 @@ warnings-as-errors suite passes 2,742 tests. Implementation evidence is in
 `docs/ETAPA_07_TASK_7_33_7_35.md` and `docs/ETAPA_07_TASK_7_36_7_38.md`; final
 closure evidence is in `docs/ETAPA_07_EXTENSION_AUDIT.md`.
 Stage 8 follows that closed extension in
-the roadmap; no detailed `ETAPA_08.md` plan or Stage 8 implementation is
-claimed. Part 1 remains incomplete. The
+the roadmap. `ETAPA_08.md` now provides the detailed plan; Tasks 8.1–8.2
+record the inspection/contract and Tasks 8.3–8.6 provide the bounded
+foundation. No concurrency or transactional data guarantee is claimed. Part 1
+remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2285,10 +2324,13 @@ When the project advances to a new stage, update this section and point it to th
 
 ## Important unresolved design decisions
 
-The following should not be guessed silently:
-
-- exact transaction syntax details beyond the assignment's `BEGIN TRANSACTION` / `END TRANSACTION`;
-- deadlock handling strategy.
+Stage 8 Task 8.2 resolved the transaction-control spelling, END-as-commit,
+rollback/error policy, session ownership, table/schema lock protocol, deadlock
+victim, undo and failure boundaries in `docs/transactions.md`. Tasks 8.3–8.6
+implemented the state model, owner-scoped sessions, control syntax, and resource
+intent mapping. Lock grants, undo and coordinated data execution remain design
+decisions pending implementation and verification; do not infer them from Stage 7
+behavior.
 
 Resolved in Stage 6 and recorded under *Relational operators*: the physical
 comparison subset, the adopted aggregate set, the memory-budget model and its

@@ -37,8 +37,8 @@ def test_health_is_cached_and_never_needs_admission(service):
     ]
 
 
-def test_closing_waits_for_admitted_work_then_refuses_everything(prepared_directory):
-    service = open_service(prepared_directory)
+def test_closing_waits_for_admitted_work_then_refuses_everything(writable_directory):
+    service = open_service(writable_directory)
     admitted = threading.Event()
     release = threading.Event()
 
@@ -64,8 +64,8 @@ def test_closing_waits_for_admitted_work_then_refuses_everything(prepared_direct
     service.close()
 
 
-def test_the_service_requires_an_open_database(prepared_directory):
-    database = Database.open(small_demo(), prepared_directory)
+def test_the_service_requires_an_open_database(writable_directory):
+    database = Database.open(small_demo(), writable_directory)
     database.close()
 
     with pytest.raises(Exception, match="open Database"):

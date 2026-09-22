@@ -86,7 +86,8 @@ limpieza, fallos inyectados y comparación con rutas base. Los 63 criterios se
 cumplen y la suite estricta completa pasa **2556 pruebas**. Consulta la
 [guía del motor SQL](docs/sql.md) y la
 [auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md). La Parte 1 sigue pendiente:
-la Etapa 8 de transacciones y concurrencia es la siguiente y aún no comenzó.
+la Etapa 8 ya tiene contrato, sesiones y controles SQL (tareas 8.1–8.6),
+pero la ejecución de datos con bloqueos y undo aún está pendiente.
 
 **Extensión CREATE/EXPLAIN de la Etapa 7 cerrada (2026-09-20):** las tareas
 7.31–7.40 añaden CREATE TABLE limitado y persistente, `VARCHAR(n)`, una clave
@@ -867,7 +868,7 @@ engine/
   operators/     # Operadores físicos, algoritmos externos y runner de planes
   query/         # AST, lexer/parser manual, binding, planes y ejecución SQL
   maintenance/   # Mantenimiento compartido de storage e índices para escrituras
-  transactions/  # Reservado: transacciones y concurrencia
+  transactions/  # Base de sesiones/estados/controles/recursos; bloqueo y undo pendientes
 api/             # Demo de la Etapa 9: servicio del motor y rutas FastAPI
 frontend/        # GUI React + TypeScript + Vite con los cuatro paneles
 scripts/         # setup_demo.py: prepara la base de datos de la demo
@@ -993,10 +994,14 @@ pasaron `compileall`, `pip check` y la revisión del diff.
   tareas 7.31–7.40.
 - [ETAPA_09.md](ETAPA_09.md): plan de emergencia de la interfaz, previo a la
   Etapa 8 por decisión del equipo.
+- [ETAPA_08.md](ETAPA_08.md): plan detallado de transacciones y concurrencia;
+  tareas 8.1–8.6 completadas, con [contrato](docs/transactions.md) y
+  [evidencia de la base](docs/ETAPA_08_TASK_8_3_8_6.md).
 - [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
 Las **Etapas 1–7 están completas y auditadas**, y la demo de emergencia de la
-Etapa 9 está lista. La **Etapa 8 — Transactions and
-Concurrency** es la siguiente en `PLAN.md`; todavía no se ha iniciado y no se
-afirma que exista un plan detallado `ETAPA_08.md`.
+Etapa 9 está lista. La **Etapa 8 — Transactions and Concurrency** avanzó hasta
+la base de sesiones y controles (tareas 8.1–8.6); los bloqueos S/X, el undo y
+la ejecución transaccional de datos siguen pendientes. La interfaz HTTP
+conserva su guardia de admisión hasta completar la integración posterior.
