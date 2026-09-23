@@ -1,7 +1,7 @@
 """Owner-scoped transaction IDs and state transitions.
 
-Only empty groups can complete in Block 2. Lock release, undo, and durable
-commit are added before data statements are admitted to coordinated sessions.
+Empty-group helpers remain for the foundation contract. Data-bearing terminal
+paths live in CompletionService and retain locks through disk synchronization.
 """
 
 from __future__ import annotations
@@ -57,6 +57,19 @@ class TransactionManager:
             if transaction.terminal:
                 del self._active[transaction_id]
             return transaction
+
+    def record_resources(
+        self, transaction_id: TransactionId, *,
+        held: frozenset[str] = frozenset(),
+        touched: frozenset[str] = frozenset(),
+        undo: tuple[str, ...] = (),
+    ) -> Transaction:
+        with self._mutex:
+            updated = self.current(transaction_id).with_resources(
+                held=held, touched=touched, undo=undo
+            )
+            self._active[transaction_id] = updated
+            return updated
 
     def _require_empty(self, transaction: Transaction) -> None:
         if (transaction.held_resources or transaction.touched_tables

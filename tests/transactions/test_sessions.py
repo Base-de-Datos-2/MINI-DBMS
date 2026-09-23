@@ -84,7 +84,7 @@ def test_protocol_errors_data_refusal_and_one_statement_boundary(tmp_path):
             session.execute("END TRANSACTION")
 
         session.execute("BEGIN TRANSACTION")
-        with pytest.raises(TransactionUnavailableError, match="pending undo") as caught:
+        with pytest.raises(TransactionUnavailableError, match="pending transaction-aware SQL routing") as caught:
             session.execute("INSERT INTO t VALUES (1)")
         assert caught.value.transaction_id is not None
         assert session.active_transaction is None

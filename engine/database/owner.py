@@ -23,6 +23,8 @@ from engine.storage.record import RecordValue
 from engine.transactions.ownership import DirectoryLease, claim_directory
 from engine.transactions.resources import TableFiles
 from engine.transactions.session import SessionCoordinator, SqlSession
+from engine.transactions.runtime import TableRuntime
+from engine.transactions.undo import UndoLimits, UndoStore
 
 from .manifest import (
     DatabaseManifest,
@@ -77,6 +79,7 @@ class Database:
         memory_budget_bytes: int = DEFAULT_BUDGET_BYTES,
         max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
         materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
+        undo_limits: UndoLimits = UndoLimits(),
     ) -> "Database":
         """Create an empty manifest-backed database in an empty directory."""
 
@@ -104,6 +107,7 @@ class Database:
                 max_open_handles,
                 materialization_limit,
                 lease,
+                undo_limits,
             )
         except BaseException:
             if initialized_empty:
@@ -122,6 +126,7 @@ class Database:
         memory_budget_bytes: int = DEFAULT_BUDGET_BYTES,
         max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
         materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
+        undo_limits: UndoLimits = UndoLimits(),
     ) -> "Database":
         """Open a managed database solely from its strict persisted manifest."""
 
@@ -130,6 +135,7 @@ class Database:
         try:
             if not root.is_dir():
                 raise DatabaseSetupError("Database root does not exist")
+            UndoStore.require_clean(root)
             manifest = read_manifest(root / MANIFEST_FILENAME)
             return cls._assemble(
                 root,
@@ -138,6 +144,7 @@ class Database:
                 max_open_handles,
                 materialization_limit,
                 lease,
+                undo_limits,
             )
         except BaseException:
             lease.release()
@@ -152,6 +159,7 @@ class Database:
         max_open_handles: int,
         materialization_limit: int,
         lease: DirectoryLease,
+        undo_limits: UndoLimits,
     ) -> "Database":
         database = object.__new__(cls)
         database._directory = root.resolve()
@@ -200,6 +208,13 @@ class Database:
                     ddl_service=database,
                 ),
                 default_engine=database._engine,
+                root=database._directory,
+                runtime=TableRuntime(
+                    database._catalog, database._environment,
+                    database._storages, database._indexes,
+                ),
+                quarantine_owner=lambda: setattr(database, "_available", False),
+                undo_limits=undo_limits,
             )
         except BaseException as error:
             try:
