@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.3** — preserves the formal Stage 7 closure and records
-> the Stage 8 contract and implemented Tasks 8.1–8.14 foundations.
+> Context version: **4.4** — preserves the formal Stage 7 closure and records
+> the Stage 8 contract and implemented Tasks 8.1–8.18.
 
 ## Project identity
 
@@ -1898,14 +1898,14 @@ The frontend's execution-plan panel should visualize this real plan.
 
 The project requires transaction grouping and concurrency control.
 
-**Stage 8 Tasks 8.1–8.14 complete; coordinated SQL data execution pending.** The full
+**Stage 8 Tasks 8.1–8.18 complete; core SQL data execution coordinated.** The full
 session, failure, quota, and recovery-boundary contract is in
 [`docs/transactions.md`](docs/transactions.md). The foundation evidence is in
 `docs/ETAPA_08_TASK_8_3_8_6.md` and
 `docs/ETAPA_08_TASK_8_7_8_10.md`, and
-`docs/ETAPA_08_TASK_8_11_8_14.md`. The decisions below describe the target
-contract; S/X lock primitives, physical latches, and bounded physical undo
-exist. SQL data routing and its implicit transactions are not yet implemented.
+`docs/ETAPA_08_TASK_8_11_8_14.md`, and
+`docs/ETAPA_08_TASK_8_15_8_18.md`. S/X lock primitives, physical latches,
+bounded physical undo, and owner-backed SELECT/INSERT/DELETE routing exist.
 
 - One canonical in-process database owner per physical directory will share
   Catalog, runtime registry, a Transaction Manager, and a Lock Manager among
@@ -1934,34 +1934,32 @@ exist. SQL data routing and its implicit transactions are not yet implemented.
   explicit inspection. This is not WAL, automatic crash recovery, or
   crash-atomic multi-file commit.
 
-The implemented Block 4 path uses one owner `UndoStore` and a transaction-owned
+The completion path uses one owner `UndoStore` and a transaction-owned
 image directory. Under schema S/table X, `CompletionService.prepare_write`
 flushes the canonical base/index handles, reserves exact image bytes and a
 free-space margin, copies in bounded chunks, and publishes a complete
 descriptor before the table-scoped action runs. The internal
-`SqlSession.run_write(table_name, action)` hook proves group rollback for
-Heap, B+, Hash and Sequential structures; its action must only mutate the
-named table. `TableRuntime` closes and reopens the canonical storage and all
+`SqlSession.run_write(table_name, action)` hook remains for targeted failure
+injection; ordinary writes use session SQL or managed `Database.insert`.
+`TableRuntime` closes and reopens the canonical storage and all
 index adapters after byte restoration, validates their coverage, and bumps
 resource generations. Commit validates and flushes all modified tables before
 COMMITTED, still under X; rollback restores all images before lock release.
 Restoration failure marks the owner unavailable and quarantines the lock
 domain. A marker or orphan undo directory prevents fresh open, without any
 automatic replay. `UndoLimits` is configurable on managed and legacy owner
-creation/open. Ordinary SQL `session.execute` data statements remain gated
-until Task 8.15; raw `Database.engine` retains its Stage 7 behavior.
+creation/open. Owner `Database.engine.execute` is the compatibility default
+session, and independent sessions share the same coordinator.
 
 The exact initial resource limits and event/error contract are in
 `docs/transactions.md`. Do not implement MVCC unless explicitly chosen later.
 
-The implemented foundation adds immutable transaction state snapshots and
+The implemented transaction layer adds immutable transaction state snapshots and
 structured errors, one owner-scoped ID allocator, a session coordinator for
 managed and legacy owners, duplicate in-process directory rejection, and the
-handwritten control grammar. New sessions execute controls and internal
-protected table actions; SQL data statements still fail before effects.
-`Database.engine` remains the
-Stage 7 default data facade until Task 8.15 integrates it with transaction
-protection. The metadata-only resource planner maps SELECT/joins/ANALYZE to
+handwritten control grammar. New sessions execute controls and protected SQL
+data statements. `Database.engine` routes execution through the default
+session while `prepare` remains side-effect free. The resource planner maps SELECT/joins/ANALYZE to
 table S intents, INSERT/DELETE to table X intents, CREATE to schema X, and
 plain EXPLAIN to schema S. It includes every declared index file and detects
 runtime generation changes. The shared lock manager now grants schema/table
@@ -1974,9 +1972,11 @@ and never encloses physical I/O. `PageManager` latches complete transfers,
 allocation, replacement, counters, flush and close per handle. Hash typed-I/O
 counters are attributed under that handle latch; Catalog and QueryEnvironment
 use short metadata latches. Runtime registry changes increment per-table
-generations, making old resource plans stale. No latch spans a yielded row.
-Raw Stage 7 execution is still not a protected concurrent data path; the Stage
-9 HTTP guard remains.
+generations. After a wait, a stable resource plan refreshes those generations
+and prepared SQL is rebound under locks before runtime access. No latch spans
+a yielded row. A deliberately standalone `SqlEngine(QueryEnvironment)` remains
+an uncoordinated lower-level path; the Stage 9 HTTP guard remains until the
+separate request/session handoff is verified.
 
 ---
 
@@ -2163,7 +2163,7 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.14 foundations complete; SQL data integration pending)**
+> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.18 complete; remaining integration and evidence pending)**
 
 Current stage specification:
 
@@ -2339,9 +2339,10 @@ closure evidence is in `docs/ETAPA_07_EXTENSION_AUDIT.md`.
 Stage 8 follows that closed extension in
 the roadmap. `ETAPA_08.md` now provides the detailed plan; Tasks 8.1–8.2
 record the inspection/contract, Tasks 8.3–8.10 provide session/lock/latch
-foundations, and Tasks 8.11–8.14 provide bounded physical undo and terminal
-completion through an internal protected-write path. Ordinary SQL data
-execution is not yet coordinated. Part 1 remains incomplete. The
+foundations, Tasks 8.11–8.14 provide bounded physical undo and terminal
+completion, and Tasks 8.15–8.18 coordinate owner-backed
+SELECT/INSERT/DELETE. Their complete warnings-as-errors regression passes
+2,814 tests. Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2360,9 +2361,11 @@ rollback/error policy, session ownership, table/schema lock protocol, deadlock
 victim, undo and failure boundaries in `docs/transactions.md`. Tasks 8.3–8.6
 implemented the state model, owner-scoped sessions, control syntax, and resource
 intent mapping. Tasks 8.7–8.14 implemented S/X lock grants, physical latches,
-table-scoped undo, commit/abort completion, and quarantine. SQL data routing,
-implicit groups and public isolation remain pending; do not infer them from
-Stage 7 behavior.
+table-scoped undo, commit/abort completion, and quarantine. Tasks 8.15–8.18
+implemented explicit and implicit SELECT/INSERT/DELETE execution, cursor lock
+lifetime, provisional command results, prepared-plan rebinding, and managed
+programmatic insertion. CREATE/EXPLAIN completion details, observability,
+shutdown, demonstrations, and Stage 9 request sessions remain pending.
 
 Resolved in Stage 6 and recorded under *Relational operators*: the physical
 comparison subset, the adopted aggregate set, the memory-budget model and its

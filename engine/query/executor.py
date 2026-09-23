@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from time import perf_counter
@@ -35,6 +36,7 @@ from .ast import (
     EndTransactionStatement,
     InsertStatement,
     RollbackStatement,
+    Statement,
 )
 from .environment import QueryEnvironment
 from .ddl import CreatedTable, DdlService
@@ -224,13 +226,20 @@ PlanSpec = (
 class PreparedQuery:
     """Reusable parse/bind/plan result with no live cursor or execution context."""
 
-    __slots__ = ("_engine", "_spec", "_kind", "_planning_seconds")
+    __slots__ = (
+        "_engine", "_spec", "_kind", "_planning_seconds", "_statement", "_source",
+        "_use_indexes", "_planning_options",
+    )
 
     def __init__(
         self,
         engine: "SqlEngine",
         spec: PlanSpec,
         *,
+        statement,
+        source: str,
+        use_indexes: bool,
+        planning_options: PhysicalPlanningOptions,
         planning_seconds: float = 0.0,
     ) -> None:
         if not isinstance(engine, SqlEngine):
@@ -246,12 +255,26 @@ class PreparedQuery:
             ),
         ):
             raise InvalidTypeError("PreparedQuery requires a supported plan specification")
+        if not isinstance(statement, Statement):
+            raise InvalidTypeError("PreparedQuery requires a parsed SQL statement")
+        if not isinstance(source, str):
+            raise InvalidTypeError("PreparedQuery source must be a string")
+        if type(use_indexes) is not bool:
+            raise InvalidTypeError("PreparedQuery use_indexes must be a bool")
+        if not isinstance(planning_options, PhysicalPlanningOptions):
+            raise InvalidTypeError(
+                "PreparedQuery planning_options must be PhysicalPlanningOptions"
+            )
         if type(planning_seconds) is not float:
             raise InvalidTypeError("planning_seconds must be a float")
         if planning_seconds < 0:
             raise ValidationError("planning_seconds must be non-negative")
         self._engine = engine
         self._spec = spec
+        self._statement = statement
+        self._source = source
+        self._use_indexes = use_indexes
+        self._planning_options = planning_options
         self._planning_seconds = planning_seconds
         if isinstance(spec, SelectPlanSpec):
             self._kind = StatementKind.SELECT
@@ -304,7 +327,10 @@ class PreparedQuery:
 class CommandResult:
     """One already-completed INSERT or DELETE result with no row stream."""
 
-    __slots__ = ("_prepared_description", "_statistics", "_statement_kind")
+    __slots__ = (
+        "_prepared_description", "_statistics", "_statement_kind",
+        "_transaction_id", "_committed",
+    )
 
     def __init__(self, prepared: PreparedQuery, statistics: MutationReport) -> None:
         if not isinstance(prepared, PreparedQuery):
@@ -316,6 +342,32 @@ class CommandResult:
         self._prepared_description = prepared.describe()
         self._statistics = statistics
         self._statement_kind = prepared.kind
+        self._transaction_id: int | None = None
+        self._committed = True
+
+    def _set_transaction_outcome(
+        self, *, transaction_id: int, committed: bool,
+    ) -> None:
+        self._transaction_id = transaction_id
+        self._committed = committed
+
+    @property
+    def transaction_id(self) -> int | None:
+        """Transaction that protected the command, when session coordinated."""
+
+        return self._transaction_id
+
+    @property
+    def committed(self) -> bool:
+        """Whether the affected-row count belongs to a committed transaction."""
+
+        return self._committed
+
+    @property
+    def provisional(self) -> bool:
+        """Whether the command remains subject to its explicit group outcome."""
+
+        return not self._committed
 
     @property
     def kind(self) -> ResultKind:
@@ -655,6 +707,9 @@ class QueryResult:
         "_rows_delivered",
         "_materialization_limit",
         "_cached_rows",
+        "_lifecycle_call",
+        "_lifecycle_terminal",
+        "_lifecycle_released",
     )
 
     def __init__(
@@ -681,6 +736,25 @@ class QueryResult:
         self._rows_delivered = 0
         self._materialization_limit = materialization_limit
         self._cached_rows: tuple[Record, ...] | None = None
+        self._lifecycle_call: Callable[[Callable[[], object]], object] | None = None
+        self._lifecycle_terminal: Callable[["QueryResult"], None] | None = None
+        self._lifecycle_released = False
+
+    def _attach_lifecycle(
+        self,
+        call: Callable[[Callable[[], object]], object],
+        terminal: Callable[["QueryResult"], None],
+    ) -> None:
+        """Attach one session guard before the still-unopened result is yielded."""
+
+        if self._state is not ResultState.CREATED or self._lifecycle_call is not None:
+            raise RuntimeError("A result lifecycle can be attached only once before use")
+        self._lifecycle_call = call
+        self._lifecycle_terminal = terminal
+
+    def _invoke(self, action: Callable[[], object]):
+        lifecycle = self._lifecycle_call
+        return action() if lifecycle is None else lifecycle(action)
 
     @property
     def kind(self) -> ResultKind:
@@ -767,6 +841,12 @@ class QueryResult:
 
     def _release_session(self) -> None:
         self._engine._release_result(self)
+        if self._lifecycle_released:
+            return
+        self._lifecycle_released = True
+        terminal = self._lifecycle_terminal
+        if terminal is not None:
+            terminal(self)
 
     def _preserve_cleanup_error(
         self,
@@ -820,11 +900,12 @@ class QueryResult:
         finally:
             self._state = ResultState.FAILED
             self._error = error
-            self._release_session()
+            try:
+                self._release_session()
+            except BaseException as cleanup:
+                self._preserve_cleanup_error(error, cleanup)
 
-    def open(self) -> "QueryResult":
-        """Instantiate and open one fresh physical plan and execution context."""
-
+    def _open_unlocked(self) -> "QueryResult":
         if self._state is not ResultState.CREATED:
             if self._state is ResultState.OPEN:
                 return self
@@ -849,6 +930,11 @@ class QueryResult:
             self._fail(error)
             raise
 
+    def open(self) -> "QueryResult":
+        """Instantiate and open one fresh physical plan and execution context."""
+
+        return self._invoke(self._open_unlocked)
+
     def _complete(self) -> None:
         try:
             self._close_owned()
@@ -858,11 +944,14 @@ class QueryResult:
             self._release_session()
             raise
         self._state = ResultState.COMPLETE
-        self._release_session()
+        try:
+            self._release_session()
+        except BaseException as error:
+            self._state = ResultState.FAILED
+            self._error = error
+            raise
 
-    def close(self) -> None:
-        """Close early and release all execution-owned resources; idempotent."""
-
+    def _close_unlocked(self) -> None:
         if self._state in {
             ResultState.COMPLETE,
             ResultState.CLOSED,
@@ -871,7 +960,12 @@ class QueryResult:
             return
         if self._state is ResultState.CREATED:
             self._state = ResultState.CLOSED
-            self._release_session()
+            try:
+                self._release_session()
+            except BaseException as error:
+                self._state = ResultState.FAILED
+                self._error = error
+                raise
             return
         try:
             self._close_owned()
@@ -881,28 +975,46 @@ class QueryResult:
             self._release_session()
             raise
         self._state = ResultState.CLOSED
-        self._release_session()
+        try:
+            self._release_session()
+        except BaseException as error:
+            self._state = ResultState.FAILED
+            self._error = error
+            raise
+
+    def close(self) -> None:
+        """Close early and release all execution-owned resources; idempotent."""
+
+        self._invoke(self._close_unlocked)
 
     def __enter__(self) -> "QueryResult":
         return self.open()
 
     def __exit__(self, exc_type, exc_value, traceback) -> bool:
+        return self._invoke(
+            lambda: self._exit_unlocked(exc_type, exc_value, traceback)
+        )
+
+    def _exit_unlocked(self, exc_type, exc_value, traceback) -> bool:
         if exc_value is None:
-            self.close()
+            self._close_unlocked()
             return False
         try:
             self._close_owned(exc_value)
         finally:
             self._state = ResultState.CLOSED
-            self._release_session()
+            try:
+                self._release_session()
+            except BaseException as cleanup:
+                self._preserve_cleanup_error(exc_value, cleanup)
         return False
 
     def __iter__(self) -> "QueryResult":
         return self
 
-    def __next__(self) -> Record:
+    def _next_unlocked(self) -> Record:
         if self._state is ResultState.CREATED:
-            self.open()
+            self._open_unlocked()
         if self._state is ResultState.COMPLETE:
             raise StopIteration
         if self._state is ResultState.CLOSED:
@@ -920,6 +1032,9 @@ class QueryResult:
         self._rows_delivered += 1
         return row
 
+    def __next__(self) -> Record:
+        return self._invoke(self._next_unlocked)
+
     def fetchmany(self, size: int) -> tuple[Record, ...]:
         """Read at most ``size`` rows without materializing the remaining stream."""
 
@@ -927,13 +1042,16 @@ class QueryResult:
             raise InvalidTypeError("fetchmany size must be an int")
         if size < 0:
             raise ValidationError("fetchmany size must be non-negative")
-        rows = []
-        for _ in range(size):
-            try:
-                rows.append(next(self))
-            except StopIteration:
-                break
-        return tuple(rows)
+        def fetch():
+            rows = []
+            for _ in range(size):
+                try:
+                    rows.append(self._next_unlocked())
+                except StopIteration:
+                    break
+            return tuple(rows)
+
+        return self._invoke(fetch)
 
     def fetchall(self, *, limit: int) -> tuple[Record, ...]:
         """Materialize one untouched result under an explicit hard row bound."""
@@ -946,20 +1064,23 @@ class QueryResult:
             raise ValidationError(
                 "fetchall is available only before streaming rows from this result"
             )
-        rows = []
-        while True:
-            try:
-                row = next(self)
-            except StopIteration:
-                materialized = tuple(rows)
-                self._cached_rows = materialized
-                return materialized
-            if len(rows) == limit:
-                self.close()
-                raise ValidationError(
-                    f"The query produced more than the requested {limit} rows"
-                )
-            rows.append(row)
+        def fetch():
+            rows = []
+            while True:
+                try:
+                    row = self._next_unlocked()
+                except StopIteration:
+                    materialized = tuple(rows)
+                    self._cached_rows = materialized
+                    return materialized
+                if len(rows) == limit:
+                    self._close_unlocked()
+                    raise ValidationError(
+                        f"The query produced more than the requested {limit} rows"
+                    )
+                rows.append(row)
+
+        return self._invoke(fetch)
 
 
 class SqlEngine:
@@ -978,6 +1099,8 @@ class SqlEngine:
         "_planning_options",
         "_active_result",
         "_ddl_service",
+        "_execution_router",
+        "_execution_bypass",
     )
 
     def __init__(
@@ -1021,6 +1144,25 @@ class SqlEngine:
         self._planning_options = planning_options
         self._active_result: QueryResult | None = None
         self._ddl_service = ddl_service
+        self._execution_router: Callable[..., object] | None = None
+        self._execution_bypass: Callable[[], bool] | None = None
+
+    def _set_execution_router(
+        self,
+        router: Callable[..., object],
+        *,
+        bypass: Callable[[], bool] | None = None,
+    ) -> None:
+        """Install the owner session route exactly once."""
+
+        if not callable(router):
+            raise InvalidTypeError("execution router must be callable")
+        if self._execution_router is not None:
+            raise ValidationError("SqlEngine already has an execution router")
+        if bypass is not None and not callable(bypass):
+            raise InvalidTypeError("execution bypass must be callable or None")
+        self._execution_router = router
+        self._execution_bypass = bypass
 
     @property
     def environment(self) -> QueryEnvironment:
@@ -1077,6 +1219,10 @@ class SqlEngine:
         return PreparedQuery(
             self,
             spec,
+            statement=statement,
+            source=sql,
+            use_indexes=use_indexes,
+            planning_options=options,
             planning_seconds=perf_counter() - started,
         )
 
@@ -1159,7 +1305,30 @@ class SqlEngine:
         use_indexes: bool | None = None,
         planning_options: PhysicalPlanningOptions | None = None,
     ) -> QueryResult | CommandResult | DefinitionResult | ExplanationResult:
-        """Execute one statement under the single-session lifecycle contract."""
+        """Execute through the owning session when this engine is managed."""
+
+        router = self._execution_router
+        bypass = self._execution_bypass
+        if router is not None and not (bypass is not None and bypass()):
+            return router(
+                query,
+                use_indexes=use_indexes,
+                planning_options=planning_options,
+            )
+        return self._execute_local(
+            query,
+            use_indexes=use_indexes,
+            planning_options=planning_options,
+        )
+
+    def _execute_local(
+        self,
+        query: str | PreparedQuery,
+        *,
+        use_indexes: bool | None = None,
+        planning_options: PhysicalPlanningOptions | None = None,
+    ) -> QueryResult | CommandResult | DefinitionResult | ExplanationResult:
+        """Execute after any owner-level transaction policy has been applied."""
 
         self._require_idle()
         if use_indexes is not None and type(use_indexes) is not bool:
@@ -1204,6 +1373,10 @@ class SqlEngine:
             prepared = PreparedQuery(
                 self,
                 spec,
+                statement=statement,
+                source=query,
+                use_indexes=indexes_enabled,
+                planning_options=options,
                 planning_seconds=perf_counter() - planning_started,
             )
         elif isinstance(query, PreparedQuery):
@@ -1317,6 +1490,13 @@ class SqlEngine:
         active = self._active_result
         if active is not None:
             active.close()
+
+    def _close_active_result(self) -> None:
+        """Close while the owning session already holds its call guard."""
+
+        active = self._active_result
+        if active is not None:
+            active._close_unlocked()
 
     def __enter__(self) -> "SqlEngine":
         return self

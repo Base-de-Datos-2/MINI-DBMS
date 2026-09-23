@@ -1,4 +1,4 @@
-"""Stage 8 transaction primitives and physical undo; SQL data routing is pending."""
+"""Stage 8 transaction, locking, undo, and coordinated SQL primitives."""
 
 from .errors import (
     DeadlockVictimError,

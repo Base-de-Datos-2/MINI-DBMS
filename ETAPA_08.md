@@ -3,9 +3,9 @@
 ## Stage 8 — Transactions and Concurrency
 
 **Part:** Relational Database  
-**Revision:** 2026-09-22
+**Revision:** 2026-09-23
 
-**Status:** Tasks 8.1–8.14 foundations and physical undo completed; Tasks 8.15–8.30 pending implementation/evidence.
+**Status:** Tasks 8.1–8.18 completed; Tasks 8.19–8.30 pending implementation/evidence.
 
 **Prerequisite:** Stage 7 Tasks 7.1–7.40 completed, including CREATE and EXPLAIN.  
 **Roadmap:** PLAN.md, Section 13.  
@@ -14,11 +14,12 @@
 - **Task 8.1 current checkout:** `main`, commit `bf381e3d98673509f928b4a95fe410658e5312c6`; inspection and 436 passing focused baseline tests in `docs/ETAPA_08_TASK_8_1_INSPECTION.md`.
 - **Task 8.2 adopted contract:** `docs/transactions.md` and `PROJECT_CONTEXT.md`; this is a design decision, not running transaction support.
 - **Tasks 8.3–8.6 foundation:** `docs/ETAPA_08_TASK_8_3_8_6.md`; control-only empty groups and access intents exist.
-- **Tasks 8.7–8.10 concurrency primitives:** `docs/ETAPA_08_TASK_8_7_8_10.md`; S/X grants, waits, deadlock detection and short physical latches exist. Coordinated data execution still awaits undo and engine integration.
-- **Tasks 8.11–8.14 undo and completion:** `docs/ETAPA_08_TASK_8_11_8_14.md`; bounded table/index images, exact restore and runtime rebinding, commit synchronization, and failure quarantine are verified through the internal protected-write hook. SQL statement routing still awaits Task 8.15.
+- **Tasks 8.7–8.10 concurrency primitives:** `docs/ETAPA_08_TASK_8_7_8_10.md`; S/X grants, waits, deadlock detection and short physical latches exist and now underpin the core SQL path.
+- **Tasks 8.11–8.14 undo and completion:** `docs/ETAPA_08_TASK_8_11_8_14.md`; bounded table/index images, exact restore and runtime rebinding, commit synchronization, and failure quarantine are verified and now consumed by SQL mutation routing.
+- **Tasks 8.15–8.18 core SQL integration:** `docs/ETAPA_08_TASK_8_15_8_18.md`; explicit/implicit execution, cursor-owned read completion, protected INSERT/DELETE, prepared-plan rebinding, managed insertion, and Heap/Sequential/B+/Hash rollback are verified.
 - **Following work:** Complete the remaining Stage 9 integration, then Stage 10 experiments and delivery. Preserve the authorized emergency Stage 9 work.
 
-This is an implementation plan, not a new academic specification or a claim that transaction support already exists. The repository records Stage 7 extension closure and 2,742 passing tests in its audit; that is historical repository evidence. Task 8.1 records the current-checkout test result separately.
+This is an implementation plan, not a new academic specification or a claim that Stage 8 is closed. The repository records Stage 7 extension closure and 2,742 passing tests in its audit; that is historical repository evidence. Task 8.1 records the original current-checkout baseline separately.
 
 ## 1. Goal
 
@@ -583,19 +584,19 @@ Generating this file does not edit the other documents or implement their promis
 ### Transactions and sessions
 
 - [x] Current Stage 7 implementation and closure evidence are inspected (Task 8.1; focused current-checkout baseline in `docs/ETAPA_08_TASK_8_1_INSPECTION.md`).
-- [ ] BEGIN TRANSACTION and END TRANSACTION execute with the documented lifecycle.
-- [ ] ROLLBACK and automatic abort behavior are implemented and documented as team choices.
-- [ ] Exactly one statement per submission and required comment handling are preserved.
-- [ ] Independent sessions share one correct coordinator without sharing active-result state.
+- [x] BEGIN TRANSACTION and END TRANSACTION execute with the documented lifecycle.
+- [x] ROLLBACK and automatic abort behavior are implemented and documented as team choices.
+- [x] Exactly one statement per submission and required comment handling are preserved.
+- [x] Independent sessions share one correct coordinator without sharing active-result state.
 - [ ] Nested controls, busy sessions, invalid terminal commands and session close are tested.
-- [ ] Implicit transactions preserve existing ordinary statement usability.
-- [ ] Successful statements inside a group remain provisional until commit.
+- [x] Implicit transactions preserve existing ordinary statement usability.
+- [x] Successful statements inside a group remain provisional until commit.
 
 ### Concurrency and physical safety
 
 - [ ] S/X compatibility, transaction-owned reacquisition, upgrades and terminal release are correct.
 - [ ] All reads/writes, validation, DELETE discovery and relevant metadata access acquire adequate protection.
-- [ ] Locks survive explicit cursor EOF/close until the group ends.
+- [x] Locks survive explicit cursor EOF/close until the group ends.
 - [ ] Compatible readers and independent tables demonstrably overlap.
 - [ ] Physical shared handles/caches/counters are safe under compatible logical reads.
 - [ ] Waits use conditions without holding physical or manager latches during blocking.

@@ -147,8 +147,8 @@ numeric literal, and rejects arbitrary unary arithmetic.
 | JOIN | At most one explicit inner `JOIN`; its executable baseline is an equality key plus any supported residual predicate |
 | Aggregates | `COUNT(*)`, `COUNT(column)`, `SUM`, `AVG`, `MIN`, and `MAX`, subject to Stage 6 type rules |
 | NULL | No SQL `NULL` literal or three-valued logic is adopted because the current row model does not support it |
-| Transaction controls | BEGIN TRANSACTION, END TRANSACTION, and ROLLBACK parse as one complete statement; owner-created sessions currently execute only empty control groups |
-| Unsupported | UPDATE, DDL other than the limited CREATE TABLE syntax, COMMIT alias, savepoints, transactional data execution pending Stage 8 integration, subqueries, expressions, multi-row VALUES, quoted identifiers, and multiple statements |
+| Transaction controls | BEGIN TRANSACTION, END TRANSACTION, and ROLLBACK parse as one complete statement; owner-created sessions group supported data statements and ordinary standalone statements use implicit transactions |
+| Unsupported | UPDATE, DDL other than the limited CREATE TABLE syntax, COMMIT alias, savepoints, subqueries, expressions, multi-row VALUES, quoted identifiers, and multiple statements |
 
 `DELETE` without `WHERE`, implicit aliases, qualified stars, line comments,
 multiple ORDER/GROUP keys, and the optional INSERT column list are explicit

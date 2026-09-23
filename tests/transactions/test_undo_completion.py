@@ -17,7 +17,6 @@ from engine.transactions.errors import (
     TransactionUnavailableError,
 )
 from engine.query.parser import parse_sql
-from engine.query.planner import StalePlanError
 from engine.catalog import Column, DataType, IndexType, Schema
 from api.database import (
     Database as LegacyDatabase, DatabaseDefinition, IndexDefinition,
@@ -58,7 +57,8 @@ def test_group_rollback_restores_prior_successful_statements_and_all_index_bytes
             assert database.session_coordinator.completion.undo.images(
                 session.active_transaction.id
             ) == first_image
-            assert _rows(database, "t") == [(1,), (2,), (3,)]
+            with session.execute("SELECT id FROM t ORDER BY id") as visible:
+                assert [row.values for row in visible] == [(1,), (2,), (3,)]
             report = session.execute("ROLLBACK")
             assert report.state is TransactionState.ABORTED
             assert report.touched_tables == ("t",)
@@ -70,9 +70,8 @@ def test_group_rollback_restores_prior_successful_statements_and_all_index_bytes
             database.index_for("__pk__t").validate_structure()
             with pytest.raises(StaleAccessPlanError):
                 database.session_coordinator.resources.validate(stale)
-            with pytest.raises(StalePlanError):
-                with prepared.execute() as result:
-                    next(result)
+            with prepared.execute() as rebound:
+                assert [row.values for row in rebound] == [(1,)]
             assert not (tmp_path / UNCLEAN_MARKER).exists()
     with Database.open(tmp_path) as reopened:
         assert _rows(reopened, "t") == [(1,)]

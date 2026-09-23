@@ -18,12 +18,14 @@ managed or legacy open. This detects interrupted operations without claiming
 automatic crash recovery. Managed and legacy owner constructors accept an
 `UndoLimits` value for controlled quota tests and deployments.
 
-The internal `SqlSession.run_write(table_name, action)` entry point enforces
+At the 8.11–8.14 checkpoint, the internal
+`SqlSession.run_write(table_name, action)` entry point enforced
 the lock/capture/abort sequence used by this block's tests. Its action is
 table-scoped and uses canonical owner handles. SQL data statements through
-`session.execute` still fail before effects; raw `Database.engine` retains its
-Stage 7 compatibility behavior. Task 8.15 must route normal SQL statements
-through these protections before public transactional data mode is claimed.
+`session.execute` then failed before effects, and raw `Database.engine`
+retained its Stage 7 compatibility behavior. Task 8.15 was required to route
+normal SQL statements through these protections before public transactional
+data mode could be claimed.
 
 ## Focused evidence
 
@@ -54,3 +56,8 @@ statements, the HTTP API, or direct storage helpers transactional. Explicit
 and implicit SQL routing, cursor lifetime, programmatic write migration,
 observability, and the full threaded demonstration remain Tasks 8.15 onward.
 There is no WAL, redo, crash-atomic multi-file commit, or automatic recovery.
+
+**Subsequent status (2026-09-23):** Tasks 8.15–8.18 now route owner-backed
+SELECT/INSERT/DELETE and managed programmatic insertion through these
+primitives. See `docs/ETAPA_08_TASK_8_15_8_18.md`. The paragraph above remains
+the boundary of the 8.11–8.14 evidence at the time it was recorded.

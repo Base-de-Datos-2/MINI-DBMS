@@ -310,7 +310,7 @@ class Database:
         return self._coordinator
 
     def open_session(self) -> SqlSession:
-        """Open an independent control session; protected data is pending."""
+        """Open an independent transaction-aware SQL session."""
 
         self._require_available()
         return self._coordinator.open_session()
@@ -627,9 +627,23 @@ class Database:
         table_name: str,
         values: Sequence[RecordValue],
     ) -> MutationReport:
-        """Validated programmatic write using the same SQL maintenance path."""
+        """Validated programmatic write under the default session policy."""
 
         self._require_available()
+        if self._coordinator.protected_write_active(table_name):
+            return self._insert_uncoordinated(table_name, values)
+        return self._coordinator.default_session.run_programmatic_write(
+            table_name,
+            lambda: self._insert_uncoordinated(table_name, values),
+        )
+
+    def _insert_uncoordinated(
+        self,
+        table_name: str,
+        values: Sequence[RecordValue],
+    ) -> MutationReport:
+        """Run after the caller has acquired X and captured physical undo."""
+
         table = self._catalog.get_table(table_name)
         record = build_validated_record(table, values)
         storage = self._environment.storage_for(table_name)

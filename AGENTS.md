@@ -1,8 +1,8 @@
 # AGENTS.md
 
-> Context version: **4.5** — preserves the formal Stage 7 baseline closure,
+> Context version: **4.6** — preserves the formal Stage 7 baseline closure,
 > records the verified CREATE/EXPLAIN extension through Task 7.40, and
-> identifies the Stage 8 plan and completed Tasks 8.1–8.14 foundations.
+> identifies the Stage 8 plan and completed Tasks 8.1–8.18 core integration.
 
 ## Purpose
 
@@ -321,7 +321,7 @@ Latest formally completed SQL stage:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.14 foundations complete; SQL data integration pending)**
+> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.18 complete; remaining integration and evidence pending)**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -394,10 +394,13 @@ plan is `ETAPA_08.md`; the Task 8.1 inspection, Task 8.2 adopted contract,
 Tasks 8.3–8.6 and 8.7–8.10 foundations are recorded in
 `docs/ETAPA_08_TASK_8_1_INSPECTION.md`, `docs/transactions.md`,
 `docs/ETAPA_08_TASK_8_3_8_6.md`, `docs/ETAPA_08_TASK_8_7_8_10.md`,
-`docs/ETAPA_08_TASK_8_11_8_14.md`, and
+`docs/ETAPA_08_TASK_8_11_8_14.md`,
+`docs/ETAPA_08_TASK_8_15_8_18.md`, and
 `PROJECT_CONTEXT.md`. Control statements, internal protected actions, access intents, S/X lock
 primitives, physical latches, and table-scoped physical undo/terminal completion
-exist. Transactional SQL data execution remains pending. Follow the stage plan and explicit task scope;
+exist. Owner-backed SELECT/INSERT/DELETE now use explicit or implicit
+transactions, with 2,814 strict tests passing after Tasks 8.15–8.18; later
+Stage 8 SQL families and evidence remain pending. Follow the stage plan and explicit task scope;
 a buffer pool, WAL, and crash recovery remain outside Stage 8.
 
 **Stage 9 emergency demo ready (2026-09-18)** under the authorized sequencing
