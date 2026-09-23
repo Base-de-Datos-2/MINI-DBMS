@@ -1,24 +1,31 @@
-"""Independent owner-scoped sessions with protected internal writes.
-
-SQL data routing remains gated until Task 8.15. The internal write hook is
-used to verify complete physical undo under the session's schema/table locks.
-"""
+"""Independent owner-scoped sessions with transaction-aware SQL execution."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from contextvars import ContextVar
 from pathlib import Path
 from threading import Lock, RLock
 
 from engine.query.ast import (
     BeginTransactionStatement,
+    CreateTableStatement,
+    DeleteStatement,
     EndTransactionStatement,
+    InsertStatement,
     RollbackStatement,
 )
 from engine.query.environment import QueryEnvironment
-from engine.query.executor import SqlEngine
+from engine.query.executor import (
+    CommandResult,
+    PreparedQuery,
+    QueryResult,
+    ResultState,
+    SqlEngine,
+)
 from engine.query.parser import parse_sql
 from engine.query.errors import SqlQueryError
+from engine.query.planner import PhysicalPlanningOptions
 
 from .errors import (
     SessionBusyError,
@@ -29,13 +36,18 @@ from .errors import (
 from .manager import TransactionManager
 from .locks import LockManager
 from .model import TransactionId, TransactionReport
-from .resources import ResourceCatalog, TableFiles
+from .resources import ResourceCatalog, StaleAccessPlanError, TableFiles
 from .completion import CompletionService
 from .runtime import TableRuntime
 from .undo import UndoLimits
 
 
 DEFAULT_MAX_SESSIONS = 64
+
+
+_PROTECTED_WRITE: ContextVar[tuple[object, TransactionId, str] | None] = ContextVar(
+    "minidb_protected_write", default=None
+)
 
 
 class SessionCoordinator:
@@ -77,6 +89,10 @@ class SessionCoordinator:
         self._sessions: dict[int, SqlSession] = {}
         self.default_session = SqlSession(self, 1, default_engine)
         self._sessions[1] = self.default_session
+        default_engine._set_execution_router(
+            self.default_session.execute,
+            bypass=self.protected_execution_active,
+        )
 
     @property
     def session_count(self) -> int:
@@ -94,9 +110,25 @@ class SessionCoordinator:
                 engine.close()
                 raise ValueError("Session engine must borrow the coordinated environment")
             session = SqlSession(self, self._next_session_id, engine)
+            engine._set_execution_router(
+                session.execute,
+                bypass=self.protected_execution_active,
+            )
             self._next_session_id += 1
             self._sessions[session.id] = session
             return session
+
+    def protected_write_active(self, table_name: str) -> bool:
+        """Recognize the narrow dynamic capability used by the old test hook."""
+
+        current = _PROTECTED_WRITE.get()
+        return current is not None and current[0] is self and current[2] == table_name
+
+    def protected_execution_active(self) -> bool:
+        """Allow legacy fault-injection callbacks to use the local SQL core."""
+
+        current = _PROTECTED_WRITE.get()
+        return current is not None and current[0] is self
 
     def _release(self, session: "SqlSession") -> None:
         with self._mutex:
@@ -147,6 +179,8 @@ class SqlSession:
         self._call = Lock()
         self._closed = False
         self._transaction_id: TransactionId | None = None
+        self._transaction_explicit = False
+        self._provisional_results: list[CommandResult] = []
 
     @property
     def closed(self) -> bool:
@@ -161,7 +195,40 @@ class SqlSession:
     def active_result(self):
         return self._engine.active_result
 
-    def execute(self, sql: str) -> TransactionReport:
+    def prepare(
+        self,
+        sql: str,
+        *,
+        use_indexes: bool = True,
+        planning_options: PhysicalPlanningOptions | None = None,
+    ) -> PreparedQuery:
+        """Prepare without starting, committing, or aborting a transaction."""
+
+        if not self._call.acquire(blocking=False):
+            raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        try:
+            if self._closed:
+                raise TransactionUnavailableError("Session is closed", session_id=self.id)
+            return self._engine.prepare(
+                sql,
+                use_indexes=use_indexes,
+                planning_options=planning_options,
+            )
+        finally:
+            self._call.release()
+
+    def describe(self, sql: str, *, use_indexes: bool = True):
+        """Describe one pure prepared plan through this session's engine."""
+
+        return self.prepare(sql, use_indexes=use_indexes).describe()
+
+    def execute(
+        self,
+        query: str | PreparedQuery,
+        *,
+        use_indexes: bool | None = None,
+        planning_options: PhysicalPlanningOptions | None = None,
+    ):
         if not self._call.acquire(blocking=False):
             raise SessionBusyError(
                 "Another call is already using this session", session_id=self.id,
@@ -171,16 +238,31 @@ class SqlSession:
             if self._closed:
                 raise TransactionUnavailableError("Session is closed", session_id=self.id)
             try:
-                statement = parse_sql(sql)
+                statement = (
+                    parse_sql(query)
+                    if isinstance(query, str)
+                    else query._statement
+                    if isinstance(query, PreparedQuery)
+                    else None
+                )
             except SqlQueryError as error:
+                if self.active_result is not None:
+                    raise TransactionProtocolError(
+                        "Close or fully consume the active SELECT result before executing another statement",
+                        session_id=self.id,
+                        transaction_id=None if self._transaction_id is None else self._transaction_id.value,
+                    ) from error
                 if self._transaction_id is not None:
-                    transaction_id = self._transaction_id
-                    report = self._abort(transaction_id)
-                    self._transaction_id = None
-                    error.add_note(
-                        f"Transaction {transaction_id.value} ended {report.state.value} after execute error"
-                    )
+                    self._abort_after_failure(error, self._transaction_id)
                 raise
+            if statement is None:
+                # Preserve the engine's public type diagnostic without starting
+                # a transaction for a value that is not a SQL submission.
+                return self._engine._execute_local(
+                    query,
+                    use_indexes=use_indexes,
+                    planning_options=planning_options,
+                )
             if isinstance(statement, BeginTransactionStatement):
                 if self.active_result is not None:
                     raise TransactionProtocolError(
@@ -193,16 +275,10 @@ class SqlSession:
                         session_id=self.id,
                         transaction_id=self._transaction_id.value,
                     )
-                transaction = self._owner.transactions.begin(self.id)
-                try:
-                    self._owner.locks.register(transaction)
-                except BaseException:
-                    self._owner.transactions.abort_empty(transaction.id)
-                    raise
-                self._transaction_id = transaction.id
+                transaction = self._begin(explicit=True)
                 return TransactionReport.from_transaction(transaction)
             if isinstance(statement, EndTransactionStatement):
-                transaction_id = self._require_active()
+                transaction_id = self._require_explicit()
                 if self.active_result is not None:
                     raise TransactionProtocolError(
                         "Close the active result before END TRANSACTION",
@@ -210,15 +286,20 @@ class SqlSession:
                         transaction_id=transaction_id.value,
                     )
                 try:
-                    return self._owner.completion.commit(transaction_id)
+                    report = self._owner.completion.commit(transaction_id)
+                    for result in self._provisional_results:
+                        result._set_transaction_outcome(
+                            transaction_id=transaction_id.value, committed=True,
+                        )
+                    return report
                 finally:
                     if self._owner.completion.report(transaction_id) is not None:
-                        self._transaction_id = None
+                        self._clear_transaction()
             if isinstance(statement, RollbackStatement):
-                transaction_id = self._require_active()
-                self._engine.close()
+                transaction_id = self._require_explicit()
+                self._engine._close_active_result()
                 report = self._abort(transaction_id)
-                self._transaction_id = None
+                self._clear_transaction()
                 if report.state.value == "ABORT_FAILED":
                     raise TransactionUnavailableError(
                         "Transaction restoration failed; owner is quarantined",
@@ -226,22 +307,183 @@ class SqlSession:
                     )
                 return report
 
-            transaction_id = self._transaction_id
-            if transaction_id is not None:
-                report = self._abort(transaction_id)
-                self._transaction_id = None
-                if report.state.value == "ABORT_FAILED":
-                    raise TransactionUnavailableError(
-                        "Transaction restoration failed; owner is quarantined",
-                        session_id=self.id, transaction_id=transaction_id.value,
-                    )
-            raise TransactionUnavailableError(
-                "Coordinated SQL data execution is pending transaction-aware SQL routing",
-                session_id=self.id,
-                transaction_id=None if transaction_id is None else transaction_id.value,
+            if self.active_result is not None:
+                raise TransactionProtocolError(
+                    "Close or fully consume the active SELECT result before executing another statement",
+                    session_id=self.id,
+                    transaction_id=None if self._transaction_id is None else self._transaction_id.value,
+                )
+            if isinstance(statement, CreateTableStatement) and self._transaction_explicit:
+                error = TransactionProtocolError(
+                    "CREATE TABLE is not supported inside an explicit transaction",
+                    session_id=self.id,
+                    transaction_id=self._transaction_id.value,
+                )
+                self._abort_after_failure(error, self._transaction_id)
+                raise error
+
+            implicit = self._transaction_id is None
+            transaction_id = (
+                self._begin(explicit=False).id
+                if implicit
+                else self._transaction_id
             )
+            if transaction_id is None:  # pragma: no cover - guarded above
+                raise RuntimeError("Session lost its transaction")
+            try:
+                access = self._owner.resources.plan(statement)
+                self._owner.locks.acquire_plan(transaction_id, access)
+                try:
+                    self._owner.resources.validate(access)
+                except StaleAccessPlanError:
+                    refreshed = self._owner.resources.plan(statement)
+                    before = tuple(
+                        (item.resource, item.mode, item.files) for item in access.tables
+                    )
+                    after = tuple(
+                        (item.resource, item.mode, item.files) for item in refreshed.tables
+                    )
+                    if access.schema is not refreshed.schema or before != after:
+                        raise
+                    self._owner.resources.validate(refreshed)
+                    access = refreshed
+                held = {"schema"} if access.schema.value != "NONE" else set()
+                held.update(item.resource.table_identity for item in access.tables)
+                if held:
+                    self._owner.transactions.record_resources(
+                        transaction_id, held=frozenset(held)
+                    )
+                if isinstance(statement, (InsertStatement, DeleteStatement)):
+                    self._owner.completion.prepare_write(
+                        transaction_id, statement.table
+                    )
+                executable = query
+                local_use_indexes = use_indexes
+                local_planning_options = planning_options
+                if isinstance(query, PreparedQuery):
+                    if query._engine is not self._engine:
+                        # Preserve the established ownership failure under the
+                        # acquired execution locks and normal abort policy.
+                        executable = query
+                    else:
+                        executable = self._engine.prepare(
+                            query._source,
+                            use_indexes=query._use_indexes,
+                            planning_options=query._planning_options,
+                        )
+                        local_use_indexes = None
+                        local_planning_options = None
+                result = self._engine._execute_local(
+                    executable,
+                    use_indexes=local_use_indexes,
+                    planning_options=local_planning_options,
+                )
+                if isinstance(result, QueryResult):
+                    result._attach_lifecycle(
+                        self._cursor_call,
+                        lambda completed: self._finish_cursor(
+                            transaction_id, implicit, completed
+                        ),
+                    )
+                    return result
+                if isinstance(result, CommandResult):
+                    result._set_transaction_outcome(
+                        transaction_id=transaction_id.value,
+                        committed=False,
+                    )
+                if implicit:
+                    self._owner.completion.commit(transaction_id)
+                    if isinstance(result, CommandResult):
+                        result._set_transaction_outcome(
+                            transaction_id=transaction_id.value,
+                            committed=True,
+                        )
+                    self._clear_transaction()
+                elif isinstance(result, CommandResult):
+                    self._provisional_results.append(result)
+                return result
+            except BaseException as error:
+                if self._transaction_id == transaction_id:
+                    self._abort_after_failure(error, transaction_id)
+                raise
         finally:
             self._call.release()
+
+    def _begin(self, *, explicit: bool):
+        transaction = self._owner.transactions.begin(self.id)
+        try:
+            self._owner.locks.register(transaction)
+        except BaseException:
+            self._owner.transactions.abort_empty(transaction.id)
+            raise
+        self._transaction_id = transaction.id
+        self._transaction_explicit = explicit
+        self._provisional_results.clear()
+        return transaction
+
+    def _clear_transaction(self) -> None:
+        self._transaction_id = None
+        self._transaction_explicit = False
+        self._provisional_results.clear()
+
+    def _require_explicit(self) -> TransactionId:
+        transaction_id = self._require_active()
+        if not self._transaction_explicit:
+            raise TransactionProtocolError(
+                "No active explicit transaction group",
+                session_id=self.id,
+                transaction_id=transaction_id.value,
+            )
+        return transaction_id
+
+    def _abort_after_failure(
+        self, error: BaseException, transaction_id: TransactionId,
+    ) -> TransactionReport:
+        try:
+            self._engine._close_active_result()
+        except BaseException as cleanup:
+            if cleanup is not error:
+                error.add_note(
+                    f"Active result cleanup also failed: {type(cleanup).__name__}: {cleanup}"
+                )
+        report = self._abort(transaction_id)
+        self._clear_transaction()
+        error.add_note(
+            f"Transaction {transaction_id.value} ended {report.state.value} after execute error"
+        )
+        return report
+
+    def _cursor_call(self, action: Callable[[], object]):
+        if not self._call.acquire(blocking=False):
+            raise SessionBusyError(
+                "Another call is already using this session",
+                session_id=self.id,
+                transaction_id=None if self._transaction_id is None else self._transaction_id.value,
+            )
+        try:
+            if self._closed:
+                raise TransactionUnavailableError(
+                    "Session is closed", session_id=self.id
+                )
+            return action()
+        finally:
+            self._call.release()
+
+    def _finish_cursor(
+        self, transaction_id: TransactionId, implicit: bool, result: QueryResult,
+    ) -> None:
+        if self._transaction_id != transaction_id:
+            return
+        if result.state is ResultState.FAILED:
+            error = result.error or RuntimeError("SELECT cursor failed")
+            self._abort_after_failure(error, transaction_id)
+            return
+        if implicit:
+            try:
+                self._owner.completion.commit(transaction_id)
+            finally:
+                if self._owner.completion.report(transaction_id) is not None:
+                    self._clear_transaction()
 
     def _require_active(self) -> TransactionId:
         if self._transaction_id is None:
@@ -254,7 +496,7 @@ class SqlSession:
         return self._owner.completion.abort(transaction_id)
 
     def run_write(self, table_name: str, action: Callable[[], object]) -> object:
-        """Protected internal write hook until SQL routing arrives in 8.15.
+        """Protected internal write hook retained for fault-injection tests.
 
         The action must mutate only the named table through the owner's
         canonical runtime objects. It is called after complete undo capture.
@@ -271,14 +513,53 @@ class SqlSession:
             transaction_id = self._require_active()
             try:
                 self._owner.completion.prepare_write(transaction_id, table_name)
-                return action()
+                token = _PROTECTED_WRITE.set((self._owner, transaction_id, table_name))
+                try:
+                    return action()
+                finally:
+                    _PROTECTED_WRITE.reset(token)
             except BaseException as error:
-                self._engine.close()
-                report = self._abort(transaction_id)
-                self._transaction_id = None
-                error.add_note(
-                    f"Transaction {transaction_id.value} ended {report.state.value} after write failure"
+                self._abort_after_failure(error, transaction_id)
+                raise
+        finally:
+            self._call.release()
+
+    def run_programmatic_write(
+        self, table_name: str, action: Callable[[], object],
+    ) -> object:
+        """Apply one managed helper write under the same implicit/explicit policy."""
+
+        if not self._call.acquire(blocking=False):
+            raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        try:
+            if self._closed:
+                raise TransactionUnavailableError("Session is closed", session_id=self.id)
+            if self.active_result is not None:
+                raise TransactionProtocolError(
+                    "Close the active result before a write", session_id=self.id,
                 )
+            implicit = self._transaction_id is None
+            transaction_id = (
+                self._begin(explicit=False).id
+                if implicit
+                else self._transaction_id
+            )
+            if transaction_id is None:  # pragma: no cover - guarded above
+                raise RuntimeError("Session lost its transaction")
+            try:
+                self._owner.completion.prepare_write(transaction_id, table_name)
+                token = _PROTECTED_WRITE.set((self._owner, transaction_id, table_name))
+                try:
+                    result = action()
+                finally:
+                    _PROTECTED_WRITE.reset(token)
+                if implicit:
+                    self._owner.completion.commit(transaction_id)
+                    self._clear_transaction()
+                return result
+            except BaseException as error:
+                if self._transaction_id == transaction_id:
+                    self._abort_after_failure(error, transaction_id)
                 raise
         finally:
             self._call.release()
@@ -296,14 +577,14 @@ class SqlSession:
             return
         failures: list[BaseException] = []
         try:
-            self._engine.close()
+            self._engine._close_active_result()
         except BaseException as error:
             failures.append(error)
         if self._transaction_id is not None:
             transaction_id = self._transaction_id
             try:
                 report = self._abort(transaction_id)
-                self._transaction_id = None
+                self._clear_transaction()
                 if report.state.value == "ABORT_FAILED":
                     failures.append(TransactionUnavailableError(
                         "Transaction restoration failed while closing the session",

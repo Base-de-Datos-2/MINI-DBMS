@@ -64,7 +64,7 @@ def test_separate_session_facades_have_independent_result_slots(tmp_path):
         second_result.close()
 
 
-def test_protocol_errors_data_refusal_and_one_statement_boundary(tmp_path):
+def test_protocol_errors_data_execution_and_one_statement_boundary(tmp_path):
     with Database.create(tmp_path) as database, database.open_session() as session:
         with pytest.raises(SqlSyntaxError):
             session.execute("BEGIN TRANSACTION; INSERT INTO t VALUES (1)")
@@ -83,12 +83,13 @@ def test_protocol_errors_data_refusal_and_one_statement_boundary(tmp_path):
         with pytest.raises(TransactionProtocolError):
             session.execute("END TRANSACTION")
 
+        database.engine.execute("CREATE TABLE t (id INT PRIMARY KEY)")
         session.execute("BEGIN TRANSACTION")
-        with pytest.raises(TransactionUnavailableError, match="pending transaction-aware SQL routing") as caught:
-            session.execute("INSERT INTO t VALUES (1)")
-        assert caught.value.transaction_id is not None
-        assert session.active_transaction is None
-        assert database.table_names() == ()
+        inserted = session.execute("INSERT INTO t VALUES (1)")
+        assert inserted.provisional and not inserted.committed
+        assert session.active_transaction is not None
+        assert session.execute("END TRANSACTION").state is TransactionState.COMMITTED
+        assert inserted.committed and not inserted.provisional
 
 
 def test_same_session_call_rejected_while_another_session_progresses(tmp_path, monkeypatch):

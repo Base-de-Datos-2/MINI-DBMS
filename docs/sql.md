@@ -7,10 +7,10 @@
 > [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
 > [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
 
-> **Stage 8 foundation:** Owner-created sessions now support control-only
-> `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK` calls. They refuse data
-> execution until S/X locking and undo are integrated. The examples below use
-> the existing Stage 7 engine and do not demonstrate transaction isolation.
+> **Stage 8 core integration (2026-09-23):** owner-created sessions and the
+> compatibility `Database.engine` execute SELECT, INSERT, and DELETE through
+> explicit or implicit transactions. Tasks 8.19 onward still complete the
+> remaining SQL families, observability, shutdown, and acceptance evidence.
 
 This guide describes the SQL engine implemented by Stage 7. The normative
 grammar, token/span conventions, parser limits, and production-to-function map
@@ -46,6 +46,43 @@ with Database.open("university-db") as database:
 available only through this manifest-backed owner. It allocates opaque managed
 filenames and publishes success after the new Heap, optional unique B+ primary
 index, live registrations, and manifest are ready.
+
+### Transactions in an owner-backed database
+
+`Database.engine` is the default session. `Database.open_session()` creates an
+independent session with its own active transaction and cursor slot, backed by
+the same Catalog, storage/index runtime, lock manager, and completion service.
+
+```python
+with Database.open("university-db") as database:
+    session = database.open_session()
+    try:
+        session.execute("BEGIN TRANSACTION")
+        inserted = session.execute(
+            "INSERT INTO students VALUES (2, 'Ada', 22)"
+        )
+        assert inserted.provisional and not inserted.committed
+
+        with session.execute("SELECT name FROM students WHERE id = 2") as rows:
+            assert [row.values for row in rows] == [("Ada",)]
+
+        session.execute("END TRANSACTION")
+        assert inserted.committed
+    finally:
+        session.close()
+```
+
+Standalone SELECT, INSERT, and DELETE use one implicit transaction. An
+implicit mutation commits before its result is returned. An implicit SELECT
+holds its S locks until EOF or explicit close. Inside an explicit group,
+cursor EOF/close releases operator and temporary resources while logical locks
+remain until END or ROLLBACK. An ordinary execution failure aborts the complete
+group; protocol errors such as nested BEGIN or END with an open cursor leave
+the group available for correction or explicit rollback.
+
+`prepare()` and `describe()` remain side-effect free. At execution, a prepared
+statement is rebound under its granted resources so rollback-driven runtime
+handle replacement cannot reuse a stale storage or index object.
 
 The explicit legacy setup remains supported for existing definition-driven
 databases. Applications create schemas and physical managers through the
@@ -277,7 +314,10 @@ reservations, and handles without closing Catalog-owned storage/index managers.
 
 INSERT and DELETE return a completed `CommandResult` with `affected_rows` and
 no row stream. Fetching or inspecting a command result cannot execute the
-mutation again.
+mutation again. Owner-coordinated results expose `transaction_id`, `committed`,
+and `provisional`. An explicit command is provisional at statement return and
+becomes committed only after successful END; an implicit command is committed
+before it is returned.
 
 CREATE returns a completed `DefinitionResult` with the exact table name and
 optional reserved primary-index name. It has no row stream and no
@@ -351,15 +391,18 @@ list. Each target is re-read and compared with its original record before its
 index associations and base row are removed, preventing a reused RID from
 deleting a replacement row.
 
-Ordinary failures use base storage as the repair authority. INSERT attempts to
-remove its newly written row. DELETE retains and reports its confirmed earlier
-deletions. Every index is rebuilt; one that cannot be repaired remains
-persistently incomplete and is rejected by live and reopened access. Successful
-commands flush storage and indexes before returning.
+Inside an owner-coordinated session, table X is granted before mutable
+constraint checks or DELETE discovery, and the complete base/index file set is
+captured before the first write. Ordinary failure restores all tables changed
+by the group and reopens their canonical runtime objects before releasing
+conflicting waiters. Successful implicit commands and END validate and flush
+the complete write set before reporting commit.
 
-These guarantees do not provide transaction isolation, concurrent-write
-safety, WAL recovery, statement rollback, or crash-atomic commits across
-multiple files.
+A deliberately standalone `SqlEngine(QueryEnvironment)` keeps the Stage 7
+maintenance behavior: INSERT attempts to remove its newly written row; DELETE
+may retain confirmed earlier deletions; indexes are repaired from base storage.
+That lower-level route has no transaction isolation. Neither route provides
+WAL recovery or crash-atomic commit across multiple files.
 
 ## Unsupported syntax
 
@@ -375,9 +418,9 @@ The following remain outside the Stage 7 subset:
 - NULL, defaults, constraints other than the parsed inline PRIMARY KEY,
   arithmetic expressions, positional ORDER BY, DISTINCT, HAVING, LIMIT/OFFSET,
   and window functions;
-- COMMIT, savepoints and other transaction or concurrency commands. Stage 8
-  sessions parse `BEGIN TRANSACTION`, `END TRANSACTION` and `ROLLBACK` for
-  control-only empty groups; the raw Stage 7 `SqlEngine` rejects their execution;
+- COMMIT, savepoints and other transaction or concurrency commands. Owner
+  sessions execute `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK`;
+  a deliberately standalone `SqlEngine` rejects transaction controls;
 - EXPLAIN around INSERT, DELETE, CREATE, or another EXPLAIN statement;
 - multiple statements or trailing tokens after the optional final semicolon.
 
@@ -412,9 +455,9 @@ the final complete result of **2,742 passing tests** under warnings-as-errors.
 
 ## Stage 8 integration points
 
-Stage 8 Tasks 8.3–8.10 added control sessions, resource access plans, S/X lock
-primitives and short physical latches around these existing boundaries.
-Protected data execution still requires undo and engine integration:
+Stage 8 Tasks 8.3–8.18 add owner sessions, resource access plans, S/X locks,
+short physical latches, physical undo, terminal completion, and coordinated
+SELECT/INSERT/DELETE around these existing boundaries:
 
 - `SqlEngine` owns one session and the active SELECT cursor policy.
 - `QueryResult` owns operator/context lifetime and exposes completion,
@@ -425,8 +468,8 @@ Protected data execution still requires undo and engine integration:
 - storage/index managers remain borrowed durable resources registered in
   `QueryEnvironment`.
 
-The transaction contract now defines identity, sessions, lock policy, commit
-and abort boundaries, deadlock behavior, and recovery limits. The implemented
-foundations provide identity, sessions, locks and physical handle safety;
-later Stage 8 tasks implement the data guarantees. The current compensation
-path is not WAL-backed rollback.
+The transaction contract defines identity, sessions, lock policy, commit and
+abort boundaries, deadlock behavior, and recovery limits. Tasks 8.19–8.30
+remain for dedicated CREATE/EXPLAIN integration, tracing, shutdown, controlled
+demonstrations, Stage 9 handoff, and closure. Physical before-image rollback is
+bounded and in-process; it is not WAL-backed crash recovery.

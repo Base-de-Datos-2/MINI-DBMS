@@ -387,7 +387,7 @@ class Database:
         return self._coordinator
 
     def open_session(self) -> SqlSession:
-        """Open an independent control session; protected data is pending."""
+        """Open an independent transaction-aware SQL session."""
 
         if self._closed or not self._available:
             raise TransactionUnavailableError("Database is closed or quarantined")
