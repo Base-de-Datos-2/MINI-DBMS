@@ -1,4 +1,4 @@
-"""Stage 8 transaction foundation; data execution integration is pending."""
+"""Stage 8 transaction primitives and physical undo; SQL data routing is pending."""
 
 from .errors import (
     DeadlockVictimError,
@@ -26,6 +26,9 @@ from .resources import (
     TableResource,
 )
 from .session import SessionCoordinator, SqlSession
+from .completion import CompletionService
+from .runtime import TableRuntime
+from .undo import FileImage, TableImage, UndoLimits, UndoStore
 
 __all__ = [
     "AccessPlan",
@@ -56,4 +59,10 @@ __all__ = [
     "TransactionState",
     "TransactionUnavailableError",
     "WaitSnapshot",
+    "CompletionService",
+    "TableRuntime",
+    "FileImage",
+    "TableImage",
+    "UndoLimits",
+    "UndoStore",
 ]

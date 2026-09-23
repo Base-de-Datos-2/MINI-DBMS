@@ -1,7 +1,7 @@
 # PLAN.md
 
 > Context version: **3.8** — preserves the formal Stage 7 closure and records
-> the Stage 8 plan with Tasks 8.1–8.10 foundations implemented.
+> the Stage 8 plan with Tasks 8.1–8.14 foundations implemented.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1371,7 +1371,7 @@ Latest formally completed SQL stage:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.10 foundations complete; undo/data integration pending)**
+> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.14 foundations complete; SQL data integration pending)**
 
 Authorized sequencing exception: the team chose to build an emergency Stage 9
 demo before Stage 8 (see `ETAPA_09.md` Section 1). It is **demo ready** as of
@@ -1466,10 +1466,11 @@ evidence is in `docs/ETAPA_07_TASK_7_33_7_35.md` and
 `docs/ETAPA_07_TASK_7_36_7_38.md`; final evidence is in
 `docs/ETAPA_07_EXTENSION_AUDIT.md`. Stage 8 follows this closed extension in
 the roadmap.
-`ETAPA_08.md` supplies its detailed plan. Tasks 8.1–8.10 record the
+`ETAPA_08.md` supplies its detailed plan. Tasks 8.1–8.14 record the
 inspection, adopted contract, control/session/resource foundation, S/X lock
-primitives, and physical latches. The Stage 7 data path still has no
-transaction isolation or rollback; Stage 8 undo and data integration remain.
+primitives, physical latches, and bounded physical undo/terminal completion.
+The Stage 7 SQL data path still has no coordinated transaction isolation or
+rollback; Task 8.15 and later integrate it with the session protocol.
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

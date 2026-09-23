@@ -5,7 +5,7 @@
 **Part:** Relational Database  
 **Revision:** 2026-09-22
 
-**Status:** Tasks 8.1–8.10 foundations completed; Tasks 8.11–8.30 pending implementation/evidence.
+**Status:** Tasks 8.1–8.14 foundations and physical undo completed; Tasks 8.15–8.30 pending implementation/evidence.
 
 **Prerequisite:** Stage 7 Tasks 7.1–7.40 completed, including CREATE and EXPLAIN.  
 **Roadmap:** PLAN.md, Section 13.  
@@ -15,6 +15,7 @@
 - **Task 8.2 adopted contract:** `docs/transactions.md` and `PROJECT_CONTEXT.md`; this is a design decision, not running transaction support.
 - **Tasks 8.3–8.6 foundation:** `docs/ETAPA_08_TASK_8_3_8_6.md`; control-only empty groups and access intents exist.
 - **Tasks 8.7–8.10 concurrency primitives:** `docs/ETAPA_08_TASK_8_7_8_10.md`; S/X grants, waits, deadlock detection and short physical latches exist. Coordinated data execution still awaits undo and engine integration.
+- **Tasks 8.11–8.14 undo and completion:** `docs/ETAPA_08_TASK_8_11_8_14.md`; bounded table/index images, exact restore and runtime rebinding, commit synchronization, and failure quarantine are verified through the internal protected-write hook. SQL statement routing still awaits Task 8.15.
 - **Following work:** Complete the remaining Stage 9 integration, then Stage 10 experiments and delivery. Preserve the authorized emergency Stage 9 work.
 
 This is an implementation plan, not a new academic specification or a claim that transaction support already exists. The repository records Stage 7 extension closure and 2,742 passing tests in its audit; that is historical repository evidence. Task 8.1 records the current-checkout test result separately.
@@ -604,15 +605,15 @@ Generating this file does not edit the other documents or implement their promis
 
 ### Undo and commit
 
-- [ ] Complete table/index images exist before the first protected mutation.
-- [ ] Undo memory, disk and handle usage have enforceable bounds.
-- [ ] Abort restores every changed statement/table in the group and preserves unrelated commits.
-- [ ] Allocation, file replacement, reorganization, RID changes and index validity are covered.
-- [ ] Restored runtime objects and prepared-plan generations cannot use stale state.
-- [ ] Commit synchronizes the complete write set before reporting success and releasing locks.
-- [ ] Ordinary failures trigger full abort; failed restoration quarantines the owner.
-- [ ] Clean reopen retains commits and excludes successfully aborted writes.
-- [ ] Crash recovery is explicitly outside the demonstrated guarantee.
+- [x] Complete table/index images exist before the first protected mutation.
+- [x] Undo memory, disk and handle usage have enforceable bounds.
+- [x] Abort restores every changed statement/table in the group and preserves unrelated commits.
+- [x] Allocation, file replacement, reorganization, RID changes and index validity are covered.
+- [x] Restored runtime objects and prepared-plan generations cannot use stale state.
+- [x] Commit synchronizes the complete write set before reporting success and releasing locks.
+- [x] Ordinary failures trigger full abort; failed restoration quarantines the owner.
+- [x] Clean reopen retains commits and excludes successfully aborted writes.
+- [x] Crash recovery is explicitly outside the demonstrated guarantee.
 
 ### Integration and evidence
 

@@ -33,6 +33,8 @@ from engine.transactions.ownership import DirectoryLease, claim_directory
 from engine.transactions.resources import TableFiles
 from engine.transactions.session import SessionCoordinator, SqlSession
 from engine.transactions.errors import TransactionUnavailableError
+from engine.transactions.runtime import TableRuntime
+from engine.transactions.undo import UndoLimits, UndoStore
 
 
 class DatabaseSetupError(ValidationError):
@@ -147,6 +149,7 @@ class Database:
         "_indexes",
         "_paths",
         "_closed",
+        "_available",
         "_coordinator",
         "_owner_lease",
     )
@@ -162,6 +165,7 @@ class Database:
         *,
         memory_budget_bytes: int = DEFAULT_BUDGET_BYTES,
         max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
+        undo_limits: UndoLimits = UndoLimits(),
     ) -> "Database":
         """Create, seed and index every declared table in an empty location."""
 
@@ -171,6 +175,7 @@ class Database:
         lease = claim_directory(root)
         try:
             root.mkdir(parents=True, exist_ok=True)
+            UndoStore.require_clean(root)
             existing = [path.name for path in cls._declared_paths(definition, root)
                         if path.exists()]
             if existing:
@@ -179,7 +184,8 @@ class Database:
                     "reset it explicitly instead of creating over them"
                 )
             return cls._assemble(
-                definition, root, True, memory_budget_bytes, max_open_handles, lease
+                definition, root, True, memory_budget_bytes, max_open_handles, lease,
+                undo_limits,
             )
         except BaseException:
             lease.release()
@@ -193,6 +199,7 @@ class Database:
         *,
         memory_budget_bytes: int = DEFAULT_BUDGET_BYTES,
         max_open_handles: int = DEFAULT_MAX_OPEN_HANDLES,
+        undo_limits: UndoLimits = UndoLimits(),
     ) -> "Database":
         """Reopen an existing database; never create, seed or rebuild files."""
 
@@ -201,6 +208,7 @@ class Database:
         root = Path(directory).resolve()
         lease = claim_directory(root)
         try:
+            UndoStore.require_clean(root)
             missing = [path.name for path in cls._declared_paths(definition, root)
                        if not path.is_file()]
             if missing:
@@ -208,7 +216,8 @@ class Database:
                     f"{root} is not a prepared database: missing {', '.join(missing)}"
                 )
             return cls._assemble(
-                definition, root, False, memory_budget_bytes, max_open_handles, lease
+                definition, root, False, memory_budget_bytes, max_open_handles, lease,
+                undo_limits,
             )
         except BaseException:
             lease.release()
@@ -232,6 +241,7 @@ class Database:
         memory_budget_bytes: int,
         max_open_handles: int,
         lease: DirectoryLease,
+        undo_limits: UndoLimits,
     ) -> "Database":
         if not isinstance(definition, DatabaseDefinition):
             raise TypeError("definition must be a DatabaseDefinition")
@@ -244,6 +254,7 @@ class Database:
         database._indexes = {}
         database._paths = {}
         database._closed = False
+        database._available = True
         database._coordinator = None
         database._owner_lease = lease
         try:
@@ -275,6 +286,13 @@ class Database:
                     max_open_handles=max_open_handles,
                 ),
                 default_engine=database._engine,
+                root=database._directory,
+                runtime=TableRuntime(
+                    database._catalog, database._environment,
+                    database._storages, database._indexes,
+                ),
+                quarantine_owner=lambda: setattr(database, "_available", False),
+                undo_limits=undo_limits,
             )
         except BaseException:
             database.close()
@@ -360,7 +378,8 @@ class Database:
     @property
     def engine(self) -> SqlEngine:
         """Return the single-session SQL engine over this database."""
-
+        if not self._available:
+            raise TransactionUnavailableError("Database owner is quarantined")
         return self._engine
 
     @property
@@ -370,8 +389,8 @@ class Database:
     def open_session(self) -> SqlSession:
         """Open an independent control session; protected data is pending."""
 
-        if self._closed:
-            raise TransactionUnavailableError("Database is closed")
+        if self._closed or not self._available:
+            raise TransactionUnavailableError("Database is closed or quarantined")
         return self._coordinator.open_session()
 
     @property

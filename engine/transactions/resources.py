@@ -178,6 +178,13 @@ class ResourceCatalog:
             self._generations[table_name] += 1
             return self._generations[table_name]
 
+    def table_files(self, table_name: str) -> TableFiles:
+        with self._mutex:
+            try:
+                return self._tables[table_name]
+            except KeyError as error:
+                raise ValidationError(f"Unknown table resource {table_name!r}") from error
+
     def plan(self, statement: Statement) -> AccessPlan:
         with self._mutex:
             if isinstance(

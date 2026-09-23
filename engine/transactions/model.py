@@ -125,6 +125,7 @@ class TransactionReport:
     held_resources: tuple[str, ...]
     touched_tables: tuple[str, ...]
     undo_references: tuple[str, ...]
+    warnings: tuple[str, ...] = ()
 
     @classmethod
     def from_transaction(cls, transaction: Transaction) -> "TransactionReport":

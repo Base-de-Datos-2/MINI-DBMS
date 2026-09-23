@@ -1,12 +1,13 @@
-"""Independent owner-scoped sessions for the Stage 8 foundation.
+"""Independent owner-scoped sessions with protected internal writes.
 
-Only control-only groups are executable now. Data execution is refused before
-effects until S/X locking and complete undo are integrated in later tasks.
+SQL data routing remains gated until Task 8.15. The internal write hook is
+used to verify complete physical undo under the session's schema/table locks.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 from threading import Lock, RLock
 
 from engine.query.ast import (
@@ -29,6 +30,9 @@ from .manager import TransactionManager
 from .locks import LockManager
 from .model import TransactionId, TransactionReport
 from .resources import ResourceCatalog, TableFiles
+from .completion import CompletionService
+from .runtime import TableRuntime
+from .undo import UndoLimits
 
 
 DEFAULT_MAX_SESSIONS = 64
@@ -45,6 +49,10 @@ class SessionCoordinator:
         table_files: tuple[TableFiles, ...],
         engine_factory: Callable[[], SqlEngine],
         default_engine: SqlEngine,
+        root: Path,
+        runtime: TableRuntime,
+        quarantine_owner: Callable[[], None],
+        undo_limits: UndoLimits = UndoLimits(),
         max_sessions: int = DEFAULT_MAX_SESSIONS,
     ) -> None:
         if type(max_sessions) is not int or max_sessions < 1:
@@ -56,6 +64,10 @@ class SessionCoordinator:
         self.locks = LockManager(database_identity)
         self.resources = ResourceCatalog(
             database_identity, environment.catalog, table_files, environment
+        )
+        self.completion = CompletionService(
+            root, self.transactions, self.locks, self.resources, runtime,
+            limits=undo_limits, quarantine_owner=quarantine_owner,
         )
         self._engine_factory = engine_factory
         self._mutex = RLock()
@@ -163,10 +175,10 @@ class SqlSession:
             except SqlQueryError as error:
                 if self._transaction_id is not None:
                     transaction_id = self._transaction_id
-                    self._abort_empty(transaction_id)
+                    report = self._abort(transaction_id)
                     self._transaction_id = None
                     error.add_note(
-                        f"Transaction {transaction_id.value} aborted after execute error"
+                        f"Transaction {transaction_id.value} ended {report.state.value} after execute error"
                     )
                 raise
             if isinstance(statement, BeginTransactionStatement):
@@ -197,23 +209,34 @@ class SqlSession:
                         session_id=self.id,
                         transaction_id=transaction_id.value,
                     )
-                report = self._owner.transactions.commit_empty(transaction_id)
-                self._owner.locks.release_all(report)
-                self._transaction_id = None
-                return report
+                try:
+                    return self._owner.completion.commit(transaction_id)
+                finally:
+                    if self._owner.completion.report(transaction_id) is not None:
+                        self._transaction_id = None
             if isinstance(statement, RollbackStatement):
                 transaction_id = self._require_active()
                 self._engine.close()
-                report = self._abort_empty(transaction_id)
+                report = self._abort(transaction_id)
                 self._transaction_id = None
+                if report.state.value == "ABORT_FAILED":
+                    raise TransactionUnavailableError(
+                        "Transaction restoration failed; owner is quarantined",
+                        session_id=self.id, transaction_id=transaction_id.value,
+                    )
                 return report
 
             transaction_id = self._transaction_id
             if transaction_id is not None:
-                self._abort_empty(transaction_id)
+                report = self._abort(transaction_id)
                 self._transaction_id = None
+                if report.state.value == "ABORT_FAILED":
+                    raise TransactionUnavailableError(
+                        "Transaction restoration failed; owner is quarantined",
+                        session_id=self.id, transaction_id=transaction_id.value,
+                    )
             raise TransactionUnavailableError(
-                "Coordinated data execution is pending undo and S/X integration",
+                "Coordinated SQL data execution is pending transaction-aware SQL routing",
                 session_id=self.id,
                 transaction_id=None if transaction_id is None else transaction_id.value,
             )
@@ -227,10 +250,38 @@ class SqlSession:
             )
         return self._transaction_id
 
-    def _abort_empty(self, transaction_id: TransactionId) -> TransactionReport:
-        report = self._owner.transactions.abort_empty(transaction_id)
-        self._owner.locks.release_all(report)
-        return report
+    def _abort(self, transaction_id: TransactionId) -> TransactionReport:
+        return self._owner.completion.abort(transaction_id)
+
+    def run_write(self, table_name: str, action: Callable[[], object]) -> object:
+        """Protected internal write hook until SQL routing arrives in 8.15.
+
+        The action must mutate only the named table through the owner's
+        canonical runtime objects. It is called after complete undo capture.
+        """
+        if not self._call.acquire(blocking=False):
+            raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        try:
+            if self._closed:
+                raise TransactionUnavailableError("Session is closed", session_id=self.id)
+            if self.active_result is not None:
+                raise TransactionProtocolError(
+                    "Close the active result before a write", session_id=self.id,
+                )
+            transaction_id = self._require_active()
+            try:
+                self._owner.completion.prepare_write(transaction_id, table_name)
+                return action()
+            except BaseException as error:
+                self._engine.close()
+                report = self._abort(transaction_id)
+                self._transaction_id = None
+                error.add_note(
+                    f"Transaction {transaction_id.value} ended {report.state.value} after write failure"
+                )
+                raise
+        finally:
+            self._call.release()
 
     def close(self) -> None:
         if not self._call.acquire(blocking=False):
@@ -243,12 +294,27 @@ class SqlSession:
     def _close_locked(self) -> None:
         if self._closed:
             return
-        self._engine.close()
+        failures: list[BaseException] = []
+        try:
+            self._engine.close()
+        except BaseException as error:
+            failures.append(error)
         if self._transaction_id is not None:
-            self._abort_empty(self._transaction_id)
-            self._transaction_id = None
+            transaction_id = self._transaction_id
+            try:
+                report = self._abort(transaction_id)
+                self._transaction_id = None
+                if report.state.value == "ABORT_FAILED":
+                    failures.append(TransactionUnavailableError(
+                        "Transaction restoration failed while closing the session",
+                        session_id=self.id, transaction_id=transaction_id.value,
+                    ))
+            except BaseException as error:
+                failures.append(error)
         self._closed = True
         self._owner._release(self)
+        if failures:
+            raise failures[0]
 
     def __enter__(self) -> "SqlSession":
         return self
