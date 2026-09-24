@@ -1,9 +1,11 @@
 # Demo de la Etapa 9 — runbook
 
 Interfaz gráfica local sobre el motor SQL real del proyecto. Cumple el hito
-**«Stage 9 emergency demo ready»** de [ETAPA_09.md](../ETAPA_09.md). **La
-Etapa 8 (transacciones y concurrencia) sigue pendiente** y esta demo no
-promete sus garantías.
+**«Stage 9 emergency demo ready»** de [ETAPA_09.md](../ETAPA_09.md). La
+**Etapa 8 (transacciones y concurrencia) cerró el 2026-09-24**, pero esta demo
+HTTP todavía no expone sesiones transaccionales entre peticiones ni promete
+concurrencia HTTP; conserva su guard global hasta completar el
+[handoff](ETAPA_08_STAGE_9_HANDOFF.md).
 
 ## 1. Requisitos
 
@@ -200,44 +202,51 @@ La traza completa queda solo en el log del servidor, que se cruza con el
 | `ENGINE_UNAVAILABLE` | 503 | El motor quedó inutilizable: reiniciar |
 | `INTERNAL_ERROR` | 500 | Fallo inesperado |
 
-## 8. Política de ejecución temporal (antes de la Etapa 8)
+## 8. Política temporal del adaptador (vigente después de la Etapa 8)
 
 - **Una operación del motor a la vez.** Una segunda petición recibe
   `ENGINE_BUSY` al instante; no hay cola. La admisión cubre preparar,
   clasificar, ejecutar, convertir la vista previa, copiar métricas y cerrar el
   cursor, y la toma y la libera el mismo hilo que hace el trabajo síncrono.
 - **Solo `SELECT` por defecto.** Se decide con el tipo de sentencia que
-  devuelve `SqlEngine.prepare()`, nunca por texto. El motor de la Etapa 7 ya
+  devuelve `SqlEngine.prepare()`, nunca por texto. El motor ya
   implementa `EXPLAIN`, `EXPLAIN ANALYZE` y CREATE manifest-backed, pero este
   adaptador conserva deliberadamente su allowlist y su base legacy: todavía no
-  serializa explicaciones ni expone DDL. `BEGIN/END TRANSACTION`, `COMMIT`,
-  `ROLLBACK`, `UPDATE`, el DDL restante y los envíos con varias sentencias
-  siguen rechazados por sus límites correspondientes.
+  serializa explicaciones ni expone DDL. `BEGIN/END TRANSACTION` y `ROLLBACK`
+  existen en el motor, pero la allowlist HTTP los rechaza; `COMMIT`, `UPDATE`,
+  el DDL restante y los envíos con varias sentencias siguen fuera de sus
+  límites correspondientes.
 - **`--allow-writes` (opcional, tarea 9.16).** Habilita `INSERT` y `DELETE`
   sobre la base de demo desechable. Cada envío se ejecuta **una sola vez**, sin
-  reintentos ni deduplicación. No hay transacción ni rollback. Si el motor
-  informa índices en estado incierto, las escrituras se suspenden y el modo
-  vuelve a solo lectura.
+  reintentos ni deduplicación. Cada comando usa una transacción implícita de
+  una sentencia con rollback ordinario de la Etapa 8; no hay agrupación entre
+  peticiones ni recuperación ante caída. Si el owner queda en cuarentena o el
+  motor informa índices en estado incierto, las escrituras se suspenden y el
+  modo vuelve a solo lectura.
 - Si al limpiar queda una sesión activa en el motor, el servicio pasa a 503
   hasta que se reinicie.
 
-**Esto es control de admisión del servidor, no la Etapa 8.** No implementa
-agrupación de transacciones, aislamiento, un gestor de locks ni la
-demostración de concurrencia con hilos. Ningún otro proceso debe abrir el
-directorio de datos mientras corre el servidor: el guard es local al proceso.
+**El guard es control de admisión del servidor, no el mecanismo de la Etapa
+8.** El motor subyacente sí tiene sesiones, rollback y locks, pero el adaptador
+todavía no expone agrupación entre peticiones ni concurrencia HTTP. Ningún otro
+proceso debe abrir el directorio de datos mientras corre el servidor: el guard
+es local al proceso.
 
-## 9. Pendiente para después de la Etapa 8
+## 9. Pendiente después del cierre de la Etapa 8
 
 - Migrar la demo al owner manifest-backed y añadir dispatch exhaustivo para
   `DEFINITION` y `EXPLANATION` antes de habilitar CREATE/EXPLAIN por HTTP.
-- Conectar sesiones y transacciones (`BEGIN/END TRANSACTION`) a la API y
-  reflejarlas en la interfaz.
+- Conectar tokens de sesión estables y transacciones (`BEGIN/END TRANSACTION`)
+  a la API y reflejar identidad, estado, espera y resultado en la interfaz.
 - Alinear la vida del cursor, los fallos y las desconexiones con la semántica
   transaccional implementada.
-- Probar peticiones simultáneas bajo el mecanismo real de concurrencia y hacer
-  la demostración obligatoria con hilos.
+- Probar peticiones simultáneas bajo el mecanismo real de concurrencia. La
+  demostración obligatoria del motor con hilos ya existe en
+  `demos/transactions_demo.py` y está auditada por la Etapa 8.
 - Mantener el guard de admisión hasta que la protección real esté verificada a
   través de HTTP.
+- Serializar explícitamente resultados de filas, comandos, definiciones,
+  explicaciones y controles, e integrar cancelación con `SqlSession.cancel()`.
 - La Etapa 10 (experimentos 1K/10K/100K y entrega final) sigue aparte.
 
 ## 10. Verificación rápida

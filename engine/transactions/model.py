@@ -41,6 +41,54 @@ class TransactionId:
 
 
 @dataclass(frozen=True, slots=True)
+class QueryIoMetrics:
+    """I/O attributed by one fresh physical execution context."""
+
+    base_pages_read: int = 0
+    base_pages_written: int = 0
+    index_pages_read: int = 0
+    index_pages_written: int = 0
+    temporary_pages_read: int = 0
+    temporary_pages_written: int = 0
+    temporary_metadata_reads: int = 0
+    temporary_metadata_writes: int = 0
+    bytes_spilled: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class UndoIoMetrics:
+    """Before-image traffic kept separate from ordinary query I/O."""
+
+    bytes_captured: int = 0
+    bytes_restored: int = 0
+    files_captured: int = 0
+    files_restored: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class TransactionMetrics:
+    transaction_id: TransactionId
+    session_id: int
+    state: TransactionState
+    held_resources: tuple[str, ...] = ()
+    requested_resources: tuple[str, ...] = ()
+    lock_wait_seconds: float = 0.0
+    blocker_ids: tuple[TransactionId, ...] = ()
+    failure_cause: str | None = None
+    undo: UndoIoMetrics = UndoIoMetrics()
+    completion_seconds: float | None = None
+    final_outcome: TransactionState | None = None
+    planning_seconds: float = 0.0
+    execution_seconds: float = 0.0
+    physical_latch_wait_seconds: float = 0.0
+    query_io: QueryIoMetrics = QueryIoMetrics()
+
+    @property
+    def undo_bytes(self) -> int:
+        return self.undo.bytes_captured
+
+
+@dataclass(frozen=True, slots=True)
 class Transaction:
     id: TransactionId
     session_id: int
@@ -126,6 +174,7 @@ class TransactionReport:
     touched_tables: tuple[str, ...]
     undo_references: tuple[str, ...]
     warnings: tuple[str, ...] = ()
+    metrics: TransactionMetrics | None = None
 
     @classmethod
     def from_transaction(cls, transaction: Transaction) -> "TransactionReport":

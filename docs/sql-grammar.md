@@ -1,4 +1,4 @@
-# Stage 7 SQL grammar and execution contract
+# SQL grammar and execution contract
 
 **Frozen:** 2026-09-17 for Tasks 7.2-7.7. This is an implementation contract,
 not an additional academic requirement. The lexer and parser are handwritten;
@@ -23,12 +23,12 @@ Every valid query environment supports SELECT-only explanation. See the
 evidence is in the [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
 Multiple statements and automatic script splitting remain unsupported.
 
-**Stage 8 foundation (Tasks 8.3–8.6):** The same handwritten parser now
+**Stage 8 closure (Tasks 8.1–8.30, 2026-09-24):** The same handwritten parser
 recognizes `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK` as complete
 single statements. They are dispatched only by an owner-created session.
-The existing Stage 7 `SqlEngine` rejects direct control execution with a
-located diagnostic; coordinated data execution is gated until locking and
-undo are integrated. The Stage 7 syntax and evidence above remain historical.
+Owner sessions execute every existing SQL family through the shared lock,
+undo, completion and cancellation lifecycle. The Stage 7 syntax and evidence
+above remain historical; closure evidence is in `ETAPA_08_AUDIT.md`.
 
 ## Source and token conventions
 
@@ -274,7 +274,8 @@ read-only.
 
 `SqlEngine.execute()` returns a lazy streaming `QueryResult` for SELECT and a
 completed, rowless `CommandResult` for INSERT/DELETE. One active SELECT result
-owns the single session until it is exhausted, explicitly closed, or fails.
+owns its `SqlSession`/`SqlEngine` facade until it is exhausted, explicitly
+closed, or fails; independent owner sessions may run in other threads.
 The result closes operators, temporary workspaces, and its context, while table
 and index managers remain borrowed. Streaming iteration is primary;
 `fetchmany(size)` is bounded, and `fetchall(limit=...)` plus the compatibility
@@ -330,10 +331,11 @@ row, the service verifies that the RID still identifies that old record. It
 never mutates a scan/index cursor that is still producing targets and never
 keeps the complete target set in an unbounded in-memory list.
 
-An ordinary mid-operation failure reports only the confirmed base-row prefix.
+On a deliberately standalone lower-level `SqlEngine`, an ordinary
+mid-operation failure reports only the confirmed base-row prefix.
 The current base storage is authoritative and every index is repaired through
 its atomic rebuild path. If repair cannot finish, the index remains persistently
 marked incomplete and both live and reopened access reject it. Successful
-commands flush before returning. This compensation contract does not claim
-statement rollback, transaction isolation, WAL durability, or crash-atomic
-multi-file commits; those belong to Stage 8.
+commands flush before returning. An owner-coordinated Stage 8 session wraps
+that maintenance path with whole-group before-image undo and table locks.
+Neither route claims WAL recovery or crash-atomic multi-file commit.

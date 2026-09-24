@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.4** — preserves the formal Stage 7 closure and records
-> the Stage 8 contract and implemented Tasks 8.1–8.18.
+> Context version: **4.7** — preserves the formal Stage 7 closure, records the
+> completed Stage 8 contract and evidence, and identifies the Stage 9 adapter handoff.
 
 ## Project identity
 
@@ -1898,16 +1898,20 @@ The frontend's execution-plan panel should visualize this real plan.
 
 The project requires transaction grouping and concurrency control.
 
-**Stage 8 Tasks 8.1–8.18 complete; core SQL data execution coordinated.** The full
+**Stage 8 Tasks 8.1–8.30 are formally closed as of 2026-09-24.** The full
 session, failure, quota, and recovery-boundary contract is in
 [`docs/transactions.md`](docs/transactions.md). The foundation evidence is in
 `docs/ETAPA_08_TASK_8_3_8_6.md` and
 `docs/ETAPA_08_TASK_8_7_8_10.md`, and
 `docs/ETAPA_08_TASK_8_11_8_14.md`, and
-`docs/ETAPA_08_TASK_8_15_8_18.md`. S/X lock primitives, physical latches,
-bounded physical undo, and owner-backed SELECT/INSERT/DELETE routing exist.
+`docs/ETAPA_08_TASK_8_15_8_18.md`, and
+`docs/ETAPA_08_TASK_8_19_8_22.md`, and
+`docs/ETAPA_08_TASK_8_23_8_26.md`; bounded stress and closure are in
+`tests/transactions/test_bounded_stress.py` and `docs/ETAPA_08_AUDIT.md`.
+S/X lock primitives, physical latches, bounded physical undo, all existing SQL
+families, telemetry, cancellation, and orderly shutdown use the owner lifecycle.
 
-- One canonical in-process database owner per physical directory will share
+- One canonical in-process database owner per physical directory shares
   Catalog, runtime registry, a Transaction Manager, and a Lock Manager among
   independent sessions. Each session owns its group and result; the existing
   `Database.engine` remains a compatibility default session. Legacy registered
@@ -1933,6 +1937,23 @@ bounded physical undo, and owner-backed SELECT/INSERT/DELETE routing exist.
   or orphan undo artifacts cause fresh open to refuse normal access pending
   explicit inspection. This is not WAL, automatic crash recovery, or
   crash-atomic multi-file commit.
+- Standalone CREATE owns schema X through validation, durable publication, and
+  compensated cleanup. Pure prepare/list operations use a short fair metadata
+  reader gate while CREATE uses its writer side, so they cannot observe partial
+  Catalog/runtime/manifest publication. EXPLAIN remains planning-only; ANALYZE
+  locks every SELECT source, consumes one physical plan, and reports lock wait,
+  planning, execution, partial failure, and final transaction outcome.
+- `TransactionObservability` publishes per-transaction lock requests, blockers,
+  wait/cause, undo bytes, completion duration, outcome, query I/O, and physical
+  latch waits. Events have synchronized owner sequence numbers and a bounded
+  4,096-entry buffer whose snapshot discloses eviction. Permanent page I/O is
+  attributed through the active physical plan context, rather than subtracting
+  shared handle counters touched by concurrent sessions; undo I/O remains a
+  separate category.
+- `SqlSession.cancel()` interrupts queued lock requests and requests a safe-point
+  abort for running/cursor work. `SqlSession.shutdown()` and
+  `Database.shutdown()` wait up to a caller-bounded deadline before cleanup and
+  shared-handle close. Existing `close()` remains fail-fast when a call is busy.
 
 The completion path uses one owner `UndoStore` and a transaction-owned
 image directory. Under schema S/table X, `CompletionService.prepare_write`
@@ -1991,6 +2012,25 @@ The demonstration should show:
 3. how the concurrency-control mechanism prevents or resolves the incorrect result.
 
 This demonstration should be reproducible.
+
+Tasks 8.23–8.26 implement that demonstration in
+`demos/transactions_demo.py`. The unsafe fixture uses two independent,
+uncoordinated SQL facades only inside the disposable demo, keeps each physical
+DELETE+INSERT pair serialized, and forces both real reads to observe zero. It
+therefore isolates a logical lost update and ends at one. The protected fixture
+uses two normal sessions and explicit groups. Their first S-to-X upgrades form
+a real deadlock; the reported victim retries the complete read/replace group,
+so two business operations commit and end at two. A third disposable database
+runs the same operations serially and also ends at two. The evidence records
+attempts, transaction IDs, blockers, waits, aborts, and commits; no production
+switch bypasses locking.
+
+Task 8.27 adds the seeded, bounded multi-session workload with exact row and
+index oracles, forced waiting, failed groups, rollback, cleanup and clean reopen.
+The Stage 8 closure gate passes 91 transaction tests, 97 API compatibility
+tests, and 2,831 complete strict tests. Task 8.28 records the unfinished HTTP/UI
+session integration in `docs/ETAPA_08_STAGE_9_HANDOFF.md`; the emergency API
+guard remains until that checklist passes.
 
 ---
 
@@ -2153,9 +2193,9 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 ## Current stage
 
-Latest formally completed SQL stage:
+Latest formally completed stage:
 
-> **Stage 7 Tasks 7.1–7.40 — SQL Parser, Planner, Executor, CREATE, and EXPLAIN**
+> **Stage 8 Tasks 8.1–8.30 — Transactions and Concurrency**
 
 Overall Part 1 roadmap:
 
@@ -2163,11 +2203,11 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.18 complete; remaining integration and evidence pending)**
+> **Stage 9 — transaction-aware HTTP/UI integration remains after the emergency demo**
 
-Current stage specification:
+Current implementation guide:
 
-> `ETAPA_08.md`
+> `ETAPA_09.md` plus `docs/ETAPA_08_STAGE_9_HANDOFF.md`
 
 Implemented so far:
 
@@ -2336,13 +2376,20 @@ restart/failure evidence, and documentation reconciliation. The complete
 warnings-as-errors suite passes 2,742 tests. Implementation evidence is in
 `docs/ETAPA_07_TASK_7_33_7_35.md` and `docs/ETAPA_07_TASK_7_36_7_38.md`; final
 closure evidence is in `docs/ETAPA_07_EXTENSION_AUDIT.md`.
-Stage 8 follows that closed extension in
-the roadmap. `ETAPA_08.md` now provides the detailed plan; Tasks 8.1–8.2
+Stage 8 followed that closed extension in
+the roadmap. `ETAPA_08.md` provides the detailed plan; Tasks 8.1–8.2
 record the inspection/contract, Tasks 8.3–8.10 provide session/lock/latch
 foundations, Tasks 8.11–8.14 provide bounded physical undo and terminal
-completion, and Tasks 8.15–8.18 coordinate owner-backed
-SELECT/INSERT/DELETE. Their complete warnings-as-errors regression passes
-2,814 tests. Part 1 remains incomplete. The
+completion, Tasks 8.15–8.18 coordinate owner-backed SELECT/INSERT/DELETE, and
+Tasks 8.19–8.22 complete the remaining SQL and lifecycle integration. The
+complete warnings-as-errors regression at that checkpoint passes 2,821 tests;
+Block 6 evidence is recorded in `docs/ETAPA_08_TASK_8_19_8_22.md`. Tasks
+8.23–8.26 add controlled isolation/atomicity schedules and the reproducible
+lost-update/protected/serial comparison, with 90 focused transaction tests
+passing at that checkpoint. Tasks 8.27–8.30 close seeded stress, regression,
+the Stage 9 handoff and audit; the final strict suite passes 2,831 tests and
+evidence is in `docs/ETAPA_08_AUDIT.md`. Remaining Stage 9 integration and
+Stage 10 mean Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2364,8 +2411,12 @@ intent mapping. Tasks 8.7–8.14 implemented S/X lock grants, physical latches,
 table-scoped undo, commit/abort completion, and quarantine. Tasks 8.15–8.18
 implemented explicit and implicit SELECT/INSERT/DELETE execution, cursor lock
 lifetime, provisional command results, prepared-plan rebinding, and managed
-programmatic insertion. CREATE/EXPLAIN completion details, observability,
-shutdown, demonstrations, and Stage 9 request sessions remain pending.
+programmatic insertion. Tasks 8.19–8.22 implemented coordinated CREATE,
+protected EXPLAIN/ANALYZE, bounded transaction tracing, context-local plan I/O,
+cooperative cancellation, and finite orderly shutdown. Tasks 8.23–8.26 verify
+controlled isolation and atomicity schedules and implement the required
+unsafe/protected demonstration against a serial oracle. Bounded stress/full
+regression evidence, closure work, and Stage 9 request sessions remain pending.
 
 Resolved in Stage 6 and recorded under *Relational operators*: the physical
 comparison subset, the adopted aggregate set, the memory-budget model and its

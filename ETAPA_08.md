@@ -3,23 +3,26 @@
 ## Stage 8 — Transactions and Concurrency
 
 **Part:** Relational Database  
-**Revision:** 2026-09-23
+**Revision:** 2026-09-24
 
-**Status:** Tasks 8.1–8.18 completed; Tasks 8.19–8.30 pending implementation/evidence.
+**Status:** Closed on 2026-09-24; Tasks 8.1–8.30 and all 37 Definition of Done criteria completed.
 
 **Prerequisite:** Stage 7 Tasks 7.1–7.40 completed, including CREATE and EXPLAIN.  
 **Roadmap:** PLAN.md, Section 13.  
 **Repository inspected:** Base-de-Datos-2/MINI-DBMS, `main`, commit `25fb7916d15e7dd4f43911b415ede00c09257a48`.  
 
 - **Task 8.1 current checkout:** `main`, commit `bf381e3d98673509f928b4a95fe410658e5312c6`; inspection and 436 passing focused baseline tests in `docs/ETAPA_08_TASK_8_1_INSPECTION.md`.
-- **Task 8.2 adopted contract:** `docs/transactions.md` and `PROJECT_CONTEXT.md`; this is a design decision, not running transaction support.
+- **Task 8.2 adopted contract:** `docs/transactions.md` and `PROJECT_CONTEXT.md`; at that checkpoint this was a design decision, subsequently implemented by Tasks 8.3–8.22.
 - **Tasks 8.3–8.6 foundation:** `docs/ETAPA_08_TASK_8_3_8_6.md`; control-only empty groups and access intents exist.
 - **Tasks 8.7–8.10 concurrency primitives:** `docs/ETAPA_08_TASK_8_7_8_10.md`; S/X grants, waits, deadlock detection and short physical latches exist and now underpin the core SQL path.
 - **Tasks 8.11–8.14 undo and completion:** `docs/ETAPA_08_TASK_8_11_8_14.md`; bounded table/index images, exact restore and runtime rebinding, commit synchronization, and failure quarantine are verified and now consumed by SQL mutation routing.
 - **Tasks 8.15–8.18 core SQL integration:** `docs/ETAPA_08_TASK_8_15_8_18.md`; explicit/implicit execution, cursor-owned read completion, protected INSERT/DELETE, prepared-plan rebinding, managed insertion, and Heap/Sequential/B+/Hash rollback are verified.
-- **Following work:** Complete the remaining Stage 9 integration, then Stage 10 experiments and delivery. Preserve the authorized emergency Stage 9 work.
+- **Tasks 8.19–8.22 remaining lifecycle integration:** `docs/ETAPA_08_TASK_8_19_8_22.md`; coordinated CREATE publication, protected EXPLAIN/ANALYZE, bounded real-event telemetry, cooperative cancellation, and bounded orderly shutdown are verified with 2,821 strict tests passing.
+- **Tasks 8.23–8.26 controlled evidence and demo:** `docs/ETAPA_08_TASK_8_23_8_26.md`; event-controlled isolation/failure schedules, a real unsafe lost update, protected whole-operation retry, and a serial oracle are reproducible. The focused transaction suite passes 90 strict tests.
+- **Tasks 8.27–8.30 regression and closure:** `tests/transactions/test_bounded_stress.py`, `docs/ETAPA_08_STAGE_9_HANDOFF.md`, and `docs/ETAPA_08_AUDIT.md`; the seeded stress, API compatibility, clean demonstration and complete regression pass. The closure suite records 2,831 strict tests.
+- **Following work:** Complete the remaining Stage 9 transaction-aware HTTP/UI integration and Stage 10 experiments/delivery. Preserve the authorized emergency Stage 9 work and its admission guard until the handoff checklist passes.
 
-This is an implementation plan, not a new academic specification or a claim that Stage 8 is closed. The repository records Stage 7 extension closure and 2,742 passing tests in its audit; that is historical repository evidence. Task 8.1 records the original current-checkout baseline separately.
+This remains an implementation plan rather than a new academic specification. Stage 8 closure evidence is in `docs/ETAPA_08_AUDIT.md`. The repository's Stage 7 extension audit and its 2,742 passing tests remain historical evidence, and Task 8.1 records the original current-checkout baseline separately.
 
 ## 1. Goal
 
@@ -71,9 +74,9 @@ Repository references at the inspected revision:
 
 ### Academic requirements versus implementation choices
 
-The assignment requires transaction grouping, safe concurrent access, and the threaded demonstration. Task 8.2 adopted the following project design, with detailed lifecycle, limits, and failure rules in `docs/transactions.md` and `PROJECT_CONTEXT.md`. Implementation and verification remain pending.
+The assignment requires transaction grouping, safe concurrent access, and the threaded demonstration. Task 8.2 adopted the following project design, with detailed lifecycle, limits, and failure rules in `docs/transactions.md` and `PROJECT_CONTEXT.md`. Tasks 8.3–8.22 implement the engine lifecycle, Tasks 8.23–8.26 supply controlled isolation/atomicity evidence plus the required unsafe/protected demonstration, and Tasks 8.27–8.30 close the stage with bounded stress, full regression, a Stage 9 handoff, synchronized documentation, and a recorded audit.
 
-| Area | Adopted Stage 8 design decision (implementation pending) |
+| Area | Adopted Stage 8 design decision |
 |---|---|
 | Deployment | One process and one canonical database owner per physical database; multiple thread-driven sessions. No distributed/process-shared lock manager. |
 | SQL controls | Required BEGIN TRANSACTION and END TRANSACTION; END commits. Add ROLLBACK as a small team-selected control for explicit abort. COMMIT alias, nested transactions and savepoints remain out of scope. |
@@ -191,7 +194,7 @@ Logical locks protect transactions. Physical latches protect short shared operat
 
 ## 7. Undo and commit design checkpoint
 
-### Adopted before-image design (implementation pending)
+### Adopted before-image design (implemented in Tasks 8.11–8.14)
 
 For each table first written by a transaction:
 
@@ -588,21 +591,21 @@ Generating this file does not edit the other documents or implement their promis
 - [x] ROLLBACK and automatic abort behavior are implemented and documented as team choices.
 - [x] Exactly one statement per submission and required comment handling are preserved.
 - [x] Independent sessions share one correct coordinator without sharing active-result state.
-- [ ] Nested controls, busy sessions, invalid terminal commands and session close are tested.
+- [x] Nested controls, busy sessions, invalid terminal commands and session close are tested.
 - [x] Implicit transactions preserve existing ordinary statement usability.
 - [x] Successful statements inside a group remain provisional until commit.
 
 ### Concurrency and physical safety
 
-- [ ] S/X compatibility, transaction-owned reacquisition, upgrades and terminal release are correct.
-- [ ] All reads/writes, validation, DELETE discovery and relevant metadata access acquire adequate protection.
+- [x] S/X compatibility, transaction-owned reacquisition, upgrades and terminal release are correct.
+- [x] All reads/writes, validation, DELETE discovery and relevant metadata access acquire adequate protection.
 - [x] Locks survive explicit cursor EOF/close until the group ends.
-- [ ] Compatible readers and independent tables demonstrably overlap.
-- [ ] Physical shared handles/caches/counters are safe under compatible logical reads.
-- [ ] Waits use conditions without holding physical or manager latches during blocking.
-- [ ] Deadlocks, queue dependencies, timeouts and cancellation have tested outcomes.
-- [ ] Victim cleanup occurs before conflicting access is admitted.
-- [ ] No dirty reads, lost updates or phantoms occur in the covered table-lock schedules.
+- [x] Compatible readers and independent tables demonstrably overlap.
+- [x] Physical shared handles/caches/counters are safe under compatible logical reads.
+- [x] Waits use conditions without holding physical or manager latches during blocking.
+- [x] Deadlocks, queue dependencies, timeouts and cancellation have tested outcomes.
+- [x] Victim cleanup occurs before conflicting access is admitted.
+- [x] No dirty reads, lost updates or phantoms occur in the covered table-lock schedules.
 
 ### Undo and commit
 
@@ -618,17 +621,17 @@ Generating this file does not edit the other documents or implement their promis
 
 ### Integration and evidence
 
-- [ ] Existing SELECT/INSERT/DELETE, constraints, joins/groups/sorts, CREATE, EXPLAIN and ANALYZE remain correct under their documented boundaries.
-- [ ] Sequential, clustered/unclustered B+, and Hash integration is verified through compatible existing fixtures.
-- [ ] CREATE inside explicit transactions rejects without hidden commit; standalone CREATE is coordinated.
-- [ ] Metrics and event traces describe actual execution and lock behavior without cross-session contamination.
-- [ ] Cancellation/shutdown leave no live worker, lock, cursor or owned temporary artifact after normal cleanup.
-- [ ] A deterministic unsafe demonstration produces a real lost update on disposable engine data.
-- [ ] The protected threaded demonstration matches the serial oracle and reports retries/aborts honestly.
-- [ ] Controlled interleaving, failure, bounded stress and required regression gates pass with recorded evidence.
-- [ ] Stage 9 handoff preserves the existing guard until session-aware integration is verified.
-- [ ] Documentation has no unresolved current-scope or guarantee contradictions.
-- [ ] The Stage 8 audit and reproducible demonstration runbook are complete.
+- [x] Existing SELECT/INSERT/DELETE, constraints, joins/groups/sorts, CREATE, EXPLAIN and ANALYZE remain correct under their documented boundaries.
+- [x] Sequential, clustered/unclustered B+, and Hash integration is verified through compatible existing fixtures.
+- [x] CREATE inside explicit transactions rejects without hidden commit; standalone CREATE is coordinated.
+- [x] Metrics and event traces describe actual execution and lock behavior without cross-session contamination.
+- [x] Cancellation/shutdown leave no live worker, lock, cursor or owned temporary artifact after normal cleanup.
+- [x] A deterministic unsafe demonstration produces a real lost update on disposable engine data.
+- [x] The protected threaded demonstration matches the serial oracle and reports retries/aborts honestly.
+- [x] Controlled interleaving, failure, bounded stress and required regression gates pass with recorded evidence.
+- [x] Stage 9 handoff preserves the existing guard until session-aware integration is verified.
+- [x] Documentation has no unresolved current-scope or guarantee contradictions.
+- [x] The Stage 8 audit and reproducible demonstration runbook are complete.
 
 ## 15. Working prompts
 

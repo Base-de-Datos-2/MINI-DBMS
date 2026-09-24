@@ -5,14 +5,19 @@
 > EXPLAIN y nuevos resultados al motor. La demo sigue usando su owner legacy y
 > sus allowlists originales; la integración HTTP de esos tipos permanece como
 > trabajo explícito y no invalida la evidencia histórica que sigue.
+>
+> **Actualización 2026-09-24:** la Etapa 8 cerró sus 37 criterios con 2.831
+> pruebas estrictas. La demo conserva el guard y todavía debe integrar sesiones
+> entre peticiones según `ETAPA_08_STAGE_9_HANDOFF.md`. Las afirmaciones sobre
+> Etapa 8 pendiente que siguen abajo describen el checkpoint del 2026-09-18.
 
 Fecha: **2026-09-18**. Alcance: tareas **9.1–9.18** de
 [ETAPA_09.md](../ETAPA_09.md). Estado: **«Stage 9 emergency demo ready»**.
 
 Esto **no** es el cierre de la Etapa 9 ni de la Parte 1. Por la excepción de
-orden autorizada (sección 1 de la guía), la Etapa 8 se implementa después, y
-la integración transaccional de la API queda pendiente hasta entonces. La
-forma de lanzar y usar la demo está en [demo.md](demo.md).
+orden autorizada (sección 1 de la guía), la Etapa 8 se implementó después y
+cerró el 2026-09-24; la integración transaccional de la API continúa pendiente.
+La forma de lanzar y usar la demo está en [demo.md](demo.md).
 
 ## 9.1 — Inspección y línea base
 
@@ -98,7 +103,7 @@ dependencia del proyecto.
 | Criterio | Estado |
 |---|---|
 | Se inspeccionaron los puntos de entrada de la Etapa 7 y su línea base | Cumple |
-| Se registró la excepción de orden; la Etapa 8 sigue pendiente | Cumple |
+| Se registró la excepción de orden; la Etapa 8 estaba pendiente en este checkpoint histórico | Cumple |
 | Se reutiliza el parser manual, sin un segundo parser | Cumple |
 | Datos de demo persistentes, deterministas y separados de los datos normales | Cumple |
 | Un proceso dueño de los datos y un único guard de admisión | Cumple |

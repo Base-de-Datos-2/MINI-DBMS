@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from time import perf_counter
 
@@ -26,6 +26,7 @@ from engine.operators.context import (
     DEFAULT_BUDGET_BYTES,
     DEFAULT_MAX_OPEN_HANDLES,
     MINIMUM_BUDGET_BYTES,
+    cancellation_scope,
 )
 from engine.storage import Record
 
@@ -189,6 +190,9 @@ class ExplanationExecutionReport:
     execution_seconds: float | None
     error_type: str | None = None
     error_message: str | None = None
+    lock_wait_seconds: float = 0.0
+    transaction_id: int | None = None
+    transaction_state: str | None = None
 
 
 class AnalysisExecutionError(DatabaseError, RuntimeError):
@@ -329,7 +333,7 @@ class CommandResult:
 
     __slots__ = (
         "_prepared_description", "_statistics", "_statement_kind",
-        "_transaction_id", "_committed",
+        "_transaction_id", "_committed", "_planning_seconds",
     )
 
     def __init__(self, prepared: PreparedQuery, statistics: MutationReport) -> None:
@@ -342,6 +346,7 @@ class CommandResult:
         self._prepared_description = prepared.describe()
         self._statistics = statistics
         self._statement_kind = prepared.kind
+        self._planning_seconds = prepared.planning_seconds
         self._transaction_id: int | None = None
         self._committed = True
 
@@ -422,6 +427,10 @@ class CommandResult:
         return self._statistics
 
     @property
+    def planning_seconds(self) -> float:
+        return self._planning_seconds
+
+    @property
     def report(self) -> QueryExecutionReport:
         return QueryExecutionReport(
             prepared=self._prepared_description,
@@ -454,7 +463,7 @@ class CommandResult:
 class DefinitionResult:
     """One completed CREATE result with no row stream or affected-row count."""
 
-    __slots__ = ("_prepared_description", "_created")
+    __slots__ = ("_prepared_description", "_created", "_planning_seconds")
 
     def __init__(self, prepared: PreparedQuery, created: CreatedTable) -> None:
         if not isinstance(prepared, PreparedQuery):
@@ -465,6 +474,7 @@ class DefinitionResult:
             raise InvalidTypeError("DefinitionResult requires a CreatedTable")
         self._prepared_description = prepared.describe()
         self._created = created
+        self._planning_seconds = prepared.planning_seconds
 
     @property
     def kind(self) -> ResultKind:
@@ -489,6 +499,10 @@ class DefinitionResult:
     @property
     def primary_index_name(self) -> str | None:
         return self._created.primary_index_name
+
+    @property
+    def planning_seconds(self) -> float:
+        return self._planning_seconds
 
     @property
     def rows_delivered(self) -> int:
@@ -589,6 +603,20 @@ class ExplanationResult:
             output_rows=None if runtime is None else runtime.rows_produced,
             planning_seconds=prepared.planning_seconds,
             execution_seconds=execution_seconds,
+        )
+
+    def _set_transaction_context(
+        self,
+        *,
+        transaction_id: int,
+        transaction_state: str,
+        lock_wait_seconds: float,
+    ) -> None:
+        self._report = replace(
+            self._report,
+            transaction_id=transaction_id,
+            transaction_state=transaction_state,
+            lock_wait_seconds=max(0.0, lock_wait_seconds),
         )
 
     @property
@@ -754,7 +782,16 @@ class QueryResult:
 
     def _invoke(self, action: Callable[[], object]):
         lifecycle = self._lifecycle_call
-        return action() if lifecycle is None else lifecycle(action)
+        if lifecycle is None:
+            return action()
+        try:
+            return lifecycle(action)
+        except BaseException as error:
+            if self._state not in {
+                ResultState.COMPLETE, ResultState.CLOSED, ResultState.FAILED,
+            }:
+                self._fail(error)
+            raise
 
     @property
     def kind(self) -> ResultKind:
@@ -824,6 +861,10 @@ class QueryResult:
         if self._plan is None:
             return None
         return self._plan.report()
+
+    @property
+    def planning_seconds(self) -> float:
+        return self._prepared.planning_seconds
 
     @property
     def report(self) -> QueryExecutionReport:
@@ -1101,6 +1142,7 @@ class SqlEngine:
         "_ddl_service",
         "_execution_router",
         "_execution_bypass",
+        "_metadata_guard",
     )
 
     def __init__(
@@ -1146,6 +1188,7 @@ class SqlEngine:
         self._ddl_service = ddl_service
         self._execution_router: Callable[..., object] | None = None
         self._execution_bypass: Callable[[], bool] | None = None
+        self._metadata_guard: Callable[[Callable[[], object]], object] | None = None
 
     def _set_execution_router(
         self,
@@ -1163,6 +1206,18 @@ class SqlEngine:
             raise InvalidTypeError("execution bypass must be callable or None")
         self._execution_router = router
         self._execution_bypass = bypass
+
+    def _set_metadata_guard(
+        self,
+        guard: Callable[[Callable[[], object]], object],
+    ) -> None:
+        """Install the owner's short metadata read gate exactly once."""
+
+        if not callable(guard):
+            raise InvalidTypeError("metadata guard must be callable")
+        if self._metadata_guard is not None:
+            raise ValidationError("SqlEngine already has a metadata guard")
+        self._metadata_guard = guard
 
     @property
     def environment(self) -> QueryEnvironment:
@@ -1200,6 +1255,28 @@ class SqlEngine:
         planning_options: PhysicalPlanningOptions | None = None,
     ) -> PreparedQuery:
         """Parse, bind, and plan without opening cursors or applying mutations."""
+
+        guard = self._metadata_guard
+        if guard is not None:
+            return guard(lambda: self._prepare_local(
+                sql,
+                use_indexes=use_indexes,
+                planning_options=planning_options,
+            ))
+        return self._prepare_local(
+            sql,
+            use_indexes=use_indexes,
+            planning_options=planning_options,
+        )
+
+    def _prepare_local(
+        self,
+        sql: str,
+        *,
+        use_indexes: bool = True,
+        planning_options: PhysicalPlanningOptions | None = None,
+    ) -> PreparedQuery:
+        """Prepare while the caller owns any required metadata read gate."""
 
         started = perf_counter()
         options = self._planning_options if planning_options is None else planning_options

@@ -320,7 +320,9 @@ class Database:
         return self._closed
 
     def table_names(self) -> tuple[str, ...]:
-        return tuple(table.name for table in self._catalog.list_tables())
+        self._require_available()
+        with self._coordinator.metadata.read():
+            return tuple(table.name for table in self._catalog.list_tables())
 
     def storage_for(self, table_name: str) -> HeapFile:
         self._require_available()
@@ -483,6 +485,12 @@ class Database:
     def create_table(self, table: TableMetadata) -> CreatedTable:
         """Create, publish, and atomically register one Heap-backed table."""
 
+        coordinator = self._coordinator
+        if (coordinator is not None
+                and not coordinator.protected_schema_change_active()):
+            return coordinator.default_session.run_schema_change(
+                lambda: self.create_table(table)
+            )
         self.validate_create(table)
         table_id, table_file, table_path = self._allocate_identity("t", ".heap")
         primary_index_name = (
@@ -671,6 +679,19 @@ class Database:
         coordinator = self._coordinator
         if coordinator is not None:
             coordinator.close()
+        self._close_handles()
+
+    def shutdown(self, *, timeout_seconds: float = 5.0) -> None:
+        """Cooperatively cancel sessions before releasing shared handles."""
+
+        if self._closed:
+            return
+        coordinator = self._coordinator
+        if coordinator is not None:
+            coordinator.shutdown(timeout_seconds=timeout_seconds)
+        self._close_handles()
+
+    def _close_handles(self) -> None:
         self._closed = True
         failures: list[BaseException] = []
         engine = self._engine

@@ -2,10 +2,12 @@
 
 from dataclasses import replace
 from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import wraps
 import os
 from pathlib import Path
 from threading import RLock
+from time import perf_counter
 from uuid import uuid4
 
 from engine.errors import InvalidReferenceError, InvalidTypeError, ValidationError
@@ -14,13 +16,55 @@ from engine.storage.file_header import FileHeader
 from engine.storage.page import Page
 
 
+_LATCH_OBSERVER = ContextVar("minidb_physical_latch_observer", default=None)
+_PAGE_IO_OBSERVER = ContextVar("minidb_page_io_observer", default=None)
+
+
+@contextmanager
+def physical_latch_scope(observer):
+    token = _LATCH_OBSERVER.set(observer)
+    try:
+        yield
+    finally:
+        _LATCH_OBSERVER.reset(token)
+
+
+@contextmanager
+def page_io_scope(observer):
+    token = _PAGE_IO_OBSERVER.set(observer)
+    try:
+        yield
+    finally:
+        _PAGE_IO_OBSERVER.reset(token)
+
+
+def _record_physical_latch_wait(seconds: float, operation: str) -> None:
+    observer = _LATCH_OBSERVER.get()
+    if observer is not None:
+        observer(max(0.0, seconds), operation)
+
+
+def _record_page_io(manager: object, operation: str) -> None:
+    observer = _PAGE_IO_OBSERVER.get()
+    if observer is not None:
+        observer(manager, operation)
+
+
 def _latched(method):
     """Keep one physical operation, including seek and transfer, indivisible."""
 
     @wraps(method)
     def call(self, *args, **kwargs):
-        with self._mutex:
+        started = perf_counter()
+        self._mutex.acquire()
+        _record_physical_latch_wait(
+            perf_counter() - started,
+            f"PageManager.{method.__name__}",
+        )
+        try:
             return method(self, *args, **kwargs)
+        finally:
+            self._mutex.release()
 
     return call
 
@@ -264,6 +308,7 @@ class PageManager:
         updated_header = replace(self._header, allocated_page_count=page_id + 1)
         self._write_at(self._physical_offset(page_id), Page(page_id).serialize())
         self._pages_written += 1
+        _record_page_io(self, "write")
         self._write_at(0, updated_header.serialize())
         self._header = updated_header
         self._pages_allocated += 1
@@ -278,6 +323,7 @@ class PageManager:
         self._file.seek(self._physical_offset(page_id))
         payload = self._read_exact(PAGE_SIZE)
         self._pages_read += 1
+        _record_page_io(self, "read")
         page = Page.deserialize(payload)
         if page.page_id != page_id:
             raise ValidationError(
@@ -297,6 +343,7 @@ class PageManager:
         self._check_file_size()
         self._write_at(self._physical_offset(page_id), payload)
         self._pages_written += 1
+        _record_page_io(self, "write")
 
     @_latched
     def flush(self) -> None:

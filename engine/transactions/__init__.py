@@ -13,8 +13,17 @@ from .errors import (
 from .manager import TransactionManager
 from .locks import (
     LockManager, LockSnapshot, ResourceSnapshot, SchemaResource, WaitSnapshot,
+    resource_label,
 )
-from .model import Transaction, TransactionId, TransactionReport, TransactionState
+from .model import (
+    QueryIoMetrics,
+    Transaction,
+    TransactionId,
+    TransactionMetrics,
+    TransactionReport,
+    TransactionState,
+    UndoIoMetrics,
+)
 from .resources import (
     AccessPlan,
     LockMode,
@@ -29,6 +38,10 @@ from .session import SessionCoordinator, SqlSession
 from .completion import CompletionService
 from .runtime import TableRuntime
 from .undo import FileImage, TableImage, UndoLimits, UndoStore
+from .gate import MetadataGate
+from .observability import (
+    TraceSnapshot, TransactionEvent, TransactionObservability,
+)
 
 __all__ = [
     "AccessPlan",
@@ -37,6 +50,8 @@ __all__ = [
     "LockManager",
     "LockSnapshot",
     "LockTimeoutError",
+    "MetadataGate",
+    "QueryIoMetrics",
     "ResourceCatalog",
     "ResourceSnapshot",
     "SchemaMode",
@@ -54,6 +69,8 @@ __all__ = [
     "TransactionError",
     "TransactionId",
     "TransactionManager",
+    "TransactionMetrics",
+    "TransactionObservability",
     "TransactionProtocolError",
     "TransactionReport",
     "TransactionState",
@@ -65,4 +82,8 @@ __all__ = [
     "TableImage",
     "UndoLimits",
     "UndoStore",
+    "UndoIoMetrics",
+    "TraceSnapshot",
+    "TransactionEvent",
+    "resource_label",
 ]

@@ -1,4 +1,4 @@
-# Stage 7 SQL engine guide
+# SQL engine guide
 
 > **Current status (2026-09-20):** this guide documents the verified Stage 7
 > Tasks 7.1–7.40 implementation. Limited CREATE is executable in an engine-owned
@@ -7,12 +7,14 @@
 > [Task 7.31 decisions](ETAPA_07_TASK_7_31_DECISIONS.md) and
 > [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
 
-> **Stage 8 core integration (2026-09-23):** owner-created sessions and the
-> compatibility `Database.engine` execute SELECT, INSERT, and DELETE through
-> explicit or implicit transactions. Tasks 8.19 onward still complete the
-> remaining SQL families, observability, shutdown, and acceptance evidence.
+> **Stage 8 closure (2026-09-24):** owner-created sessions and the
+> compatibility `Database.engine` execute every existing SQL family through
+> coordinated schema/table protection. Tasks 8.1–8.30 close with bounded
+> rollback, controlled concurrency evidence, seeded stress and 2,831 strict
+> passing tests; see [the audit](ETAPA_08_AUDIT.md).
 
-This guide describes the SQL engine implemented by Stage 7. The normative
+This guide describes the SQL engine implemented by Stage 7 and coordinated by
+the Stage 8 owner/session lifecycle. The normative
 grammar, token/span conventions, parser limits, and production-to-function map
 are in [sql-grammar.md](sql-grammar.md).
 
@@ -455,11 +457,12 @@ the final complete result of **2,742 passing tests** under warnings-as-errors.
 
 ## Stage 8 integration points
 
-Stage 8 Tasks 8.3–8.18 add owner sessions, resource access plans, S/X locks,
+Stage 8 Tasks 8.3–8.30 add owner sessions, resource access plans, S/X locks,
 short physical latches, physical undo, terminal completion, and coordinated
-SELECT/INSERT/DELETE around these existing boundaries:
+SQL execution plus controlled concurrency evidence around these boundaries:
 
-- `SqlEngine` owns one session and the active SELECT cursor policy.
+- each session owns one `SqlEngine` facade and its active SELECT cursor policy;
+  independent facades share the owner's runtime and transaction coordinator.
 - `QueryResult` owns operator/context lifetime and exposes completion,
   early-close, and failure states.
 - `MutationService` is the table-wide base/index write boundary.
@@ -469,7 +472,15 @@ SELECT/INSERT/DELETE around these existing boundaries:
   `QueryEnvironment`.
 
 The transaction contract defines identity, sessions, lock policy, commit and
-abort boundaries, deadlock behavior, and recovery limits. Tasks 8.19–8.30
-remain for dedicated CREATE/EXPLAIN integration, tracing, shutdown, controlled
-demonstrations, Stage 9 handoff, and closure. Physical before-image rollback is
-bounded and in-process; it is not WAL-backed crash recovery.
+abort boundaries, deadlock behavior, and recovery limits. Standalone CREATE
+holds schema X across publication/compensation, pure planning uses the short
+metadata gate, and ANALYZE reports separate lock/planning/execution evidence
+plus its transaction outcome. The owner exposes bounded ordered traces,
+cooperative cancellation, and finite `shutdown()`; compatibility `close()`
+still refuses active calls. The Tasks 8.23–8.26 runbook and unsafe/protected
+threaded comparison are in `docs/ETAPA_08_TASK_8_23_8_26.md`. Bounded stress,
+the Stage 9 handoff and closure evidence are in `tests/transactions/test_bounded_stress.py`,
+`docs/ETAPA_08_STAGE_9_HANDOFF.md`, and `docs/ETAPA_08_AUDIT.md`. Physical
+before-image rollback is bounded and in-process; it is not WAL-backed crash
+recovery. The emergency HTTP adapter still serializes requests and does not yet
+expose stable cross-request sessions.
