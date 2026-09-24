@@ -53,10 +53,13 @@ passed **11 tests**. The transaction/database/API regression gate passed
 in 1,029.55 seconds**. `compileall` and `git diff --check` also passed; Git
 reported only the repository's expected LF-to-CRLF notices.
 
-## Remaining boundary
+## Following boundary
 
-Tasks 8.19–8.22 still provide the dedicated CREATE, EXPLAIN/ANALYZE,
-observability, cancellation, and shutdown completion. The Stage 9 HTTP layer
+Tasks 8.19–8.22 now provide the dedicated CREATE, EXPLAIN/ANALYZE,
+observability, cancellation, and shutdown completion; evidence is in
+`docs/ETAPA_08_TASK_8_19_8_22.md`. The Stage 9 HTTP layer
 keeps its exclusive admission guard until request-scoped session integration is
-implemented and verified. Multi-process coordination, WAL, automatic crash
-recovery, and crash-atomic multi-file commit remain outside Stage 8.
+implemented and verified. Stage 8 closure evidence and the adapter contract are
+in `docs/ETAPA_08_AUDIT.md` and `docs/ETAPA_08_STAGE_9_HANDOFF.md`.
+Multi-process coordination, WAL, automatic crash recovery, and crash-atomic
+multi-file commit remain outside Stage 8.

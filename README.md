@@ -85,10 +85,7 @@ pruebas públicas cubren el dataset de aceptación, reinicio, spills, fallbacks,
 limpieza, fallos inyectados y comparación con rutas base. Los 63 criterios se
 cumplen y la suite estricta completa pasa **2556 pruebas**. Consulta la
 [guía del motor SQL](docs/sql.md) y la
-[auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md). La Parte 1 sigue pendiente:
-la Etapa 8 ya tiene contrato, sesiones, controles SQL, bloqueos S/X, latches
-físicos y undo físico con finalización commit/abort (tareas 8.1–8.14). La
-integración de sentencias SQL de datos con ese protocolo aún está pendiente.
+[auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md).
 
 **Extensión CREATE/EXPLAIN de la Etapa 7 cerrada (2026-09-20):** las tareas
 7.31–7.40 añaden CREATE TABLE limitado y persistente, `VARCHAR(n)`, una clave
@@ -97,6 +94,17 @@ SELECT` y resultados públicos explícitos. El escenario exacto de `alumnos` se
 verifica vacío, poblado y tras reabrir únicamente desde el manifiesto. Consulta
 la [auditoría de la extensión](docs/ETAPA_07_EXTENSION_AUDIT.md). La suite
 estricta completa pasa **2742 pruebas**.
+
+**Etapa 8 completa y auditada (2026-09-24):** las tareas 8.1–8.30 y los 37
+criterios están cerrados. El owner comparte sesiones independientes, bloqueos
+S/X con 2PL riguroso, detección de deadlock, latches físicos, undo acotado,
+commit sincronizado, cuarentena ante restauración fallida, telemetría real,
+cancelación y cierre ordenado. El stress reproducible usa la semilla `8272026`;
+la demostración insegura termina en `1` y la protegida coincide con el oráculo
+serial en `2`. La suite estricta completa pasa **2831 pruebas**. Consulta la
+[auditoría](docs/ETAPA_08_AUDIT.md), el
+[contrato transaccional](docs/transactions.md) y el
+[handoff a la Etapa 9](docs/ETAPA_08_STAGE_9_HANDOFF.md).
 
 **Etapa 9: demo de emergencia lista (2026-09-18).** Por una excepción de orden
 autorizada (sección 1 de `ETAPA_09.md`), existe una interfaz gráfica local
@@ -111,7 +119,8 @@ Resultados y Plan de Ejecución. Para probarla:
 ```
 
 Funciona en modo solo lectura, con una operación del motor a la vez. **No**
-ofrece todavía transacciones ni control de concurrencia (Etapa 8). Consulta el
+expone todavía sesiones transaccionales a través de HTTP; el guard global se
+conserva hasta la integración explícita de la Etapa 9. Consulta el
 [runbook de la demo](docs/demo.md) y el
 [informe de avance](docs/ETAPA_09_AVANCE.md).
 
@@ -159,9 +168,25 @@ with Database.open("universidad-db") as database:
 `Database.open()` descubre esquema, restricciones, almacenamiento e índice
 primario desde `database.catalog.json`; el llamador no vuelve a declarar la
 tabla. CREATE admite `INT`/`INTEGER`, `VARCHAR(1..4075)` y como máximo una
-cláusula inline `PRIMARY KEY`. No existen NULL, defaults ni rollback
-transaccional en esta etapa. La sintaxis, resultados, errores y los seis envíos
-exactos del escenario `alumnos` están en la [guía SQL](docs/sql.md).
+cláusula inline `PRIMARY KEY`. No existen NULL ni defaults. Las transacciones
+explícitas usan `BEGIN TRANSACTION`, `END TRANSACTION` y `ROLLBACK`; el contrato
+completo está en [la guía transaccional](docs/transactions.md). La sintaxis,
+resultados, errores y el escenario `alumnos` están en la [guía SQL](docs/sql.md).
+
+## Demostración controlada de concurrencia de la Etapa 8
+
+Desde la raíz del repositorio en Windows:
+
+```powershell
+.venv\Scripts\python.exe -W error -m demos.transactions_demo
+```
+
+La salida JSON muestra dos operaciones reales que leen `0`. El adaptador
+inseguro y exclusivo de la demo termina en `1`, reproduciendo una actualización
+perdida. Las sesiones protegidas detectan el deadlock de actualización,
+reintentan la operación de negocio completa y terminan en `2`, igual que el
+oráculo serial. El runbook y las matrices de evidencia están en
+[las tareas 8.23–8.26](docs/ETAPA_08_TASK_8_23_8_26.md).
 
 ## Requisitos e instalación
 
@@ -918,8 +943,9 @@ escriben sus temporales a través de `PageManager`; la gestión de directorios
 temporales vive en esta capa porque la de almacenamiento reserva el acceso a
 archivos para `PageManager`. `engine/query` construye planes sobre esos
 operadores y `engine/maintenance` coordina las escrituras de storage e índices
-sin depender del parser. Las capas de transacciones, API y frontend se
-implementarán progresivamente según el plan.
+sin depender del parser. La capa transaccional coordina sesiones y recursos
+compartidos; la API y el frontend ya forman la demo de emergencia y aún deben
+adoptar sesiones persistentes entre peticiones según el handoff de la Etapa 8.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
 `OperatorDouble` viven solamente en `tests/`. Usan datos pequeños en memoria
@@ -965,6 +991,12 @@ El cierre de la extensión CREATE/EXPLAIN se verificó después con la suite
 estricta completa: **2742 pruebas aprobadas en 1283.57 segundos**. También
 pasaron `compileall`, `pip check` y la revisión del diff.
 
+El cierre de la Etapa 8 se verificó en Windows con Python 3.12.4, warnings como
+errores y sin caché de pytest: **2831 pruebas aprobadas en 950.74 segundos**.
+También pasaron 91 pruebas transaccionales, 97 pruebas de compatibilidad API,
+el stress acotado y la demostración limpia. No se ejecutó el build condicional
+del frontend porque este bloque no modificó archivos de `frontend/`.
+
 ## Documentos de coordinación y siguiente paso
 
 - [REQUIREMENTS.md](REQUIREMENTS.md): requisitos académicos.
@@ -993,18 +1025,19 @@ pasaron `compileall`, `pip check` y la revisión del diff.
 - [Auditoría de la extensión de la Etapa 7](docs/ETAPA_07_EXTENSION_AUDIT.md):
   CREATE/EXPLAIN, escenario exacto, reinicio, fallos, regresión y cierre de las
   tareas 7.31–7.40.
-- [ETAPA_09.md](ETAPA_09.md): plan de emergencia de la interfaz, previo a la
-  Etapa 8 por decisión del equipo.
-- [ETAPA_08.md](ETAPA_08.md): plan detallado de transacciones y concurrencia;
-  tareas 8.1–8.14 completadas, con [contrato](docs/transactions.md),
-  [evidencia de la base](docs/ETAPA_08_TASK_8_3_8_6.md) y
-  [evidencia de concurrencia](docs/ETAPA_08_TASK_8_7_8_10.md), y
-  [evidencia de undo y finalización](docs/ETAPA_08_TASK_8_11_8_14.md).
+- [ETAPA_08.md](ETAPA_08.md): etapa de transacciones y concurrencia cerrada;
+  tareas 8.1–8.30 y 37 criterios completos.
+- [Auditoría de la Etapa 8](docs/ETAPA_08_AUDIT.md): stress, regresión completa,
+  demostración, límites y decisión de cierre.
+- [Handoff de la Etapa 8 a la 9](docs/ETAPA_08_STAGE_9_HANDOFF.md): sesiones
+  HTTP, resultados, errores, cancelación y condiciones para retirar el guard.
+- [ETAPA_09.md](ETAPA_09.md): demo de emergencia lista y plan de la integración
+  transaccional que queda pendiente.
 - [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-Las **Etapas 1–7 están completas y auditadas**, y la demo de emergencia de la
-Etapa 9 está lista. La **Etapa 8 — Transactions and Concurrency** avanzó hasta
-el undo físico y la finalización commit/abort (tareas 8.1–8.14); la integración
-transaccional de sentencias SQL de datos sigue pendiente. La interfaz HTTP
-conserva su guardia de admisión hasta completar la integración posterior.
+Las **Etapas 1–8 están completas y auditadas**, y la demo de emergencia de la
+Etapa 9 está lista. Falta conectar sesiones transaccionales estables entre
+peticiones HTTP, serializar todas las variantes de resultado, integrar
+cancelación/estado y verificar concurrencia antes de retirar el guard global.
+La Etapa 10 sigue pendiente.

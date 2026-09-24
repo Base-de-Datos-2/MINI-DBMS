@@ -1,8 +1,8 @@
 # AGENTS.md
 
-> Context version: **4.6** — preserves the formal Stage 7 baseline closure,
-> records the verified CREATE/EXPLAIN extension through Task 7.40, and
-> identifies the Stage 8 plan and completed Tasks 8.1–8.18 core integration.
+> Context version: **4.9** — preserves the formal Stage 7 closure, records the
+> verified Stage 8 closure through Task 8.30, and identifies the remaining
+> transaction-aware Stage 9 integration.
 
 ## Purpose
 
@@ -315,13 +315,13 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 > `PLAN.md`
 
-Latest formally completed SQL stage:
+Latest formally completed stage:
 
-> **Stage 7 Tasks 7.1–7.40 — SQL Parser, Planner, Executor, CREATE, and EXPLAIN**
+> **Stage 8 Tasks 8.1–8.30 — Transactions and Concurrency**
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.18 complete; remaining integration and evidence pending)**
+> **Stage 9 — transaction-aware HTTP/UI integration remains after the emergency demo**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -389,19 +389,25 @@ acceptance and failure coverage. Decisions and implementation evidence are recor
 `docs/ETAPA_07_TASK_7_32.md`, `docs/ETAPA_07_TASK_7_33_7_35.md`, and
 `docs/ETAPA_07_TASK_7_36_7_38.md`; final closure evidence is in
 `docs/ETAPA_07_EXTENSION_AUDIT.md`. The complete warnings-as-errors suite
-passes 2,742 tests. Stage 8 follows this extension in the roadmap. Its detailed
+passes 2,742 tests. **Stage 8 was formally closed on 2026-09-24.** Its detailed
 plan is `ETAPA_08.md`; the Task 8.1 inspection, Task 8.2 adopted contract,
 Tasks 8.3–8.6 and 8.7–8.10 foundations are recorded in
 `docs/ETAPA_08_TASK_8_1_INSPECTION.md`, `docs/transactions.md`,
 `docs/ETAPA_08_TASK_8_3_8_6.md`, `docs/ETAPA_08_TASK_8_7_8_10.md`,
 `docs/ETAPA_08_TASK_8_11_8_14.md`,
-`docs/ETAPA_08_TASK_8_15_8_18.md`, and
-`PROJECT_CONTEXT.md`. Control statements, internal protected actions, access intents, S/X lock
-primitives, physical latches, and table-scoped physical undo/terminal completion
-exist. Owner-backed SELECT/INSERT/DELETE now use explicit or implicit
-transactions, with 2,814 strict tests passing after Tasks 8.15–8.18; later
-Stage 8 SQL families and evidence remain pending. Follow the stage plan and explicit task scope;
-a buffer pool, WAL, and crash recovery remain outside Stage 8.
+`docs/ETAPA_08_TASK_8_15_8_18.md`,
+`docs/ETAPA_08_TASK_8_19_8_22.md`, and `PROJECT_CONTEXT.md`. Control statements,
+shared sessions, access intents, S/X locks, physical latches, bounded physical
+undo, commit publication, all existing SQL families, telemetry, cancellation,
+and finite shutdown use the owner lifecycle. Controlled schedules, failure
+injection, and the real unsafe/protected/serial comparison are recorded in
+`docs/ETAPA_08_TASK_8_23_8_26.md`. Seeded bounded stress, 91 transaction tests,
+97 API compatibility tests, the clean demo, and the complete strict regression
+pass; the closure result is **2,831 tests in 950.74 seconds**. Evidence, limits,
+and all 37 satisfied criteria are in `docs/ETAPA_08_AUDIT.md`. The concrete
+Stage 9 request/session handoff is `docs/ETAPA_08_STAGE_9_HANDOFF.md`. A buffer
+pool, WAL, automatic crash recovery, cross-process locking, and crash-atomic
+multi-file commit remain outside Stage 8.
 
 **Stage 9 emergency demo ready (2026-09-18)** under the authorized sequencing
 exception in `ETAPA_09.md`: `api/` (FastAPI) wraps `SqlEngine` behind one
@@ -409,14 +415,14 @@ exclusive admission guard, a server-enforced SELECT-only default, and bounded
 row/byte previews; `frontend/` (React, TypeScript, Vite) shows the four
 required panels from real engine descriptors. Run it with
 `python scripts/setup_demo.py` and then `python -m api`, as documented in
-`docs/demo.md`. Keep the admission guard until Stage 8 protection is
-integrated and verified across HTTP requests; it is not Stage 8 concurrency
-control. The SQL parser is handwritten by team decision; do not introduce
+`docs/demo.md`. Keep the admission guard until the Stage 9 handoff is
+implemented and verified across HTTP requests; the guard is not Stage 8
+concurrency control. The SQL parser is handwritten by team decision; do not introduce
 Lark or another parser generator.
 
 Latest completed stage specification:
 
-> `ETAPA_07.md`
+> `ETAPA_08.md`
 
 Stage 1 includes, at the planning level:
 

@@ -7,10 +7,11 @@ grants until abort finishes and release_all receives a terminal report.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from math import isfinite
 from threading import Condition, RLock
-from time import monotonic
+from time import monotonic, perf_counter_ns
 
 from .errors import (
     DeadlockVictimError, LockTimeoutError, TransactionAbortError,
@@ -60,6 +61,7 @@ class _Request:
     resource: Resource
     mode: LockMode
     sequence: int
+    started_ns: int
     granted: bool = False
 
 
@@ -79,12 +81,21 @@ def _resource_order(resource: Resource) -> tuple[str, str, str]:
     return resource.database_identity, "table", resource.table_identity
 
 
+def resource_label(resource: Resource) -> str:
+    """Return a stable diagnostic label without exposing filesystem paths."""
+
+    if isinstance(resource, SchemaResource):
+        return "schema"
+    return f"table:{resource.table_identity}"
+
+
 class LockManager:
     """One database's logical lock domain; transaction IDs must be registered."""
 
     def __init__(
         self, database_identity: str, *,
         timeout_seconds: float = DEFAULT_LOCK_TIMEOUT_SECONDS,
+        observer: Callable[..., None] | None = None,
     ) -> None:
         if not isinstance(database_identity, str) or not database_identity:
             raise ValueError("database_identity must be a nonempty string")
@@ -104,6 +115,29 @@ class LockManager:
         self._retired: set[TransactionId] = set()
         self._next_sequence = 1
         self._unavailable = False
+        self._observer = observer
+
+    def _observe(
+        self,
+        action: str,
+        transaction_id: TransactionId,
+        resource: Resource,
+        mode: LockMode,
+        *,
+        wait_seconds: float = 0.0,
+        blockers: tuple[TransactionId, ...] = (),
+        detail: str | None = None,
+    ) -> None:
+        if self._observer is not None:
+            self._observer(
+                action,
+                transaction_id,
+                resource_label(resource),
+                mode.value,
+                wait_seconds,
+                blockers,
+                detail,
+            )
 
     def register(self, transaction: Transaction) -> None:
         if (not isinstance(transaction, Transaction)
@@ -240,6 +274,7 @@ class LockManager:
                 )
             current = self._held[transaction_id].get(resource)
             if current is LockMode.X or current is mode:
+                self._observe("retained", transaction_id, resource, current)
                 return
             if transaction_id in self._waiting:
                 raise TransactionProtocolError(
@@ -247,20 +282,37 @@ class LockManager:
                     transaction_id=transaction_id.value,
                 )
             entry = self._entries.setdefault(resource, _Entry())
-            request = _Request(transaction_id, resource, mode, self._next_sequence)
+            request = _Request(
+                transaction_id, resource, mode, self._next_sequence, perf_counter_ns(),
+            )
             self._next_sequence += 1
             entry.queue.append(request)
             self._waiting[transaction_id] = request
-            if not self._blockers(request, entry):
+            blockers = tuple(sorted(self._blockers(request, entry)))
+            self._observe(
+                "requested", transaction_id, resource, mode, blockers=blockers,
+            )
+            if not blockers:
                 self._grant(request, entry)
                 self._drain(resource)
+                self._observe("granted", transaction_id, resource, mode)
                 return
+            self._observe(
+                "waiting", transaction_id, resource, mode, blockers=blockers,
+            )
             if self._closes_cycle(transaction_id, self._graph()):
                 error = DeadlockVictimError(
                     "Lock request closed a wait-for cycle",
                     transaction_id=transaction_id.value,
                 )
+                elapsed = (perf_counter_ns() - request.started_ns) / 1_000_000_000
+                blockers = tuple(sorted(self._blockers(request, entry)))
                 self._fail_wait(transaction_id, error)
+                self._observe(
+                    "deadlock", transaction_id, resource, mode,
+                    wait_seconds=elapsed, blockers=blockers,
+                    detail=f"{type(error).__name__}: {error}",
+                )
                 raise error
             while not request.granted:
                 self._require_active(transaction_id)
@@ -270,10 +322,35 @@ class LockManager:
                         "Lock wait deadline expired",
                         transaction_id=transaction_id.value,
                     )
+                    elapsed = (perf_counter_ns() - request.started_ns) / 1_000_000_000
+                    blockers = tuple(sorted(self._blockers(request, entry)))
                     self._fail_wait(transaction_id, error)
+                    self._observe(
+                        "timeout", transaction_id, resource, mode,
+                        wait_seconds=elapsed, blockers=blockers,
+                        detail=f"{type(error).__name__}: {error}",
+                    )
                     raise error
                 self._condition.wait(remaining)
-            self._require_active(transaction_id)
+            try:
+                self._require_active(transaction_id)
+            except BaseException as error:
+                self._observe(
+                    "cancelled", transaction_id, resource, mode,
+                    wait_seconds=(
+                        perf_counter_ns() - request.started_ns
+                    ) / 1_000_000_000,
+                    blockers=blockers,
+                    detail=f"{type(error).__name__}: {error}",
+                )
+                raise
+            self._observe(
+                "granted", transaction_id, resource, mode,
+                wait_seconds=(
+                    perf_counter_ns() - request.started_ns
+                ) / 1_000_000_000,
+                blockers=blockers,
+            )
 
     def acquire_plan(
         self, transaction_id: TransactionId, plan: AccessPlan, *,
@@ -314,11 +391,30 @@ class LockManager:
         """Stop a waiter cooperatively; held locks remain through abort cleanup."""
         with self._condition:
             if transaction_id in self._held and transaction_id not in self._failed:
+                request = self._waiting.get(transaction_id)
+                if request is not None:
+                    entry = self._entries[request.resource]
+                    blockers = tuple(sorted(self._blockers(request, entry)))
+                    elapsed = (
+                        perf_counter_ns() - request.started_ns
+                    ) / 1_000_000_000
+                    resource = request.resource
+                    mode = request.mode
+                else:
+                    blockers = ()
+                    elapsed = 0.0
+                    resource = self.schema_resource
+                    mode = self._held[transaction_id].get(resource, LockMode.S)
                 self._fail_wait(
                     transaction_id,
                     TransactionAbortError(
                         "Lock request cancelled", transaction_id=transaction_id.value
                     ),
+                )
+                self._observe(
+                    "cancelled", transaction_id, resource, mode,
+                    wait_seconds=elapsed, blockers=blockers,
+                    detail="TransactionAbortError: Lock request cancelled",
                 )
 
     def release_all(self, report: TransactionReport) -> None:
@@ -351,6 +447,9 @@ class LockManager:
             for resource in held:
                 entry = self._entries[resource]
                 entry.holders.pop(transaction_id)
+                self._observe(
+                    "released", transaction_id, resource, held[resource],
+                )
                 self._drain(resource)
             if request is not None:
                 self._drain(request.resource)

@@ -1,7 +1,7 @@
 # PLAN.md
 
-> Context version: **3.9** — preserves the formal Stage 7 closure and records
-> the Stage 8 plan with Tasks 8.1–8.18 implemented.
+> Context version: **4.2** — preserves the formal Stage 7 closure, records the
+> completed Stage 8 Tasks 8.1–8.30, and points to the remaining Stage 9 integration.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -903,8 +903,10 @@ requirements. Their stable decisions and final evidence are recorded in
 `docs/ETAPA_07_TASK_7_31_DECISIONS.md`, `PROJECT_CONTEXT.md`, and
 `docs/ETAPA_07_EXTENSION_AUDIT.md`.
 
-Stage 8 follows this extension. The extension does not add transactions,
-locking, WAL, concurrent DDL, or crash-atomic multi-file commits.
+Stage 8 followed this extension. At its own closure, the Stage 7 extension did
+not add transactions, locking, WAL, concurrent DDL, or crash-atomic multi-file
+commits; the Stage 8 owner/session layer now supplies the documented
+in-process transaction and locking guarantees.
 
 ---
 
@@ -915,8 +917,12 @@ current checkout and adopt the design in `docs/transactions.md`. Tasks 8.3–8.6
 provide state, owner sessions, control syntax, and access intents. Tasks
 8.7–8.10 add S/X lock primitives and physical latches; Tasks 8.11–8.14 add
 bounded undo and terminal completion; Tasks 8.15–8.18 connect protected
-SELECT/INSERT/DELETE execution. Tasks 8.19–8.30 remain integration, evidence,
-and closure work.
+SELECT/INSERT/DELETE execution; Tasks 8.19–8.22 complete CREATE,
+EXPLAIN/ANALYZE, telemetry, cancellation, and orderly shutdown. Tasks
+8.23–8.26 provide controlled isolation/atomicity evidence and the real
+unsafe/protected threaded demonstration against a serial oracle. Tasks
+8.27–8.30 complete seeded stress/regression, the Stage 9 handoff,
+documentation synchronization, and the closure audit.
 
 ## Objective
 
@@ -1355,8 +1361,8 @@ Part 1 is complete only when:
 [x] Stage 6 complete
 [x] Stage 7 baseline complete (Tasks 7.1–7.30 closed 2026-09-18; 63 criteria; 2556 strict tests)
 [x] Stage 7 CREATE/EXPLAIN extension complete (Tasks 7.31–7.40 closed 2026-09-20; 2742 strict tests)
-[ ] Stage 8 complete
-[ ] Stage 9 complete (emergency demo ready 2026-09-18; transaction integration pending until after Stage 8)
+[x] Stage 8 complete (Tasks 8.1–8.30 closed 2026-09-24; 37 criteria; 2831 strict tests)
+[ ] Stage 9 complete (emergency demo ready 2026-09-18; transaction-aware HTTP/UI integration pending)
 [ ] Stage 10 complete
 ```
 
@@ -1366,26 +1372,27 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 # 19. Current status
 
-Latest formally completed SQL stage:
+Latest formally completed stage:
 
-> **Stage 7 Tasks 7.1–7.40 — SQL Parser, Planner, Executor, CREATE, and EXPLAIN**
+> **Stage 8 Tasks 8.1–8.30 — Transactions and Concurrency**
 
 Current implementation block:
 
-> **Stage 8 — Transactions and Concurrency (Tasks 8.1–8.18 complete; remaining SQL families and evidence pending)**
+> **Stage 9 — complete the transaction-aware HTTP/UI integration described in `docs/ETAPA_08_STAGE_9_HANDOFF.md`**
 
 Authorized sequencing exception: the team chose to build an emergency Stage 9
 demo before Stage 8 (see `ETAPA_09.md` Section 1). It is **demo ready** as of
 2026-09-18 (`docs/ETAPA_09_AVANCE.md`, `docs/demo.md`): a FastAPI adapter with
 exclusive engine admission, a read-only default, and bounded previews, plus a
-React GUI with the four required panels over the real engine. This changes the
-order only; transactions, concurrency, and Stage 10 remain required. The team
+React GUI with the four required panels over the real engine. This changed the
+order only; Stage 8 transactions/concurrency are now closed, while the remaining
+Stage 9 integration and Stage 10 remain required. The team
 also replaced the earlier Lark recommendation with the handwritten SQL parser
 delivered in Stage 7.
 
 Latest completed stage document:
 
-> `ETAPA_07.md`
+> `ETAPA_08.md`
 
 Stage 1 is **formally complete**, audited on 2026-08-31 against every criterion
 in `ETAPA_01.md`. It includes the model, metadata/catalog, abstract contracts,
@@ -1465,15 +1472,23 @@ acceptance scenario, failure coverage, and documentation reconciliation. The
 complete warnings-as-errors suite passes 2,742 tests. Focused implementation
 evidence is in `docs/ETAPA_07_TASK_7_33_7_35.md` and
 `docs/ETAPA_07_TASK_7_36_7_38.md`; final evidence is in
-`docs/ETAPA_07_EXTENSION_AUDIT.md`. Stage 8 follows this closed extension in
-the roadmap.
-`ETAPA_08.md` supplies its detailed plan. Tasks 8.1–8.14 record the
+`docs/ETAPA_07_EXTENSION_AUDIT.md`. Stage 8 followed this closed extension in
+the roadmap. `ETAPA_08.md` supplies its detailed plan. Tasks 8.1–8.14 record the
 inspection, adopted contract, control/session/resource foundation, S/X lock
 primitives, physical latches, and bounded physical undo/terminal completion.
 Tasks 8.15–8.18 route owner-backed SELECT/INSERT/DELETE through explicit or
 implicit transactions, including cursor lifetime and existing storage/index
-maintenance. Tasks 8.19 and later finish the remaining SQL families,
-observability, demonstrations, and closure evidence.
+maintenance. Tasks 8.19–8.22 coordinate standalone CREATE, preserve protected
+EXPLAIN/ANALYZE, expose bounded real-event telemetry, and implement cooperative
+cancellation plus finite orderly shutdown; the complete strict suite passes
+2,821 tests at that checkpoint. Tasks 8.23–8.26 add controlled
+isolation/atomicity schedules and a deterministic real unsafe/protected
+comparison whose protected result matches a serial oracle; 90 focused
+transaction tests pass at that checkpoint. Tasks 8.27–8.30 add seed `8272026`
+bounded stress, 91 final transaction tests, 97 API compatibility tests, the
+Stage 9 handoff, synchronized documentation, and the closure audit. All 37
+Stage 8 criteria pass with **2,831 strict tests in 950.74 seconds**; evidence is
+in `docs/ETAPA_08_AUDIT.md`. Remaining Stage 9 integration and Stage 10 mean
 Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

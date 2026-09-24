@@ -19,9 +19,11 @@ from .temp_files import cleanup_preserving_error
 from .context import (
     DEFAULT_BUDGET_BYTES,
     DEFAULT_MAX_OPEN_HANDLES,
+    cancellation_point,
     ExecutionContext,
     ResourceStatistics,
 )
+from engine.storage.page_manager import page_io_scope
 from .rows import ColumnReference, as_reference
 from .index_strategies import IndexNestedLoopJoin, IndexOrderedGroup
 from .scan import IndexScan, TableScan, index_storage
@@ -102,7 +104,8 @@ class PhysicalPlan:
 
     __slots__ = ("_root", "_context", "_budget", "_handles", "_label",
                  "_open", "_rows", "_last_statistics", "_sources",
-                 "_last_source_io", "_operator_before", "_last_descriptor")
+                 "_last_source_io", "_operator_before", "_last_descriptor",
+                 "_source_managers", "_execution_source_io")
 
     def __init__(
         self,
@@ -126,6 +129,8 @@ class PhysicalPlan:
         self._last_source_io = (0, 0, 0, 0)
         self._operator_before = {}
         self._last_descriptor: OperatorDescriptor | None = None
+        self._source_managers: dict[int, str] = {}
+        self._execution_source_io = [0, 0, 0, 0]
 
     def _capture_operators(self):
         before = {}
@@ -171,12 +176,14 @@ class PhysicalPlan:
         return tuple(sources)
 
     def _source_io(self):
-        counts = [0, 0, 0, 0]
-        for kind, source, reads, writes in self._sources:
-            offset = 0 if kind == "base" else 2
-            counts[offset] += max(0, source.pages_read - reads)
-            counts[offset + 1] += max(0, source.pages_written - writes)
-        return tuple(counts)
+        return tuple(self._execution_source_io)
+
+    def _record_source_io(self, manager: object, operation: str) -> None:
+        kind = self._source_managers.get(id(manager))
+        if kind is None:
+            return
+        offset = 0 if kind == "base" else 2
+        self._execution_source_io[offset + (operation == "write")] += 1
 
     def _run_descriptor(self, descriptor):
         before = self._operator_before.get(descriptor.operator_id, (0, 0, 0.0))
@@ -280,6 +287,12 @@ class PhysicalPlan:
         self._last_source_io = (0, 0, 0, 0)
         self._operator_before = self._capture_operators()
         self._sources = self._capture_sources()
+        self._source_managers = {
+            id(manager): kind
+            for kind, source, _reads, _writes in self._sources
+            if (manager := getattr(source, "_manager", None)) is not None
+        }
+        self._execution_source_io = [0, 0, 0, 0]
         self._last_descriptor = None
         self._context = ExecutionContext(
             memory_budget_bytes=self._budget,
@@ -287,10 +300,11 @@ class PhysicalPlan:
             label=self._label,
         )
         try:
-            if isinstance(self._root, ExecutionOperator):
-                self._root.open(self._context)
-            else:
-                self._root.open()
+            with page_io_scope(self._record_source_io):
+                if isinstance(self._root, ExecutionOperator):
+                    self._root.open(self._context)
+                else:
+                    self._root.open()
         except BaseException:
             cleanup_preserving_error(self._context.close)
             self._last_statistics = replace(self._context.statistics)
@@ -308,7 +322,8 @@ class PhysicalPlan:
         self._open = False
         context, self._context = self._context, None
         try:
-            cleanup_preserving_error(self._root.close, exc_value)
+            with page_io_scope(self._record_source_io):
+                cleanup_preserving_error(self._root.close, exc_value)
         finally:
             if context is not None:
                 try:
@@ -328,7 +343,13 @@ class PhysicalPlan:
 
         if not self._open:
             raise RuntimeError("A plan must be open before it produces rows")
-        while (row := self._root.next()) is not None:
+        while True:
+            cancellation_point()
+            with page_io_scope(self._record_source_io):
+                row = self._root.next()
+            cancellation_point()
+            if row is None:
+                break
             self._rows += 1
             yield row
 

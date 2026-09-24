@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from contextvars import ContextVar
+from dataclasses import replace
+from math import isfinite
 from pathlib import Path
-from threading import Lock, RLock
+from threading import Event, Lock, RLock
+from time import monotonic, perf_counter
 
 from engine.query.ast import (
     BeginTransactionStatement,
@@ -17,18 +20,23 @@ from engine.query.ast import (
 )
 from engine.query.environment import QueryEnvironment
 from engine.query.executor import (
+    AnalysisExecutionError,
     CommandResult,
+    ExplanationResult,
     PreparedQuery,
     QueryResult,
     ResultState,
     SqlEngine,
+    cancellation_scope,
 )
 from engine.query.parser import parse_sql
 from engine.query.errors import SqlQueryError
 from engine.query.planner import PhysicalPlanningOptions
+from engine.storage.page_manager import physical_latch_scope
 
 from .errors import (
     SessionBusyError,
+    TransactionAbortError,
     TransactionCapacityError,
     TransactionProtocolError,
     TransactionUnavailableError,
@@ -36,17 +44,23 @@ from .errors import (
 from .manager import TransactionManager
 from .locks import LockManager
 from .model import TransactionId, TransactionReport
-from .resources import ResourceCatalog, StaleAccessPlanError, TableFiles
+from .gate import MetadataGate
+from .observability import TraceSnapshot, TransactionMetrics, TransactionObservability
+from .resources import LockMode, ResourceCatalog, StaleAccessPlanError, TableFiles
 from .completion import CompletionService
 from .runtime import TableRuntime
 from .undo import UndoLimits
 
 
 DEFAULT_MAX_SESSIONS = 64
+DEFAULT_SHUTDOWN_TIMEOUT_SECONDS = 5.0
 
 
 _PROTECTED_WRITE: ContextVar[tuple[object, TransactionId, str] | None] = ContextVar(
     "minidb_protected_write", default=None
+)
+_PROTECTED_SCHEMA: ContextVar[tuple[object, TransactionId] | None] = ContextVar(
+    "minidb_protected_schema", default=None
 )
 
 
@@ -73,13 +87,18 @@ class SessionCoordinator:
             raise ValueError("Default engine must borrow the coordinated environment")
         self.environment = environment
         self.transactions = TransactionManager()
-        self.locks = LockManager(database_identity)
+        self.observability = TransactionObservability()
+        self.locks = LockManager(
+            database_identity, observer=self.observability.lock_event,
+        )
+        self.metadata = MetadataGate()
         self.resources = ResourceCatalog(
             database_identity, environment.catalog, table_files, environment
         )
         self.completion = CompletionService(
             root, self.transactions, self.locks, self.resources, runtime,
             limits=undo_limits, quarantine_owner=quarantine_owner,
+            observability=self.observability,
         )
         self._engine_factory = engine_factory
         self._mutex = RLock()
@@ -93,6 +112,11 @@ class SessionCoordinator:
             self.default_session.execute,
             bypass=self.protected_execution_active,
         )
+        default_engine._set_metadata_guard(self._metadata_read)
+
+    def _metadata_read(self, action: Callable[[], object]):
+        with self.metadata.read():
+            return action()
 
     @property
     def session_count(self) -> int:
@@ -114,9 +138,33 @@ class SessionCoordinator:
                 session.execute,
                 bypass=self.protected_execution_active,
             )
+            engine._set_metadata_guard(self._metadata_read)
             self._next_session_id += 1
             self._sessions[session.id] = session
             return session
+
+    def trace(
+        self,
+        *,
+        transaction_id: TransactionId | None = None,
+        session_id: int | None = None,
+    ) -> TraceSnapshot:
+        """Return the bounded ordered lifecycle trace."""
+
+        return self.observability.trace(
+            transaction_id=transaction_id, session_id=session_id,
+        )
+
+    def transaction_metrics(self, transaction_id: TransactionId) -> TransactionMetrics:
+        """Return a live or terminal metrics snapshot for one transaction."""
+
+        try:
+            transaction = self.transactions.current(transaction_id)
+        except TransactionProtocolError:
+            transaction = None
+        return self.observability.metrics(
+            transaction_id, transaction=transaction,
+        )
 
     def protected_write_active(self, table_name: str) -> bool:
         """Recognize the narrow dynamic capability used by the old test hook."""
@@ -127,7 +175,16 @@ class SessionCoordinator:
     def protected_execution_active(self) -> bool:
         """Allow legacy fault-injection callbacks to use the local SQL core."""
 
-        current = _PROTECTED_WRITE.get()
+        current_write = _PROTECTED_WRITE.get()
+        current_schema = _PROTECTED_SCHEMA.get()
+        return (
+            current_write is not None and current_write[0] is self
+        ) or (
+            current_schema is not None and current_schema[0] is self
+        )
+
+    def protected_schema_change_active(self) -> bool:
+        current = _PROTECTED_SCHEMA.get()
         return current is not None and current[0] is self
 
     def _release(self, session: "SqlSession") -> None:
@@ -136,6 +193,8 @@ class SessionCoordinator:
                 del self._sessions[session.id]
 
     def close(self) -> None:
+        """Fail fast when a call is active; retained for compatibility."""
+
         with self._mutex:
             if self._closed:
                 return
@@ -168,6 +227,55 @@ class SessionCoordinator:
                 self._closed = False
             raise failures[0]
 
+    def shutdown(
+        self,
+        *,
+        timeout_seconds: float = DEFAULT_SHUTDOWN_TIMEOUT_SECONDS,
+    ) -> None:
+        """Cancel active work and wait a finite time before shared-file close."""
+
+        if (isinstance(timeout_seconds, bool)
+                or not isinstance(timeout_seconds, (int, float))
+                or not isfinite(timeout_seconds) or timeout_seconds <= 0):
+            raise ValueError("timeout_seconds must be a positive finite number")
+        with self._mutex:
+            if self._closed:
+                return
+            self._closed = True
+            sessions = tuple(self._sessions.values())
+        for session in sessions:
+            session.cancel()
+
+        deadline = monotonic() + float(timeout_seconds)
+        acquired: list[SqlSession] = []
+        for session in sessions:
+            remaining = deadline - monotonic()
+            if remaining <= 0 or not session._call.acquire(timeout=max(0.0, remaining)):
+                for locked in reversed(acquired):
+                    locked._call.release()
+                with self._mutex:
+                    self._closed = False
+                raise SessionBusyError(
+                    "A session did not acknowledge cancellation before shutdown deadline",
+                    session_id=session.id,
+                )
+            acquired.append(session)
+
+        failures: list[BaseException] = []
+        try:
+            for session in sessions:
+                try:
+                    session._close_locked()
+                except BaseException as error:
+                    failures.append(error)
+        finally:
+            for session in reversed(acquired):
+                session._call.release()
+        if failures:
+            with self._mutex:
+                self._closed = False
+            raise failures[0]
+
 
 class SqlSession:
     """Session identity and non-reentrant control execution, independent of threads."""
@@ -177,6 +285,9 @@ class SqlSession:
         self.id = session_id
         self._engine = engine
         self._call = Lock()
+        self._state_mutex = RLock()
+        self._cancel_requested = Event()
+        self._running = False
         self._closed = False
         self._transaction_id: TransactionId | None = None
         self._transaction_explicit = False
@@ -195,6 +306,40 @@ class SqlSession:
     def active_result(self):
         return self._engine.active_result
 
+    def cancel(self) -> bool:
+        """Request cooperative cancellation without waiting for the call guard."""
+
+        with self._state_mutex:
+            transaction_id = self._transaction_id
+            active = self._running or transaction_id is not None or self.active_result is not None
+            if self._closed or not active:
+                return False
+            self._cancel_requested.set()
+        if transaction_id is not None:
+            self._owner.observability.event(
+                transaction_id, "session", "cancellation_requested",
+            )
+            self._owner.locks.cancel(transaction_id)
+        return True
+
+    def _enter_call(self, *, new_work: bool) -> None:
+        with self._state_mutex:
+            self._running = True
+            if new_work and self._transaction_id is None:
+                self._cancel_requested.clear()
+
+    def _leave_call(self) -> None:
+        with self._state_mutex:
+            self._running = False
+
+    def _raise_if_cancelled(self, transaction_id: TransactionId) -> None:
+        if self._cancel_requested.is_set():
+            raise TransactionAbortError(
+                "Transaction execution cancelled at a safe point",
+                session_id=self.id,
+                transaction_id=transaction_id.value,
+            )
+
     def prepare(
         self,
         sql: str,
@@ -206,6 +351,7 @@ class SqlSession:
 
         if not self._call.acquire(blocking=False):
             raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        self._enter_call(new_work=True)
         try:
             if self._closed:
                 raise TransactionUnavailableError("Session is closed", session_id=self.id)
@@ -215,6 +361,7 @@ class SqlSession:
                 planning_options=planning_options,
             )
         finally:
+            self._leave_call()
             self._call.release()
 
     def describe(self, sql: str, *, use_indexes: bool = True):
@@ -234,6 +381,7 @@ class SqlSession:
                 "Another call is already using this session", session_id=self.id,
                 transaction_id=None if self._transaction_id is None else self._transaction_id.value,
             )
+        self._enter_call(new_work=True)
         try:
             if self._closed:
                 raise TransactionUnavailableError("Session is closed", session_id=self.id)
@@ -276,7 +424,17 @@ class SqlSession:
                         transaction_id=self._transaction_id.value,
                     )
                 transaction = self._begin(explicit=True)
-                return TransactionReport.from_transaction(transaction)
+                try:
+                    self._raise_if_cancelled(transaction.id)
+                except BaseException as error:
+                    self._abort_after_failure(error, transaction.id)
+                    raise
+                return replace(
+                    TransactionReport.from_transaction(transaction),
+                    metrics=self._owner.observability.metrics(
+                        transaction.id, transaction=transaction,
+                    ),
+                )
             if isinstance(statement, EndTransactionStatement):
                 transaction_id = self._require_explicit()
                 if self.active_result is not None:
@@ -285,6 +443,11 @@ class SqlSession:
                         session_id=self.id,
                         transaction_id=transaction_id.value,
                     )
+                try:
+                    self._raise_if_cancelled(transaction_id)
+                except BaseException as error:
+                    self._abort_after_failure(error, transaction_id)
+                    raise
                 try:
                     report = self._owner.completion.commit(transaction_id)
                     for result in self._provisional_results:
@@ -332,7 +495,18 @@ class SqlSession:
                 raise RuntimeError("Session lost its transaction")
             try:
                 access = self._owner.resources.plan(statement)
+                wait_before = self._owner.observability.metrics(
+                    transaction_id,
+                    transaction=self._owner.transactions.current(transaction_id),
+                ).lock_wait_seconds
                 self._owner.locks.acquire_plan(transaction_id, access)
+                statement_lock_wait = (
+                    self._owner.observability.metrics(
+                        transaction_id,
+                        transaction=self._owner.transactions.current(transaction_id),
+                    ).lock_wait_seconds - wait_before
+                )
+                self._raise_if_cancelled(transaction_id)
                 try:
                     self._owner.resources.validate(access)
                 except StaleAccessPlanError:
@@ -373,11 +547,35 @@ class SqlSession:
                         )
                         local_use_indexes = None
                         local_planning_options = None
-                result = self._engine._execute_local(
-                    executable,
-                    use_indexes=local_use_indexes,
-                    planning_options=local_planning_options,
-                )
+                execution_started = perf_counter()
+                with cancellation_scope(
+                    lambda: self._raise_if_cancelled(transaction_id)
+                ), physical_latch_scope(
+                    lambda seconds, operation: self._owner.observability.record_physical_latch(
+                        transaction_id,
+                        wait_seconds=seconds,
+                        phase="query",
+                        operation=operation,
+                    )
+                ):
+                    if isinstance(statement, CreateTableStatement):
+                        with self._owner.metadata.write():
+                            token = _PROTECTED_SCHEMA.set((self._owner, transaction_id))
+                            try:
+                                result = self._engine._execute_local(
+                                    executable,
+                                    use_indexes=local_use_indexes,
+                                    planning_options=local_planning_options,
+                                )
+                            finally:
+                                _PROTECTED_SCHEMA.reset(token)
+                    else:
+                        result = self._engine._execute_local(
+                            executable,
+                            use_indexes=local_use_indexes,
+                            planning_options=local_planning_options,
+                        )
+                    self._raise_if_cancelled(transaction_id)
                 if isinstance(result, QueryResult):
                     result._attach_lifecycle(
                         self._cursor_call,
@@ -386,27 +584,62 @@ class SqlSession:
                         ),
                     )
                     return result
+                self._record_execution(
+                    transaction_id,
+                    result,
+                    elapsed_seconds=perf_counter() - execution_started,
+                )
                 if isinstance(result, CommandResult):
                     result._set_transaction_outcome(
                         transaction_id=transaction_id.value,
                         committed=False,
                     )
                 if implicit:
-                    self._owner.completion.commit(transaction_id)
+                    terminal = self._owner.completion.commit(transaction_id)
                     if isinstance(result, CommandResult):
                         result._set_transaction_outcome(
                             transaction_id=transaction_id.value,
                             committed=True,
                         )
+                    if isinstance(result, ExplanationResult):
+                        result._set_transaction_context(
+                            transaction_id=transaction_id.value,
+                            transaction_state=terminal.state.value,
+                            lock_wait_seconds=statement_lock_wait,
+                        )
                     self._clear_transaction()
-                elif isinstance(result, CommandResult):
-                    self._provisional_results.append(result)
+                else:
+                    if isinstance(result, CommandResult):
+                        self._provisional_results.append(result)
+                    if isinstance(result, ExplanationResult):
+                        result._set_transaction_context(
+                            transaction_id=transaction_id.value,
+                            transaction_state=self._owner.transactions.current(
+                                transaction_id
+                            ).state.value,
+                            lock_wait_seconds=statement_lock_wait,
+                        )
                 return result
             except BaseException as error:
+                self._record_failed_analysis(
+                    transaction_id,
+                    error,
+                    lock_wait_seconds=locals().get("statement_lock_wait", 0.0),
+                )
                 if self._transaction_id == transaction_id:
-                    self._abort_after_failure(error, transaction_id)
+                    terminal = self._abort_after_failure(error, transaction_id)
+                    if isinstance(error, AnalysisExecutionError):
+                        error.report = replace(
+                            error.report,
+                            transaction_id=transaction_id.value,
+                            transaction_state=terminal.state.value,
+                            lock_wait_seconds=max(
+                                0.0, locals().get("statement_lock_wait", 0.0)
+                            ),
+                        )
                 raise
         finally:
+            self._leave_call()
             self._call.release()
 
     def _begin(self, *, explicit: bool):
@@ -416,6 +649,7 @@ class SqlSession:
         except BaseException:
             self._owner.transactions.abort_empty(transaction.id)
             raise
+        self._owner.observability.begin(transaction)
         self._transaction_id = transaction.id
         self._transaction_explicit = explicit
         self._provisional_results.clear()
@@ -425,6 +659,55 @@ class SqlSession:
         self._transaction_id = None
         self._transaction_explicit = False
         self._provisional_results.clear()
+        self._cancel_requested.clear()
+
+    def _record_execution(
+        self,
+        transaction_id: TransactionId,
+        result,
+        *,
+        elapsed_seconds: float,
+    ) -> None:
+        planning = float(getattr(result, "planning_seconds", 0.0))
+        report = getattr(result, "statistics", None)
+        if isinstance(result, ExplanationResult):
+            execution = result.execution_seconds
+            execution = max(0.0, elapsed_seconds - planning) if execution is None else execution
+        elif isinstance(result, QueryResult):
+            execution = 0.0 if report is None else report.elapsed_seconds
+        else:
+            execution = max(0.0, elapsed_seconds - planning)
+        if report is not None and not hasattr(report, "base_pages_read"):
+            report = getattr(report, "discovery", None)
+        self._owner.observability.record_execution(
+            transaction_id,
+            planning_seconds=planning,
+            execution_seconds=execution,
+            report=report,
+        )
+
+    def _record_failed_analysis(
+        self,
+        transaction_id: TransactionId,
+        error: BaseException,
+        *,
+        lock_wait_seconds: float,
+    ) -> None:
+        if not isinstance(error, AnalysisExecutionError):
+            return
+        report = error.report
+        self._owner.observability.record_execution(
+            transaction_id,
+            planning_seconds=report.planning_seconds,
+            execution_seconds=report.execution_seconds or 0.0,
+            report=report.runtime,
+        )
+        error.report = replace(
+            report,
+            transaction_id=transaction_id.value,
+            transaction_state=self._owner.transactions.current(transaction_id).state.value,
+            lock_wait_seconds=max(0.0, lock_wait_seconds),
+        )
 
     def _require_explicit(self) -> TransactionId:
         transaction_id = self._require_active()
@@ -439,6 +722,7 @@ class SqlSession:
     def _abort_after_failure(
         self, error: BaseException, transaction_id: TransactionId,
     ) -> TransactionReport:
+        self._owner.observability.record_failure(transaction_id, error)
         try:
             self._engine._close_active_result()
         except BaseException as cleanup:
@@ -460,19 +744,51 @@ class SqlSession:
                 session_id=self.id,
                 transaction_id=None if self._transaction_id is None else self._transaction_id.value,
             )
+        self._enter_call(new_work=False)
         try:
             if self._closed:
                 raise TransactionUnavailableError(
                     "Session is closed", session_id=self.id
                 )
-            return action()
+            transaction_id = self._transaction_id
+            if transaction_id is None:
+                return action()
+            with cancellation_scope(
+                lambda: self._raise_if_cancelled(transaction_id)
+            ), physical_latch_scope(
+                lambda seconds, operation: self._owner.observability.record_physical_latch(
+                    transaction_id,
+                    wait_seconds=seconds,
+                    phase="query",
+                    operation=operation,
+                )
+            ):
+                self._raise_if_cancelled(transaction_id)
+                return action()
         finally:
+            self._leave_call()
             self._call.release()
 
     def _finish_cursor(
         self, transaction_id: TransactionId, implicit: bool, result: QueryResult,
     ) -> None:
         if self._transaction_id != transaction_id:
+            return
+        self._record_execution(
+            transaction_id,
+            result,
+            elapsed_seconds=(
+                0.0 if result.statistics is None
+                else result.statistics.elapsed_seconds + result.planning_seconds
+            ),
+        )
+        if self._cancel_requested.is_set():
+            error = result.error or TransactionAbortError(
+                "SELECT execution cancelled",
+                session_id=self.id,
+                transaction_id=transaction_id.value,
+            )
+            self._abort_after_failure(error, transaction_id)
             return
         if result.state is ResultState.FAILED:
             error = result.error or RuntimeError("SELECT cursor failed")
@@ -503,6 +819,7 @@ class SqlSession:
         """
         if not self._call.acquire(blocking=False):
             raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        self._enter_call(new_work=False)
         try:
             if self._closed:
                 raise TransactionUnavailableError("Session is closed", session_id=self.id)
@@ -515,13 +832,20 @@ class SqlSession:
                 self._owner.completion.prepare_write(transaction_id, table_name)
                 token = _PROTECTED_WRITE.set((self._owner, transaction_id, table_name))
                 try:
-                    return action()
+                    with cancellation_scope(
+                        lambda: self._raise_if_cancelled(transaction_id)
+                    ):
+                        self._raise_if_cancelled(transaction_id)
+                        result = action()
+                        self._raise_if_cancelled(transaction_id)
+                        return result
                 finally:
                     _PROTECTED_WRITE.reset(token)
             except BaseException as error:
                 self._abort_after_failure(error, transaction_id)
                 raise
         finally:
+            self._leave_call()
             self._call.release()
 
     def run_programmatic_write(
@@ -531,6 +855,7 @@ class SqlSession:
 
         if not self._call.acquire(blocking=False):
             raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        self._enter_call(new_work=True)
         try:
             if self._closed:
                 raise TransactionUnavailableError("Session is closed", session_id=self.id)
@@ -550,7 +875,12 @@ class SqlSession:
                 self._owner.completion.prepare_write(transaction_id, table_name)
                 token = _PROTECTED_WRITE.set((self._owner, transaction_id, table_name))
                 try:
-                    result = action()
+                    with cancellation_scope(
+                        lambda: self._raise_if_cancelled(transaction_id)
+                    ):
+                        self._raise_if_cancelled(transaction_id)
+                        result = action()
+                        self._raise_if_cancelled(transaction_id)
                 finally:
                     _PROTECTED_WRITE.reset(token)
                 if implicit:
@@ -562,11 +892,87 @@ class SqlSession:
                     self._abort_after_failure(error, transaction_id)
                 raise
         finally:
+            self._leave_call()
+            self._call.release()
+
+    def run_schema_change(self, action: Callable[[], object]) -> object:
+        """Coordinate one owner API schema publication as standalone DDL."""
+
+        if not self._call.acquire(blocking=False):
+            raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        self._enter_call(new_work=True)
+        try:
+            if self._closed:
+                raise TransactionUnavailableError("Session is closed", session_id=self.id)
+            if self.active_result is not None:
+                raise TransactionProtocolError(
+                    "Close the active result before CREATE", session_id=self.id,
+                )
+            if self._transaction_explicit:
+                transaction_id = self._require_active()
+                error = TransactionProtocolError(
+                    "CREATE is not supported inside an explicit transaction",
+                    session_id=self.id,
+                    transaction_id=transaction_id.value,
+                )
+                self._abort_after_failure(error, transaction_id)
+                raise error
+            transaction_id = self._begin(explicit=False).id
+            try:
+                self._owner.locks.acquire(
+                    transaction_id,
+                    self._owner.locks.schema_resource,
+                    LockMode.X,
+                )
+                self._owner.transactions.record_resources(
+                    transaction_id, held=frozenset({"schema"}),
+                )
+                with cancellation_scope(
+                    lambda: self._raise_if_cancelled(transaction_id)
+                ), self._owner.metadata.write():
+                    self._raise_if_cancelled(transaction_id)
+                    token = _PROTECTED_SCHEMA.set((self._owner, transaction_id))
+                    try:
+                        result = action()
+                    finally:
+                        _PROTECTED_SCHEMA.reset(token)
+                    self._raise_if_cancelled(transaction_id)
+                self._owner.completion.commit(transaction_id)
+                self._clear_transaction()
+                return result
+            except BaseException as error:
+                if self._transaction_id == transaction_id:
+                    self._abort_after_failure(error, transaction_id)
+                raise
+        finally:
+            self._leave_call()
             self._call.release()
 
     def close(self) -> None:
         if not self._call.acquire(blocking=False):
             raise SessionBusyError("Session is executing", session_id=self.id)
+        try:
+            self._close_locked()
+        finally:
+            self._call.release()
+
+    def shutdown(
+        self,
+        *,
+        timeout_seconds: float = DEFAULT_SHUTDOWN_TIMEOUT_SECONDS,
+    ) -> None:
+        """Cancel and close this session after a bounded safe-point wait."""
+
+        if (isinstance(timeout_seconds, bool)
+                or not isinstance(timeout_seconds, (int, float))
+                or not isfinite(timeout_seconds) or timeout_seconds <= 0):
+            raise ValueError("timeout_seconds must be a positive finite number")
+        self.cancel()
+        if not self._call.acquire(timeout=float(timeout_seconds)):
+            raise SessionBusyError(
+                "Session did not acknowledge cancellation before close deadline",
+                session_id=self.id,
+            )
         try:
             self._close_locked()
         finally:

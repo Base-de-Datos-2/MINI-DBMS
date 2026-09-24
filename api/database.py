@@ -402,42 +402,44 @@ class Database:
     def table_names(self) -> tuple[str, ...]:
         """Return the tables in declaration order."""
 
-        return tuple(table.name for table in self._definition.tables)
+        with self._coordinator.metadata.read():
+            return tuple(table.name for table in self._definition.tables)
 
     def describe_table(self, name: str) -> TableSummary:
         """Summarize one table and its indexes for the Files panel."""
 
-        metadata = self._catalog.get_table(name)
-        definition = next(t for t in self._definition.tables if t.name == name)
-        storage = self._storages[name]
-        indexes = []
-        for index_metadata in self._catalog.get_indexes(name):
-            runtime = self._indexes[index_metadata.name]
-            entry_count = getattr(runtime, "entry_count", None)
-            indexes.append(
-                IndexSummary(
-                    name=index_metadata.name,
-                    column=index_metadata.column_name,
-                    index_type=index_metadata.index_type.value,
-                    unique=index_metadata.unique,
-                    clustered=index_metadata.clustered,
-                    supports_range=index_metadata.supports_range,
-                    entry_count=entry_count if isinstance(entry_count, int) else None,
-                    file_bytes=_file_bytes(self._paths[index_metadata.name]),
+        with self._coordinator.metadata.read():
+            metadata = self._catalog.get_table(name)
+            definition = next(t for t in self._definition.tables if t.name == name)
+            storage = self._storages[name]
+            indexes = []
+            for index_metadata in self._catalog.get_indexes(name):
+                runtime = self._indexes[index_metadata.name]
+                entry_count = getattr(runtime, "entry_count", None)
+                indexes.append(
+                    IndexSummary(
+                        name=index_metadata.name,
+                        column=index_metadata.column_name,
+                        index_type=index_metadata.index_type.value,
+                        unique=index_metadata.unique,
+                        clustered=index_metadata.clustered,
+                        supports_range=index_metadata.supports_range,
+                        entry_count=entry_count if isinstance(entry_count, int) else None,
+                        file_bytes=_file_bytes(self._paths[index_metadata.name]),
+                    )
                 )
+            return TableSummary(
+                name=metadata.name,
+                organization=definition.organization,
+                key_column=definition.key_column,
+                columns=tuple(
+                    (column.name, column.data_type.value) for column in metadata.schema
+                ),
+                row_count=storage.record_count,
+                data_pages=storage.data_page_count,
+                file_bytes=_file_bytes(self._paths[name]),
+                indexes=tuple(indexes),
             )
-        return TableSummary(
-            name=metadata.name,
-            organization=definition.organization,
-            key_column=definition.key_column,
-            columns=tuple(
-                (column.name, column.data_type.value) for column in metadata.schema
-            ),
-            row_count=storage.record_count,
-            data_pages=storage.data_page_count,
-            file_bytes=_file_bytes(self._paths[name]),
-            indexes=tuple(indexes),
-        )
 
     def close(self) -> None:
         """Release every index, then every storage; safe to call twice."""
@@ -447,6 +449,19 @@ class Database:
         coordinator = self._coordinator
         if coordinator is not None:
             coordinator.close()
+        self._close_handles()
+
+    def shutdown(self, *, timeout_seconds: float = 5.0) -> None:
+        """Cooperatively cancel sessions before releasing shared handles."""
+
+        if self._closed:
+            return
+        coordinator = self._coordinator
+        if coordinator is not None:
+            coordinator.shutdown(timeout_seconds=timeout_seconds)
+        self._close_handles()
+
+    def _close_handles(self) -> None:
         self._closed = True
         failures: list[BaseException] = []
         engine = getattr(self, "_engine", None)

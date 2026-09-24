@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 
 from engine.catalog import DataType
@@ -20,6 +23,32 @@ from engine.storage.binary import (
     VARCHAR_LENGTH_STRUCT,
 )
 from engine.storage.record import Record, RecordValue
+
+
+_CANCELLATION_CHECK: ContextVar[Callable[[], None] | None] = ContextVar(
+    "minidb_cancellation_check", default=None,
+)
+
+
+@contextmanager
+def cancellation_scope(check: Callable[[], None]) -> Iterator[None]:
+    """Install one cooperative safe-point callback for this execution context."""
+
+    if not callable(check):
+        raise TypeError("cancellation check must be callable")
+    token = _CANCELLATION_CHECK.set(check)
+    try:
+        yield
+    finally:
+        _CANCELLATION_CHECK.reset(token)
+
+
+def cancellation_point() -> None:
+    """Raise through the installed callback when cancellation was requested."""
+
+    check = _CANCELLATION_CHECK.get()
+    if check is not None:
+        check()
 
 
 #: Conservative per-row bookkeeping charged on top of the encoded payload.

@@ -2,24 +2,24 @@
 
 ## Stage 9 — API and Frontend: Emergency Presentation Plan
 
-**Revision:** 2026-09-18  
+**Revision:** 2026-09-18; synchronized after Stage 8 closure on 2026-09-24
 **Part:** Relational Database  
-**Starting point:** Stage 7 reported complete; Stage 8 not implemented  
+**Historical starting point:** Stage 7 reported complete; Stage 8 was not implemented
 **Immediate objective:** A working local GUI over the real SQL engine for today's progress presentation  
-**Status:** Emergency demo ready (2026-09-18); evidence in `docs/ETAPA_09_AVANCE.md`, runbook in `docs/demo.md`. Stage 9 is not closed: transaction integration waits for Stage 8\
+**Status:** Emergency demo ready (2026-09-18); Stage 8 engine work closed (2026-09-24); Stage 9 is not closed because transaction-aware HTTP/UI integration remains. Evidence is in `docs/ETAPA_09_AVANCE.md`, the runbook in `docs/demo.md`, and the integration contract in `docs/ETAPA_08_STAGE_9_HANDOFF.md`.
 **Execution mode:** Single backend process, serialized engine access, read-only SQL by default  
-**Follow-up:** Stage 8, remaining Stage 9 integration, then Stage 10
+**Follow-up:** Remaining Stage 9 integration, then Stage 10
 
 ## 1. Authorized sequencing exception
 
 The team has explicitly chosen to implement an initial Stage 9 before Stage 8. This is an authorized change in implementation order, not permission to remove transaction/concurrency requirements or mark them complete. Do not stop solely because an older stage-order pointer says Stage 8 must come first.
 
-The temporary order is:
+The authorized order was:
 
 1. Verify the Stage 7 interfaces needed by the presentation.
 2. Implement the required emergency Stage 9 tasks below.
 3. Present the working GUI and identify pending transaction/concurrency work.
-4. Implement Stage 8 and its required demonstration.
+4. Implement Stage 8 and its required demonstration. **Completed 2026-09-24.**
 5. Complete Stage 9 transaction/session integration and rerun integration tests.
 6. Complete Stage 10 experiments and final delivery.
 
@@ -68,7 +68,7 @@ A schema panel is the Files panel, not a fifth substitute. Preset queries must f
 |---|---|---|
 | P0 | Required for an honest working presentation | 9.1–9.15 and 9.18 |
 | P1 | Add only after all P0 checks pass | 9.16–9.17 |
-| Deferred | Resume after the presentation | Stage 8, transaction-aware Stage 9 work, Stage 10 |
+| Deferred | Resume after the presentation | Transaction-aware Stage 9 work and Stage 10; Stage 8 was completed 2026-09-24 |
 
 Work in vertical increments:
 
@@ -81,7 +81,7 @@ Set a feature-freeze time before the presentation and reserve the final portion 
 
 Do not spend the deadline on authentication, public deployment, editor plugins, visual graph layout, theme systems, uploads, or benchmark dashboards. Local presentation is the baseline; publication and multi-user service are outside this milestone.
 
-## 5. Boundaries before Stage 8
+## 5. Historical emergency boundaries and current adapter limits
 
 ### Required temporary execution policy
 
@@ -102,7 +102,7 @@ This guard is temporary server admission control. It does not implement transact
 
 Default to **SELECT-only** for today's GUI. Enforce this on the server by inspecting the parsed statement kind using the existing parser/prepare API, before execution. Do not decide safety using `startswith('SELECT')`, substring matching, regex stripping, or frontend buttons.
 
-Parse the complete submission under Stage 7's one-statement rule. Reject multiple statements and unsupported syntax. BEGIN TRANSACTION, END TRANSACTION, COMMIT, and ROLLBACK cannot succeed as no-ops. If Stage 7 already rejects them during parsing, preserve that rejection; new transaction grammar is not required today.
+Parse the complete submission under the one-statement rule. Reject multiple statements and unsupported syntax. The Stage 8 parser now recognizes `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK`, but the current HTTP allowlist rejects them with `STATEMENT_DISABLED`; they cannot succeed as no-ops. `COMMIT` remains unsupported. Enable controls only with the stable-session adapter in `docs/ETAPA_08_STAGE_9_HANDOFF.md`.
 
 INSERT/DELETE may be enabled only through Task 9.16's tested, explicit configuration. The API restriction does not remove those already implemented engine features or their academic requirements.
 
@@ -452,7 +452,7 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 
 **Priority:** P1; skip entirely if presentation time is short.
 
-**Prerequisite:** Existing Stage 7 write consistency, index maintenance, ordinary-failure, and clean-reopen tests pass. No new transaction implementation belongs here.
+**Prerequisite:** Existing write consistency, index maintenance, Stage 8 implicit-transaction, and clean-reopen tests pass. No second transaction implementation belongs in the API.
 
 **Actions:**
 
@@ -460,8 +460,8 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 - Extend the parsed-statement allowlist; retain the same admission guard and execute each accepted command synchronously once.
 - Return actual affected rows separately from SELECT previews. Fetching/rendering the response must not execute the command again.
 - Do not automatically retry mutations on timeout, refresh, or network failure. A lost response means outcome unknown until inspected; a request ID is not deduplication.
-- Keep transaction controls unsupported. Do not call these operations committed transactions or claim rollback/crash atomicity.
-- Surface confirmed partial effects from the existing failure contract. Stop writes if base/index consistency is uncertain.
+- Keep HTTP transaction controls disabled until stable request/session ownership is implemented. Optional commands currently use the default session as individual implicit transactions; do not claim cross-request grouping or crash atomicity.
+- Surface the final implicit commit/abort outcome. Stop writes if the owner is quarantined or base/index consistency is uncertain.
 - Demonstrate an insertion followed by a read-back and an exact-target deletion only after rehearsal; reset offline while the backend is stopped.
 
 **Tests:** Disabled write has no effects, enabled write runs once, affected count, scan/index agreement, simulated response loss without retry, and persistence after clean restart.
@@ -476,15 +476,15 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 
 **Acceptance:** Polish does not introduce new dependencies or behavior that destabilizes the rehearsed execution path. Repeat the browser smoke check after changes.
 
-### Task 9.18 — Record progress and return to Stage 8
+### Task 9.18 — Record emergency progress and hand off to Stage 8
 
 **Actions:**
 
-- Record `Stage 9 emergency demo ready` only after its checklist passes; leave Stage 8 and Stage 10 pending.
+- Record `Stage 9 emergency demo ready` only after its checklist passes. Stage 8 was pending at that checkpoint and closed later on 2026-09-24; Stage 10 remains pending.
 - Update project progress pointers to show the temporary order and the manual-parser decision.
 - Record real endpoint/types, resource limits, local launch commands, allowed statements, and known limitations.
-- Identify the adapter boundaries where Stage 8 will add session/transaction ownership, transaction syntax, and concurrency behavior.
-- Retain the admission guard until Stage 8 protection is integrated and tested across HTTP requests and result lifetimes. Removing it simply because a lock-manager class exists is insufficient.
+- Identify the adapter boundaries where Stage 8 session/transaction ownership, transaction syntax, and concurrency behavior must be connected.
+- Retain the admission guard until the Stage 8 protection is integrated and tested across HTTP requests and result lifetimes. Removing it simply because the engine lock manager exists is insufficient.
 - List the remaining Stage 9 work after Stage 8: transaction-aware API errors/results, session lifetime, cursor/transaction interaction, disconnect behavior, concurrent tests, and optional write controls.
 - Keep Stage 10 benchmarks and full delivery requirements explicitly pending.
 
@@ -509,20 +509,20 @@ These are examples, not new domain requirements. Adapt only to confirmed engine 
 | 5 | `SELECT career, COUNT(*) AS total FROM students GROUP BY career ORDER BY career;` | (CS, 2), (EE, 2); real grouped execution |
 | 6 | `SELECT s.name, e.course FROM students AS s JOIN enrollments AS e ON s.id = e.student_id WHERE s.age > 20 ORDER BY s.name;` | Ana/DB2, Ana/OS, Omar/OS, Sol/DB2; ties follow existing contract |
 | 7 | `SELECT unknown_column FROM students;` then rerun Step 2 | Useful semantic error and normal recovery |
-| 8 | Explain pending work | Transactions/concurrency and full experiments remain pending |
+| 8 | Explain pending work | Engine transactions are complete; HTTP session integration and Stage 10 experiments remain pending |
 
 Check the actual plan instead of promising a particular index if the planner chooses another valid path. A small fixture proves correctness and connectivity, not scalability. If showing external spills, use the separately rehearsed larger fixture and real counters; do not describe the four-row example as proof of disk spilling.
 
 Suggested explanation:
 
-> This interface executes SQL through our own storage, indexes, and query operators. The current presentation mode admits one engine operation at a time. Transaction grouping and database concurrency control are the next milestone; the present interface does not claim those guarantees.
+> This interface executes SQL through our own storage, indexes, and query operators. The engine now has verified transactions and concurrency control, while this presentation adapter still admits one engine operation at a time and does not yet expose stable transaction sessions across HTTP requests.
 
 ## 11. Completion checklists
 
 ### Emergency Stage 9 demo ready
 
 - [ ] Actual Stage 7 entry points and relevant baseline tests were inspected.
-- [ ] The authorized sequencing exception is recorded; Stage 8 is still pending.
+- [ ] The authorized sequencing exception is recorded; Stage 8 was pending at the emergency checkpoint and is now closed separately.
 - [ ] Existing handwritten parsing is reused with no second parser.
 - [ ] Demo data is persistent, deterministic, and separate from normal working data.
 - [ ] One backend process owns the data and uses one shared engine admission guard.
@@ -553,7 +553,7 @@ Suggested explanation:
 - [ ] Transaction/session semantics are connected through the API and reflected in the UI where needed.
 - [ ] Cursor lifetime, failure, and disconnect policies agree with implemented transaction semantics.
 - [ ] Simultaneous requests are tested under the real database concurrency mechanism.
-- [ ] Mandatory thread-based race/protected-execution demonstration exists.
+- [x] Mandatory engine-level thread-based race/protected-execution demonstration exists (`demos/transactions_demo.py`).
 - [ ] The temporary admission policy is retained or revised only after real protection is verified.
 - [ ] Stage 9 regressions still pass; Stage 10 experiments and final requirements are completed separately.
 
@@ -619,15 +619,16 @@ Execute Tasks 9.14-9.15 and 9.18. Verify real HTTP/browser behavior,
 full-input rejection, preview/resource limits, overlapping-request
 rejection, error recovery, clean restart, and all four panels.
 Record actual commands and evidence. Mark only the emergency milestone
-ready; Stage 8 and Stage 10 remain pending. Skip P1 until P0 passes.
+ready; this historical gate preceded Stage 8 closure and Stage 10 remains pending.
+Skip P1 until P0 passes.
 ```
 
 ### Return after the presentation
 
 ```text
-Inspect the demo integration and prepare the Stage 8 plan from actual
-engine/API boundaries. Keep transactions, session ownership, cursor
-lifetimes, failure guarantees, and concurrency testing explicit. Do not
-remove the temporary admission guard before real protection is verified.
-After Stage 8, finish Stage 9 integration and proceed to Stage 10.
+Use `docs/ETAPA_08_STAGE_9_HANDOFF.md` to connect stable request-owned sessions,
+all result variants, errors, cancellation and transaction status. Keep cursor
+lifetimes, failure guarantees, and concurrency testing explicit. Do not remove
+the temporary admission guard before protection is verified across HTTP.
+Then finish Stage 9 and proceed to Stage 10.
 ```
