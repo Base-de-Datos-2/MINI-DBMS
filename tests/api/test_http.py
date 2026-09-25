@@ -21,8 +21,9 @@ def test_health_is_served_even_while_the_engine_is_busy(client, service):
     assert body["status"] == "ready"
     assert body["mode"] == "read-only"
     assert body["limits"]["max_preview_rows"] == 500
-    assert tables.status_code == 409
-    assert tables.json()["error"]["code"] == "ENGINE_BUSY"
+    # Metadata no longer needs the sessionless admission: it reads under the
+    # engine's metadata gate.
+    assert tables.status_code == 200
 
 
 def test_every_response_carries_a_request_id_in_body_and_header(client):
@@ -43,7 +44,7 @@ def test_the_files_panel_lists_tables_then_describes_one(client):
     ]
     assert tables[0] == {
         "id": "students", "name": "students", "organization": "HEAP",
-        "row_count": 4, "column_count": 4, "index_count": 2,
+        "row_count": 4, "column_count": 4, "index_count": 2, "origin": "demo",
     }
     assert detail["organization"] == "SEQUENTIAL"
     assert detail["key_column"] == "code"

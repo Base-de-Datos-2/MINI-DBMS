@@ -1,4 +1,5 @@
 import type { KeyboardEvent } from "react";
+import { failureNote } from "../session";
 import type { JoinStrategy, Outcome, Preset, QueryOptions } from "../types";
 
 interface Props {
@@ -29,6 +30,13 @@ const ERROR_TITLES: Record<string, string> = {
   REQUEST_TOO_LARGE: "Consulta demasiado grande",
   INVALID_REQUEST: "Petición inválida",
   INTERNAL_ERROR: "Error interno del servidor",
+  SESSION_BUSY: "La sesión ya está ejecutando otra petición",
+  SESSION_NOT_FOUND: "La sesión expiró o se cerró",
+  SESSION_LIMIT: "Demasiadas sesiones abiertas",
+  TRANSACTION_PROTOCOL: "Orden de transacción inválido",
+  TRANSACTION_ABORTED: "Transacción abortada",
+  TRANSACTION_CANCELLED: "Transacción cancelada",
+  LOCK_TIMEOUT: "Tiempo de espera de lock agotado",
 };
 
 function Diagnostics({ outcome }: { outcome: Outcome | null }) {
@@ -58,6 +66,7 @@ function Diagnostics({ outcome }: { outcome: Outcome | null }) {
       )}
       {location?.context && <pre className="error-context">{location.context}</pre>}
       <p className="error-message">{error.message}</p>
+      {failureNote(details) !== null && <p className="error-message"><strong>{failureNote(details)}</strong></p>}
       {details !== undefined && (
         <pre className="error-context">{JSON.stringify(details, null, 2)}</pre>
       )}
