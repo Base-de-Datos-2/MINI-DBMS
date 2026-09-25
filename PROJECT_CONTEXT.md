@@ -2065,6 +2065,12 @@ GET  /api/presets         verified presentation queries (no engine access)
 GET  /api/tables          Catalog table summaries
 GET  /api/tables/{id}     columns, types, organization, indexes
 POST /api/query           one statement, bounded preview, actual plan
+POST /api/import/preview  CSV header, inferred types and samples (no engine access)
+POST /api/tables          create a GUI table, optionally loading one CSV (write mode)
+POST /api/sessions        open one engine session; returns an opaque token
+GET  /api/session         status of the X-Session-Token session (locks, current wait)
+POST /api/session/cancel  cooperative cancellation of its running statement
+DELETE /api/session       close it: abort its open group, release its locks
 ```
 
 `EngineService` owns the engine: one exclusive admission guard that rejects a
@@ -2079,6 +2085,66 @@ implemented. The extension now provides permanent database ownership below the
 API, and the later Stage 9 integration must delegate to it and use the explicit allowlists
 recorded above. The admission guard is temporary server control, not Stage 8
 concurrency.
+
+**Transaction-aware HTTP sessions (2026-09-25).** The Stage 9 handoff is
+implemented in `api/sessions.py` and `api/engine_service.py`. Stable rules:
+
+- one bounded registry (16 tokens, 5-minute idle expiry swept every 15 s) maps
+  random opaque tokens to live `SqlSession`s from `Database.open_session()`;
+  the engine's numeric session ID is displayed, never trusted; a missing,
+  expired or closed token fails with `SESSION_NOT_FOUND` and nothing is
+  recreated implicitly; expiry and `DELETE /api/session` close the engine
+  session, which aborts an open group;
+- one HTTP call per token (`SESSION_BUSY` otherwise), held through parse,
+  execution, preview conversion and cursor close; the registry mutex is held
+  only for lookup/insert/removal, never while SQL runs or waits;
+- requests with a token run concurrently and wait only in the Stage 8 lock
+  manager; the former global admission guard now serializes only
+  **sessionless** calls on the shared default session, which accept implicit
+  statements only (`BEGIN`/`END`/`ROLLBACK` without a session are
+  `TRANSACTION_PROTOCOL`); Catalog routes read under the metadata gate with no
+  admission and report physical counts, which may include provisional rows;
+- policy is decided from the parsed AST before execution (read-only: SELECT,
+  EXPLAIN, EXPLAIN ANALYZE; write mode adds INSERT/DELETE and GUI CREATE;
+  transaction control in both modes with a session); allowed SQL is passed to
+  `SqlSession.execute` as text, so the engine's group semantics apply
+  unchanged, including abort of the whole group on an execute error or
+  malformed SQL; a policy refusal never reaches the engine or the group;
+- dispatch is exhaustive over `QueryResult`, `CommandResult`,
+  `ExplanationResult`, `DefinitionResult` and `TransactionReport`; engine
+  failures map to `SESSION_BUSY`, `TRANSACTION_PROTOCOL`, `LOCK_TIMEOUT`,
+  `TRANSACTION_ABORTED` (deadlock or other abort), `TRANSACTION_CANCELLED`,
+  `SESSION_LIMIT`, `ENGINE_UNAVAILABLE`, `SQL_ERROR` or `EXECUTION_REFUSED`,
+  and report the ending transaction from the engine's own trace plus whether
+  an explicit group was lost; responses never carry the data directory path;
+- a failed implicit mutation is restored by its transaction, so the API no
+  longer suspends writes unless the rollback outcome is not `ABORTED`;
+- stopping the server first refuses new work and cancels running statements
+  (they answer `TRANSACTION_CANCELLED`), then `Database.shutdown` is bounded;
+  if it cannot finish, files stay open and the service reports `unavailable`.
+
+**GUI-created tables (2026-09-25).** The Files panel can create a table empty
+or from a CSV upload. This is programmatic creation in the legacy demo owner,
+not SQL CREATE, so the decision above that SQL `CREATE TABLE` requires the
+manifest-backed owner stays unchanged. The stable rules are:
+
+- definitions persist in `gui_tables.json` (format `MINIDBMS_GUI_TABLES`,
+  version 1) inside the demo directory; the atomic rewrite of that file is the
+  publication point, and earlier failures unregister the table and delete its
+  files;
+- files use opaque UUID4 identities (`g_<uuid32>.heap/.seq/.bpt/.hsh`); logical
+  names never become paths;
+- names must lex as one plain identifier under the handwritten lexer;
+- organization/index rules are the engine's: Heap accepts unclustered B+ and
+  Extendible Hash; Paged Sequential accepts only the clustered B+ on its key;
+- rows are inserted through the chosen storage, then each index is built from
+  that storage against a staging Catalog before live registration;
+- creation runs as standalone DDL of the default session
+  (`run_schema_change`), under the server admission guard and only in write
+  mode; CSV parsing and type inference use the standard `csv` module and
+  happen before admission;
+- imports are bounded to 8 MiB and 10,000 rows because the engine loads a few
+  milliseconds per row and per index while holding admission.
 
 The DBMS engine must be callable independently from the web layer.
 
@@ -2203,7 +2269,7 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 9 — transaction-aware HTTP/UI integration remains after the emergency demo**
+> **Stage 9 — transaction-aware HTTP/UI integration implemented 2026-09-25; formal closure pending**
 
 Current implementation guide:
 

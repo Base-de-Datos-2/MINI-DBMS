@@ -1,12 +1,30 @@
 import { formatBytes, plural } from "../format";
-import type { IndexInfo, TableDetail, TableSummary } from "../types";
+import type { IndexInfo, TableDetail, TableOrigin, TableSummary } from "../types";
 
 interface Props {
   tables: TableSummary[];
   selected: TableDetail | null;
   message: string | null;
+  /** Table creation is a write: only offered when the server allows writes. */
+  canCreate: boolean;
+  /** Why the button is enabled or not, shown as its tooltip. */
+  createHint: string;
+  onCreate: () => void;
   onSelect: (id: string) => void;
   onUseInQuery: (name: string) => void;
+}
+
+const ORIGIN_LABELS: Record<TableOrigin, string | null> = {
+  demo: null,
+  csv: "CSV",
+  empty: "creada aquí",
+};
+
+function originText(table: TableDetail): string | null {
+  if (table.origin === "csv") {
+    return table.source_filename ? `Importada desde ${table.source_filename}` : "Importada desde un CSV";
+  }
+  return table.origin === "empty" ? "Creada desde este panel" : null;
 }
 
 function organizationLabel(table: TableDetail): string {
@@ -35,19 +53,40 @@ function IndexRow({ index }: { index: IndexInfo }) {
         ))}
       </div>
       <div className="muted small">
-        {index.entry_count !== null && `${plural(index.entry_count, "entrada", "entradas")} · `}
+        {/* One entry per indexed row: this is not a count of indexes. */}
+        {index.entry_count !== null && `indexa ${plural(index.entry_count, "fila", "filas")} · `}
         {formatBytes(index.file_bytes)}
       </div>
     </li>
   );
 }
 
-export default function FilesPanel({ tables, selected, message, onSelect, onUseInQuery }: Props) {
+export default function FilesPanel({
+  tables,
+  selected,
+  message,
+  canCreate,
+  createHint,
+  onCreate,
+  onSelect,
+  onUseInQuery,
+}: Props) {
   return (
     <section className="panel files-panel" aria-labelledby="files-title">
-      <h2 id="files-title" className="panel-title">
-        Archivos
-      </h2>
+      <div className="panel-heading">
+        <h2 id="files-title" className="panel-title">
+          Archivos
+        </h2>
+        <button
+          type="button"
+          className="secondary small-button"
+          disabled={!canCreate}
+          title={createHint}
+          onClick={onCreate}
+        >
+          Nueva tabla
+        </button>
+      </div>
       {tables.length === 0 ? (
         <p className="muted">Cargando tablas del catálogo…</p>
       ) : (
@@ -60,7 +99,12 @@ export default function FilesPanel({ tables, selected, message, onSelect, onUseI
                 aria-pressed={selected?.id === table.id}
                 onClick={() => onSelect(table.id)}
               >
-                <span className="table-name">{table.name}</span>
+                <span className="table-name">
+                  {table.name}
+                  {ORIGIN_LABELS[table.origin] !== null && (
+                    <span className="chip origin-chip">{ORIGIN_LABELS[table.origin]}</span>
+                  )}
+                </span>
                 <span className="muted small">
                   {plural(table.row_count, "fila", "filas")} ·{" "}
                   {plural(table.index_count, "índice", "índices")}
@@ -70,6 +114,10 @@ export default function FilesPanel({ tables, selected, message, onSelect, onUseI
           ))}
         </ul>
       )}
+
+      <p className="muted small">
+        Conteos físicos actuales: pueden incluir cambios provisionales de una transacción abierta.
+      </p>
 
       {message !== null && (
         <p className="notice small" role="status">
@@ -84,6 +132,7 @@ export default function FilesPanel({ tables, selected, message, onSelect, onUseI
             {organizationLabel(selected)} · {plural(selected.data_pages, "página", "páginas")} ·{" "}
             {formatBytes(selected.file_bytes)}
           </p>
+          {originText(selected) !== null && <p className="muted small">{originText(selected)}</p>}
           <table className="column-table">
             <thead>
               <tr>

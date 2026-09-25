@@ -27,6 +27,7 @@ interface PlanData {
 function planData(outcome: Outcome | null): PlanData | null {
   if (outcome === null || outcome.status === "unreachable") return null;
   if (outcome.status === "success") {
+    if (outcome.body.execution_plan === null) return null;
     return {
       plan: outcome.body.execution_plan,
       status: outcome.body.plan_status,
@@ -213,7 +214,13 @@ export default function PlanPanel({ outcome }: Props) {
         )}
       </div>
 
-      {data === null && <p className="muted">El plan aparece al ejecutar una consulta.</p>}
+      {data === null && (
+        <p className="muted">
+          {outcome?.status === "success" && outcome.body.kind === "transaction"
+            ? "BEGIN, END y ROLLBACK controlan la transacción: no tienen plan de ejecución."
+            : "El plan aparece al ejecutar una consulta."}
+        </p>
+      )}
 
       {data !== null && (
         <p className="muted small">

@@ -209,7 +209,9 @@ def table_summary_json(summary: TableSummary) -> dict[str, Any]:
         "organization": summary.organization,
         "row_count": summary.row_count,
         "column_count": len(summary.columns),
+        # Indexes of this table only: TableSummary is built per table.
         "index_count": len(summary.indexes),
+        "origin": summary.origin,
     }
 
 
@@ -230,6 +232,8 @@ def table_detail_json(summary: TableSummary) -> dict[str, Any]:
         "data_pages": summary.data_pages,
         "file_bytes": summary.file_bytes,
         "indexes": [index_json(index) for index in summary.indexes],
+        "origin": summary.origin,
+        "source_filename": summary.source_filename,
     }
 
 
@@ -257,4 +261,57 @@ def sql_location(error: BaseException) -> dict[str, Any] | None:
         "expected": error.expected,
         "offending": error.offending,
         "context": error.context,
+    }
+
+
+def _milliseconds(seconds: float | None) -> float | None:
+    return None if seconds is None else round(seconds * 1000, 3)
+
+
+def transaction_report_json(report, table_names) -> dict[str, Any]:
+    """Serialize a BEGIN/END/ROLLBACK ``TransactionReport`` without paths.
+
+    ``table_names`` maps engine resource labels to table names. Undo traffic
+    is reported apart from query I/O; it is before-image copying, not crash
+    recovery.
+    """
+
+    metrics = report.metrics
+    locked = (*report.held_resources, *(() if metrics is None else metrics.held_resources))
+    return {
+        "transaction_id": report.id.value,
+        "session_id": report.session_id,
+        "state": report.state.value,
+        "tables_touched": table_names(report.touched_tables),
+        "tables_locked": table_names(locked),
+        "lock_wait_ms": None if metrics is None else _milliseconds(metrics.lock_wait_seconds),
+        "blocker_ids": [] if metrics is None else [item.value for item in metrics.blocker_ids],
+        "failure_cause": None if metrics is None else metrics.failure_cause,
+        "undo": None if metrics is None else {
+            "bytes_captured": metrics.undo.bytes_captured,
+            "bytes_restored": metrics.undo.bytes_restored,
+            "files_captured": metrics.undo.files_captured,
+            "files_restored": metrics.undo.files_restored,
+        },
+        "completion_ms": None if metrics is None else _milliseconds(metrics.completion_seconds),
+        "warnings": list(report.warnings),
+    }
+
+
+def explanation_json(report) -> dict[str, Any]:
+    """Serialize the facts of one EXPLAIN / EXPLAIN ANALYZE outside its plan."""
+
+    return {
+        "analyzed": report.executed,
+        "complete": report.complete,
+        "output_rows": report.output_rows,
+        "planning_ms": _milliseconds(report.planning_seconds),
+        "execution_ms": _milliseconds(report.execution_seconds),
+        "lock_wait_ms": _milliseconds(report.lock_wait_seconds),
+        "transaction_id": report.transaction_id,
+        "transaction_state": report.transaction_state,
+        "error": None if report.error_type is None else {
+            "type": report.error_type,
+            "message": report.error_message,
+        },
     }
