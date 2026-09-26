@@ -26,6 +26,8 @@ export interface Limits {
   max_preview_rows: number;
   max_sql_bytes: number;
   max_response_bytes: number;
+  max_csv_bytes: number;
+  max_import_rows: number;
 }
 
 export interface Health {
@@ -36,6 +38,68 @@ export interface Health {
   tables: string[];
   memory_budget_bytes: number;
   limits: Limits;
+  sessions: {
+    open: number;
+    max: number;
+    idle_timeout_seconds: number;
+    lock_timeout_seconds: number;
+  };
+}
+
+/** One HTTP client session: a real engine SqlSession behind an opaque token. */
+export interface SessionStatus {
+  /** Engine session number, for display only; the token is the credential. */
+  session_id: number;
+  state: "IDLE" | "ACTIVE";
+  transaction: {
+    id: number;
+    state: string;
+    /** An explicit BEGIN … END group, as opposed to one implicit statement. */
+    explicit: boolean;
+    tables: string[];
+  } | null;
+  busy: boolean;
+  call_elapsed_ms: number | null;
+  cancel_requested: boolean;
+  /** The lock the running statement is waiting for, and who holds it. */
+  waiting: { resource: string; mode: "S" | "X"; blocker_ids: number[] } | null;
+  expires_in_seconds: number | null;
+}
+
+export interface OpenedSession {
+  token: string;
+  session: SessionStatus;
+}
+
+export interface TransactionReportInfo {
+  transaction_id: number;
+  session_id: number;
+  state: string;
+  tables_touched: string[];
+  tables_locked: string[];
+  lock_wait_ms: number | null;
+  blocker_ids: number[];
+  failure_cause: string | null;
+  undo: {
+    bytes_captured: number;
+    bytes_restored: number;
+    files_captured: number;
+    files_restored: number;
+  } | null;
+  completion_ms: number | null;
+  warnings: string[];
+}
+
+export interface ExplanationInfo {
+  analyzed: boolean;
+  complete: boolean;
+  output_rows: number | null;
+  planning_ms: number | null;
+  execution_ms: number | null;
+  lock_wait_ms: number | null;
+  transaction_id: number | null;
+  transaction_state: string | null;
+  error: { type: string; message: string | null } | null;
 }
 
 export interface Preset {
@@ -44,19 +108,27 @@ export interface Preset {
   sql: string;
 }
 
+export type Organization = "HEAP" | "SEQUENTIAL";
+export type ColumnType = "INTEGER" | "FLOAT" | "BOOLEAN" | "VARCHAR";
+export type IndexType = "BPLUS" | "EXTENDIBLE_HASH";
+/** Declared demo fixture, or a table created from the Files panel. */
+export type TableOrigin = "demo" | "csv" | "empty";
+
 export interface TableSummary {
   id: string;
   name: string;
-  organization: "HEAP" | "SEQUENTIAL";
+  organization: Organization;
   row_count: number;
   column_count: number;
+  /** Indexes of this table only. */
   index_count: number;
+  origin: TableOrigin;
 }
 
 export interface IndexInfo {
   name: string;
   column: string;
-  type: "BPLUS" | "EXTENDIBLE_HASH";
+  type: IndexType;
   unique: boolean;
   clustered: boolean;
   supports_range: boolean;
@@ -67,13 +139,42 @@ export interface IndexInfo {
 export interface TableDetail {
   id: string;
   name: string;
-  organization: "HEAP" | "SEQUENTIAL";
+  organization: Organization;
   key_column: string | null;
   columns: { position: number; name: string; type: string; nullable: boolean }[];
   row_count: number;
   data_pages: number;
   file_bytes: number;
   indexes: IndexInfo[];
+  origin: TableOrigin;
+  source_filename: string | null;
+}
+
+/** What the server read from a CSV upload; nothing is loaded yet. */
+export interface CsvPreview {
+  delimiter: string;
+  columns: { source: string; name: string; type: ColumnType }[];
+  sample_rows: string[][];
+  row_count: number;
+  suggested_table_name: string;
+}
+
+export interface CreateTableRequest {
+  name: string;
+  organization: Organization;
+  key_column: string | null;
+  columns: { name: string; type: ColumnType }[];
+  indexes: { column: string; type: IndexType; unique: boolean }[];
+  csv?: { text: string; filename: string | null; delimiter: string | null };
+}
+
+export interface CreateTableResponse {
+  request_id: string;
+  mode: Health["mode"];
+  table: TableDetail;
+  loaded_rows: number;
+  backend_elapsed_ms: number;
+  session?: SessionStatus;
 }
 
 /** A node of the plan the planner prepared, before anything ran. */
@@ -127,11 +228,22 @@ export interface EngineMetrics {
   };
 }
 
+export type StatementName =
+  | "SELECT"
+  | "INSERT"
+  | "DELETE"
+  | "EXPLAIN"
+  | "EXPLAIN_ANALYZE"
+  | "BEGIN"
+  | "END"
+  | "ROLLBACK"
+  | "CREATE";
+
 export interface QueryResponse {
   request_id: string;
   mode: Health["mode"];
-  statement: "SELECT" | "INSERT" | "DELETE";
-  kind: "rows" | "command";
+  statement: StatementName;
+  kind: "rows" | "command" | "explanation" | "transaction" | "definition";
   columns: ResultColumn[];
   rows: unknown[][];
   returned_rows: number;
@@ -140,7 +252,13 @@ export interface QueryResponse {
   result_complete: boolean;
   total_rows: number | null;
   affected_rows: number | null;
-  execution_plan: ExecutionPlan;
+  /** Commands only: committed at once, or provisional inside BEGIN … END. */
+  transaction?: { id: number | null; committed: boolean; provisional: boolean };
+  explanation?: ExplanationInfo;
+  transaction_report?: TransactionReportInfo;
+  definition?: { table_name: string; primary_index_name: string | null };
+  /** Control statements have no plan. */
+  execution_plan: ExecutionPlan | null;
   plan_status: PlanStatus;
   metrics: {
     scope: string;
@@ -148,6 +266,8 @@ export interface QueryResponse {
     backend_elapsed_ms: number;
     engine: EngineMetrics | null;
   };
+  /** Session state after this call, when it ran in a client session. */
+  session?: SessionStatus;
 }
 
 export interface SqlLocation {
@@ -171,6 +291,7 @@ export interface ErrorEnvelope {
   execution_plan?: ExecutionPlan;
   plan_status?: PlanStatus;
   mode?: string;
+  session?: SessionStatus;
 }
 
 export type JoinStrategy = "AUTO" | "GRACE_HASH" | "NESTED_LOOP";

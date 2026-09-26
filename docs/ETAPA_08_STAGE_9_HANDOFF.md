@@ -2,9 +2,10 @@
 
 **Recorded:** 2026-09-24  
 **Stage 8 status:** closed at the engine boundary  
-**Stage 9 status:** emergency demo ready; transaction-aware HTTP/UI integration pending
+**Stage 9 status:** transaction-aware HTTP/UI integration implemented and verified
+on 2026-09-25 (checklist at the end); formal closure pending
 
-## Current adapter inventory
+## Adapter inventory at handoff time (historical, 2026-09-24)
 
 The Stage 9 demo already has one long-lived `api.database.Database` owner. That
 legacy owner now constructs a `SessionCoordinator`, exposes `open_session()` and
@@ -121,16 +122,36 @@ successful row count or describe ordinary in-process undo as crash recovery.
 
 ## Verification checklist
 
-- [ ] Stable token reuses one `SqlSession` across separate BEGIN/DML/END calls.
-- [ ] Two tokens can read concurrently and independent-table writers overlap.
-- [ ] A blocked request does not prevent its blocker from committing or rolling back.
-- [ ] Same-session reentrancy returns `SESSION_BUSY` without changing the group.
-- [ ] Row, command, definition, explanation and transaction results serialize exhaustively.
-- [ ] Provisional command results change to committed only after END succeeds.
-- [ ] Deadlock, timeout, automatic abort, cancellation and quarantine map to truthful responses.
-- [ ] Early preview close, execution error, disconnect, session close and server shutdown leak no cursor, lock, worker or undo artifact.
-- [ ] Default SELECT-only mode and optional-write policy remain server enforced until deliberately revised.
-- [ ] The existing API suite, new concurrent HTTP schedules and frontend build all pass before `_admission` is removed or narrowed.
+Implemented and verified on 2026-09-25 (`api/sessions.py`,
+`api/engine_service.py`, `tests/api/test_sessions.py`, frontend session bar).
+Evidence and limits: `docs/ETAPA_09_REVISION_2026_09_25.md`.
 
-Stage 8 closure does not satisfy this checklist. It provides the engine contract
-that Stage 9 must now integrate.
+- [x] Stable token reuses one `SqlSession` across separate BEGIN/DML/END calls
+  (`test_begin_insert_end_across_separate_requests_form_one_group`).
+- [x] Two tokens can read concurrently and independent-table writers overlap
+  (`test_readers_share_and_independent_table_writers_overlap`, and the
+  unrelated read served while another request waits).
+- [x] A blocked request does not prevent its blocker from committing or rolling
+  back (`test_a_blocked_request_does_not_prevent_its_blocker_from_committing`;
+  two real browser tabs).
+- [x] Same-session reentrancy returns `SESSION_BUSY` without changing the group
+  (same test).
+- [x] Row, command, definition, explanation and transaction results serialize
+  exhaustively (`EngineService._dispatch`; EXPLAIN/ANALYZE and definition tests).
+- [x] Provisional command results change to committed only after END succeeds
+  (INSERT inside a group reports `provisional: true`; END reports `COMMITTED`).
+- [x] Deadlock, timeout, automatic abort, cancellation and quarantine map to
+  truthful responses (deadlock, lock-timeout, execute-error, cancel, shutdown
+  and quarantine tests).
+- [x] Early preview close, execution error, disconnect, session close and
+  server shutdown leak no cursor, lock, worker or undo artifact (session close,
+  expiry and shutdown tests reopen cleanly; a real `Ctrl+C` with a waiting
+  request left no undo/unclean artifact). A dropped connection lets the
+  request finish and close its cursor; an explicit group then keeps its locks
+  until END/ROLLBACK, session close (tab close sends it) or idle expiry. A real
+  network drop was not simulated.
+- [x] Default SELECT-only mode and optional-write policy remain server
+  enforced (policy from the AST; a refused statement never reaches the group).
+- [x] The existing API suite, new concurrent HTTP schedules and frontend build
+  all pass before `_admission` is narrowed. It now serializes only sessionless
+  calls on the shared default session.

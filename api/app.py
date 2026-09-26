@@ -11,27 +11,37 @@ location. Tracebacks and local paths stay in the server log.
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any
 from uuid import uuid4
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .demo import Preset
-from .engine_service import EngineService, ServiceError
+from .engine_service import EngineService
+from .errors import ServiceError
 from .schemas import (
     DEFAULT_PREVIEW_ROWS,
     ERROR_STATUS,
+    IMPORT_ROUTES,
+    MAX_IMPORT_REQUEST_BYTES,
     MAX_PREVIEW_ROWS,
     MAX_REQUEST_BYTES,
     MAX_RESPONSE_BYTES,
     MAX_SQL_BYTES,
+    SESSION_HEADER,
+    SESSION_SWEEP_INTERVAL_SECONDS,
+    CreateTableRequest,
+    CsvPreviewRequest,
     QueryRequest,
 )
+from .sessions import SessionSweeper
+from .table_import import MAX_CSV_BYTES, MAX_IMPORT_ROWS
 
 
 logger = logging.getLogger("minidbms.api")
@@ -42,6 +52,8 @@ LIMITS = {
     "max_preview_rows": MAX_PREVIEW_ROWS,
     "max_sql_bytes": MAX_SQL_BYTES,
     "max_response_bytes": MAX_RESPONSE_BYTES,
+    "max_csv_bytes": MAX_CSV_BYTES,
+    "max_import_rows": MAX_IMPORT_ROWS,
 }
 
 
@@ -61,8 +73,12 @@ def _envelope(
             error[key] = extra.pop(key)
         else:
             extra.pop(key, None)
+    # Other extras (statement, plan, mode, session status) sit beside "error".
     body = {"error": error, **{k: v for k, v in extra.items() if v is not None}}
     return JSONResponse(status_code=ERROR_STATUS[code], content=body)
+
+
+SessionToken = Annotated[str | None, Header(alias=SESSION_HEADER)]
 
 
 def create_app(
@@ -70,12 +86,25 @@ def create_app(
     *,
     presets: tuple[Preset, ...] = (),
     frontend_dir: object | None = None,
+    sweep_interval_seconds: float = SESSION_SWEEP_INTERVAL_SECONDS,
 ) -> FastAPI:
     """Build the API around a service that already owns an open engine."""
 
     if not isinstance(service, EngineService):
         raise TypeError("create_app requires an EngineService")
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        # Expires idle sessions so an abandoned tab cannot hold locks forever.
+        sweeper = SessionSweeper(service.sessions, sweep_interval_seconds)
+        sweeper.start()
+        try:
+            yield
+        finally:
+            sweeper.stop()
+
     app = FastAPI(
+        lifespan=lifespan,
         title="MINI-DBMS",
         version="0.9.0",
         description="Interfaz HTTP de la demo de la Etapa 9 sobre el motor SQL.",
@@ -86,11 +115,17 @@ def create_app(
     async def request_context(request: Request, call_next):
         request.state.request_id = uuid4().hex
         declared = request.headers.get("content-length")
-        if declared is not None and declared.isdigit() and int(declared) > MAX_REQUEST_BYTES:
+        # Only the CSV routes may carry a large body.
+        limit = (
+            MAX_IMPORT_REQUEST_BYTES
+            if request.method == "POST" and request.url.path in IMPORT_ROUTES
+            else MAX_REQUEST_BYTES
+        )
+        if declared is not None and declared.isdigit() and int(declared) > limit:
             response = _envelope(
                 request,
                 "REQUEST_TOO_LARGE",
-                f"El cuerpo excede el límite de {MAX_REQUEST_BYTES} bytes.",
+                f"El cuerpo excede el límite de {limit} bytes.",
             )
         else:
             try:
@@ -121,6 +156,7 @@ def create_app(
             error.message,
             location=error.location,
             details=error.details,
+            session=error.session,
             statement=error.statement,
             execution_plan=error.execution_plan,
             plan_status="prepared" if error.execution_plan else None,
@@ -154,9 +190,42 @@ def create_app(
     def get_table(table_id: str) -> dict[str, Any]:
         return service.describe_table(table_id)
 
+    @app.post("/api/import/preview")
+    def preview_import(payload: CsvPreviewRequest) -> dict[str, Any]:
+        return service.preview_csv(payload)
+
+    @app.post("/api/tables", status_code=201)
+    def create_table(
+        payload: CreateTableRequest, request: Request, token: SessionToken = None,
+    ) -> dict[str, Any]:
+        body = service.create_table(payload, request.state.request_id, token)
+        logger.info(
+            "request %s created table %s rows=%s",
+            request.state.request_id,
+            body["table"]["name"],
+            body["loaded_rows"],
+        )
+        return body
+
+    @app.post("/api/sessions", status_code=201)
+    def open_session() -> dict[str, Any]:
+        return service.open_session()
+
+    @app.get("/api/session")
+    def session_status(token: SessionToken = None) -> dict[str, Any]:
+        return service.session_status(token)
+
+    @app.post("/api/session/cancel")
+    def cancel_session(token: SessionToken = None) -> dict[str, Any]:
+        return service.cancel_session(token)
+
+    @app.delete("/api/session")
+    def close_session(token: SessionToken = None) -> dict[str, Any]:
+        return service.close_session(token)
+
     @app.post("/api/query")
-    def query(payload: QueryRequest, request: Request) -> dict[str, Any]:
-        body = service.execute(payload, request.state.request_id)
+    def query(payload: QueryRequest, request: Request, token: SessionToken = None) -> dict[str, Any]:
+        body = service.execute(payload, request.state.request_id, token)
         logger.info(
             "request %s %s rows=%s truncated=%s",
             request.state.request_id,
