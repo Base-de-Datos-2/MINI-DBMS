@@ -5,7 +5,7 @@ import threading
 import pytest
 
 from engine.maintenance import MaintenanceError
-from engine.query import SqlEngine, StatementKind
+from engine.query import SqlEngine
 from api import engine_service
 from api.database import Database
 from api.engine_service import EngineService, ServiceError
@@ -79,18 +79,18 @@ def test_the_service_requires_an_open_database(writable_directory):
 def test_statement_allowlists_fail_closed_for_future_engine_kinds(
     service, writable_directory
 ):
-    assert service._allowed() == frozenset({StatementKind.SELECT})
+    assert service._allowed() == frozenset({"SELECT", "EXPLAIN", "EXPLAIN_ANALYZE"})
 
     writable = open_service(writable_directory, allow_writes=True)
     try:
         assert writable._allowed() == frozenset(
-            {StatementKind.SELECT, StatementKind.INSERT, StatementKind.DELETE}
+            {"SELECT", "EXPLAIN", "EXPLAIN_ANALYZE", "INSERT", "DELETE"}
         )
     finally:
         writable.close()
 
 
-def test_a_competing_operation_is_refused_immediately(service):
+def test_a_competing_sessionless_operation_is_refused_immediately(service):
     admitted = threading.Event()
     release = threading.Event()
 
@@ -104,14 +104,14 @@ def test_a_competing_operation_is_refused_immediately(service):
     admitted.wait()
     try:
         busy = fail(service, "SELECT id FROM students")
-        with pytest.raises(ServiceError) as metadata:
-            service.list_tables()
+        # Metadata reads use the engine's metadata gate, not this admission.
+        tables = service.list_tables()
     finally:
         release.set()
         worker.join()
 
     assert busy.code == "ENGINE_BUSY" and busy.status == 409
-    assert metadata.value.code == "ENGINE_BUSY"
+    assert [table["id"] for table in tables][0] == "students"
     # Admission is usable again once the holder finished its cleanup.
     assert run(service, "SELECT id FROM students")["total_rows"] == 4
 
@@ -162,18 +162,21 @@ def test_a_select_hidden_behind_leading_text_is_classified_by_the_parser(service
 
 
 @pytest.mark.parametrize(
-    "sql",
+    ("sql", "code"),
     [
-        "BEGIN TRANSACTION",
-        "END TRANSACTION",
-        "COMMIT",
-        "ROLLBACK",
-        "SELECT id FROM students; SELECT id FROM enrollments",
-        "CREATE TABLE t (id INTEGER)",
+        # A group in the shared default session would leak across clients.
+        ("BEGIN TRANSACTION", "TRANSACTION_PROTOCOL"),
+        ("END TRANSACTION", "TRANSACTION_PROTOCOL"),
+        ("ROLLBACK", "TRANSACTION_PROTOCOL"),
+        ("COMMIT", "SQL_ERROR"),
+        ("SELECT id FROM students; SELECT id FROM enrollments", "SQL_ERROR"),
+        ("CREATE TABLE t (id INTEGER)", "STATEMENT_DISABLED"),
     ],
 )
-def test_transaction_commands_and_multiple_statements_never_succeed(service, sql):
-    assert fail(service, sql).code == "SQL_ERROR"
+def test_sessionless_control_multiple_statements_and_sql_create_never_succeed(
+    service, sql, code
+):
+    assert fail(service, sql).code == code
 
 
 # --- Task 9.7: bounded preview ----------------------------------------------
@@ -350,7 +353,7 @@ def test_measurements_come_from_this_execution_only(service):
 
     assert first["metrics"]["engine"]["temporary"]["bytes_spilled"] > 0
     assert second["metrics"]["engine"]["temporary"]["bytes_spilled"] == 0
-    assert second["metrics"]["scope"].startswith("backend: prepare")
+    assert second["metrics"]["scope"].startswith("backend: parse")
     assert second["metrics"]["backend_elapsed_ms"] >= 0
 
 
@@ -450,16 +453,31 @@ def test_a_repeated_insert_is_executed_again_never_deduplicated(writable_directo
         service.close()
 
     # The second submission is processed again, never merged or retried by the
-    # transport; the engine's binder refuses the duplicate unique key.
-    assert duplicate.code == "SQL_ERROR"
+    # transport; the engine refuses the duplicate unique key while executing,
+    # and its implicit transaction ends aborted before any write.
+    assert duplicate.code == "EXECUTION_REFUSED"
     assert "Unique index" in duplicate.message
+    assert duplicate.details["transaction"]["state"] == "ABORTED"
+    assert duplicate.details["rolled_back"] is True
 
 
-def test_uncertain_index_consistency_suspends_writes(writable_directory, monkeypatch):
+def test_a_failed_write_is_rolled_back_by_its_implicit_transaction(
+    writable_directory, monkeypatch
+):
+    """Stage 8: a mutation failure restores the table and all its indexes.
+
+    Before Stage 8 the API suspended writes when indexes were left uncertain.
+    Now the implicit transaction restores the complete file set, so the
+    response reports the rollback and writing stays enabled.
+    """
+
     service = open_service(writable_directory, allow_writes=True)
-    from engine.query.executor import PreparedQuery
+    from engine.maintenance import MutationService
 
-    def failing_execute(self):
+    original = MutationService.insert
+
+    def failing_insert(self, **kwargs):
+        original(self, **kwargs)  # the row really reaches the files first
         raise MaintenanceError(
             "injected maintenance failure",
             operation="INSERT",
@@ -468,17 +486,19 @@ def test_uncertain_index_consistency_suspends_writes(writable_directory, monkeyp
             unavailable_indexes=("students_id_hash",),
         )
 
-    monkeypatch.setattr(PreparedQuery, "execute", failing_execute)
+    monkeypatch.setattr(MutationService, "insert", failing_insert)
     try:
         error = fail(service, "INSERT INTO students VALUES (7, 'Ian', 'CS', 20)")
     finally:
         monkeypatch.undo()
-
-    assert error.details == {
-        "completed_rows": 1,
-        "unavailable_indexes": ["students_id_hash"],
-        "writes_suspended": True,
-    }
-    assert service.mode == "read-only"
-    assert fail(service, "DELETE FROM students WHERE id = 1").code == "STATEMENT_DISABLED"
-    service.close()
+    try:
+        assert error.code == "EXECUTION_REFUSED"
+        assert error.details["transaction"]["state"] == "ABORTED"
+        assert error.details["rolled_back"] is True
+        assert error.details["writes_suspended"] is False
+        assert service.mode == "serialized-writes"
+        # The row that reached the files was undone, in base and index.
+        assert run(service, "SELECT id FROM students WHERE id = 7")["rows"] == []
+        assert run(service, "SELECT COUNT(*) FROM students")["rows"] == [[4]]
+    finally:
+        service.close()

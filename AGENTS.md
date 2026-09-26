@@ -321,7 +321,7 @@ Latest formally completed stage:
 
 Current implementation block:
 
-> **Stage 9 — transaction-aware HTTP/UI integration remains after the emergency demo**
+> **Stage 9 — transaction-aware HTTP/UI integration implemented 2026-09-25; formal closure pending**
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -415,9 +415,13 @@ exclusive admission guard, a server-enforced SELECT-only default, and bounded
 row/byte previews; `frontend/` (React, TypeScript, Vite) shows the four
 required panels from real engine descriptors. Run it with
 `python scripts/setup_demo.py` and then `python -m api`, as documented in
-`docs/demo.md`. Keep the admission guard until the Stage 9 handoff is
-implemented and verified across HTTP requests; the guard is not Stage 8
-concurrency control. The SQL parser is handwritten by team decision; do not introduce
+`docs/demo.md`. On 2026-09-25 the Stage 9 handoff was implemented and
+verified across real concurrent HTTP requests: each client session maps an
+opaque token to a Stage 8 `SqlSession`, BEGIN/END/ROLLBACK group separate
+requests, and session requests wait only in the engine lock manager. The old
+admission guard now serializes only sessionless calls on the shared default
+session; do not widen it again. Evidence is in
+`docs/ETAPA_09_REVISION_2026_09_25.md`. The SQL parser is handwritten by team decision; do not introduce
 Lark or another parser generator.
 
 Latest completed stage specification:

@@ -1,4 +1,9 @@
 import type {
+  OpenedSession,
+  SessionStatus,
+  CreateTableRequest,
+  CreateTableResponse,
+  CsvPreview,
   ErrorEnvelope,
   Health,
   Outcome,
@@ -35,8 +40,8 @@ function isEnvelope(body: unknown): body is ErrorEnvelope {
   );
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${BASE}${path}`);
+async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(`${BASE}${path}`, init);
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const envelope = isEnvelope(body) ? body : null;
@@ -49,23 +54,69 @@ async function getJson<T>(path: string): Promise<T> {
   return body as T;
 }
 
+/** Header carrying the opaque session token (api/schemas.py). */
+export const SESSION_HEADER = "X-Session-Token";
+
+const sessionHeaders = (token: string | null): Record<string, string> =>
+  token === null ? {} : { [SESSION_HEADER]: token };
+
+const getJson = <T>(path: string, token: string | null = null) =>
+  requestJson<T>(path, { headers: sessionHeaders(token) });
+
+const postJson = <T>(path: string, payload: unknown, token: string | null = null) =>
+  requestJson<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...sessionHeaders(token) },
+    body: JSON.stringify(payload),
+  });
+
 export const fetchHealth = () => getJson<Health>("/api/health");
 export const fetchPresets = () => getJson<Preset[]>("/api/presets");
 export const fetchTables = () => getJson<TableSummary[]>("/api/tables");
 export const fetchTable = (id: string) =>
   getJson<TableDetail>(`/api/tables/${encodeURIComponent(id)}`);
 
+/** Parse a CSV on the server and infer column types; nothing is loaded. */
+export const previewCsv = (text: string, filename: string | null) =>
+  postJson<CsvPreview>("/api/import/preview", { text, filename });
+
+/** Create a table (and load its CSV rows) through the engine's own storage. */
+export const createTable = (request: CreateTableRequest, token: string | null) =>
+  postJson<CreateTableResponse>("/api/tables", request, token);
+
+/** Open one engine session; its token groups BEGIN … END across requests. */
+export const openSession = () => postJson<OpenedSession>("/api/sessions", {});
+export const fetchSession = (token: string) => getJson<SessionStatus>("/api/session", token);
+export const cancelSession = (token: string) =>
+  postJson<{ cancel_requested: boolean; session: SessionStatus }>("/api/session/cancel", {}, token);
+
+/**
+ * Close a session: the engine aborts any open group and releases its locks.
+ * `keepalive` lets the request outlive the page when the tab is closed.
+ */
+export function closeSession(token: string, keepalive = false): Promise<Response> {
+  return fetch(`${BASE}/api/session`, {
+    method: "DELETE",
+    headers: sessionHeaders(token),
+    keepalive,
+  });
+}
+
 /**
  * Submit one statement. The outcome always carries the SQL snapshot that was
  * sent, so an edit made while the request runs can never be mislabeled.
  */
-export async function runQuery(sql: string, options: QueryOptions): Promise<Outcome> {
+export async function runQuery(
+  sql: string,
+  options: QueryOptions,
+  token: string | null = null,
+): Promise<Outcome> {
   const started = performance.now();
   let response: Response;
   try {
     response = await fetch(`${BASE}/api/query`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...sessionHeaders(token) },
       body: JSON.stringify({ sql, ...options }),
     });
   } catch (error: unknown) {

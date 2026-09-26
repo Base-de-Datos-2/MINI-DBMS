@@ -6,6 +6,10 @@ Prepare the data first, with the server stopped:
 
 The server then reopens that directory. It runs one process with one worker
 and no auto-reload, because one process must own the data directory.
+
+On Ctrl+C the server stops accepting requests, waits a bounded time, cancels
+every session's running statement, aborts open transaction groups and only
+then closes the data files.
 """
 
 from __future__ import annotations
@@ -15,6 +19,7 @@ import logging
 from pathlib import Path
 import socket
 import sys
+import threading
 from time import perf_counter
 
 import uvicorn
@@ -26,6 +31,19 @@ from .engine_service import EngineService
 
 
 REPOSITORY = Path(__file__).resolve().parents[1]
+
+
+class _Server(uvicorn.Server):
+    """Uvicorn server that cancels running statements as soon as it must stop."""
+
+    def __init__(self, config: uvicorn.Config, service: EngineService) -> None:
+        super().__init__(config)
+        self._service = service
+
+    def handle_exit(self, sig, frame) -> None:
+        # Off the signal handler: cancellation takes engine locks.
+        threading.Thread(target=self._service.begin_shutdown, daemon=True).start()
+        super().handle_exit(sig, frame)
 
 
 def port_is_free(host: str, port: int) -> bool:
@@ -91,9 +109,21 @@ def main(argv: list[str] | None = None) -> None:
     )
     try:
         app = create_app(service, presets=PRESETS, frontend_dir=args.frontend_dir)
-        uvicorn.run(app, host=args.host, port=args.port, workers=1, reload=False)
+        # Running statements are cancelled when the stop is requested, so open
+        # connections get a real answer; the bound only caps a stuck client.
+        config = uvicorn.Config(
+            app, host=args.host, port=args.port, workers=1, reload=False,
+            timeout_graceful_shutdown=5,
+        )
+        _Server(config, service).run()
     finally:
-        service.close()
+        try:
+            service.close()
+        except Exception as error:  # noqa: BLE001 - reported, not hidden
+            sys.exit(
+                f"El cierre no terminó de forma segura ({error}). Los archivos quedaron "
+                "abiertos por seguridad; revisa el directorio antes de reabrirlo."
+            )
 
 
 if __name__ == "__main__":

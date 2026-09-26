@@ -553,3 +553,158 @@ button:disabled {
 .query-panel .error-box {
   margin-top: 8px;
 }
+
+/* "Nueva tabla" dialog */
+.small-button {
+  padding: 3px 10px !important;
+  font-size: 0.8rem !important;
+}
+
+.origin-chip {
+  margin-left: 6px;
+  font-size: 0.7rem;
+  font-weight: 400;
+}
+
+.dialog {
+  width: min(760px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.dialog::backdrop {
+  background: rgba(10, 14, 20, 0.55);
+}
+
+.dialog-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.dialog-section {
+  margin: 12px 0 0;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+
+.dialog-section legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.dialog-section .inline-field {
+  margin: 0 14px 6px 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.88rem;
+}
+
+input[type="text"] {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.field input[type="text"] {
+  max-width: 320px;
+}
+
+.sample {
+  max-height: 180px;
+  margin-top: 8px;
+}
+
+.sample caption {
+  text-align: left;
+  padding-bottom: 4px;
+}
+
+.editor-table {
+  margin-bottom: 8px;
+}
+
+.editor-table input[type="text"] {
+  width: 100%;
+  min-width: 120px;
+}
+
+.index-editor {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.index-editor .inline-field {
+  margin: 0;
+}
+
+.hint-list {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  color: var(--warn-text);
+}
+
+.dialog .error-box {
+  margin-top: 12px;
+}
+
+.dialog-actions {
+  position: sticky;
+  bottom: -16px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 16px -18px -16px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+/* Session and transaction bar */
+.session-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-left: auto;
+}
+
+.session-state {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.session-state.open {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.danger-button {
+  border-color: var(--error-text) !important;
+  color: var(--error-text) !important;
+}
+
+.fact-list {
+  margin: 4px 0;
+  padding-left: 18px;
+}

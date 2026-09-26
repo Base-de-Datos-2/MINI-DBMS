@@ -6,7 +6,7 @@
 **Part:** Relational Database  
 **Historical starting point:** Stage 7 reported complete; Stage 8 was not implemented
 **Immediate objective:** A working local GUI over the real SQL engine for today's progress presentation  
-**Status:** Emergency demo ready (2026-09-18); Stage 8 engine work closed (2026-09-24); Stage 9 is not closed because transaction-aware HTTP/UI integration remains. Evidence is in `docs/ETAPA_09_AVANCE.md`, the runbook in `docs/demo.md`, and the integration contract in `docs/ETAPA_08_STAGE_9_HANDOFF.md`.
+**Status:** Emergency demo ready (2026-09-18); Stage 8 engine work closed (2026-09-24); transaction-aware HTTP/UI integration implemented and verified (2026-09-25); formal Stage 9 closure pending the team's decision. Evidence is in `docs/ETAPA_09_AVANCE.md`, the runbook in `docs/demo.md`, and the integration contract in `docs/ETAPA_08_STAGE_9_HANDOFF.md`. The 2026-09-25 review, GUI table creation/CSV import, and the remaining-work list are in `docs/ETAPA_09_REVISION_2026_09_25.md`.
 **Execution mode:** Single backend process, serialized engine access, read-only SQL by default  
 **Follow-up:** Remaining Stage 9 integration, then Stage 10
 
@@ -550,12 +550,12 @@ Suggested explanation:
 
 ### After Stage 8, before claiming complete integration
 
-- [ ] Transaction/session semantics are connected through the API and reflected in the UI where needed.
-- [ ] Cursor lifetime, failure, and disconnect policies agree with implemented transaction semantics.
-- [ ] Simultaneous requests are tested under the real database concurrency mechanism.
+- [x] Transaction/session semantics are connected through the API and reflected in the UI where needed. (2026-09-25)
+- [x] Cursor lifetime, failure, and disconnect policies agree with implemented transaction semantics. (2026-09-25; a real network drop was not simulated)
+- [x] Simultaneous requests are tested under the real database concurrency mechanism. (`tests/api/test_sessions.py`, two browser tabs)
 - [x] Mandatory engine-level thread-based race/protected-execution demonstration exists (`demos/transactions_demo.py`).
-- [ ] The temporary admission policy is retained or revised only after real protection is verified.
-- [ ] Stage 9 regressions still pass; Stage 10 experiments and final requirements are completed separately.
+- [x] The temporary admission policy is retained or revised only after real protection is verified. (now sessionless-only)
+- [x] Stage 9 regressions still pass; Stage 10 experiments and final requirements are completed separately.
 
 ## 12. Suggested modules and deliverables
 
