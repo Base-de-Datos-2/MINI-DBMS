@@ -59,6 +59,10 @@ rollback are verified through `Database.open_session()` and real threads.
 
 ## Admission-lock migration rule
 
+The migration below was completed and verified on 2026-09-25. The rule records
+its integration gate; the current guard protects sessionless calls only and
+must not be widened to client-session execution.
+
 Preserve the current global admission guard until the complete adapter below is
 implemented and its concurrent HTTP tests pass. When transaction requests are
 enabled, do not hold that mutex while a statement waits for a logical lock. A
@@ -72,17 +76,17 @@ through the selected `SqlSession`. Remove or narrow `_admission` only in the
 same reviewed change that proves all result cleanup, owner lifecycle and
 concurrent request behavior.
 
-## Result and error contract to add
+## Implemented result and error contract
 
-The adapter needs exhaustive dispatch over the current engine result families:
+The adapter dispatches all current engine result families:
 
-| Engine value | HTTP result kind | Required facts |
+| Engine value | HTTP result kind | Serialized facts |
 |---|---|---|
 | `QueryResult` | `rows` | Ordered columns, bounded rows/bytes, complete/partial state, plan and metrics; always close the cursor. |
 | `CommandResult` | `command` | Affected rows, transaction ID and whether the result is provisional or committed. |
-| `DefinitionResult` | `definition` | Created table definition and durable publication outcome. |
+| `DefinitionResult` | `definition` | Created table and primary-index names; serializer covered by tests, while SQL CREATE remains disabled in the legacy HTTP demo. |
 | `ExplanationResult` | `explanation` | Prepared plan, ANALYZE execution report when present, partial failure and transaction context. |
-| `TransactionReport` | `transaction` | Transaction/session ID, state, final outcome, held/requested resources, blocker IDs, waits, undo counts, cause and warnings. |
+| `TransactionReport` | `transaction` | Transaction/session ID, state, touched/locked tables, blocker IDs, waits, undo counts, cause and warnings. Current requested resource/mode appears in live session status while waiting. |
 
 At minimum, freeze and test stable responses for:
 
@@ -101,8 +105,11 @@ objects. Preserve request IDs and the existing SQL location envelope.
 
 ## Cancellation and disconnects
 
-- A cancellation endpoint or disconnect handler resolves the client token and
-  calls `SqlSession.cancel()`; it does not close shared database handles.
+- The cancellation endpoint resolves the client token and calls
+  `SqlSession.cancel()`; it does not close shared database handles. The adapter
+  does not cancel automatically on network disconnect: the executing call
+  finishes and closes its cursor, then its explicit group retains locks until
+  END/ROLLBACK, session close, or expiry.
 - Cancellation is complete only after the executing request acknowledges its
   abort/close result. A dropped network connection alone is not evidence that
   engine work stopped.
@@ -114,11 +121,18 @@ objects. Preserve request IDs and the existing SQL location envelope.
 
 ## Transaction status in the UI
 
-Show the opaque client session, current transaction ID, `IDLE`/`ACTIVE`/terminal
-state, whether the last command is provisional, wait duration and blocker IDs,
-and the final commit/abort cause. Keep query I/O, undo I/O and lock-wait metrics
+Show the engine session number (display only), current transaction ID,
+`IDLE`/`ACTIVE`/terminal state, whether the last command is provisional, elapsed
+call time during a wait and blocker IDs, and the final commit/abort cause.
+Keep the opaque authorization token in tab memory, never render it.
+Keep query I/O, undo I/O and lock-wait metrics
 separate. The UI must never turn an aborted provisional mutation into a
 successful row count or describe ordinary in-process undo as crash recovery.
+`details.group_aborted` indicates loss of the session's group; successful undo
+requires confirmed `ABORTED`. `ABORT_FAILED` must show failed restoration and
+owner quarantine requiring inspection/repair before reopen; missing final
+state must not imply rollback success. This presentation rule and the injected
+HTTP failure are covered by the 2026-09-30 regression tests.
 
 ## Verification checklist
 
@@ -150,8 +164,12 @@ Evidence and limits: `docs/ETAPA_09_REVISION_2026_09_25.md`.
   request finish and close its cursor; an explicit group then keeps its locks
   until END/ROLLBACK, session close (tab close sends it) or idle expiry. A real
   network drop was not simulated.
-- [x] Default SELECT-only mode and optional-write policy remain server
+- [x] Default read-only mode and optional-write policy remain server
   enforced (policy from the AST; a refused statement never reaches the group).
 - [x] The existing API suite, new concurrent HTTP schedules and frontend build
   all pass before `_admission` is narrowed. It now serializes only sessionless
   calls on the shared default session.
+- [x] Failed restoration is distinguishable from confirmed abort in the UI
+  (`frontend/src/session.test.ts`) and HTTP fault injection
+  (`test_failed_rollback_reports_abort_failed_and_quarantines_the_owner`),
+  verified on 2026-09-30; `group_aborted` alone never proves undo succeeded.

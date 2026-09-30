@@ -85,12 +85,20 @@ export function commandNote(body: QueryResponse): string {
 export function failureNote(details: Record<string, unknown> | undefined): string | null {
   if (details === undefined) return null;
   const transaction = details.transaction as { id?: number; state?: string } | undefined;
-  if (details.group_aborted === true) {
-    const id = transaction?.id !== undefined ? ` T${transaction.id}` : "";
+  const id = transaction?.id !== undefined ? ` T${transaction.id}` : "";
+  if (transaction?.state === "ABORT_FAILED") {
+    return `Falló la restauración de la transacción${id}: el rollback no se completó. La base quedó en cuarentena y requiere inspección o reparación antes de reabrirla.`;
+  }
+  // group_aborted means the session lost its group; it does not prove that
+  // restoration succeeded. Only the engine's terminal ABORTED state does.
+  if (transaction?.state === "ABORTED" && details.group_aborted === true) {
     return `La transacción${id} se abortó completa: todos sus cambios se deshicieron y sus locks se liberaron.`;
   }
   if (transaction?.state === "ABORTED") {
     return `La sentencia se ejecutó como transacción T${transaction.id} y se abortó: no se confirmó nada.`;
+  }
+  if (details.group_aborted === true) {
+    return `El grupo de transacción${id} terminó, pero no se confirmó que sus cambios se hayan deshecho.`;
   }
   return null;
 }

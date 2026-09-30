@@ -118,15 +118,26 @@ Resultados y Plan de Ejecución. Para probarla:
 .venv/bin/python -m api          # luego abrir http://127.0.0.1:8000
 ```
 
-Funciona en modo solo lectura, con una operación del motor a la vez. **No**
-expone todavía sesiones transaccionales a través de HTTP; el guard global se
-conserva hasta la integración explícita de la Etapa 9. Consulta el
+Desde el 2026-09-25 cada pestaña tiene una sesión del motor con token opaco:
+BEGIN/END/ROLLBACK agrupan peticiones separadas y las sesiones independientes
+se ejecutan concurrentemente bajo los locks de la Etapa 8. El guard de admisión
+solo serializa peticiones sin sesión. Por defecto permite SELECT, EXPLAIN y
+EXPLAIN ANALYZE; los controles transaccionales requieren sesión en ambos modos.
+`--allow-writes` habilita INSERT/DELETE y la creación/importación del panel
+Archivos. El cierre formal de la Etapa 9 sigue pendiente. Consulta el
 [runbook de la demo](docs/demo.md) y el
 [informe de avance](docs/ETAPA_09_AVANCE.md).
 
-La extensión CREATE/EXPLAIN está disponible en la API Python del motor. La
-demo HTTP conserva por ahora su base legacy y sus allowlists originales, por
-lo que todavía no expone CREATE ni serializa resultados EXPLAIN.
+La extensión CREATE/EXPLAIN está disponible en la API Python del motor.
+La demo HTTP conserva el owner legacy para sus tablas Sequential e índices
+B+/Hash: expone EXPLAIN/ANALYZE y creación desde el panel Archivos, pero
+`CREATE TABLE` escrito en SQL sigue deshabilitado porque requiere el owner
+manifest-backed. La interfaz distingue cambios provisionales de confirmados;
+solo `ABORTED` confirma un rollback completado. `ABORT_FAILED` informa de
+restauración fallida y cuarentena, que exige inspección/reparación antes de
+reabrir la base. Evidencia de integración y correcciones:
+[revisión 2026-09-25](docs/ETAPA_09_REVISION_2026_09_25.md) y
+[revisión 2026-09-30](docs/ETAPA_09_REVISION_2026_09_30.md).
 
 ## SQL manifest-backed de la Etapa 7
 
@@ -944,8 +955,9 @@ temporales vive en esta capa porque la de almacenamiento reserva el acceso a
 archivos para `PageManager`. `engine/query` construye planes sobre esos
 operadores y `engine/maintenance` coordina las escrituras de storage e índices
 sin depender del parser. La capa transaccional coordina sesiones y recursos
-compartidos; la API y el frontend ya forman la demo de emergencia y aún deben
-adoptar sesiones persistentes entre peticiones según el handoff de la Etapa 8.
+compartidos; la API y el frontend mantienen sesiones entre peticiones desde
+el 2026-09-25 conforme al handoff completado de la Etapa 8. Cada token identifica
+una sesión independiente y las peticiones solo se serializan dentro de ella.
 
 Los dobles `StorageDouble`, `EqualityIndexDouble`, `OrderedIndexDouble` y
 `OperatorDouble` viven solamente en `tests/`. Usan datos pequeños en memoria
@@ -1031,13 +1043,13 @@ del frontend porque este bloque no modificó archivos de `frontend/`.
   demostración, límites y decisión de cierre.
 - [Handoff de la Etapa 8 a la 9](docs/ETAPA_08_STAGE_9_HANDOFF.md): sesiones
   HTTP, resultados, errores, cancelación y condiciones para retirar el guard.
-- [ETAPA_09.md](ETAPA_09.md): demo de emergencia lista y plan de la integración
-  transaccional que queda pendiente.
+- [ETAPA_09.md](ETAPA_09.md): contrato de la API/frontend con integración
+  transaccional implementada; cierre formal pendiente.
 - [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-Las **Etapas 1–8 están completas y auditadas**, y la demo de emergencia de la
-Etapa 9 está lista. Falta conectar sesiones transaccionales estables entre
-peticiones HTTP, serializar todas las variantes de resultado, integrar
-cancelación/estado y verificar concurrencia antes de retirar el guard global.
-La Etapa 10 sigue pendiente.
+Las **Etapas 1–8 están completas y auditadas**. La Etapa 9 integra desde el
+2026-09-25 sesiones entre peticiones HTTP, todos los serializadores de resultado,
+controles transaccionales, cancelación/estado y concurrencia verificada. El
+guard global se redujo a las peticiones sin sesión. El cierre formal de la
+Etapa 9 y los experimentos/entrega de la Etapa 10 siguen pendientes.

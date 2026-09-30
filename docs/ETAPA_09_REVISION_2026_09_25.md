@@ -1,13 +1,19 @@
 # Etapa 9 — revisión del 2026-09-25
 
+> Este informe conserva la evidencia del 2026-09-25. La corrección posterior
+> de la presentación de `ABORT_FAILED` y la sincronización documental están en
+> [la revisión del 2026-09-30](ETAPA_09_REVISION_2026_09_30.md). Los conteos de
+> pruebas y las descripciones por sección de abajo corresponden a su fecha.
+
 Alcance: auditar la Etapa 9 contra [ETAPA_09.md](../ETAPA_09.md) y el
 [handoff de la Etapa 8](ETAPA_08_STAGE_9_HANDOFF.md), revisar el reporte de un
 conteo de índices incorrecto, añadir la creación e importación de tablas desde
 el panel Archivos y, en una segunda parte del mismo día, implementar todo lo
 que faltaba de la integración transaccional (sección 3).
 
-**Estado:** todos los puntos del checklist del handoff y de la sección 11 de
-`ETAPA_09.md` están cumplidos y verificados. El **cierre formal** de la
+**Estado al 2026-09-25:** todos los puntos de integración del checklist del
+handoff y de la sección 11 vigente entonces de `ETAPA_09.md` se verificaron
+bajo los límites registrados aquí. El **cierre formal** de la
 Etapa 9 queda a decisión del equipo. La Etapa 10 sigue pendiente.
 
 ## 1. Reporte: «con un índice y 4 tablas salen 4 índices»

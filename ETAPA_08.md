@@ -20,7 +20,7 @@
 - **Tasks 8.19–8.22 remaining lifecycle integration:** `docs/ETAPA_08_TASK_8_19_8_22.md`; coordinated CREATE publication, protected EXPLAIN/ANALYZE, bounded real-event telemetry, cooperative cancellation, and bounded orderly shutdown are verified with 2,821 strict tests passing.
 - **Tasks 8.23–8.26 controlled evidence and demo:** `docs/ETAPA_08_TASK_8_23_8_26.md`; event-controlled isolation/failure schedules, a real unsafe lost update, protected whole-operation retry, and a serial oracle are reproducible. The focused transaction suite passes 90 strict tests.
 - **Tasks 8.27–8.30 regression and closure:** `tests/transactions/test_bounded_stress.py`, `docs/ETAPA_08_STAGE_9_HANDOFF.md`, and `docs/ETAPA_08_AUDIT.md`; the seeded stress, API compatibility, clean demonstration and complete regression pass. The closure suite records 2,831 strict tests.
-- **Following work:** Complete the remaining Stage 9 transaction-aware HTTP/UI integration and Stage 10 experiments/delivery. Preserve the authorized emergency Stage 9 work and its admission guard until the handoff checklist passes.
+- **Following work (updated 2026-09-30):** Stage 9 transaction-aware HTTP/UI integration was implemented and verified on 2026-09-25; its admission guard now protects sessionless calls only. Formal Stage 9 closure and Stage 10 experiments/delivery remain pending. Original task/closure evidence below records the Stage 8 checkpoint.
 
 This remains an implementation plan rather than a new academic specification. Stage 8 closure evidence is in `docs/ETAPA_08_AUDIT.md`. The repository's Stage 7 extension audit and its 2,742 passing tests remain historical evidence, and Task 8.1 records the original current-checkout baseline separately.
 
@@ -635,6 +635,10 @@ Generating this file does not edit the other documents or implement their promis
 
 ## 15. Working prompts
 
+The prompts below preserve the original Stage 8 implementation/closure
+workflow at the 2026-09-24 checkpoint. Stage 8 is closed and the HTTP/UI handoff
+was implemented on 2026-09-25; current follow-up work uses ETAPA_09.md.
+
 ### First task
 
 ```text
@@ -672,6 +676,13 @@ Close Stage 8 only after its documentation and Definition of Done pass.
 
 ## 16. Handoff
 
-After Stage 8 closes, return to the unfinished Stage 9 integration: stable sessions across requests, all SQL/result variants, transaction controls/status, cancellation, and verified replacement of the emergency admission guard. Then complete Stage 10 experiments and delivery using the real engine, including the documented costs of locking and undo where relevant.
+At Stage 8 closure on 2026-09-24, the HTTP/UI session integration was the next
+handoff. It was implemented and verified on 2026-09-25: stable sessions across
+requests, all result serializers, controls/status, cancellation, and concurrent
+HTTP tests; admission was narrowed to sessionless calls. SQL CREATE remains
+disabled under the legacy demo owner. See `docs/ETAPA_08_STAGE_9_HANDOFF.md`
+and `docs/ETAPA_09_REVISION_2026_09_25.md`. Formal Stage 9 closure and Stage 10
+experiments/delivery remain pending, including the documented locking/undo
+costs where relevant.
 
 Do not label all Part 1 work complete solely because transactions and the earlier emergency interface now exist.

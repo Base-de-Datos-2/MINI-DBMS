@@ -1,8 +1,8 @@
 # AGENTS.md
 
-> Context version: **4.9** — preserves the formal Stage 7 closure, records the
-> verified Stage 8 closure through Task 8.30, and identifies the remaining
-> transaction-aware Stage 9 integration.
+> Context version: **5.0** — preserves formal Stage 7/8 closures, records the
+> implemented transaction-aware Stage 9 integration, and identifies its pending
+> formal closure and Stage 10 work.
 
 ## Purpose
 

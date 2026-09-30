@@ -3,13 +3,20 @@
 > **Registro histórico (2026-09-18).** Este informe conserva la interfaz del
 > cierre original de la Etapa 7. La extensión 7.31–7.40 añadió después CREATE,
 > EXPLAIN y nuevos resultados al motor. La demo sigue usando su owner legacy y
-> sus allowlists originales; la integración HTTP de esos tipos permanece como
-> trabajo explícito y no invalida la evidencia histórica que sigue.
+> sus allowlists originales en ese checkpoint. La integración posterior no
+> invalida la evidencia histórica que sigue.
 >
 > **Actualización 2026-09-24:** la Etapa 8 cerró sus 37 criterios con 2.831
 > pruebas estrictas. La demo conserva el guard y todavía debe integrar sesiones
 > entre peticiones según `ETAPA_08_STAGE_9_HANDOFF.md`. Las afirmaciones sobre
 > Etapa 8 pendiente que siguen abajo describen el checkpoint del 2026-09-18.
+>
+> **Estado actual (2026-09-30):** la integración HTTP/UI se implementó y
+> verificó el 2026-09-25: sesiones estables, controles, EXPLAIN/ANALYZE,
+> cancelación y concurrencia; el guard ahora solo protege peticiones sin sesión.
+> SQL CREATE sigue deshabilitado en el owner legacy. Véanse
+> `ETAPA_09_REVISION_2026_09_25.md` y `ETAPA_09_REVISION_2026_09_30.md`.
+> El contenido fechado de este informe conserva el estado de su checkpoint.
 
 Fecha: **2026-09-18**. Alcance: tareas **9.1–9.18** de
 [ETAPA_09.md](../ETAPA_09.md). Estado: **«Stage 9 emergency demo ready»**.

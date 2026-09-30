@@ -147,15 +147,15 @@ planner cambia, el panel de Plan mostrará la ruta nueva, no la de esta tabla.
 |---|---|---|
 | `GET /api/health` | Estado en caché, modo y límites | No |
 | `GET /api/presets` | Presets (etiqueta, propósito, SQL) | No |
-| `GET /api/tables` | Resumen de tablas del catálogo | Sí |
-| `GET /api/tables/{id}` | Columnas, tipos, organización e índices | Sí |
+| `GET /api/tables` | Resumen de tablas del catálogo | No; gate de metadatos |
+| `GET /api/tables/{id}` | Columnas, tipos, organización e índices | No; gate de metadatos |
 | `POST /api/sessions` | Abre una sesión del motor y devuelve su token opaco | — |
 | `GET /api/session` | Estado de la sesión del header: transacción, locks, espera actual | No |
 | `POST /api/session/cancel` | Cancela la sentencia en curso de esa sesión | No |
 | `DELETE /api/session` | Cierra la sesión: aborta su grupo abierto y libera sus locks | — |
 | `POST /api/query` | Ejecuta una sentencia con vista previa acotada | Solo sin sesión |
 | `POST /api/import/preview` | Lee un CSV e infiere tipos; no carga nada | No |
-| `POST /api/tables` | Crea una tabla y, opcionalmente, carga un CSV (`--allow-writes`) | Sí |
+| `POST /api/tables` | Crea una tabla y, opcionalmente, carga un CSV (`--allow-writes`) | Solo sin sesión; siempre schema X |
 
 Petición de `POST /api/query`:
 
@@ -237,14 +237,21 @@ La traza completa queda solo en el log del servidor, que se cruza con el
 | `TRANSACTION_ABORTED` | 409 | Deadlock (víctima) u otro aborto: el grupo completo se deshizo |
 | `TRANSACTION_CANCELLED` | 409 | Cancelada por el cliente o por el cierre del servidor |
 | `LOCK_TIMEOUT` | 409 | La espera de un lock superó 30 s: el grupo se abortó |
+| `NOT_FOUND` | 404 | Tabla inexistente en el catálogo |
+| `ENGINE_BUSY` | 409 | Hay otra petición sin sesión usando la sesión por defecto |
+| `REQUEST_TOO_LARGE` | 413 | SQL o cuerpo demasiado grandes |
+| `ENGINE_UNAVAILABLE` | 503 | Motor no disponible; una restauración fallida exige inspección/reparación antes de reabrir |
+| `INTERNAL_ERROR` | 500 | Fallo inesperado |
 
 Tras un error de ejecución, `details.transaction` dice qué transacción terminó
-y en qué estado, y `details.group_aborted` si se perdió un grupo explícito.
-| `NOT_FOUND` | 404 | Tabla inexistente en el catálogo |
-| `ENGINE_BUSY` | 409 | Hay otra operación del motor en curso |
-| `REQUEST_TOO_LARGE` | 413 | SQL o cuerpo demasiado grandes |
-| `ENGINE_UNAVAILABLE` | 503 | El motor quedó inutilizable: reiniciar |
-| `INTERNAL_ERROR` | 500 | Fallo inesperado |
+y en qué estado, y `details.group_aborted` si la sesión perdió un grupo
+explícito. Esa bandera no confirma que el undo haya terminado: solo `ABORTED`
+permite afirmar que se deshicieron los cambios. `ABORT_FAILED` se muestra como
+restauración fallida y cuarentena, con inspección/reparación necesaria antes
+de reabrir. Si falta el estado final, la interfaz no afirma que el rollback
+haya tenido éxito. El modo HTTP `serialized-writes` conserva su nombre por
+compatibilidad, pero las sesiones independientes también ejecutan escrituras
+concurrentemente bajo los locks del motor.
 
 ### 7.1 Crear e importar tablas desde el panel Archivos
 
@@ -271,8 +278,12 @@ del motor:
 Los índices se nombran `<tabla>_<columna>_bplus` o `<tabla>_<columna>_hash`.
 Las filas se insertan con la propia organización elegida y cada índice se
 construye después desde ese archivo, como los fixtures de la demo. La creación
-corre bajo el lock de esquema de la sesión por defecto (Etapa 8) y la admisión
-del servidor: mientras carga, las demás peticiones reciben `ENGINE_BUSY`.
+corre como DDL independiente bajo schema X de la sesión del token, o de la
+sesión por defecto si no hay token. Solo este último caso usa la admisión HTTP.
+Las peticiones con sesiones distintas esperan en los locks del motor cuando
+son incompatibles con schema X; no reciben `ENGINE_BUSY` por el importador.
+La creación con un grupo abierto se rechaza antes de ejecutar y conserva ese
+grupo; hay que terminarlo con END/ROLLBACK para crear la tabla.
 
 **Persistencia.** Los archivos usan identidades opacas
 (`g_<uuid>.heap/.seq/.bpt/.hsh`), nunca el nombre lógico. La definición se
