@@ -1,7 +1,7 @@
 # PLAN.md
 
-> Context version: **4.2** — preserves the formal Stage 7 closure, records the
-> completed Stage 8 Tasks 8.1–8.30, and points to the remaining Stage 9 integration.
+> Context version: **4.3** — preserves formal stage closures, records the
+> implemented Stage 9 HTTP/session integration, and identifies pending closure and experiments.
 
 ## Part 1 Implementation Plan — Relational Database
 
@@ -1060,7 +1060,13 @@ A query response may include:
 }
 ```
 
-The exact contract should be decided when Stage 9 is implemented.
+The implemented contract is documented in `ETAPA_09.md`, `docs/demo.md`, and
+`PROJECT_CONTEXT.md`: opaque tokens own independent Stage 8 sessions, controls
+group separate requests, and only sessionless calls use exclusive admission.
+Results distinguish rows, commands, explanations, transaction reports, and
+definition serialization. Explicit mutations remain provisional until END;
+rollback success requires confirmed ABORTED, while ABORT_FAILED quarantines
+the owner and must be displayed as restoration failure.
 
 ---
 
@@ -1362,7 +1368,7 @@ Part 1 is complete only when:
 [x] Stage 7 baseline complete (Tasks 7.1–7.30 closed 2026-09-18; 63 criteria; 2556 strict tests)
 [x] Stage 7 CREATE/EXPLAIN extension complete (Tasks 7.31–7.40 closed 2026-09-20; 2742 strict tests)
 [x] Stage 8 complete (Tasks 8.1–8.30 closed 2026-09-24; 37 criteria; 2831 strict tests)
-[ ] Stage 9 complete (emergency demo ready 2026-09-18; transaction-aware HTTP/UI integration pending)
+[ ] Stage 9 formally closed (demo ready 2026-09-18; HTTP/UI session integration implemented and verified 2026-09-25; closure pending)
 [ ] Stage 10 complete
 ```
 
@@ -1378,15 +1384,18 @@ Latest formally completed stage:
 
 Current implementation block:
 
-> **Stage 9 — complete the transaction-aware HTTP/UI integration described in `docs/ETAPA_08_STAGE_9_HANDOFF.md`**
+> **Stage 9 — transaction-aware HTTP/UI integration implemented 2026-09-25; formal closure pending**
 
 Authorized sequencing exception: the team chose to build an emergency Stage 9
 demo before Stage 8 (see `ETAPA_09.md` Section 1). It is **demo ready** as of
 2026-09-18 (`docs/ETAPA_09_AVANCE.md`, `docs/demo.md`): a FastAPI adapter with
 exclusive engine admission, a read-only default, and bounded previews, plus a
 React GUI with the four required panels over the real engine. This changed the
-order only; Stage 8 transactions/concurrency are now closed, while the remaining
-Stage 9 integration and Stage 10 remain required. The team
+order only. Stage 8 transactions/concurrency closed on 2026-09-24; Stage 9
+session integration was implemented and verified on 2026-09-25, including
+BEGIN/END/ROLLBACK, result/error contracts, cancellation, and concurrent HTTP
+tests. Admission now serializes only sessionless default-session calls.
+Formal Stage 9 closure and Stage 10 experiments/delivery remain required. The team
 also replaced the earlier Lark recommendation with the handwritten SQL parser
 delivered in Stage 7.
 
@@ -1488,7 +1497,9 @@ transaction tests pass at that checkpoint. Tasks 8.27–8.30 add seed `8272026`
 bounded stress, 91 final transaction tests, 97 API compatibility tests, the
 Stage 9 handoff, synchronized documentation, and the closure audit. All 37
 Stage 8 criteria pass with **2,831 strict tests in 950.74 seconds**; evidence is
-in `docs/ETAPA_08_AUDIT.md`. Remaining Stage 9 integration and Stage 10 mean
-Part 1 is not complete.
+in `docs/ETAPA_08_AUDIT.md`. Stage 9 integration evidence is in
+`docs/ETAPA_09_REVISION_2026_09_25.md`; the rollback-reporting/documentation
+correction is in `docs/ETAPA_09_REVISION_2026_09_30.md`. Formal Stage 9 closure
+and Stage 10 remain pending, so Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

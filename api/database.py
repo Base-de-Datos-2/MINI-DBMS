@@ -19,7 +19,8 @@ Tables created from the Files panel (:meth:`Database.create_gui_table`) are the
 one addition: their definitions persist in ``gui_tables.json`` (see
 :mod:`api.gui_tables`) and are reopened after the declared ones. They are built
 with the same public storage constructors and catalog index factories, under
-the Stage 8 schema lock of the default session.
+the Stage 8 schema lock of the selected session (the default session when no
+client session is supplied).
 """
 
 from __future__ import annotations

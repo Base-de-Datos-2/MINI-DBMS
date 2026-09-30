@@ -167,6 +167,38 @@ def test_rollback_restores_every_file_and_leaves_no_artifacts(api):
     Database.open(small_demo(), directory).close()
 
 
+def test_failed_rollback_reports_abort_failed_and_quarantines_the_owner(api, monkeypatch):
+    client, service, directory = api
+    token = open_token(client)
+    sql(client, token, "BEGIN TRANSACTION")
+    assert sql(client, token, "INSERT INTO enrollments VALUES (9, 'X')").status_code == 200
+    session = service.sessions.get(token).sql_session
+    transaction_id = session.active_transaction.id
+    coordinator = service._database.session_coordinator
+
+    def fail_restore(image, files):
+        raise OSError("injected HTTP rollback restoration failure")
+
+    monkeypatch.setattr(coordinator.completion.undo, "restore", fail_restore)
+    failed = sql(client, token, "ROLLBACK")
+
+    assert failed.status_code == 503
+    error = failed.json()["error"]
+    assert error["code"] == "ENGINE_UNAVAILABLE"
+    assert error["details"]["transaction"] == {
+        "id": transaction_id.value, "state": "ABORT_FAILED",
+    }
+    # Losing the session's group does not mean its before-images were restored.
+    assert error["details"]["group_aborted"] is True
+    assert failed.json()["session"]["state"] == "IDLE"
+    assert not service._database.available
+    assert coordinator.locks.snapshot().unavailable
+    assert coordinator.completion.undo.images(transaction_id)
+    assert (directory / ".minidb_unclean").exists()
+    assert client.get("/api/health").json()["status"] == "unavailable"
+    assert sql(client, token, "SELECT COUNT(*) FROM enrollments").status_code == 503
+
+
 # ------------------------------------------------------------------ concurrency
 
 

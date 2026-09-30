@@ -1,14 +1,18 @@
 # ETAPA_09.md
 
-## Stage 9 — API and Frontend: Emergency Presentation Plan
+## Stage 9 — API and Frontend: Current Contract and Implementation Plan
 
-**Revision:** 2026-09-18; synchronized after Stage 8 closure on 2026-09-24
+**Revision:** 2026-09-30; synchronized with the implemented Stage 8 session integration
 **Part:** Relational Database  
 **Historical starting point:** Stage 7 reported complete; Stage 8 was not implemented
-**Immediate objective:** A working local GUI over the real SQL engine for today's progress presentation  
-**Status:** Emergency demo ready (2026-09-18); Stage 8 engine work closed (2026-09-24); transaction-aware HTTP/UI integration implemented and verified (2026-09-25); formal Stage 9 closure pending the team's decision. Evidence is in `docs/ETAPA_09_AVANCE.md`, the runbook in `docs/demo.md`, and the integration contract in `docs/ETAPA_08_STAGE_9_HANDOFF.md`. The 2026-09-25 review, GUI table creation/CSV import, and the remaining-work list are in `docs/ETAPA_09_REVISION_2026_09_25.md`.
-**Execution mode:** Single backend process, serialized engine access, read-only SQL by default  
-**Follow-up:** Remaining Stage 9 integration, then Stage 10
+**Current objective:** Maintain the real four-panel GUI and verified transaction-aware HTTP/session contract
+**Status:** Emergency demo ready (2026-09-18); Stage 8 engine work closed (2026-09-24); transaction-aware HTTP/UI integration implemented and verified (2026-09-25); formal Stage 9 closure pending the team's decision. Historical emergency evidence is in `docs/ETAPA_09_AVANCE.md`; current usage is in `docs/demo.md`, and the completed integration checklist is in `docs/ETAPA_08_STAGE_9_HANDOFF.md`. Integration evidence is in `docs/ETAPA_09_REVISION_2026_09_25.md`; the 2026-09-30 corrections are recorded in `docs/ETAPA_09_REVISION_2026_09_30.md`.
+**Execution mode:** One backend process/worker; independent client sessions execute concurrently through Stage 8 locks; only sessionless calls use exclusive admission; writes disabled by default
+**Follow-up:** Formal Stage 9 closure, then Stage 10 experiments and delivery
+
+The emergency sequence below records why the GUI preceded Stage 8. Sections
+5–9 and 11–13 describe the current implementation contract and maintenance
+checks. They must not be used to restore the former global admission policy.
 
 ## 1. Authorized sequencing exception
 
@@ -20,7 +24,7 @@ The authorized order was:
 2. Implement the required emergency Stage 9 tasks below.
 3. Present the working GUI and identify pending transaction/concurrency work.
 4. Implement Stage 8 and its required demonstration. **Completed 2026-09-24.**
-5. Complete Stage 9 transaction/session integration and rerun integration tests.
+5. Complete Stage 9 transaction/session integration and rerun integration tests. **Implemented and verified 2026-09-25.**
 6. Complete Stage 10 experiments and final delivery.
 
 The emergency milestone is **Stage 9 demo ready**, not **Part 1 complete**. REQUIREMENTS.md still requires transactions, concurrency, and experiments; its Part 1 milestone is not waived by this plan. If today's evaluation expects all of Part 1, this presentation remains a partial delivery.
@@ -31,9 +35,9 @@ The team also explicitly chose a handwritten SQL lexer and parser. Preserve the 
 
 This plan uses the current REQUIREMENTS.md (GUI requirements in Section 8), PLAN.md (Stage 9 in Section 14), PROJECT_CONTEXT.md, AGENTS.md, and the revised ETAPA_07.md. The academic scope remains unchanged. This document is an implementation plan, not a new assignment specification.
 
-The user reports Stage 7 complete. No repository is inspected or modified merely by creating this document. Task 9.1 must identify actual entry points, supported syntax, fixtures, and test commands before code is written.
+Stages 7 and 8 are formally closed. Task 9.1's original inspection is historical; follow-up work must inspect the current owner/session entry points and existing tests before changing the adapter.
 
-Some coordination documents still recommend Lark or carry older stage pointers. The user's manual-parser decision and authorized emergency sequence supersede those stale recommendations. Reconcile them during implementation without changing REQUIREMENTS.md to describe team choices as academic obligations.
+The handwritten-parser decision and emergency sequencing exception are recorded in the coordination documents. Keep current status pointers synchronized without changing REQUIREMENTS.md to describe team choices as academic obligations.
 
 The existing recommended stack is Python/FastAPI and React/TypeScript/Vite. Reuse it if already adopted. Preserve a working equivalent stack; do not migrate frameworks during the emergency. Use installed/configured versions and existing scripts rather than upgrading dependencies for this milestone. A plain textarea is sufficient; Monaco and a graph library are optional.
 
@@ -53,11 +57,11 @@ The live interaction must use real disk-backed project data and the real engine:
 
 All four required panels belong in the minimum demonstration:
 
-| Panel | Required emergency behavior | Optional later enhancement |
+| Panel | Implemented behavior | Optional later enhancement |
 |---|---|---|
-| Files | Loaded tables and selected table structure from Catalog | Upload/import wizard and rich storage visualization |
+| Files | Loaded tables/structure from Catalog and bounded GUI creation/CSV import in write mode | Rich storage visualization |
 | Query | SQL textarea, Execute action, error feedback, verified presets | Syntax highlighting, completion, history persistence |
-| Results | Ordered columns, bounded rows, null/empty/loading/error states | Export and server-side continuation |
+| Results | Ordered columns, bounded rows, empty/loading/error states, provisional commands and transaction outcomes | Export and server-side continuation |
 | Execution Plan | Real operators, child relationships, indexes, relevant details | Animated graph and advanced profiling |
 
 A schema panel is the Files panel, not a fifth substitute. Preset queries must fill the editor and execute through the same API as manually entered SQL. Production UI data must never come from hard-coded expected results or a mock database.
@@ -68,7 +72,7 @@ A schema panel is the Files panel, not a fifth substitute. Preset queries must f
 |---|---|---|
 | P0 | Required for an honest working presentation | 9.1–9.15 and 9.18 |
 | P1 | Add only after all P0 checks pass | 9.16–9.17 |
-| Deferred | Resume after the presentation | Transaction-aware Stage 9 work and Stage 10; Stage 8 was completed 2026-09-24 |
+| Follow-up | After the implemented integration | Formal Stage 9 closure and Stage 10; Stage 8 closed 2026-09-24 and HTTP/session integration was verified 2026-09-25 |
 
 Work in vertical increments:
 
@@ -79,32 +83,37 @@ Work in vertical increments:
 
 Set a feature-freeze time before the presentation and reserve the final portion of available time for rehearsal. Do not estimate implementation duration before Task 9.1 reveals existing work. Drop P1 features first when time is short. A broken P0 path is repaired or reported as incomplete; it is never replaced by fabricated data.
 
-Do not spend the deadline on authentication, public deployment, editor plugins, visual graph layout, theme systems, uploads, or benchmark dashboards. Local presentation is the baseline; publication and multi-user service are outside this milestone.
+Local presentation remains the supported deployment. Authentication, public deployment, editor plugins, visual graph layout, and benchmark dashboards are outside this stage's current scope. Bounded CSV import and GUI table creation are implemented; preserve them and their engine boundaries.
 
-## 5. Historical emergency boundaries and current adapter limits
+## 5. Current ownership, admission, and statement policy
 
-### Required temporary execution policy
+### Engine/session ownership
 
 - One backend process owns the demonstration engine and its data directory.
-- One admitted engine operation runs at a time across all routes that access engine state.
-- A second request requiring the engine is rejected promptly with a structured `ENGINE_BUSY` response; do not build an unbounded queue.
-- The guard covers preparation, execution, cursor consumption, metrics snapshot, serialization of engine-owned values, and cleanup.
-- Shared counters, Catalog reads, plan inspection, and optional writes use the same policy. HTTP health checks may read immutable/cached status without touching the engine.
+- A bounded registry maps opaque `X-Session-Token` credentials to independent Stage 8 `SqlSession` objects. Defaults: 16 sessions, 300-second idle expiry, and a 15-second sweep interval.
+- One call per token owns that session through parsing, execution, preview conversion, measurements, and cursor cleanup. A concurrent call on the same token fails with `SESSION_BUSY`; independent tokens may execute concurrently.
+- Requests without a token use the shared default session under `_admission`. A competing sessionless call fails promptly with `ENGINE_BUSY`; BEGIN/END/ROLLBACK without a token fail with `TRANSACTION_PROTOCOL`.
+- SQL runs outside the registry mutex. A waiting request must allow its blocker to submit END/ROLLBACK through another session; do not widen `_admission` to client-session requests.
+- Catalog routes use the engine's short metadata gate without execution admission or table data locks. Physical counts may include provisional changes and are labeled accordingly. Health uses cached state and registry configuration.
 - No CLI, second server, background importer, or external process accesses that data directory during the demo. A process-local guard cannot protect those accesses.
-- Run one worker; disable automatic reload for the presentation. One worker alone does not prevent concurrent request handlers, so the admission guard is still required.
+- Run one worker with automatic reload disabled. Worker count does not prevent simultaneous handlers; per-session call ownership and sessionless admission are still required.
 - Keep the synchronous engine work and guard ownership in one coherent execution context. Do not let an async request cancellation release a guard while a worker thread continues using the engine.
-- On a browser disconnect, finish or cooperatively stop the admitted operation and close its resources before releasing admission. A network timeout does not prove engine execution stopped.
+- On a browser disconnect, the server finishes the statement and closes its cursor. An explicit group retains logical locks until END/ROLLBACK, session close, or idle expiry. Tab close sends a best-effort keepalive DELETE; a real network-drop schedule remains unverified.
 - If cleanup cannot establish a usable engine state, mark the service unavailable for engine requests until a controlled restart/repair. Do not silently continue with a leaked cursor or corrupt state.
 
-This guard is temporary server admission control. It does not implement transaction grouping, rollback, isolation levels, a database lock manager, cross-process locking, or the required simultaneous-transaction demonstration.
+The sessionless guard prevents reentrancy on the compatibility default session.
+Stage 8 supplies grouping, rigorous table S/X locking, deadlock handling,
+in-process undo, cancellation, and terminal outcomes. The mandatory engine
+thread demonstration is `demos/transactions_demo.py`; cross-process sharing,
+WAL, and crash recovery remain unsupported.
 
 ### Statement policy
 
-Default to **SELECT-only** for today's GUI. Enforce this on the server by inspecting the parsed statement kind using the existing parser/prepare API, before execution. Do not decide safety using `startswith('SELECT')`, substring matching, regex stripping, or frontend buttons.
+Default to **read-only** SQL: SELECT, EXPLAIN SELECT, and EXPLAIN ANALYZE SELECT. With `--allow-writes`, INSERT/DELETE and the GUI table-creation route are enabled. BEGIN/END/ROLLBACK are allowed in both modes with a client session. Enforce policy using the existing handwritten parser's AST before execution; do not use text prefixes, regexes, or frontend buttons.
 
-Parse the complete submission under the one-statement rule. Reject multiple statements and unsupported syntax. The Stage 8 parser now recognizes `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK`, but the current HTTP allowlist rejects them with `STATEMENT_DISABLED`; they cannot succeed as no-ops. `COMMIT` remains unsupported. Enable controls only with the stable-session adapter in `docs/ETAPA_08_STAGE_9_HANDOFF.md`.
+Parse the complete submission under the one-statement rule. Pass allowed SQL to `SqlSession.execute` as text so execute errors, including malformed SQL inside a group, follow the engine's abort semantics. Policy refusals never reach the engine and preserve the group. `COMMIT` remains unsupported. SQL CREATE is disabled in the legacy demo owner; standalone GUI creation uses the selected session's schema-change path and is refused before execution while that session has an open group.
 
-INSERT/DELETE may be enabled only through Task 9.16's tested, explicit configuration. The API restriction does not remove those already implemented engine features or their academic requirements.
+INSERT/DELETE require Task 9.16's explicit write configuration. Their row counts are provisional inside an explicit group and committed only after successful END. An implicit mutation commits before returning. The API restriction does not remove engine features or academic requirements.
 
 ## 6. Adapter architecture and resource contract
 
@@ -114,17 +123,19 @@ The frontend depends on HTTP contracts, not Python internals. The engine remains
 
 ### Bounded preview, not a persistent server cursor
 
-The simplest emergency contract is one response containing a bounded preview. Keep Stage 7 streaming inside the adapter and close the cursor before returning the response. Do not retain cursors across HTTP requests or add pagination sessions today.
+One response contains a bounded preview. Keep engine streaming inside the adapter and close the cursor before returning. Client sessions persist across requests; row cursors do not. Early close ends an implicit SELECT but preserves an explicit group's logical locks until END/ROLLBACK.
 
-Proposed defaults, to freeze or adapt in Task 9.2:
+Implemented defaults (`api/schemas.py`):
 
-| Limit | Suggested value | Meaning |
+| Limit | Value | Meaning |
 |---|---:|---|
 | Displayed rows | 100 | Default preview count |
 | Maximum requested preview | 500 | Hard server-side cap, independent of client validation |
-| SQL text | 32 KiB UTF-8 | Transport limit, aligned with Stage 7's own limit |
+| SQL text | 32 KiB UTF-8 | Transport cap; distinct from the engine's 65,536-character lexer limit |
 | Encoded response | 1 MiB | Explicit JSON byte budget, including metadata |
-| Plan nodes/depth | Configured bounded values | Prevent oversized or recursive descriptors |
+| Plan nodes/depth | 128 / 32 | Prevent oversized or recursive descriptors |
+| HTTP body | 64 KiB; 17 MiB for the two import routes | CSV content has its separate cap |
+| CSV | 8 MiB / 10,000 data rows | Bounded GUI import |
 
 These are project defaults, not instructor requirements. Adapt them to verified schema/record limits. A row limit is not a execution-time or total engine-memory limit: sorting/grouping/joining can perform substantial work before returning the first row. Preserve Stage 6 memory/temp budgets and use rehearsed fixtures.
 
@@ -134,18 +145,24 @@ Apply the byte cap incrementally as well. Reserve space for response metadata an
 
 Do not call unconditional `fetchall`, count every remaining row, rerun the query to infer totals, append an unsupported SQL LIMIT, or sort/group results in the frontend. Browser pagination of the already returned preview is optional and must not imply access to the entire result.
 
-## 7. Proposed HTTP contracts
+## 7. Implemented HTTP contracts
 
-Names are suggestions; adapt compatible existing routes. Keep a small documented API rather than adding every possible endpoint.
+The following routes are implemented in `api/app.py`. Preserve compatible transport contracts when making follow-up changes.
 
 | Method and route | Responsibility | Engine admission needed? |
 |---|---|---|
 | GET /api/health | Cached startup/readiness and execution mode | No engine access |
-| GET /api/tables | Loaded table summaries from Catalog | Yes |
-| GET /api/tables/{table_id} | Columns, types, organization, indexes when available | Yes |
-| POST /api/query | Parse, enforce policy, execute once, return bounded results and actual plan | Yes |
+| GET /api/tables | Loaded table summaries from Catalog | Metadata gate only |
+| GET /api/tables/{table_id} | Columns, types, organization, indexes when available | Metadata gate only |
+| POST /api/sessions | Open a client session and return its opaque token | Short registry ownership |
+| GET /api/session | Transaction/lock/wait state for the token | No execution admission |
+| POST /api/session/cancel | Request cooperative cancellation | No execution admission |
+| DELETE /api/session | Close session and abort its open group | Session cleanup |
+| POST /api/query | Execute once, return bounded results and actual plan | Per-session call guard; exclusive admission only without a token |
+| POST /api/import/preview | Parse CSV and infer types without loading it | No engine access |
+| POST /api/tables | Standalone GUI table creation/import in write mode | Selected session and schema X; exclusive admission only without a token |
 
-IDs are Catalog identifiers, never arbitrary filesystem paths. Do not expose file-opening or command-running endpoints. An upload/import route and a reset HTTP route are unnecessary for the demo.
+IDs are Catalog identifiers, never arbitrary filesystem paths. Do not expose file-opening, command-running, or reset endpoints. CSV import is bounded and uses the project's own storage/index builders.
 
 Illustrative request:
 
@@ -158,7 +175,7 @@ The response should specify the following fields. Exact names may follow an exis
 | Field | Meaning |
 |---|---|
 | request_id | Correlates this operation's result, error, plan, and logs; not an idempotency guarantee |
-| kind | `rows` or, if enabled, `command` |
+| kind | `rows`, `command`, `explanation`, `transaction`, or `definition` (exhaustive serialization; SQL CREATE remains disabled) |
 | columns | Ordered descriptors: position/id, display name, logical type, encoding |
 | rows | Arrays aligned with columns, preserving duplicate names and row multiplicity |
 | returned_rows | Number actually included in the response |
@@ -169,29 +186,45 @@ The response should specify the following fields. Exact names may follow an exis
 | execution_plan | Descriptor from the prepared/executed engine plan, including actual runtime fallbacks when available |
 | plan_status | Whether plan is prepared, execution-observed, or unavailable |
 | metrics | Measured values with scope and completion flags; unavailable counters are null/omitted |
-| mode | Read-only demo or explicitly enabled serialized-write demo |
+| mode | `read-only` or legacy wire value `serialized-writes`; the latter enables writes and does not imply global serialization of client sessions |
+| session | Final client-session state when a token was supplied |
+| transaction / transaction_report | Command provisional/committed outcome, or control-report state, resources, waits, undo, and cause |
 
 A successful response with an early-closed preview has `result_complete=false`. EOF-complete empty results have zero rows, the actual column schema, and `result_complete=true`. An execution exception produces an error, not a success response with the rows accumulated so far.
 
-Preserve Stage 7 value semantics. Use arrays so joined columns with equal names do not overwrite one another. Encode null as JSON null and booleans as booleans. Define lossless encoding for integers outside JavaScript's safe integer range and exact decimals if supported, for example string values with column encoding metadata. Do not silently round them. Handle non-finite floats explicitly under the existing engine type policy; emit valid JSON or a structured conversion error.
+Preserve engine value semantics. Rows are arrays so duplicate joined column
+names cannot overwrite one another. Booleans remain booleans; integers outside
+JavaScript's safe range are decimal strings, and non-finite floats use
+`Infinity`/`-Infinity`/`NaN` strings with column encoding metadata. The engine
+does not support NULL or an exact-decimal SQL type; do not imply those types
+are implemented.
 
 ### Error mapping
 
-| Condition | Suggested HTTP status | User-facing meaning |
+| Condition | HTTP status/code | User-facing meaning |
 |---|---:|---|
-| Malformed transport input | 400 or framework-standard 422 | Request fields are invalid |
+| Malformed transport input | 422 INVALID_REQUEST | Request fields are invalid |
 | SQL lexical/syntax/semantic error | 422 | Query is invalid; include existing source location where available |
 | Statement disabled in demo mode | 403 | Query type is not enabled in this presentation mode |
 | Missing table metadata resource | 404 | Selected Catalog object does not exist |
-| Another engine operation active | 409 | Engine busy; try after the current operation finishes |
+| Another sessionless operation active | 409 ENGINE_BUSY | Default session busy; use a client session or wait |
+| Concurrent call on one token | 409 SESSION_BUSY | Finish or cancel its current call; no automatic replay |
+| Missing/expired/closed token | 404 SESSION_NOT_FOUND | Open a new session explicitly; do not replay the statement |
+| Registry capacity | 429 SESSION_LIMIT | Close a session or wait for expiry |
+| Invalid transaction lifecycle or control without token | 409 TRANSACTION_PROTOCOL | Preserve the documented group state |
+| Deadlock/abort, cancellation, lock timeout | 409 TRANSACTION_ABORTED / TRANSACTION_CANCELLED / LOCK_TIMEOUT | Inspect terminal transaction outcome and cause |
 | Oversized request | 413 | SQL body exceeds the limit |
 | Response cannot fit bounded encoding | 422 | Result exceeds the presentation response limit |
 | Engine not ready or unusable | 503 | Controlled restart/repair needed |
 | Unexpected engine/server failure | 500 | Operation failed; include a diagnostic request ID |
 
-Use a consistent error envelope with code, message, request ID, and optional SQL location. Record technical details in server logs; show no Python tracebacks or local paths in the normal UI. If optional writes fail, preserve the engine's confirmed partial-effect information and never claim rollback.
+Use a consistent error envelope with code, message, request ID, optional SQL location, and transaction details. Record technical details in server logs; show no Python tracebacks or local paths. `details.group_aborted` means the session lost its group, not proof of restoration. Claim successful undo only for confirmed `ABORTED`. For `ABORT_FAILED`, show failed restoration and quarantine requiring inspection/repair; never claim all changes were undone or locks released. Missing/other outcomes must remain explicitly unconfirmed. Query I/O, undo I/O, and lock waits retain separate scopes.
 
-## 8. Task sequence
+## 8. Task sequence and maintenance checks
+
+Tasks 9.1–9.18 originated in the emergency plan. The actions below are
+synchronized with the implemented adapter; they remain verification guides
+for follow-up changes. Dated evidence preserves the original milestone.
 
 | Task | Work | Priority | Dependencies |
 |---|---|---|---|
@@ -199,7 +232,7 @@ Use a consistent error envelope with code, message, request ID, and optional SQL
 | 9.2 | Freeze demo contracts and limits | P0 | 9.1 |
 | 9.3 | Prepare persistent demonstration fixtures | P0 | 9.1–9.2 |
 | 9.4 | Implement API startup/shutdown and engine adapter | P0 | 9.1–9.2 |
-| 9.5 | Implement exclusive engine admission and read-only policy | P0 | 9.4 |
+| 9.5 | Enforce per-session ownership, sessionless admission, and statement policy | P0 | 9.4, closed Stage 8 |
 | 9.6 | Expose Catalog metadata | P0 | 9.3–9.5 |
 | 9.7 | Expose bounded query execution and actual plan | P0 | 9.3–9.5 |
 | 9.8 | Map errors and expose measured statistics | P0 | 9.7 |
@@ -210,9 +243,9 @@ Use a consistent error envelope with code, message, request ID, and optional SQL
 | 9.13 | Add verified presentation queries | P0 | 9.3, 9.10–9.12 |
 | 9.14 | Run focused integration and browser checks | P0 | 9.5–9.13 |
 | 9.15 | Rehearse clean startup and freeze demo | P0 | 9.14 |
-| 9.16 | Optionally enable verified INSERT/DELETE | P1 | All P0 functional checks; existing Stage 7 write guarantees |
+| 9.16 | Enable verified INSERT/DELETE only by configuration | P1 | P0 checks and Stage 8 transaction guarantees |
 | 9.17 | Optional readability and usability polish | P1 | All P0 functional checks |
-| 9.18 | Document milestone and Stage 8 return plan | P0 | Verified outcomes; update after any P1 work |
+| 9.18 | Document milestones, completed Stage 8 integration, and remaining closure | P0 | Verified outcomes; update after follow-up changes |
 
 Add relevant tests with each task. Task 9.14 is a focused integration gate, not permission to defer testing until the end.
 
@@ -222,8 +255,8 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 
 **Actions:**
 
-- Read current repository AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md, and ETAPA_07.md.
-- Record Stage 7 as user-reported complete and Stage 8 as not implemented. Verify the relevant Stage 7 tests rather than assuming the public interface matches illustrative names.
+- Read AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md, ETAPA_08.md, and this stage document.
+- Record Stage 7 and Stage 8 as formally closed and the Stage 9 session integration as implemented. Verify affected engine/API tests rather than assuming interfaces match illustrative names.
 - Locate parsing/preparation, statement kind, execution, schema, plan descriptors, counters, cursor close/context management, Catalog lookup, and fixture setup.
 - Map actual APIs to the adapter responsibilities. Determine whether metrics are global, execution-local, or inclusive of child operators.
 - Identify existing API/frontend modules, package versions, scripts, and tests. Reuse them.
@@ -239,7 +272,7 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 **Actions:**
 
 - Adopt endpoint names, JSON schema, preview row/byte limits, supported encodings, error mapping, and result-completion semantics.
-- Record single-process ownership, reject-when-busy policy, read-only default, and cursor lifetime.
+- Record single-process ownership, per-token busy rejection, sessionless admission, read-only policy, and cursor/group lifetimes.
 - Decide existing frontend stack and local origin arrangement. Prefer the existing dev proxy/same-origin setup; if needed, restrict CORS to the explicit local frontend origin(s).
 - Choose a simple plan rendering: nested cards or a table with node/parent IDs and child order. A real tree does not require a graph-layout dependency.
 - Decide fixture size and preset queries from demonstrated Stage 7 capabilities.
@@ -272,7 +305,7 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 - Use the framework's existing lifecycle convention; avoid opening an engine per request or sharing mutable prepared-query state.
 - Expose cached readiness/mode through health without touching storage.
 - Preserve fresh execution contexts per statement and Stage 6 resource budgets.
-- On shutdown, stop admission, finish/clean admitted work, then close engine-owned resources in the correct order.
+- On shutdown, refuse new work, cancel running session statements, and call bounded `Database.shutdown` before closing shared handles. If cleanup cannot finish, keep the service unavailable.
 - Refuse invalid/unavailable demo configuration with an actionable startup error.
 - Document one-process, one-worker startup with reload disabled for presentation.
 
@@ -280,22 +313,22 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 
 **Acceptance:** No route accidentally creates a second engine owner or closes the application engine when closing one result.
 
-### Task 9.5 — Enforce serialized admission and statement policy
+### Task 9.5 — Enforce session ownership, admission, and statement policy
 
 **Actions:**
 
-- Put a shared admission guard around every operation accessing mutable engine/Catalog/counter state.
-- Use immediate busy rejection for a competing request; do not wait indefinitely or serialize only in JavaScript.
-- Hold ownership through prepare, read-only AST classification, execution, preview conversion, measurements, and result cleanup.
-- Use the existing handwritten parser or prepared statement metadata to allow SELECT only. Ensure no execution happens during classification.
+- Select the token's `SqlSession` under the short registry mutex, then execute outside that mutex. Keep exclusive admission only for sessionless calls on the default session.
+- Return `SESSION_BUSY` for simultaneous calls on one token and `ENGINE_BUSY` for competing sessionless calls. Independent sessions use the engine's lock manager and finite waits.
+- Hold the selected session's call ownership through AST classification, execution, preview conversion, measurements, and cursor cleanup.
+- Use the handwritten AST to apply Section 5's read-only/write/control policy without execution during classification. Allowed SQL goes to `SqlSession.execute`, preserving group-level error semantics.
 - Reject all unsupported/disabled statement kinds, including complete multi-statement submissions.
 - Keep the guard owned by the code actually doing synchronous engine work. If offloaded to a worker thread, that worker retains admission until its own cleanup finishes.
-- Do not implement a cancel button unless actual cooperative engine cancellation is already available and verified.
-- Ensure metadata routes also reject as busy or use an explicitly immutable snapshot. Frontend loading should avoid unnecessary simultaneous engine requests.
+- Connect the implemented cancel endpoint/button to `SqlSession.cancel()` and display cancellation as pending until the executing request acknowledges its terminal outcome.
+- Read Catalog metadata through the engine's metadata gate without execution admission. Describe counts as physical and potentially provisional.
 
-**Tests:** Overlap requests deterministically with test synchronization; the second engine operation must not start. Test query-versus-metadata overlap, lexical error, execution error, disconnect handling, and successful admission after cleanup. Use test events/barriers rather than timing-only sleeps.
+**Tests:** Synchronize real requests using engine lock state or events: compatible readers and independent-table writers overlap; a blocked request allows its blocker to END/ROLLBACK; same-token reentrancy and competing sessionless calls fail predictably. Check cleanup, cancellation, expiry, and shutdown. A real network drop remains outside recorded verification.
 
-**Acceptance:** Actual engine operations never overlap within the supported server process. No test or documentation describes this as the completed Stage 8 concurrency mechanism.
+**Acceptance:** Independent client sessions execute concurrently under Stage 8 protection. The registry/admission guards never prevent a blocker from completing its group.
 
 ### Task 9.6 — Expose Files-panel metadata
 
@@ -305,7 +338,7 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 - Include organization/index names and indexed columns only when Catalog exposes them accurately.
 - Use stable Catalog IDs and preserve column order. Avoid reading full tables for counts or previews during schema loading.
 - Keep paths and storage object instances out of JSON.
-- Handle no tables, missing table, unavailable metadata, and busy admission clearly.
+- Handle no tables, missing table, and unavailable metadata clearly; metadata routes do not acquire execution admission.
 
 **Tests:** Fixtures match metadata responses; unknown IDs fail; listing does not mutate data.
 
@@ -315,13 +348,13 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 
 **Actions:**
 
-- Validate request shape and SQL byte length, then enter the shared admission path.
-- Prepare/classify and execute exactly once through existing engine APIs. If prepare and execute are distinct, prefer execution of that prepared object where supported; do not execute once for data and again for the plan.
+- Validate request shape and SQL byte length, then select the session or sessionless path.
+- Classify the handwritten AST for policy and execute SQL exactly once through the selected session. Do not pre-bind allowed SQL in the adapter, which would bypass the engine's group-abort behavior on execute errors.
 - Preserve the existing schema for zero-row results.
 - Apply incremental row and byte limits from Section 6, using at most one row of lookahead beyond the row cap.
 - Convert values under the explicit JSON encoding policy without collapsing duplicate columns or duplicate rows.
 - Obtain the real plan and available runtime details from that execution, including fallback operators when reported.
-- Close the cursor and copy final available statistics while still owning admission. Return only detached JSON-safe values; never a generator that continues reading the engine after the guard is released.
+- Close the cursor and copy final available statistics while still owning the session call. Return detached JSON-safe values; explicit-group locks remain until END/ROLLBACK.
 - On exceptions, close all owned resources and return a failure envelope, not partial-success rows.
 
 **Tests:** Empty result, one row, fewer than N, exactly N, N+1, byte cap, large single value, duplicate column names, Unicode, null, large integer, early-close temp cleanup, and error during iteration/conversion.
@@ -336,11 +369,11 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 - Include request IDs in responses/logs. Do not treat request IDs as duplicate-write prevention.
 - Use an existing monotonic timer for backend elapsed time and label its scope, such as prepare-through-cleanup including preview conversion.
 - Keep browser round-trip duration separate from engine/backend time.
-- Copy execution-local counters or validated before/after deltas under the guard. Do not reset global counters from another route or sum inclusive child timings.
+- Use execution-local plan counters and transaction reports. Do not subtract shared counters across concurrent sessions, reset global counters, or sum inclusive child timings. Keep query I/O, undo I/O, and lock waits distinct.
 - For early-closed previews, mark metrics partial and total rows unknown; a sort may still have consumed all input before output was truncated.
 - Report unavailable measurements as unavailable. Do not invent a cost, I/O count, transaction ID, or speedup.
 
-**Tests:** SQL location mapping, busy error, unexpected error, partial metrics, counters isolated between sequential queries, and no leaked internal paths/tracebacks.
+**Tests:** SQL location mapping, busy/protocol/abort/timeout/cancel errors, injected rollback restoration failure with `ABORT_FAILED`/quarantine, partial metrics, isolated concurrent counters, and no leaked internal paths/tracebacks.
 
 **Acceptance:** Results, plan, error, and metrics are associated with the same request and reflect what actually happened.
 
@@ -367,7 +400,7 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 - Display selected table columns/types and actual index metadata.
 - Add a SQL textarea and an Execute button. Disable duplicate submission while this frontend request is active.
 - Keep the submitted SQL snapshot associated with its result even if the user edits the text during execution.
-- Show a brief mode label such as `Read-only demo · Transactions pending`. Put detailed development limits in the runbook, not in the main interaction.
+- Show the real mode and this tab's session state. BEGIN/END/ROLLBACK use the same query route as the editor; display held locks and live waits/blockers, with a cancel action for an active request.
 - Offer an execution shortcut if inexpensive; keep keyboard labels/accessibility clear.
 - Display SQL diagnostics near the editor and preserve user input after errors.
 
@@ -384,7 +417,7 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 - Label truncation as `Showing first N rows; more results exist` when known, or the precise byte-limit message. Do not display N as the total when total is unknown.
 - Use horizontal scrolling and controlled text wrapping so wide rows do not break the workspace.
 - Label frontend-only page navigation as navigation within the preview, if added.
-- Associate displayed metrics with this result and separate partial from complete consumption.
+- Associate displayed metrics with this result and separate partial from complete consumption. Display command counts as provisional until END succeeds; distinguish confirmed abort from failed/unconfirmed restoration.
 - Clear or explicitly mark the previous result as previous when a new request fails; never display old rows as the new query's success.
 
 **Tests:** Empty, duplicate names, null, Unicode, long values, truncation, and error after earlier success.
@@ -426,10 +459,10 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 **Actions:**
 
 - Test the exact public HTTP path against real temporary project storage and compare rows/schema with direct engine execution.
-- Test malformed SQL, semantic errors, disabled writes/transactions, and second statements with unchanged persistent data.
+- Test malformed SQL, semantic errors, disabled writes, controls without a session, and second statements. Policy refusals preserve a group; engine execute errors follow its full-group abort contract.
 - Test overlapping requests, including metadata during a query, with deterministic synchronization.
 - Test early preview close, conversion/iteration errors, and busy-state release after cleanup.
-- Run relevant API tests, existing Stage 7 regressions, frontend type/build checks, and repository-mandated checks. Record failures; do not claim the whole suite passed if only a subset ran.
+- Run affected API/transaction and engine regression tests, frontend type/build checks, and repository-mandated checks. Record actual scope; do not claim the whole suite passed if only a subset ran.
 - Open the actual browser and execute the preset sequence. Check all four panels, result/plan association, no stale response, and recovery from invalid SQL.
 - Check startup/reopen from disk and confirm read-only queries leave permanent data unchanged.
 
@@ -444,7 +477,7 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 - Keep a tested version/commit and lockfiles for the presentation. Do not upgrade dependencies after the final rehearsal.
 - Close other engine processes. Disable reload and use the documented single-worker backend command.
 - Prepare a clearly labeled screenshot/short recording of the real successful run as a presentation fallback if useful. A recording is evidence of an earlier run, never live execution.
-- Record precisely which functionality is demonstrated and which work remains for Stage 8/10.
+- Record the implemented Stage 8/9 integration, formal Stage 9 closure status, known verification limits, and pending Stage 10 work.
 
 **Acceptance:** Another teammate can start the application from the runbook and repeat the demonstration.
 
@@ -457,16 +490,16 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 **Actions:**
 
 - Enable INSERT/DELETE only through explicit server configuration, default off, against the disposable demo directory.
-- Extend the parsed-statement allowlist; retain the same admission guard and execute each accepted command synchronously once.
+- Preserve the parsed-statement allowlist and session/sessionless paths; execute each accepted command synchronously once.
 - Return actual affected rows separately from SELECT previews. Fetching/rendering the response must not execute the command again.
 - Do not automatically retry mutations on timeout, refresh, or network failure. A lost response means outcome unknown until inspected; a request ID is not deduplication.
-- Keep HTTP transaction controls disabled until stable request/session ownership is implemented. Optional commands currently use the default session as individual implicit transactions; do not claim cross-request grouping or crash atomicity.
-- Surface the final implicit commit/abort outcome. Stop writes if the owner is quarantined or base/index consistency is uncertain.
+- With a client token, BEGIN/END/ROLLBACK group requests; without one, commands use individual implicit transactions. Explicit command counts remain provisional until END. Do not claim crash atomicity.
+- Surface confirmed commit/abort outcomes. Failed restoration is `ABORT_FAILED` and owner quarantine, not successful rollback. Stop writes if the owner is quarantined or consistency is uncertain.
 - Demonstrate an insertion followed by a read-back and an exact-target deletion only after rehearsal; reset offline while the backend is stopped.
 
 **Tests:** Disabled write has no effects, enabled write runs once, affected count, scan/index agreement, simulated response loss without retry, and persistence after clean restart.
 
-**Acceptance:** Optional writes remain truthful about their Stage 7 guarantees. Failure to pass this gate leaves the read-only demo intact.
+**Acceptance:** Configured writes preserve Stage 8 group/undo guarantees and truthful provisional/terminal outcomes. Failed gates leave writes disabled.
 
 ### Task 9.17 — Optional presentation polish
 
@@ -476,16 +509,16 @@ Add relevant tests with each task. Task 9.14 is a focused integration gate, not 
 
 **Acceptance:** Polish does not introduce new dependencies or behavior that destabilizes the rehearsed execution path. Repeat the browser smoke check after changes.
 
-### Task 9.18 — Record emergency progress and hand off to Stage 8
+### Task 9.18 — Record milestone history and current integration status
 
 **Actions:**
 
 - Record `Stage 9 emergency demo ready` only after its checklist passes. Stage 8 was pending at that checkpoint and closed later on 2026-09-24; Stage 10 remains pending.
 - Update project progress pointers to show the temporary order and the manual-parser decision.
 - Record real endpoint/types, resource limits, local launch commands, allowed statements, and known limitations.
-- Identify the adapter boundaries where Stage 8 session/transaction ownership, transaction syntax, and concurrency behavior must be connected.
-- Retain the admission guard until the Stage 8 protection is integrated and tested across HTTP requests and result lifetimes. Removing it simply because the engine lock manager exists is insufficient.
-- List the remaining Stage 9 work after Stage 8: transaction-aware API errors/results, session lifetime, cursor/transaction interaction, disconnect behavior, concurrent tests, and optional write controls.
+- Record the implemented session/transaction ownership, controls, errors/results, cancellation, lifecycle, and concurrent HTTP verification from 2026-09-25.
+- Preserve sessionless admission and the per-token call guard; the former global guard was narrowed only after integration tests passed.
+- List formal Stage 9 closure and verification limits separately from already implemented session features. Real network-drop behavior remains unverified; SQL CREATE stays disabled under the legacy demo owner.
 - Keep Stage 10 benchmarks and full delivery requirements explicitly pending.
 
 **Acceptance:** Teammates can distinguish demonstrated capability from deferred requirements and have a concrete next step after the presentation.
@@ -509,71 +542,70 @@ These are examples, not new domain requirements. Adapt only to confirmed engine 
 | 5 | `SELECT career, COUNT(*) AS total FROM students GROUP BY career ORDER BY career;` | (CS, 2), (EE, 2); real grouped execution |
 | 6 | `SELECT s.name, e.course FROM students AS s JOIN enrollments AS e ON s.id = e.student_id WHERE s.age > 20 ORDER BY s.name;` | Ana/DB2, Ana/OS, Omar/OS, Sol/DB2; ties follow existing contract |
 | 7 | `SELECT unknown_column FROM students;` then rerun Step 2 | Useful semantic error and normal recovery |
-| 8 | Explain pending work | Engine transactions are complete; HTTP session integration and Stage 10 experiments remain pending |
+| 8 | In two tabs: BEGIN/INSERT in A, SELECT in B, then END or ROLLBACK in A | Distinct sessions, provisional changes, real lock wait, and terminal outcome |
+| 9 | Explain pending work | Formal Stage 9 closure and Stage 10 experiments/delivery; network-drop verification remains limited |
 
 Check the actual plan instead of promising a particular index if the planner chooses another valid path. A small fixture proves correctness and connectivity, not scalability. If showing external spills, use the separately rehearsed larger fixture and real counters; do not describe the four-row example as proof of disk spilling.
 
 Suggested explanation:
 
-> This interface executes SQL through our own storage, indexes, and query operators. The engine now has verified transactions and concurrency control, while this presentation adapter still admits one engine operation at a time and does not yet expose stable transaction sessions across HTTP requests.
+> This interface executes SQL through our own storage, indexes, and query operators. Each browser tab owns an engine session. BEGIN/END/ROLLBACK group separate requests, and independent sessions use the real table locks, deadlock handling, and in-process undo from Stage 8. Command counts remain provisional until END succeeds.
 
 ## 11. Completion checklists
 
-### Emergency Stage 9 demo ready
+### Historical emergency demo checkpoint (2026-09-18)
 
-- [ ] Actual Stage 7 entry points and relevant baseline tests were inspected.
-- [ ] The authorized sequencing exception is recorded; Stage 8 was pending at the emergency checkpoint and is now closed separately.
-- [ ] Existing handwritten parsing is reused with no second parser.
-- [ ] Demo data is persistent, deterministic, and separate from normal working data.
-- [ ] One backend process owns the data and uses one shared engine admission guard.
-- [ ] Competing engine requests are rejected; exceptions/disconnects cannot release admission prematurely.
-- [ ] HTTP writes and transaction commands are rejected by default before execution.
-- [ ] Query execution reaches the actual project engine once per accepted request.
-- [ ] Row and byte caps preserve bounded output, complete/partial status, and truthful totals.
-- [ ] Cursors/temp resources close before engine admission is released.
-- [ ] Files, Query, Results, and Execution Plan panels all function.
-- [ ] Plans/index labels come from real engine descriptors.
-- [ ] Empty, error, busy, truncated, and backend-unavailable states are clear.
-- [ ] Values and schemas retain correct ordering, types, duplicates, and null behavior.
-- [ ] Relevant API/engine tests and frontend build checks pass, with actual scope recorded.
-- [ ] The browser demonstration works after clean startup/reopen.
-- [ ] A teammate can follow the launch/runbook and repeat the presets.
-- [ ] Known limits and Stage 8/10 follow-up are documented.
+The original milestone was verified in
+`docs/ETAPA_09_AVANCE.md`. Its global admission and SELECT-only policy were
+replaced by the current session contract on 2026-09-25; do not apply these
+historical policies to current code. Current status is recorded below.
+
+### Current GUI and transport
+
+- [x] Existing handwritten parsing and engine algorithms are reused.
+- [x] Dedicated deterministic demo data persists across clean reopen.
+- [x] Files, Query, Results, and Execution Plan panels use real engine data/descriptors.
+- [x] Each accepted statement executes once; errors preserve request/SQL association.
+- [x] Row/byte previews are bounded, cursor cleanup is enforced, and completion/totals are truthful.
+- [x] Values, column order, and duplicate names/rows preserve engine semantics; the engine does not support NULL.
+- [x] The runbook documents actual routes, launch commands, limits, and verification scope.
 
 ### Optional writes ready, only if enabled
 
-- [ ] Explicit configuration enables writes only on disposable demo data.
-- [ ] Existing Stage 7 consistency/failure tests pass.
-- [ ] INSERT/DELETE execute once and report actual outcomes.
-- [ ] No automatic mutation retry or false rollback claim exists.
-- [ ] Scan/index agreement and clean-reopen persistence are verified.
+- [x] Explicit configuration enables writes on the dedicated demo directory; default mode refuses them.
+- [x] Stage 8 sessions preserve storage/index consistency and failure semantics.
+- [x] INSERT/DELETE execute once and distinguish provisional/committed outcomes.
+- [x] No automatic mutation replay occurs; rollback success requires confirmed ABORTED.
+- [x] Scan/index agreement and clean-reopen persistence have real-engine tests.
 
-### After Stage 8, before claiming complete integration
+### Current transaction-aware integration
 
 - [x] Transaction/session semantics are connected through the API and reflected in the UI where needed. (2026-09-25)
-- [x] Cursor lifetime, failure, and disconnect policies agree with implemented transaction semantics. (2026-09-25; a real network drop was not simulated)
+- [x] Cursor lifetime and disconnect policy follow the implemented transaction contract. (2026-09-25; a real network drop was not simulated)
 - [x] Simultaneous requests are tested under the real database concurrency mechanism. (`tests/api/test_sessions.py`, two browser tabs)
 - [x] Mandatory engine-level thread-based race/protected-execution demonstration exists (`demos/transactions_demo.py`).
 - [x] The temporary admission policy is retained or revised only after real protection is verified. (now sessionless-only)
 - [x] Stage 9 regressions still pass; Stage 10 experiments and final requirements are completed separately.
+- [x] Failed restoration is shown as `ABORT_FAILED`/quarantine; rollback success requires `ABORTED`. (2026-09-30; frontend and injected HTTP regression)
+- [ ] Formal Stage 9 closure decision and audit recorded by the team.
 
 ## 12. Suggested modules and deliverables
 
-Adapt names to the actual repository. These are implementation suggestions, not files to create regardless of need.
+These are the implemented module locations; preserve their responsibilities.
 
 | Location | Responsibility |
 |---|---|
 | api/app.py | Application lifecycle, routes, and transport configuration |
 | api/engine_service.py | Engine ownership, admission, policy, bounded result conversion |
 | api/schemas.py | Request/response/error contracts |
-| frontend/src/api/ | Typed HTTP client and response types |
+| frontend/src/api.ts, frontend/src/types.ts | Typed HTTP client and response types |
 | frontend/src/components/ | Four required panels and small shared UI components |
 | scripts/setup_demo.py | Explicit offline preparation/reset of dedicated demo fixtures |
 | tests/api/ | Real-engine HTTP integration, bounds, errors, and admission tests |
 | Existing frontend test location | UI state and response association tests |
 | docs/demo.md | Launch commands, exact presets, expected results, limitations, and rehearsal evidence |
 
-The artifact for this planning task is ETAPA_09.md. Creating it does not itself implement these modules or modify other coordination documents. Their updates are tasks for the implementation work.
+These modules exist in the repository. Verify their current contracts before changes and synchronize current coordination documents alongside code; preserve dated audits as historical evidence.
 
 ## 13. Working prompts for Codex
 
@@ -581,32 +613,31 @@ The artifact for this planning task is ETAPA_09.md. Creating it does not itself 
 
 ```text
 Read AGENTS.md, REQUIREMENTS.md, PROJECT_CONTEXT.md, PLAN.md,
-ETAPA_07.md, and ETAPA_09.md. Stage 7 is reported complete; Stage 8
-is not implemented. The user explicitly authorized the emergency Stage 9
-sequence. Preserve the handwritten parser.
+ETAPA_08.md, ETAPA_09.md, and the completed Stage 8-to-9 handoff.
+Stages 7 and 8 are closed; the Stage 9 HTTP/session integration is implemented.
+Preserve the handwritten parser and current session ownership.
 
-Complete Task 9.1, identify actual interfaces/scripts and relevant test
-results, and freeze Task 9.2's smallest demo contract. Reuse existing code.
-Do not implement transactions or reimplement engine algorithms.
+Review Tasks 9.1-9.2 against actual interfaces/scripts and relevant tests.
+Preserve the existing transport contract and reuse existing code.
+Reuse the implemented transaction layer and engine algorithms.
 ```
 
 ### First vertical increment
 
 ```text
-Implement Tasks 9.3-9.8 and the minimum portions of 9.9-9.11 needed for
-one real SELECT from the browser. Use the existing engine, dedicated
-persisted fixtures, one backend worker, exclusive engine admission,
-server-enforced read-only policy, and bounded rows/JSON bytes.
+Verify Tasks 9.3-9.11 with one real SELECT from the browser. Use the existing engine, dedicated
+persisted fixtures, one backend worker, per-session calls and sessionless
+admission, server-enforced statement policy, and bounded rows/JSON bytes.
 
-Close the result and capture detached plan/metrics before releasing
-admission. Add focused tests. Do not introduce Lark, fetchall, fake rows,
-mock production plans, transaction controls, or public deployment.
+Close the result and capture detached plan/metrics before releasing the
+session call guard. Add focused tests. Do not introduce Lark, fetchall, fake rows,
+mock production plans, a second transaction layer, or public deployment.
 ```
 
 ### Complete the required interface
 
 ```text
-Finish the four real panels, errors, and verified presets in Tasks
+Maintain the four real panels, errors, and verified presets in Tasks
 9.9-9.13. Use the same request's actual plan, result, and statistics.
 Keep preview truncation explicit and protect against stale responses.
 Prioritize a readable nested plan over graphical decoration.
@@ -616,19 +647,18 @@ Prioritize a readable nested plan over graphical decoration.
 
 ```text
 Execute Tasks 9.14-9.15 and 9.18. Verify real HTTP/browser behavior,
-full-input rejection, preview/resource limits, overlapping-request
-rejection, error recovery, clean restart, and all four panels.
-Record actual commands and evidence. Mark only the emergency milestone
-ready; this historical gate preceded Stage 8 closure and Stage 10 remains pending.
-Skip P1 until P0 passes.
+full-input rejection, preview/resource limits, compatible session overlap,
+same-session busy rejection, error recovery, clean restart, and all four panels.
+Record actual commands and evidence. Keep the completed engine/session
+integration distinct from formal Stage 9 closure and pending Stage 10 work.
 ```
 
 ### Return after the presentation
 
 ```text
-Use `docs/ETAPA_08_STAGE_9_HANDOFF.md` to connect stable request-owned sessions,
-all result variants, errors, cancellation and transaction status. Keep cursor
-lifetimes, failure guarantees, and concurrency testing explicit. Do not remove
-the temporary admission guard before protection is verified across HTTP.
-Then finish Stage 9 and proceed to Stage 10.
+Use the completed `docs/ETAPA_08_STAGE_9_HANDOFF.md` checklist to maintain
+request-owned sessions, all result variants, errors, cancellation and status.
+Keep cursor/group lifetimes, ABORTED versus ABORT_FAILED, and concurrent HTTP
+tests explicit. Preserve admission only for sessionless calls. Record formal
+Stage 9 closure separately, then proceed to Stage 10 when authorized.
 ```

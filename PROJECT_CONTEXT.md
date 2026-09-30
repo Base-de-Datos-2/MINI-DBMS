@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.7** — preserves the formal Stage 7 closure, records the
-> completed Stage 8 contract and evidence, and identifies the Stage 9 adapter handoff.
+> Context version: **4.8** — preserves formal stage closures and records the
+> implemented Stage 9 HTTP/session contract and truthful rollback outcomes.
 
 ## Project identity
 
@@ -1815,8 +1815,10 @@ The stable design is:
   an explicit incomplete partial report after cleanup;
 - Stage 9 uses explicit statement allowlists and exhaustive result dispatch.
   Read-only mode permits SELECT and both SELECT-only explanation forms;
-  write-enabled mode additionally permits INSERT, DELETE, and CREATE. Unknown
-  future kinds fail closed.
+  write-enabled mode additionally permits INSERT/DELETE and standalone GUI
+  creation/import. BEGIN/END/ROLLBACK require a client session in either mode.
+  SQL CREATE remains disabled in the legacy demo owner; its result serializer
+  is exhaustive for engine callers. Unknown future kinds fail closed.
 
 The implemented Task 7.32 boundary adds parser-independent
 `CreateTableStatement`, `ColumnDefinition`, `TypeSpecification`, and
@@ -1928,7 +1930,8 @@ families, telemetry, cancellation, and orderly shutdown use the owner lifecycle.
   wait-for graph with requesting-transaction victim selection, finite timeouts,
   and cancellation have distinct outcomes. Physical I/O and registry latches
   are separate and short; compatible readers and independent tables must
-  overlap. The emergency HTTP admission guard stays until Stage 9 integration.
+  overlap. Since the 2026-09-25 Stage 9 integration, HTTP admission serializes
+  only sessionless calls on the compatibility default session.
 - A bounded, streamed before-image of a first-written table's complete base
   and index file set supplies ordinary in-process undo. Abort restores bytes,
   lengths, runtime objects, and prepared-plan generations while locks remain
@@ -1996,8 +1999,9 @@ use short metadata latches. Runtime registry changes increment per-table
 generations. After a wait, a stable resource plan refreshes those generations
 and prepared SQL is rebound under locks before runtime access. No latch spans
 a yielded row. A deliberately standalone `SqlEngine(QueryEnvironment)` remains
-an uncoordinated lower-level path; the Stage 9 HTTP guard remains until the
-separate request/session handoff is verified.
+an uncoordinated lower-level path. The Stage 9 request/session handoff was
+verified on 2026-09-25; client sessions execute under this coordinator and
+only sessionless calls retain HTTP admission.
 
 ---
 
@@ -2028,9 +2032,9 @@ switch bypasses locking.
 Task 8.27 adds the seeded, bounded multi-session workload with exact row and
 index oracles, forced waiting, failed groups, rollback, cleanup and clean reopen.
 The Stage 8 closure gate passes 91 transaction tests, 97 API compatibility
-tests, and 2,831 complete strict tests. Task 8.28 records the unfinished HTTP/UI
-session integration in `docs/ETAPA_08_STAGE_9_HANDOFF.md`; the emergency API
-guard remains until that checklist passes.
+tests, and 2,831 complete strict tests. Task 8.28 recorded the then-pending
+HTTP/UI handoff; its checklist in `docs/ETAPA_08_STAGE_9_HANDOFF.md` was
+implemented and verified on 2026-09-25.
 
 ---
 
@@ -2073,18 +2077,17 @@ POST /api/session/cancel  cooperative cancellation of its running statement
 DELETE /api/session       close it: abort its open group, release its locks
 ```
 
-`EngineService` owns the engine: one exclusive admission guard that rejects a
-competing request with `ENGINE_BUSY` (409), SELECT-only by the parsed
-statement kind unless `--allow-writes` is given, at most `max_rows + 1` rows
-consumed, a 1 MiB response cap, and cursor cleanup before admission is
-released. Values use a lossless per-column encoding. Errors share one envelope
-with a stable code and a request ID. At the inspected Task 7.31 baseline,
-tables are declared in `api/demo.py` and created offline by
-`scripts/setup_demo.py`; CREATE/EXPLAIN API integration has not yet been
-implemented. The extension now provides permanent database ownership below the
-API, and the later Stage 9 integration must delegate to it and use the explicit allowlists
-recorded above. The admission guard is temporary server control, not Stage 8
-concurrency.
+`EngineService` owns one open database and delegates to Stage 8 sessions.
+Independent client sessions execute concurrently; one per-token call guard
+prevents reentrancy (`SESSION_BUSY`, 409), while `_admission` protects only
+sessionless calls (`ENGINE_BUSY`, 409). The handwritten AST enforces read-only
+or explicitly enabled write policy. Preview consumption is bounded to
+`max_rows + 1`, encoded responses to 1 MiB, and cursors close before returning.
+Values use lossless per-column encoding; errors share stable codes and request
+IDs. Offline fixtures in `api/demo.py`/`scripts/setup_demo.py` and GUI-created
+definitions in `gui_tables.json` coexist. EXPLAIN and ANALYZE are exposed;
+SQL CREATE remains disabled in the legacy owner, while bounded GUI creation
+supports Heap/Sequential and their compatible B+/Hash indexes.
 
 **Transaction-aware HTTP sessions (2026-09-25).** The Stage 9 handoff is
 implemented in `api/sessions.py` and `api/engine_service.py`. Stable rules:
@@ -2119,6 +2122,11 @@ implemented in `api/sessions.py` and `api/engine_service.py`. Stable rules:
   an explicit group was lost; responses never carry the data directory path;
 - a failed implicit mutation is restored by its transaction, so the API no
   longer suspends writes unless the rollback outcome is not `ABORTED`;
+- `details.group_aborted` reports that a session lost its explicit group; it
+  does not establish successful restoration. The UI claims successful undo
+  only for confirmed `ABORTED`. `ABORT_FAILED` reports failed restoration and
+  quarantine requiring inspection/repair before reopen; missing or other
+  terminal evidence remains unconfirmed;
 - stopping the server first refuses new work and cancels running statements
   (they answer `TRANSACTION_CANCELLED`), then `Database.shutdown` is bounded;
   if it cannot finish, files stay open and the service reports `unavailable`.
@@ -2139,12 +2147,13 @@ manifest-backed owner stays unchanged. The stable rules are:
   Extendible Hash; Paged Sequential accepts only the clustered B+ on its key;
 - rows are inserted through the chosen storage, then each index is built from
   that storage against a staging Catalog before live registration;
-- creation runs as standalone DDL of the default session
-  (`run_schema_change`), under the server admission guard and only in write
-  mode; CSV parsing and type inference use the standard `csv` module and
-  happen before admission;
-- imports are bounded to 8 MiB and 10,000 rows because the engine loads a few
-  milliseconds per row and per index while holding admission.
+- creation runs as standalone DDL of the selected client session, or the
+  default session without a token (`run_schema_change`), under schema X and
+  only in write mode. HTTP admission applies only to sessionless creation.
+  A client with an open group is refused before entering engine DDL, preserving
+  that group. CSV parsing/type inference use standard `csv` before execution;
+- imports are bounded to 8 MiB and 10,000 rows. Schema X protects construction
+  and publication; conflicting work waits under the engine's schema locks.
 
 The DBMS engine must be callable independently from the web layer.
 
@@ -2454,8 +2463,9 @@ Block 6 evidence is recorded in `docs/ETAPA_08_TASK_8_19_8_22.md`. Tasks
 lost-update/protected/serial comparison, with 90 focused transaction tests
 passing at that checkpoint. Tasks 8.27–8.30 close seeded stress, regression,
 the Stage 9 handoff and audit; the final strict suite passes 2,831 tests and
-evidence is in `docs/ETAPA_08_AUDIT.md`. Remaining Stage 9 integration and
-Stage 10 mean Part 1 remains incomplete. The
+evidence is in `docs/ETAPA_08_AUDIT.md`. Stage 9 HTTP/session integration was
+implemented and verified on 2026-09-25; formal Stage 9 closure and Stage 10
+experiments/delivery remain pending, so Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2481,8 +2491,13 @@ programmatic insertion. Tasks 8.19–8.22 implemented coordinated CREATE,
 protected EXPLAIN/ANALYZE, bounded transaction tracing, context-local plan I/O,
 cooperative cancellation, and finite orderly shutdown. Tasks 8.23–8.26 verify
 controlled isolation and atomicity schedules and implement the required
-unsafe/protected demonstration against a serial oracle. Bounded stress/full
-regression evidence, closure work, and Stage 9 request sessions remain pending.
+unsafe/protected demonstration against a serial oracle. Tasks 8.27–8.30 closed
+bounded stress, regression, documentation, and the Stage 8 audit on 2026-09-24.
+Stage 9 request sessions, results/errors, cancellation, and UI controls were
+implemented and verified on 2026-09-25. Formal Stage 9 closure and Stage 10
+remain pending; a real network-drop schedule has not been verified. The demo
+retains its legacy owner to support Sequential/B+/Hash fixtures; migration for
+SQL CREATE is separate from the completed session integration.
 
 Resolved in Stage 6 and recorded under *Relational operators*: the physical
 comparison subset, the adopted aggregate set, the memory-budget model and its

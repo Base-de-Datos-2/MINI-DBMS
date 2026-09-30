@@ -83,4 +83,22 @@ describe("session descriptions", () => {
     expect(failureNote({ transaction: { id: 9, state: "ABORTED" } })).toMatch(/T9 y se abortó/);
     expect(failureNote(undefined)).toBeNull();
   });
+
+  it.each([true, false])("report failed restoration even when group_aborted is %s", (groupAborted) => {
+    expect(failureNote({ group_aborted: groupAborted, transaction: { id: 7, state: "ABORT_FAILED" } })).toBe(
+      "Falló la restauración de la transacción T7: el rollback no se completó. La base quedó en cuarentena y requiere inspección o reparación antes de reabrirla.",
+    );
+  });
+
+  it.each([undefined, "ABORTING", "COMMITTED"])("require confirmed ABORTED before claiming rollback for state %s", (state) => {
+    expect(failureNote({ group_aborted: true, transaction: { id: 7, state } })).toBe(
+      "El grupo de transacción T7 terminó, pero no se confirmó que sus cambios se hayan deshecho.",
+    );
+  });
+
+  it("avoid claiming restoration when an ended group has no transaction report", () => {
+    expect(failureNote({ group_aborted: true })).toBe(
+      "El grupo de transacción terminó, pero no se confirmó que sus cambios se hayan deshecho.",
+    );
+  });
 });
