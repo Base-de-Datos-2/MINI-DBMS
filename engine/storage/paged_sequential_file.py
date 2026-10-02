@@ -27,6 +27,10 @@ from .rid import RID
 from .sequential_ordering import SequentialOrdering
 
 
+#: Marks a data page with no active record (every row lazily deleted).
+_NO_KEY = object()
+
+
 class PagedSequentialFile(OrganizationFile, Storage):
     """Keep active records physically ordered by one configured schema column.
 
@@ -186,36 +190,102 @@ class PagedSequentialFile(OrganizationFile, Storage):
             raise ValidationError("Sequential page has invalid wasted-space geometry")
         return payload_hole_bytes, free_slot_count
 
+    def _page_last_key(self, page: Page) -> RecordValue | object:
+        """Return the key of the page's last active record, or ``_NO_KEY``.
+
+        Only that one record is decoded: page order makes it the page maximum.
+        """
+
+        slots = page.slots
+        for slot_id in range(len(slots) - 1, -1, -1):
+            if slots[slot_id].is_active:
+                record = self._record_codec.deserialize(
+                    self._metadata.schema, page.read(slot_id)
+                )
+                return self._ordering.extract(record)
+        return _NO_KEY
+
+    def _first_page_index(self, key: RecordValue, *, strict: bool) -> int | None:
+        """Binary-search the first data page holding a key ``>`` (or ``>=``) ``key``.
+
+        Pages are globally ordered, so "the largest key stored at or before
+        page i" never decreases with i, even when fully deleted pages lie in
+        between. The first index where it passes ``key`` is therefore the first
+        non-empty page that does. Only O(log P) pages are decoded, plus any
+        empty pages walked over; ``None`` means no page passes ``key``.
+        """
+
+        page_ids = self._metadata.data_page_ids
+        last_keys: dict[int, RecordValue | object] = {}
+
+        def last_key_at_or_before(index: int) -> RecordValue | object:
+            while index >= 0:
+                if index not in last_keys:
+                    last_keys[index] = self._page_last_key(
+                        self._manager.read_page(page_ids[index])
+                    )
+                if last_keys[index] is not _NO_KEY:
+                    return last_keys[index]
+                index -= 1
+            return _NO_KEY
+
+        def passes(index: int) -> bool:
+            last = last_key_at_or_before(index)
+            if last is _NO_KEY:
+                return False
+            comparison = self._ordering.compare(last, key)
+            return comparison > 0 if strict else comparison >= 0
+
+        low, high = 0, len(page_ids)
+        while low < high:
+            middle = (low + high) // 2
+            if passes(middle):
+                high = middle
+            else:
+                low = middle + 1
+        return low if low < len(page_ids) else None
+
     def _find_insertion_target(
         self,
         key: RecordValue,
     ) -> tuple[Page, list[tuple[RecordValue, bytes]], bool]:
-        target_page = None
-        target_entries: list[tuple[RecordValue, bytes]] = []
-        duplicate_found = False
-        previous = None
-        has_previous = False
+        """Return the page that receives ``key``, its entries, and duplicates.
 
-        for page_id in self._metadata.data_page_ids:
-            page = self._manager.read_page(page_id)
-            entries = self._page_entries(page)
-            for existing_key, _ in entries:
-                if has_previous and self._ordering.compare(previous, existing_key) > 0:
-                    raise ValidationError("Sequential data pages are not ordered")
-                comparison = self._ordering.compare(existing_key, key)
-                if comparison == 0:
-                    duplicate_found = True
-                    if not self._metadata.allow_duplicate_keys:
-                        raise DuplicateError(f"Duplicate sequential key: {key!r}")
-                if comparison > 0:
-                    return page, entries, duplicate_found
-                previous = existing_key
-                has_previous = True
-            target_page, target_entries = page, entries
+        The target is the first page holding a key greater than ``key``, or
+        the last page when none does; the new record then goes after every
+        equal key (stable duplicates). The page is located by binary search
+        over the ordered pages instead of decoding the file from its start.
+        Global order is still validated on open and by every full scan.
+        """
 
-        if target_page is None:
+        page_ids = self._metadata.data_page_ids
+        if not page_ids:
             raise ValidationError("Sequential metadata references no insertion page")
-        return target_page, target_entries, duplicate_found
+        index = self._first_page_index(key, strict=True)
+        target_index = len(page_ids) - 1 if index is None else index
+        target_page = self._manager.read_page(page_ids[target_index])
+        entries = self._page_entries(target_page)
+
+        # An equal key is the largest key <= ``key``: it sits in the target page
+        # before its first larger key, or ends the nearest non-empty page before.
+        duplicate_found = any(
+            self._ordering.compare(existing_key, key) == 0
+            for existing_key, _ in entries
+        )
+        previous_index = target_index - 1
+        while not duplicate_found and previous_index >= 0:
+            last = self._page_last_key(
+                self._manager.read_page(page_ids[previous_index])
+            )
+            if last is not _NO_KEY:
+                if self._ordering.compare(last, key) > 0:
+                    raise ValidationError("Sequential data pages are not ordered")
+                duplicate_found = self._ordering.compare(last, key) == 0
+                break
+            previous_index -= 1
+        if duplicate_found and not self._metadata.allow_duplicate_keys:
+            raise DuplicateError(f"Duplicate sequential key: {key!r}")
+        return target_page, entries, duplicate_found
 
     @staticmethod
     def _partition_items(
@@ -374,21 +444,42 @@ class PagedSequentialFile(OrganizationFile, Storage):
         self,
         key: RecordValue,
     ) -> Generator[tuple[RID, Record], None, None]:
+        """Yield every record whose key equals ``key``, in physical order.
+
+        The first page that may hold ``key`` is found by binary search over
+        the ordered pages; reading then stops at the first larger key.
+        """
+
         self._require_open()
         checked_key = self._ordering.validate_key(key)
 
         def iterator() -> Generator[tuple[RID, Record], None, None]:
             self._require_open()
-            with closing(self.scan()) as rows:
-                for rid, record in rows:
-                    comparison = self._ordering.compare(
-                        self._ordering.extract(record),
-                        checked_key,
+            start_index = self._first_page_index(checked_key, strict=False)
+            if start_index is None:
+                return
+            page_ids = self._metadata.data_page_ids
+            previous = None
+            has_previous = False
+            for page_id in page_ids[start_index:]:
+                self._require_open()
+                page = self._manager.read_page(page_id)
+                for slot_id, slot in enumerate(page.slots):
+                    if not slot.is_active:
+                        continue
+                    record = self._record_codec.deserialize(
+                        self._metadata.schema, page.read(slot_id)
                     )
+                    current = self._ordering.extract(record)
+                    if has_previous and self._ordering.compare(previous, current) > 0:
+                        raise ValidationError("Sequential data pages are not ordered")
+                    comparison = self._ordering.compare(current, checked_key)
                     if comparison == 0:
-                        yield rid, record
+                        yield RID(page_id, slot_id), record
                     elif comparison > 0:
                         return
+                    previous = current
+                    has_previous = True
 
         return iterator()
 

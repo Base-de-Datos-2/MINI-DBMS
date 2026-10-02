@@ -522,6 +522,15 @@ metadata leave the buffer unchanged. Updates are assembled and validated on a
 bounded page-sized copy before replacing the current buffer. This guarantees
 local error atomicity, not transactions, thread safety or crash recovery.
 
+Validation reuse (Stage 10 Task 10.2, approved 2026-10-02): the full
+validation is a pure function of the 4096 buffer bytes, so a `Page` keeps the
+exact bytes and layout of the last state that passed it and reuses that layout
+only while the current buffer is byte-for-byte equal. Every state is still
+validated once before anything is exposed or mutated, including raw in-place
+changes to the private buffer. Before this, every `read`/`insert`/`delete`/
+`header`/`slots` call re-validated all slots, so walking a page cost O(k²); no
+format, API or algorithm changed.
+
 Error mapping reuses the existing domain vocabulary:
 
 - wrong Python argument types: `InvalidTypeError`;
@@ -857,10 +866,19 @@ the in-memory `Catalog` or its table/index registry.
   are implemented.
 - Active scan reads one page at a time and checks the nondecreasing invariant
   while decoding through `RecordCodec`. It skips FREE slots and yields physical
-  `(RID, Record)` pairs. Exact-key search uses that ordered stream and terminates
-  when it reaches a greater key; it is intentionally not an index.
-- Ordered insertion locates the first page containing a greater key, inserts
-  after all existing equals, and rebuilds only the target page when it fits. If
+  `(RID, Record)` pairs. Exact-key search starts at the first page that may
+  hold the key, found by binary search over the file's own ordered pages, and
+  terminates when it reaches a greater key; it is intentionally not an index
+  (no auxiliary structure exists).
+- Ordered insertion locates the first page containing a greater key (or the
+  last page), inserts after all existing equals, and rebuilds only the target
+  page when it fits. Since Stage 10 Task 10.2b (approved 2026-10-02) that page
+  is located by binary search on "the largest key stored at or before page i",
+  which never decreases even across fully deleted pages, decoding only page
+  boundary keys: O(log P) page reads instead of decoding the file from its
+  start. Duplicate rejection checks the target page and the nearest non-empty
+  page before it. Global order is validated on open and by every full scan,
+  no longer by each insertion. If
   needed, it partitions the target into multiple ordered pages, appends the
   required capacity and shifts the physical suffix right from the end.
   `Page.clone_with_page_id` changes only the page identity while preserving
@@ -2270,7 +2288,7 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 Latest formally completed stage:
 
-> **Stage 8 Tasks 8.1–8.30 — Transactions and Concurrency**
+> **Stage 9 Tasks 9.1–9.18 — API and Frontend** (closed 2026-10-01; `docs/ETAPA_09_AUDIT.md`)
 
 Overall Part 1 roadmap:
 
@@ -2278,11 +2296,11 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 9 — transaction-aware HTTP/UI integration implemented 2026-09-25; formal closure pending**
+> **Stage 10 — Experiments, Integration, and Delivery** (plan: `PART_01/ETAPA_10.md`; Task 10.1 inspection done 2026-10-01)
 
 Current implementation guide:
 
-> `ETAPA_09.md` plus `docs/ETAPA_08_STAGE_9_HANDOFF.md`
+> `PART_01/ETAPA_10.md`
 
 Implemented so far:
 
@@ -2464,8 +2482,9 @@ lost-update/protected/serial comparison, with 90 focused transaction tests
 passing at that checkpoint. Tasks 8.27–8.30 close seeded stress, regression,
 the Stage 9 handoff and audit; the final strict suite passes 2,831 tests and
 evidence is in `docs/ETAPA_08_AUDIT.md`. Stage 9 HTTP/session integration was
-implemented and verified on 2026-09-25; formal Stage 9 closure and Stage 10
-experiments/delivery remain pending, so Part 1 remains incomplete. The
+implemented and verified on 2026-09-25 and Stage 9 was formally closed on
+2026-10-01 (`docs/ETAPA_09_AUDIT.md`); Stage 10 experiments/delivery remain
+pending, so Part 1 remains incomplete. The
 [2026-09-13 transversal review](docs/ETAPA_06_REVALIDACION_2026_09_13.md)
 revalidated the 31 tasks and 59 criteria after resource, integrity,
 aggregation, join-provenance and observability fixes; its strict suite passes
@@ -2494,8 +2513,9 @@ controlled isolation and atomicity schedules and implement the required
 unsafe/protected demonstration against a serial oracle. Tasks 8.27–8.30 closed
 bounded stress, regression, documentation, and the Stage 8 audit on 2026-09-24.
 Stage 9 request sessions, results/errors, cancellation, and UI controls were
-implemented and verified on 2026-09-25. Formal Stage 9 closure and Stage 10
-remain pending; a real network-drop schedule has not been verified. The demo
+implemented and verified on 2026-09-25; Stage 9 was formally closed on
+2026-10-01. Stage 10 remains pending; a real network-drop schedule has not been
+verified. The demo
 retains its legacy owner to support Sequential/B+/Hash fixtures; migration for
 SQL CREATE is separate from the completed session integration.
 

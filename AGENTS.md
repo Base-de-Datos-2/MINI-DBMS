@@ -317,11 +317,11 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest formally completed stage:
 
-> **Stage 8 Tasks 8.1–8.30 — Transactions and Concurrency**
+> **Stage 9 Tasks 9.1–9.18 — API and Frontend** (closed 2026-10-01; `docs/ETAPA_09_AUDIT.md`)
 
 Current implementation block:
 
-> **Stage 9 — transaction-aware HTTP/UI integration implemented 2026-09-25; formal closure pending**
+> **Stage 10 — Experiments, Integration, and Delivery** (plan: `PART_01/ETAPA_10.md`; Task 10.1 inspection done 2026-10-01)
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -421,12 +421,15 @@ opaque token to a Stage 8 `SqlSession`, BEGIN/END/ROLLBACK group separate
 requests, and session requests wait only in the engine lock manager. The old
 admission guard now serializes only sessionless calls on the shared default
 session; do not widen it again. Evidence is in
-`docs/ETAPA_09_REVISION_2026_09_25.md`. The SQL parser is handwritten by team decision; do not introduce
+`docs/ETAPA_09_REVISION_2026_09_25.md`. **Stage 9 was formally closed on
+2026-10-01**: all Section 11 and handoff checklist items hold, the complete
+strict suite passes 2,889 tests, and two real-browser runs pass; evidence is in
+`docs/ETAPA_09_AUDIT.md`. Stage 10 starts from `PART_01/ETAPA_10.md`. The SQL parser is handwritten by team decision; do not introduce
 Lark or another parser generator.
 
 Latest completed stage specification:
 
-> `ETAPA_08.md`
+> `PART_01/ETAPA_09.md`
 
 Stage 1 includes, at the planning level:
 
