@@ -54,7 +54,8 @@ Therefore the implementation should remain modular from the beginning.
 
 ## Part 1 — Relational Database (Tables and SQL)
 
-Part 1 is the current implementation target.
+Part 1 remains a delivery obligation. Part 2 E1 preparation was authorized
+on 2026-10-03; the spatial requirements are transcribed in section 15.
 
 ---
 
@@ -457,3 +458,41 @@ Part 1 should not be considered complete unless all of the following are demonst
 - [ ] graphs
 - [ ] summary comparison table
 - [ ] conclusions
+
+---
+
+# 15. Part 2 — Spatial Database (Coordinates and Maps)
+
+Source: assignment §2.2, checked against the tracked `Proyecto_Final (3).docx`
+on 2026-10-03. The PDF cited by older documents is not present in this checkout.
+Implementation choices and preparation status belong in the Part 2 plan/context.
+
+## 15.1 Implementation
+
+- Own R-Tree for geographic 2D points (latitude, longitude).
+- Range/radius queries, k nearest neighbors and intersection with polygons.
+- Both Euclidean and geodesic/Haversine distance metrics.
+
+## 15.2 Visualization and SQL
+
+An interactive map panel displays stored points and highlights spatial results.
+The SQL parser must support the assignment's examples:
+
+```sql
+SELECT * FROM tiendas WHERE distancia(ubicacion, POINT(-12.0464, -77.0428)) < 5000;
+```
+
+```sql
+SELECT * FROM restaurantes ORDER BY distancia(ubicacion, mi_ubicacion) LIMIT 10;
+```
+
+## 15.3 Experiments
+
+Compare sequential search, the own R-Tree and PostgreSQL GiST for radius
+1/5/10 km and k=10/50/100 on 1,000/10,000/100,000 points. Measure construction
+time, mean time over 100 queries, memory and disk space. Present comparison
+graphs and a table explaining when each technique is appropriate.
+
+The assignment does not prescribe an R-Tree page layout, persistent POINT DDL,
+two database-owner integrations or a second complete metric matrix. These are
+implementation decisions, not additional academic requirements.

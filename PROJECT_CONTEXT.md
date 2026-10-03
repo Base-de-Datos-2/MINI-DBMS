@@ -86,7 +86,10 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The current goal is to complete Part 1 before expanding the engine with spatial, text or multimedia capabilities.
+Part 1 Stage 10 remains open. On 2026-10-03 the user authorized Part 2 E1
+and then E2, using `PART_02/PLAN_PARTE_02.md`. The spatial engine now supports
+typed radius/k-NN/polygon queries. E3–E5 remain planned, including spatial
+SQL/HTTP/map and the full experimental matrix.
 
 Part 1 must provide:
 
@@ -105,6 +108,61 @@ Part 1 must provide:
 - experimental comparisons.
 
 ---
+
+## Part 2 E1/E2 coordinate and integration decisions
+
+The selected owner is `api.database.Database`, which already serves the
+frontend and supports Heap/FLOAT and GUI-registry reopen. Physical points
+use two FLOAT columns and stable live Heap RIDs. `spatial_tables.json` v1
+persists an explicit logical location/identity/coordinate mapping, validated
+against the reopened table schema. It does not declare a ready spatial index.
+The existing demo and managed database formats remain unchanged.
+
+The local domain is latitude [-12.30, -11.80], longitude [-77.25, -76.75].
+SQL point order is latitude/longitude; external map/PostGIS adapters reverse
+it explicitly. The default is Haversine/metres with radius
+6371008.771415059 m; Euclidean uses the fixed local-plane origin
+(-12.0464, -77.0428). Polygons are simple local rings without holes, with
+boundary included. k-NN ties use distance then stable unique integer ID;
+duplicate coordinates retain distinct rows. E2 implements both metrics and
+exact polygon membership. Euclidean is a local approximation in metres,
+not another exact geodesic metric.
+
+Offline setup prepares separate `tiendas`/`restaurantes` fixtures. The
+100 seeded query centers and 1k/10k/100k CSV inputs are reproducible with
+seed 20261003 and SHA-256 checksums. The external comparator is PostgreSQL
+17.5 / PostGIS 3.5.2 in Docker, with a separate persistent volume and host
+port 127.0.0.1:5433. Its preparer uses container-local psql; native psql/pgpass
+remains an alternative. Exact 1k/10k/100k inputs, actual radius/k-NN GiST
+plans and container-restart persistence were verified in E1.5. The actual
+spherical radius is 6371008.771414968 m (within 1e-6 m of the adopted value).
+Part 1 100k experiments have started under Windows, using separate evidence
+from the historical WSL/Linux timings; completion and analysis remain open.
+E2 uses an original in-memory R-Tree with quadratic splits, capacity 16 and
+minimum non-root occupancy 8 (configurable capacity 4–64). Leaves store
+unique ID, stable live Heap RID and coordinates. MBRs use latitude/longitude;
+Euclidean pruning measures their distance in the fixed local plane, while
+Haversine pruning uses the conservative latitude-gap bound in metres.
+Exact distances/membership filter candidates; k-NN explores equal bounds
+before resolving ties. Search counters report actual traversal and Heap reads.
+
+Each mapping derives `__spatial_<table>.rtree`. The versioned JSON tree stores
+nodes, associations, conventions, mapping and SHA-256; a flushed/fsynced
+temporary file replaces the previous file atomically. Missing indexes build
+once from Heap on open; corrupt or stale existing indexes are rejected.
+Reopen checks occupancy, coverage, uniform leaf depth, uniqueness and all
+Heap associations. This provides clean restart, not paged indexing or WAL.
+
+`Database.spatial_radius`, `spatial_knn` and `spatial_polygon` run under the
+existing SqlSession S locks, cancellation and implicit/explicit transactions;
+`use_index=False` selects the real Heap exhaustive baseline. SQL INSERT
+validates spatial identity/coordinates before mutation and maintains the tree.
+DELETE rebuilds it once per affected statement. The derived file is an
+auxiliary TableFiles resource included in existing physical undo. Rollback
+restores base/scalar/spatial files and reopens the current cached tree object.
+Existing multi-file crash-atomicity limits still apply. Spatial expressions
+are not yet accepted by the SQL parser; E3 provides the application workflow.
+See `docs/spatial.md` for setup, typed examples and verification limits.
 
 ## Current recommended stack
 

@@ -1,0 +1,270 @@
+{
+  "purpose": "E2 core smoke, not E4 measurements or a 100k Heap load",
+  "rid_source": "synthetic stable test associations",
+  "size": 100000,
+  "structure": {
+    "height": 5,
+    "nodes": 9738,
+    "leaves": 8874,
+    "entries": 100000
+  },
+  "file_bytes": 4914724,
+  "build_seconds_diagnostic": 514.6441158000089,
+  "elapsed_seconds_diagnostic": 530.8731468000042,
+  "save_load_verified": true,
+  "polygon_verified": true,
+  "cases": [
+    {
+      "metric": "haversine",
+      "query_id": 1,
+      "k": 10,
+      "candidates": 4523,
+      "visited_nodes": 515
+    },
+    {
+      "metric": "haversine",
+      "query_id": 1,
+      "k": 50,
+      "candidates": 5893,
+      "visited_nodes": 652
+    },
+    {
+      "metric": "haversine",
+      "query_id": 1,
+      "k": 100,
+      "candidates": 7004,
+      "visited_nodes": 754
+    },
+    {
+      "metric": "haversine",
+      "query_id": 1,
+      "radius": 1000,
+      "candidates": 6792,
+      "visited_nodes": 735
+    },
+    {
+      "metric": "haversine",
+      "query_id": 1,
+      "radius": 5000,
+      "candidates": 20355,
+      "visited_nodes": 2027
+    },
+    {
+      "metric": "haversine",
+      "query_id": 1,
+      "radius": 10000,
+      "candidates": 36764,
+      "visited_nodes": 3615
+    },
+    {
+      "metric": "haversine",
+      "query_id": 2,
+      "k": 10,
+      "candidates": 3287,
+      "visited_nodes": 374
+    },
+    {
+      "metric": "haversine",
+      "query_id": 2,
+      "k": 50,
+      "candidates": 4654,
+      "visited_nodes": 520
+    },
+    {
+      "metric": "haversine",
+      "query_id": 2,
+      "k": 100,
+      "candidates": 5633,
+      "visited_nodes": 617
+    },
+    {
+      "metric": "haversine",
+      "query_id": 2,
+      "radius": 1000,
+      "candidates": 6154,
+      "visited_nodes": 667
+    },
+    {
+      "metric": "haversine",
+      "query_id": 2,
+      "radius": 5000,
+      "candidates": 20616,
+      "visited_nodes": 2074
+    },
+    {
+      "metric": "haversine",
+      "query_id": 2,
+      "radius": 10000,
+      "candidates": 39134,
+      "visited_nodes": 3898
+    },
+    {
+      "metric": "haversine",
+      "query_id": 3,
+      "k": 10,
+      "candidates": 3368,
+      "visited_nodes": 384
+    },
+    {
+      "metric": "haversine",
+      "query_id": 3,
+      "k": 50,
+      "candidates": 4628,
+      "visited_nodes": 507
+    },
+    {
+      "metric": "haversine",
+      "query_id": 3,
+      "k": 100,
+      "candidates": 5470,
+      "visited_nodes": 593
+    },
+    {
+      "metric": "haversine",
+      "query_id": 3,
+      "radius": 1000,
+      "candidates": 5726,
+      "visited_nodes": 619
+    },
+    {
+      "metric": "haversine",
+      "query_id": 3,
+      "radius": 5000,
+      "candidates": 20443,
+      "visited_nodes": 2052
+    },
+    {
+      "metric": "haversine",
+      "query_id": 3,
+      "radius": 10000,
+      "candidates": 36955,
+      "visited_nodes": 3648
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 1,
+      "k": 10,
+      "candidates": 97,
+      "visited_nodes": 25
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 1,
+      "k": 50,
+      "candidates": 219,
+      "visited_nodes": 39
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 1,
+      "k": 100,
+      "candidates": 351,
+      "visited_nodes": 51
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 1,
+      "radius": 1000,
+      "candidates": 311,
+      "visited_nodes": 47
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 1,
+      "radius": 5000,
+      "candidates": 3464,
+      "visited_nodes": 368
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 1,
+      "radius": 10000,
+      "candidates": 12083,
+      "visited_nodes": 1217
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 2,
+      "k": 10,
+      "candidates": 70,
+      "visited_nodes": 22
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 2,
+      "k": 50,
+      "candidates": 256,
+      "visited_nodes": 43
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 2,
+      "k": 100,
+      "candidates": 308,
+      "visited_nodes": 49
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 2,
+      "radius": 1000,
+      "candidates": 387,
+      "visited_nodes": 57
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 2,
+      "radius": 5000,
+      "candidates": 3999,
+      "visited_nodes": 432
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 2,
+      "radius": 10000,
+      "candidates": 13119,
+      "visited_nodes": 1368
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 3,
+      "k": 10,
+      "candidates": 106,
+      "visited_nodes": 26
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 3,
+      "k": 50,
+      "candidates": 258,
+      "visited_nodes": 44
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 3,
+      "k": 100,
+      "candidates": 364,
+      "visited_nodes": 54
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 3,
+      "radius": 1000,
+      "candidates": 380,
+      "visited_nodes": 56
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 3,
+      "radius": 5000,
+      "candidates": 3727,
+      "visited_nodes": 406
+    },
+    {
+      "metric": "euclidean",
+      "query_id": 3,
+      "radius": 10000,
+      "candidates": 12482,
+      "visited_nodes": 1274
+    }
+  ]
+}

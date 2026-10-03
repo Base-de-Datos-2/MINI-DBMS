@@ -1053,3 +1053,18 @@ Las **Etapas 1–9 están completas y auditadas**. La Etapa 9 integra desde el
 controles transaccionales, cancelación/estado y concurrencia verificada. El
 guard global se redujo a las peticiones sin sesión. Quedan los experimentos y
 la entrega de la Etapa 10 ([plan](PART_01/ETAPA_10.md)).
+
+
+## Parte 02 E1/E2 Motor espacial
+
+La muestra se prepara con `python scripts/setup_spatial.py` y se abre con
+`python -m api --spatial`. E2 implementa R-Tree propio, búsqueda secuencial,
+radio, k-NN y polígonos, métricas Haversine/Euclidiana, persistencia y
+mantenimiento con INSERT/DELETE/rollback. Las consultas espaciales están
+disponibles mediante métodos Python del propietario `Database`.
+
+`python scripts/setup_spatial.py --size 1000` prepara una tabla experimental
+offline; acepta también 10000 y 100000 en directorios nuevos. El generador
+`python -m benchmarks.spatial` exporta las entradas para PostgreSQL/GiST.
+SQL espacial, API espacial y mapa corresponden a E3. Consulte los ejemplos,
+comandos y límites en [la guía](docs/spatial.md).

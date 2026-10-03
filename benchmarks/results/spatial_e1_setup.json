@@ -1,0 +1,66 @@
+{
+  "recorded_at": "2026-10-03T16:56:17-05:00",
+  "purpose": "E1 preparation and diagnostic plans; not E4 performance measurements",
+  "container": "minidbms-postgis",
+  "host": "127.0.0.1",
+  "port": 5433,
+  "volume": "minidbms-spatial-e1-pgdata",
+  "image": "postgis/postgis:17-3.5",
+  "image_digest": "sha256:01a6a70e41e6c4467c8f55f6063555ed72db2d6662cd0d571040d42eadaeb6f6",
+  "seed": 20261003,
+  "input_sha256": {
+    "points_1000.csv": "a0c6688b99086c180c821bd53fb551b89b26f9345140d57eb12f66f878086b29",
+    "points_10000.csv": "6e0f36725f57aaa6ab922f62239ec47d81c16f3360c926c09e6e02323364a8f9",
+    "points_100000.csv": "28fdc6d3ef5258973cd8f2cc91ca30c0ed8c1909e1bc84c42553c6a4160c1d96",
+    "queries.csv": "ef2f91c0e11caf4633f0642334e8977c4fd4a4da9a6b9aa3aff8e25499580bf2",
+    "fixture.csv": "5cdf28c7475e6954f37d7410178cd580a4fddf9446edf522274ba3690313df38"
+  },
+  "datasets": [
+    {
+      "size": 1000,
+      "database": "minidbms_spatial",
+      "query_centers": 100,
+      "identical_points_and_queries": true,
+      "coordinate_axis_errors": 0,
+      "gist_valid": true,
+      "radius_uses_gist": true,
+      "knn_uses_gist": true,
+      "spherical_radius_metres": 6371008.771414968,
+      "radius_difference_metres": 9.12696123123169E-08,
+      "postgresql": "17.5 (Debian 17.5-1.pgdg110+1)",
+      "postgis": "3.5.2",
+      "log": "benchmarks/results/logs/spatial-e1-postgres-1000.log"
+    },
+    {
+      "size": 10000,
+      "database": "minidbms_spatial_10000",
+      "query_centers": 100,
+      "identical_points_and_queries": true,
+      "coordinate_axis_errors": 0,
+      "gist_valid": true,
+      "radius_uses_gist": true,
+      "knn_uses_gist": true,
+      "spherical_radius_metres": 6371008.771414968,
+      "radius_difference_metres": 9.12696123123169E-08,
+      "postgresql": "17.5 (Debian 17.5-1.pgdg110+1)",
+      "postgis": "3.5.2",
+      "log": "benchmarks/results/logs/spatial-e1-postgres-10000.log"
+    },
+    {
+      "size": 100000,
+      "database": "minidbms_spatial_100000",
+      "query_centers": 100,
+      "identical_points_and_queries": true,
+      "coordinate_axis_errors": 0,
+      "gist_valid": true,
+      "radius_uses_gist": true,
+      "knn_uses_gist": true,
+      "spherical_radius_metres": 6371008.771414968,
+      "radius_difference_metres": 9.12696123123169E-08,
+      "postgresql": "17.5 (Debian 17.5-1.pgdg110+1)",
+      "postgis": "3.5.2",
+      "log": "benchmarks/results/logs/spatial-e1-postgres-100000.log"
+    }
+  ],
+  "persistence_after_container_restart_verified": true
+}
