@@ -878,7 +878,11 @@ the in-memory `Catalog` or its table/index registry.
   boundary keys: O(log P) page reads instead of decoding the file from its
   start. Duplicate rejection checks the target page and the nearest non-empty
   page before it. Global order is validated on open and by every full scan,
-  no longer by each insertion. If
+  no longer by each insertion. Since Task 10.2c (approved 2026-10-02) a
+  page that must split keeps the minimum page count of a greedy fill but
+  spreads its items over those pages by cumulative bytes (balanced halves for
+  a two-way split); an append after the last key of the last page keeps the
+  full greedy fill (rightmost-split rule), so ascending loads stay packed. If
   needed, it partitions the target into multiple ordered pages, appends the
   required capacity and shifts the physical suffix right from the end.
   `Page.clone_with_page_id` changes only the page identity while preserving
@@ -1139,6 +1143,13 @@ the index layer, while `BPlusHeaderPageIO` and `BPlusNodePageIO` delegate all
 allocation and physical transfer to `PageManager`. A metadata or node frame
 always occupies exactly one 4096-byte physical page.
 
+Decoded-node reuse (Stage 10 Task 10.2d, approved 2026-10-02): nodes are
+immutable and decoding is a pure function of the payload, so `BPlusNodePageIO`
+reuses a decoded node (up to 1,024 per open file) while its page payload is
+byte-for-byte unchanged. Every access still reads and validates the page, so
+I/O counters and corruption detection are unchanged. `HashBucketPageIO` and
+`HashDirectoryPageIO` apply the same rule to buckets and directory pages.
+
 `BPlusTree` owns one manager and supports exclusive `create`, validating
 `open`, `flush`, idempotent `close`, and context management. The only adopted
 empty representation is a null root/first-leaf with height and entry count zero;
@@ -1219,6 +1230,10 @@ starts a fresh counter session after replacement.
 `UnclusteredBPlusIndex` binds this shared core to a borrowed `HeapFile` without
 changing Heap order. Contract methods expose key-to-RID access, while
 `search_records()`/`range_records()` resolve through `HeapFile.read()`.
+`BPlusTree.range_entries()` yields `(leaf key, RID)` pairs and `range_search()`
+wraps it; since Task 10.2d `range_records()` (clustered and unclustered)
+checks that each resolved record still has its leaf entry's key instead of a
+second full descent per row, preserving the stale-RID error.
 `insert_record()` and `delete_record()` provide the current deterministic,
 best-effort coordinated path. It removes an index association before making a
 Heap slot reusable and attempts to restore the association if storage deletion
