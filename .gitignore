@@ -22,5 +22,5 @@ Thumbs.db
 # Future frontend dependencies and generated datasets/results
 node_modules/
 /data/generated/
-/benchmarks/results/
+/benchmarks/results/scratch/
 /tmp/
