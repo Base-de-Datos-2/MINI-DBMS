@@ -26,12 +26,14 @@ class Page:
     This class is not Storage: it handles bytes/slot ids, not Records/RIDs.
     """
 
-    __slots__ = ("_data",)
+    __slots__ = ("_data", "_validated")
 
     def __init__(self, page_id: int) -> None:
         header = PageHeader(page_id)
         self._data = bytearray(PAGE_SIZE)
         self._data[:PAGE_HEADER_SIZE] = header.serialize()
+        # (exact bytes, layout) of the last buffer state that passed _inspect.
+        self._validated: tuple[bytes, tuple[PageHeader, tuple[SlotEntry, ...]]] | None = None
 
     @staticmethod
     def _inspect(data: bytes | bytearray) -> tuple[PageHeader, tuple[SlotEntry, ...]]:
@@ -52,13 +54,34 @@ class Page:
         )
         return header, slots
 
+    def _layout(self) -> tuple[PageHeader, tuple[SlotEntry, ...]]:
+        """Return the validated layout of the current buffer.
+
+        The full validation is a pure function of the buffer bytes, so its
+        result is reused while the bytes are exactly those last validated. Any
+        change, through the public methods or not, fails the byte comparison
+        and is validated again before anything is exposed or mutated.
+        """
+        cached = self._validated
+        if cached is not None and self._data == cached[0]:
+            return cached[1]
+        layout = self._inspect(self._data)
+        self._validated = (bytes(self._data), layout)
+        return layout
+
+    def _replace_buffer(self, updated: bytearray) -> None:
+        """Install an already-built buffer only after it validates."""
+        layout = self._inspect(updated)
+        self._data = updated
+        self._validated = (bytes(updated), layout)
+
     @property
     def header(self) -> PageHeader:
-        return self._inspect(self._data)[0]
+        return self._layout()[0]
 
     @property
     def slots(self) -> tuple[SlotEntry, ...]:
-        return self._inspect(self._data)[1]
+        return self._layout()[1]
 
     @property
     def page_id(self) -> int:
@@ -88,8 +111,7 @@ class Page:
         updated[start:start + SLOT_SIZE] = slot.serialize()
         if payload is not None:
             updated[slot.offset:slot.offset + slot.length] = payload
-        self._inspect(updated)
-        self._data = updated
+        self._replace_buffer(updated)
 
     def insert(self, payload: bytes) -> int:
         """Insert opaque bytes, returning a slot id; capacity failures are ValueError.
@@ -99,7 +121,7 @@ class Page:
         Empty payloads are active records and still need a directory entry.
         """
         require_bytes(payload)
-        header, slots = self._inspect(self._data)
+        header, slots = self._layout()
         if len(payload) > MAX_RECORD_SIZE:
             raise ValidationError(f"Record payload exceeds page capacity of {MAX_RECORD_SIZE} bytes")
 
@@ -128,7 +150,7 @@ class Page:
     def _active_slot(self, slot_id: int) -> tuple[PageHeader, SlotEntry]:
         if type(slot_id) is not int:
             raise InvalidTypeError("slot_id must be a built-in int")
-        header, slots = self._inspect(self._data)
+        header, slots = self._layout()
         if not 0 <= slot_id < len(slots):
             raise InvalidReferenceError(f"Unknown slot_id: {slot_id}")
         slot = slots[slot_id]
@@ -157,7 +179,7 @@ class Page:
 
     def serialize(self) -> bytes:
         """Return the entire validated PAGE_SIZE frame, including unused bytes."""
-        self._inspect(self._data)
+        self._layout()
         return bytes(self._data)
 
     def clone_with_page_id(self, page_id: int) -> "Page":
@@ -168,7 +190,7 @@ class Page:
         page_id remain unchanged.
         """
 
-        header, _ = self._inspect(self._data)
+        header, _ = self._layout()
         updated = self._data.copy()
         updated[:PAGE_HEADER_SIZE] = replace(header, page_id=page_id).serialize()
         self._inspect(updated)
@@ -182,7 +204,7 @@ class Page:
         it is deterministic, not a secure erase of any existing disk contents.
         Validation failure leaves the original buffer unchanged.
         """
-        header, slots = self._inspect(self._data)
+        header, slots = self._layout()
         updated = bytearray(PAGE_SIZE)
         free_end = PAGE_SIZE
         for slot_id, slot in enumerate(slots):
@@ -196,14 +218,14 @@ class Page:
             start = PAGE_HEADER_SIZE + slot_id * SLOT_SIZE
             updated[start:start + SLOT_SIZE] = slot.serialize()
         updated[:PAGE_HEADER_SIZE] = replace(header, free_space_end=free_end).serialize()
-        self._inspect(updated)
-        self._data = updated
+        self._replace_buffer(updated)
 
     @classmethod
     def deserialize(cls, payload: bytes) -> "Page":
         """Reconstruct an independent, fully validated page, preserving all bytes."""
         validate_page_buffer(payload)
-        header, _ = cls._inspect(payload)
-        page = cls(header.page_id)
+        layout = cls._inspect(payload)
+        page = cls(layout[0].page_id)
         page._data = bytearray(payload)
+        page._validated = (bytes(payload), layout)
         return page

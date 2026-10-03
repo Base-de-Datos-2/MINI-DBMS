@@ -124,7 +124,7 @@ se ejecutan concurrentemente bajo los locks de la Etapa 8. El guard de admisión
 solo serializa peticiones sin sesión. Por defecto permite SELECT, EXPLAIN y
 EXPLAIN ANALYZE; los controles transaccionales requieren sesión en ambos modos.
 `--allow-writes` habilita INSERT/DELETE y la creación/importación del panel
-Archivos. El cierre formal de la Etapa 9 sigue pendiente. Consulta el
+Archivos. **La Etapa 9 se cerró formalmente el 2026-10-01** ([auditoría](docs/ETAPA_09_AUDIT.md)). Consulta el
 [runbook de la demo](docs/demo.md) y el
 [informe de avance](docs/ETAPA_09_AVANCE.md).
 
@@ -1044,12 +1044,12 @@ del frontend porque este bloque no modificó archivos de `frontend/`.
 - [Handoff de la Etapa 8 a la 9](docs/ETAPA_08_STAGE_9_HANDOFF.md): sesiones
   HTTP, resultados, errores, cancelación y condiciones para retirar el guard.
 - [ETAPA_09.md](ETAPA_09.md): contrato de la API/frontend con integración
-  transaccional implementada; cierre formal pendiente.
+  transaccional implementada; cerrada el 2026-10-01.
 - [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-Las **Etapas 1–8 están completas y auditadas**. La Etapa 9 integra desde el
+Las **Etapas 1–9 están completas y auditadas**. La Etapa 9 integra desde el
 2026-09-25 sesiones entre peticiones HTTP, todos los serializadores de resultado,
 controles transaccionales, cancelación/estado y concurrencia verificada. El
-guard global se redujo a las peticiones sin sesión. El cierre formal de la
-Etapa 9 y los experimentos/entrega de la Etapa 10 siguen pendientes.
+guard global se redujo a las peticiones sin sesión. Quedan los experimentos y
+la entrega de la Etapa 10 ([plan](PART_01/ETAPA_10.md)).

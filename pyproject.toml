@@ -20,6 +20,10 @@ test = [
     "httpx2>=2,<3",
     "anyio>=4,<4.15",
 ]
+# Stage 10 charts: `python -m benchmarks report` renders them from raw results.
+bench = [
+    "matplotlib>=3.8,<4",
+]
 # Stage 9 HTTP interface: run it from the repository root with `python -m api`.
 api = [
     "fastapi>=0.110,<1",

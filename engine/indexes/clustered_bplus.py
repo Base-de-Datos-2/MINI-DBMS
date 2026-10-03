@@ -240,7 +240,7 @@ class ClusteredBPlusIndex(OrderedIndex):
         include_upper: bool = True,
     ) -> Generator[tuple[RID, Record], None, None]:
         self._require_consistent()
-        matches = self.tree.range_search(
+        entries = self.tree.range_entries(
             lower,
             upper,
             include_lower=include_lower,
@@ -251,16 +251,18 @@ class ClusteredBPlusIndex(OrderedIndex):
             self._require_consistent()
             previous_key: RecordValue | None = None
             has_previous = False
-            with closing(matches):
-                for rid in matches:
+            with closing(entries):
+                for leaf_key, rid in entries:
                     record = self.sequential.read(rid)
                     key = record[self.key_column]
                     BPlusKeyCodec.validate(self.tree.key_type, key)
-                    with closing(self.tree.search(key)) as exact_matches:
-                        if rid not in exact_matches:
-                            raise InvalidReferenceError(
-                                "B+ range RID is stale for its sequential record key"
-                            )
+                    # The leaf entry (leaf_key, rid) is the association being
+                    # returned; it is current only if the stored record still
+                    # has that key (Stage 10 Task 10.2d: no second descent).
+                    if BPlusKeyCodec.compare(self.tree.key_type, key, leaf_key) != 0:
+                        raise InvalidReferenceError(
+                            "B+ range RID is stale for its sequential record key"
+                        )
                     if lower is not None:
                         comparison = BPlusKeyCodec.compare(
                             self.tree.key_type, key, lower

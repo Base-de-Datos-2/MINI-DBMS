@@ -1368,7 +1368,7 @@ Part 1 is complete only when:
 [x] Stage 7 baseline complete (Tasks 7.1–7.30 closed 2026-09-18; 63 criteria; 2556 strict tests)
 [x] Stage 7 CREATE/EXPLAIN extension complete (Tasks 7.31–7.40 closed 2026-09-20; 2742 strict tests)
 [x] Stage 8 complete (Tasks 8.1–8.30 closed 2026-09-24; 37 criteria; 2831 strict tests)
-[ ] Stage 9 formally closed (demo ready 2026-09-18; HTTP/UI session integration implemented and verified 2026-09-25; closure pending)
+[x] Stage 9 complete (demo ready 2026-09-18; HTTP/UI sessions verified 2026-09-25; closed 2026-10-01; 2889 strict tests)
 [ ] Stage 10 complete
 ```
 
@@ -1380,11 +1380,11 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest formally completed stage:
 
-> **Stage 8 Tasks 8.1–8.30 — Transactions and Concurrency**
+> **Stage 9 Tasks 9.1–9.18 — API and Frontend** (closed 2026-10-01; `docs/ETAPA_09_AUDIT.md`)
 
 Current implementation block:
 
-> **Stage 9 — transaction-aware HTTP/UI integration implemented 2026-09-25; formal closure pending**
+> **Stage 10 — Experiments, Integration, and Delivery** (plan: `PART_01/ETAPA_10.md`; Task 10.1 inspection done 2026-10-01)
 
 Authorized sequencing exception: the team chose to build an emergency Stage 9
 demo before Stage 8 (see `ETAPA_09.md` Section 1). It is **demo ready** as of
@@ -1395,7 +1395,8 @@ order only. Stage 8 transactions/concurrency closed on 2026-09-24; Stage 9
 session integration was implemented and verified on 2026-09-25, including
 BEGIN/END/ROLLBACK, result/error contracts, cancellation, and concurrent HTTP
 tests. Admission now serializes only sessionless default-session calls.
-Formal Stage 9 closure and Stage 10 experiments/delivery remain required. The team
+Stage 9 was formally closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`); Stage 10
+experiments/delivery remain required. The team
 also replaced the earlier Lark recommendation with the handwritten SQL parser
 delivered in Stage 7.
 
@@ -1499,7 +1500,8 @@ Stage 9 handoff, synchronized documentation, and the closure audit. All 37
 Stage 8 criteria pass with **2,831 strict tests in 950.74 seconds**; evidence is
 in `docs/ETAPA_08_AUDIT.md`. Stage 9 integration evidence is in
 `docs/ETAPA_09_REVISION_2026_09_25.md`; the rollback-reporting/documentation
-correction is in `docs/ETAPA_09_REVISION_2026_09_30.md`. Formal Stage 9 closure
-and Stage 10 remain pending, so Part 1 is not complete.
+correction is in `docs/ETAPA_09_REVISION_2026_09_30.md`. Stage 9 was formally
+closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`). Stage 10 remains pending, so
+Part 1 is not complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

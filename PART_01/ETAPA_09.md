@@ -6,9 +6,9 @@
 **Part:** Relational Database  
 **Historical starting point:** Stage 7 reported complete; Stage 8 was not implemented
 **Current objective:** Maintain the real four-panel GUI and verified transaction-aware HTTP/session contract
-**Status:** Emergency demo ready (2026-09-18); Stage 8 engine work closed (2026-09-24); transaction-aware HTTP/UI integration implemented and verified (2026-09-25); formal Stage 9 closure pending the team's decision. Historical emergency evidence is in `docs/ETAPA_09_AVANCE.md`; current usage is in `docs/demo.md`, and the completed integration checklist is in `docs/ETAPA_08_STAGE_9_HANDOFF.md`. Integration evidence is in `docs/ETAPA_09_REVISION_2026_09_25.md`; the 2026-09-30 corrections are recorded in `docs/ETAPA_09_REVISION_2026_09_30.md`.
+**Status:** Emergency demo ready (2026-09-18); Stage 8 engine work closed (2026-09-24); transaction-aware HTTP/UI integration implemented and verified (2026-09-25); **formally closed on 2026-10-01** (`docs/ETAPA_09_AUDIT.md`). Historical emergency evidence is in `docs/ETAPA_09_AVANCE.md`; current usage is in `docs/demo.md`, and the completed integration checklist is in `docs/ETAPA_08_STAGE_9_HANDOFF.md`. Integration evidence is in `docs/ETAPA_09_REVISION_2026_09_25.md`; the 2026-09-30 corrections are recorded in `docs/ETAPA_09_REVISION_2026_09_30.md`.
 **Execution mode:** One backend process/worker; independent client sessions execute concurrently through Stage 8 locks; only sessionless calls use exclusive admission; writes disabled by default
-**Follow-up:** Formal Stage 9 closure, then Stage 10 experiments and delivery
+**Follow-up:** Stage 10 experiments and delivery (`PART_01/ETAPA_10.md`)
 
 The emergency sequence below records why the GUI preceded Stage 8. Sections
 5–9 and 11–13 describe the current implementation contract and maintenance
@@ -587,7 +587,7 @@ historical policies to current code. Current status is recorded below.
 - [x] The temporary admission policy is retained or revised only after real protection is verified. (now sessionless-only)
 - [x] Stage 9 regressions still pass; Stage 10 experiments and final requirements are completed separately.
 - [x] Failed restoration is shown as `ABORT_FAILED`/quarantine; rollback success requires `ABORTED`. (2026-09-30; frontend and injected HTTP regression)
-- [ ] Formal Stage 9 closure decision and audit recorded by the team.
+- [x] Formal Stage 9 closure decision and audit recorded (2026-10-01, `docs/ETAPA_09_AUDIT.md`).
 
 ## 12. Suggested modules and deliverables
 
