@@ -288,10 +288,10 @@ class PagedSequentialFile(OrganizationFile, Storage):
         return target_page, entries, duplicate_found
 
     @staticmethod
-    def _partition_items(
+    def _fill_greedily(
         items: list[tuple[RecordValue | None, bytes, bool, bool]],
     ) -> list[list[tuple[RecordValue | None, bytes, bool, bool]]]:
-        """Partition active rows and retained tombstones into valid pages."""
+        """Fill pages in order, each as full as it can get."""
 
         chunks: list[list[tuple[RecordValue | None, bytes, bool, bool]]] = []
         current: list[tuple[RecordValue | None, bytes, bool, bool]] = []
@@ -311,6 +311,54 @@ class PagedSequentialFile(OrganizationFile, Storage):
         if current:
             chunks.append(current)
         return chunks
+
+    @staticmethod
+    def _fits_one_page(chunk: list[tuple[RecordValue | None, bytes, bool, bool]]) -> bool:
+        probe = Page(OrganizationMetadata.FIRST_DATA_PAGE_ID)
+        try:
+            for item in chunk:
+                probe.insert(item[1])
+        except ValidationError:
+            return False
+        return True
+
+    @classmethod
+    def _partition_items(
+        cls,
+        items: list[tuple[RecordValue | None, bytes, bool, bool]],
+        *,
+        appending: bool = False,
+    ) -> list[list[tuple[RecordValue | None, bytes, bool, bool]]]:
+        """Partition active rows and retained tombstones into balanced pages.
+
+        The page count is the minimum a greedy fill needs, but items are spread
+        over those pages by their cumulative bytes (Stage 10 Task 10.2c).
+        Filling the first page completely left the overflow, often one
+        record, alone on a new page; with random keys pages then stayed almost
+        empty and every later split shifted a longer suffix. An append after
+        the last key of the last page keeps the full greedy fill, so ascending
+        loads still pack pages completely (the usual rightmost-split rule).
+        """
+
+        greedy = cls._fill_greedily(items)
+        if len(greedy) < 2 or appending:
+            return greedy
+        pages = len(greedy)
+        costs = [len(item[1]) + SLOT_SIZE for item in items]
+        total = sum(costs)
+        balanced: list[list[tuple[RecordValue | None, bytes, bool, bool]]] = [
+            [] for _ in range(pages)
+        ]
+        consumed = 0
+        for item, cost in zip(items, costs):
+            # Each item goes to the page its byte midpoint falls in; the index
+            # never decreases, so the order of items is preserved.
+            index = min(pages - 1, ((2 * consumed + cost) * pages) // (2 * total))
+            balanced[index].append(item)
+            consumed += cost
+        if all(chunk and cls._fits_one_page(chunk) for chunk in balanced):
+            return balanced
+        return greedy
 
     @staticmethod
     def _retained_tombstone_items(
@@ -382,7 +430,11 @@ class PagedSequentialFile(OrganizationFile, Storage):
         items.extend(
             self._retained_tombstone_items(payload_hole_bytes, free_slot_count)
         )
-        chunks = self._partition_items(items)
+        appending = (
+            target_page.page_id == self._metadata.data_page_ids[-1]
+            and position == len(entries)
+        )
+        chunks = self._partition_items(items, appending=appending)
         additional_pages = len(chunks) - 1
 
         updated_metadata = replace(
