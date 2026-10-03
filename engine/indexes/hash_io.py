@@ -76,12 +76,29 @@ class HashHeaderPageIO:
         return header
 
 
+#: Decoded directory pages / buckets kept per open file (Stage 10 Task 10.2d).
+_DECODED_LIMIT = 1024
+
+
+def _remember(cache: dict, page_id: int, payload: bytes, decoded) -> None:
+    if len(cache) >= _DECODED_LIMIT:
+        cache.pop(next(iter(cache)))
+    cache[page_id] = (payload, decoded)
+
+
 class HashDirectoryPageIO:
-    """Transfer strict directory chunks through the shared page manager."""
+    """Transfer strict directory chunks through the shared page manager.
+
+    Decoded pages are immutable and decoding is a pure function of the page
+    payload, so a decoded page is reused while its payload is byte-for-byte
+    unchanged. The page itself is still read and validated on every call, so
+    I/O counters and corruption detection are unaffected.
+    """
 
     def __init__(self, manager: PageManager, *, counter_lock: RLock | None = None) -> None:
         self._manager = _require_manager(manager)
         self._mutex = RLock() if counter_lock is None else counter_lock
+        self._decoded: dict = {}
         # Typed counters complement PageManager's aggregate physical counters.
         self.pages_read = 0
         self.pages_written = 0
@@ -115,9 +132,13 @@ class HashDirectoryPageIO:
             finally:
                 # Include a completed transfer even if its Page frame is bad.
                 self.pages_read += self._manager.pages_read - reads_before
-        return HashDirectoryCodec.deserialize(
-            _payload(physical_page, "hash directory")
-        )
+        payload = _payload(physical_page, "hash directory")
+        cached = self._decoded.get(page_id)
+        if cached is not None and cached[0] == payload:
+            return cached[1]
+        directory_page = HashDirectoryCodec.deserialize(payload)
+        _remember(self._decoded, page_id, payload, directory_page)
+        return directory_page
 
     @_latched
     def reset_counters(self) -> None:
@@ -127,7 +148,11 @@ class HashDirectoryPageIO:
 
 
 class HashBucketPageIO:
-    """Transfer bucket models while validating physical/stored page identity."""
+    """Transfer bucket models while validating physical/stored page identity.
+
+    Decoded buckets are reused while their page payload is unchanged, exactly
+    as directory pages are (Stage 10 Task 10.2d).
+    """
 
     def __init__(
         self, manager: PageManager, key_type: DataType, *,
@@ -138,6 +163,7 @@ class HashBucketPageIO:
         if not isinstance(key_type, DataType):
             raise InvalidTypeError("key_type must be a DataType")
         self._key_type = key_type
+        self._decoded: dict = {}
         self.pages_read = 0
         self.pages_written = 0
         self.pages_allocated = 0
@@ -175,10 +201,13 @@ class HashBucketPageIO:
                 physical_page = self._manager.read_page(page_id)
             finally:
                 self.pages_read += self._manager.pages_read - reads_before
-        bucket = HashBucketCodec.deserialize(
-            self._key_type,
-            _payload(physical_page, "hash bucket"),
-        )
+        payload = _payload(physical_page, "hash bucket")
+        cached = self._decoded.get(page_id)
+        if cached is not None and cached[0] == payload:
+            bucket = cached[1]
+        else:
+            bucket = HashBucketCodec.deserialize(self._key_type, payload)
+            _remember(self._decoded, page_id, payload, bucket)
         if bucket.page_id != page_id:
             raise ValidationError("Stored hash bucket page_id differs from its location")
         return bucket

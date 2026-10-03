@@ -437,3 +437,34 @@ def test_deterministic_mixed_operations_match_a_small_test_only_model():
         assert {i: page.read(i) for i in expected} == expected
     for i, slot in enumerate(page.slots):
         assert slot.is_active is (i in expected)
+
+
+def test_full_validation_runs_once_per_buffer_state(monkeypatch):
+    """Stage 10 Task 10.2: reading k slots must not re-validate the page k times."""
+
+    page = Page(3)
+    for value in range(100):
+        page.insert(f"record-{value}".encode())
+    calls = []
+    original = Page._inspect
+
+    def counting(data):
+        calls.append(1)
+        return original(data)
+
+    monkeypatch.setattr(Page, "_inspect", staticmethod(counting))
+    assert [page.read(slot) for slot in range(100)][-1] == b"record-99"
+    assert page.header.active_record_count == 100
+    assert calls == []  # the state was validated when it was produced
+
+    page.delete(5)  # one validation of the new state, then reused
+    assert len(page.slots) == 100
+    assert len(calls) == 1
+
+
+def test_in_place_buffer_changes_are_validated_again_after_caching():
+    page = populated_page()
+    assert page.read(0) == b"alpha"  # layout cached for this exact state
+    page._data[5:9] = (1).to_bytes(4, "little")  # header slot_count rewritten in place
+    with pytest.raises(ValidationError):
+        page.read(0)

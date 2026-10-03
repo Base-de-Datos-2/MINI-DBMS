@@ -1,0 +1,21 @@
+[official-1k-10k] files size=1000 repetition=1: 16.5s
+[official-1k-10k] indexes size=1000 repetition=1: 95.2s
+[official-1k-10k] files size=1000 repetition=2: 16.7s
+[official-1k-10k] indexes size=1000 repetition=2: 98.3s
+[official-1k-10k] files size=1000 repetition=3: 16.6s
+[official-1k-10k] indexes size=1000 repetition=3: 95.9s
+[official-1k-10k] files size=1000 repetition=4: 16.6s
+[official-1k-10k] indexes size=1000 repetition=4: 93.9s
+[official-1k-10k] files size=1000 repetition=5: 16.4s
+[official-1k-10k] indexes size=1000 repetition=5: 94.9s
+[official-1k-10k] files size=10000 repetition=1: 180.1s
+[official-1k-10k] indexes size=10000 repetition=1: 423.8s
+[official-1k-10k] files size=10000 repetition=2: 178.9s
+[official-1k-10k] indexes size=10000 repetition=2: 423.3s
+[official-1k-10k] files size=10000 repetition=3: 178.7s
+[official-1k-10k] indexes size=10000 repetition=3: 428.1s
+[official-1k-10k] files size=10000 repetition=4: 178.8s
+[official-1k-10k] indexes size=10000 repetition=4: 448.3s
+[official-1k-10k] files size=10000 repetition=5: 192.5s
+[official-1k-10k] indexes size=10000 repetition=5: 431.7s
+Results appended to benchmarks/results/part1_results.jsonl
