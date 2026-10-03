@@ -44,6 +44,7 @@ class TableFiles:
     identity: str
     base: Path
     indexes: tuple[tuple[str, Path], ...] = ()
+    auxiliary: tuple[tuple[str, Path], ...] = ()
 
     def __post_init__(self) -> None:
         if not self.name or not self.identity:
@@ -53,16 +54,17 @@ class TableFiles:
             self, "indexes",
             tuple((name, Path(path).resolve()) for name, path in self.indexes),
         )
-        names = [name for name, _ in self.indexes]
+        object.__setattr__(self, "auxiliary", tuple((name, Path(path).resolve()) for name, path in self.auxiliary))
+        names = [name for name, _ in (*self.indexes, *self.auxiliary)]
         if any(not name for name in names) or len(names) != len(set(names)):
             raise ValidationError("Index file names must be unique within a table")
-        paths = [self.base, *(path for _, path in self.indexes)]
+        paths = [self.base, *(path for _, path in (*self.indexes, *self.auxiliary))]
         if len(paths) != len(set(paths)):
             raise ValidationError("A table's base and index files must be distinct")
 
     @property
     def physical_files(self) -> tuple[Path, ...]:
-        return (self.base, *(path for _, path in self.indexes))
+        return (self.base, *(path for _, path in (*self.indexes, *self.auxiliary)))
 
 
 @dataclass(frozen=True, slots=True, order=True)
