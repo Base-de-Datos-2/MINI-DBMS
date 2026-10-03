@@ -1,0 +1,15 @@
+.git
+.venv
+venv
+**/__pycache__
+**/*.py[cod]
+*.egg-info
+.pytest_cache
+**/node_modules
+frontend/dist
+data/generated
+benchmarks
+tests
+docs
+*.docx
+*.pdf
