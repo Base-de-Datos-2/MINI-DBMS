@@ -1580,14 +1580,16 @@ class BPlusTree(OrderedIndex):
 
         return iterator()
 
-    def range_search(
+    def range_entries(
         self,
         lower: RecordValue | None = None,
         upper: RecordValue | None = None,
         *,
         include_lower: bool = True,
         include_upper: bool = True,
-    ) -> Generator[RID, None, None]:
+    ) -> Generator[tuple[RecordValue, RID], None, None]:
+        """Yield ``(key, rid)`` leaf entries of a range in key order."""
+
         self._require_open()
         if type(include_lower) is not bool or type(include_upper) is not bool:
             raise InvalidTypeError("B+ range inclusion flags must be booleans")
@@ -1610,7 +1612,7 @@ class BPlusTree(OrderedIndex):
         ):
             raise ValidationError("B+ range lower bound exceeds upper bound")
 
-        def iterator() -> Generator[RID, None, None]:
+        def iterator() -> Generator[tuple[RecordValue, RID], None, None]:
             self._require_open()
             if self._header.entry_count == 0:
                 return
@@ -1663,7 +1665,7 @@ class BPlusTree(OrderedIndex):
                         ):
                             return
                     yielded += 1
-                    yield rid
+                    yield key, rid
 
                 next_leaf = self._read_next_leaf(leaf, visited)
                 if next_leaf is None:
@@ -1673,5 +1675,24 @@ class BPlusTree(OrderedIndex):
                         )
                     return
                 leaf = next_leaf
+
+        return iterator()
+
+    def range_search(
+        self,
+        lower: RecordValue | None = None,
+        upper: RecordValue | None = None,
+        *,
+        include_lower: bool = True,
+        include_upper: bool = True,
+    ) -> Generator[RID, None, None]:
+        entries = self.range_entries(
+            lower, upper, include_lower=include_lower, include_upper=include_upper,
+        )
+
+        def iterator() -> Generator[RID, None, None]:
+            with closing(entries):
+                for _, rid in entries:
+                    yield rid
 
         return iterator()

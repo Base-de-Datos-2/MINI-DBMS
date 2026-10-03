@@ -85,14 +85,26 @@ class BPlusHeaderPageIO:
         )
 
 
+#: Decoded nodes kept per open index file (Stage 10 Task 10.2d).
+_NODE_CACHE_LIMIT = 1024
+
+
 class BPlusNodePageIO:
-    """Allocate/read/write B+ node frames through one borrowed PageManager."""
+    """Allocate/read/write B+ node frames through one borrowed PageManager.
+
+    Decoding a node validates every key and RID. Nodes are immutable and their
+    decoding is a pure function of the page payload, so a decoded node is
+    reused while its page payload is byte-for-byte unchanged. Every read still
+    reads and validates the page itself, so I/O counters and corruption
+    detection are unaffected.
+    """
 
     def __init__(self, manager: PageManager, key_type: DataType) -> None:
         self._manager = _require_manager(manager)
         if not isinstance(key_type, DataType):
             raise InvalidTypeError("key_type must be a DataType")
         self._key_type = key_type
+        self._decoded: dict[int, tuple[bytes, BPlusNode]] = {}
 
     @property
     def key_type(self) -> DataType:
@@ -117,10 +129,15 @@ class BPlusNodePageIO:
         if page_id == _HEADER_PAGE_ID:
             raise ValidationError("B+ node cannot use reserved metadata page 0")
         page = self._manager.read_page(page_id)
-        node = BPlusNodeCodec.deserialize(
-            self._key_type,
-            _read_only_payload(page, "B+ node"),
-        )
+        payload = _read_only_payload(page, "B+ node")
+        cached = self._decoded.get(page_id)
+        if cached is not None and cached[0] == payload:
+            node = cached[1]
+        else:
+            node = BPlusNodeCodec.deserialize(self._key_type, payload)
+            if len(self._decoded) >= _NODE_CACHE_LIMIT:
+                self._decoded.pop(next(iter(self._decoded)))
+            self._decoded[page_id] = (payload, node)
         if node.page_id != page_id:
             raise ValidationError(
                 f"Stored B+ node page_id {node.page_id} does not match "
