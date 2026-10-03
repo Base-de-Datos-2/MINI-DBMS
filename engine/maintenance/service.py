@@ -225,6 +225,15 @@ class MutationService:
 
     __slots__ = ()
 
+    def validate_insert(self, table_name: str, record: Record) -> None:
+        """Owner extension validates auxiliary associations before the base write."""
+
+    def after_insert(self, table_name: str, record: Record, rid: RID) -> None:
+        """Owner extension maintains auxiliary associations under the write lock."""
+
+    def after_delete(self, table_name: str, completed_rows: int) -> None:
+        """Owner extension rebuilds auxiliary structures once per DELETE."""
+
     @staticmethod
     def _validate_common(
         table_name: str,
@@ -423,6 +432,7 @@ class MutationService:
             storage_key=storage_key,
             requires_storage_unique_check=requires_storage_unique_check,
         )
+        self.validate_insert(table_name, record)
 
         before_count = getattr(storage, "record_count", None)
         rebuilt: list[str] = []
@@ -471,6 +481,7 @@ class MutationService:
                 for item in indexes:
                     item.index.insert(record[item.column_name], rid)
                     association_updates += 1
+            self.after_insert(table_name, record, rid)
             self._flush(storage, indexes)
         except BaseException as operation_error:
             cleanup_failures: list[BaseException] = []
@@ -576,6 +587,7 @@ class MutationService:
             )
 
         try:
+            self.after_delete(table_name, completed)
             self._flush(storage, indexes)
         except BaseException as flush_error:
             unavailable, marker_failures = self._invalidate_indexes(indexes)

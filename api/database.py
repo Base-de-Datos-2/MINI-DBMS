@@ -43,6 +43,10 @@ from engine.indexes import build_catalog_index, open_catalog_index
 from engine.operators.context import DEFAULT_BUDGET_BYTES, DEFAULT_MAX_OPEN_HANDLES
 from engine.query import QueryEnvironment, SqlEngine
 from engine.storage import HeapFile, PagedSequentialFile, Record
+from engine.spatial.metadata import SpatialMapping, read_mappings
+from engine.spatial.geometry import Metric, Point, Polygon
+from engine.spatial.index import SpatialIndex
+from engine.spatial.lifecycle import SpatialMutationService, SpatialTableRuntime
 from engine.transactions.ownership import DirectoryLease, claim_directory
 from engine.transactions.resources import TableFiles
 from engine.transactions.session import SessionCoordinator, SqlSession
@@ -201,6 +205,8 @@ class Database:
         "_owner_lease",
         "_tables",
         "_gui_tables",
+        "_spatial_mappings",
+        "_spatial_indexes",
     )
 
     def __init__(self) -> None:
@@ -347,6 +353,8 @@ class Database:
         database._owner_lease = lease
         database._tables = {}
         database._gui_tables = {}
+        database._spatial_mappings = {}
+        database._spatial_indexes = {}
         try:
             for table in definition.tables:
                 database._open_table(
@@ -366,8 +374,19 @@ class Database:
                     {index.name: root / index.filename for index in gui.indexes},
                 )
                 database._gui_tables[gui.name] = gui
+            for mapping in read_mappings(root):
+                try:
+                    mapping.validate_schema(database._catalog.get_table(mapping.table).schema)
+                    if database._tables[mapping.table].organization != HEAP:
+                        raise ValidationError("Spatial mappings require stable-RID Heap storage")
+                except (ValidationError, KeyError) as error:
+                    raise DatabaseSetupError(f"Invalid spatial mapping: {error}") from error
+                database._spatial_mappings[mapping.table] = mapping
+                database._spatial_indexes[mapping.table] = SpatialIndex.open_or_build(
+                    database._storages[mapping.table], mapping, root / mapping.index_filename)
             database._engine = SqlEngine(
                 database._environment,
+                mutation_service=SpatialMutationService(database._spatial_indexes),
                 memory_budget_bytes=memory_budget_bytes,
                 max_open_handles=max_open_handles,
             )
@@ -379,14 +398,16 @@ class Database:
                 ),
                 engine_factory=lambda: SqlEngine(
                     database._environment,
+                    mutation_service=SpatialMutationService(database._spatial_indexes),
                     memory_budget_bytes=memory_budget_bytes,
                     max_open_handles=max_open_handles,
                 ),
                 default_engine=database._engine,
                 root=database._directory,
-                runtime=TableRuntime(
+                runtime=SpatialTableRuntime(
                     database._catalog, database._environment,
                     database._storages, database._indexes,
+                    database._spatial_indexes, database._spatial_mappings, root,
                 ),
                 quarantine_owner=lambda: setattr(database, "_available", False),
                 undo_limits=undo_limits,
@@ -403,6 +424,8 @@ class Database:
             table.name if gui is None else gui.identity,
             self._paths[table.name],
             tuple((index.name, self._paths[index.name]) for index in table.indexes),
+            tuple((mapping.index_name, self._directory / mapping.index_filename)
+                  for mapping in (self._spatial_mappings.get(table.name),) if mapping is not None),
         )
 
     def _open_table(
@@ -520,6 +543,42 @@ class Database:
 
         with self._coordinator.metadata.read():
             return tuple(self._tables)
+
+    def spatial_mapping_for(self, name: str) -> SpatialMapping | None:
+        """Return explicit coordinate metadata; this does not imply an index."""
+        if not self.available:
+            raise TransactionUnavailableError("Database is closed or quarantined")
+        with self._coordinator.metadata.read():
+            self._catalog.get_table(name)
+            return self._spatial_mappings.get(name)
+
+    def _spatial_read(self, name, action, session):
+        if not self.available:
+            raise TransactionUnavailableError("Database is closed or quarantined")
+        runner = self._coordinator.default_session if session is None else session
+        if not isinstance(runner, SqlSession) or runner._owner is not self._coordinator:
+            raise ValidationError("Spatial session belongs to another owner")
+        def read():
+            try:
+                index = self._spatial_indexes[name]
+            except KeyError as error:
+                raise ValidationError(f"Table {name!r} has no spatial mapping/index") from error
+            return action(index)
+        return runner.run_programmatic_read(name, read)
+
+    def spatial_radius(self, name: str, center: Point, radius: float, *,
+                       metric=Metric.HAVERSINE, inclusive=False, use_index=True, session=None):
+        """Typed E2 engine entry; E3 will expose spatial SQL and HTTP."""
+        return self._spatial_read(name, lambda index: index.radius(
+            center, radius, metric=metric, inclusive=inclusive, use_index=use_index), session)
+
+    def spatial_knn(self, name: str, center: Point, k: int, *,
+                    metric=Metric.HAVERSINE, use_index=True, session=None):
+        return self._spatial_read(name, lambda index: index.knn(
+            center, k, metric=metric, use_index=use_index), session)
+
+    def spatial_polygon(self, name: str, polygon: Polygon, *, use_index=True, session=None):
+        return self._spatial_read(name, lambda index: index.polygon(polygon, use_index=use_index), session)
 
     def table_name_for_identity(self, identity: str) -> str:
         """Map a lock-resource identity back to its table name, never a path.
@@ -854,12 +913,13 @@ class Database:
                 engine.close()
             except BaseException as error:  # noqa: BLE001 - reported below
                 failures.append(error)
-        for handle in list(self._indexes.values()) + list(self._storages.values()):
+        for handle in list(self._spatial_indexes.values()) + list(self._indexes.values()) + list(self._storages.values()):
             try:
                 handle.close()
             except BaseException as error:  # noqa: BLE001 - reported below
                 failures.append(error)
         self._indexes.clear()
+        self._spatial_indexes.clear()
         self._storages.clear()
         self._owner_lease.release()
         if failures:
