@@ -2,7 +2,82 @@
 
 **Revision:** 2.0 — two-day delivery scope, 2026-10-02 (America/Bogota).
 **Purpose:** Deliver a functional, understandable Part 2 that meets the assignment, while completing the outstanding Part 1 work.
-**Status:** Implementation plan; tasks below are not claims of completed work.
+**Status:** E1.1–E1.5 and E2.1–E2.6 completed and verified (2026-10-03).
+E3–E5 remain planned.
+PostgreSQL/PostGIS is prepared in Docker; long Part 1 runs are started,
+not completed. Stage 10 remains open.
+
+**E1 progress:**
+
+- [x] E1.1: inspected `d07dec3e412ae15ea86ccce8c0214108cf277fc1`;
+  selected `api.database.Database`; Stage 9 closed, Stage 10 remains open.
+- [x] E1.2: local domain, explicit coordinate mapping, identity, units,
+  origin, polygon boundary and tie conventions recorded in `PROJECT_CONTEXT.md`.
+- [x] E1.3: nine-row `tiendas`/`restaurantes` fixtures loaded and reopened;
+  `--spatial` startup and real application HTTP query verified.
+- [x] E1.4: 1,000/10,000/100,000-row CSVs and 100 query centers generated;
+  exact counts, reproducibility, domains and SHA-256 verified.
+- [x] E1.5: Docker comparator prepared with PostgreSQL 17.5 / PostGIS 3.5.2.
+  Loaded 1k/10k/100k points and 100 shared query centers into separate bases;
+  exact CSV values, coordinate axes, valid GiST indexes, radius/k-NN index
+  plans and persistence after container restart verified. The actual sphere
+  matches the adopted radius within 1e-6 m. Evidence:
+  `../benchmarks/results/spatial_e1_setup.json` and its three setup logs.
+  Both existing Part 1 100k experiments were started with three repetitions,
+  separate Windows results and one logical CPU each. Their completion,
+  analysis and Stage 10 closure remain pending; see
+  `../benchmarks/results/part1_e1_5_launch.json`. No E4 measurements are claimed.
+
+**Verification (2026-10-03):** 296 focused tests passed in 125.96 seconds
+with warnings as errors: `tests/spatial`, `tests/api`, `tests/benchmarks`,
+`tests/transactions`, `tests/database`. This is not a full repository suite.
+Environment: Windows, bundled Python 3.12.14, pytest 8.4.2 with the local
+venv dependencies. Test temporaries and matplotlib cache were isolated
+outside project data. Syntax parsing passed for all 10 affected Python files.
+
+Commands, remaining Part 1 work and limits: `../docs/spatial.md`.
+No R-Tree, spatial SQL, map or performance results are claimed by E1.
+**E2 progress (2026-10-03):**
+
+- [x] E2.1: validated local points/MBRs, metre-based Haversine and fixed-plane
+  Euclidean, simple concave polygons with included boundary.
+- [x] E2.2: real Heap radius/polygon scans and bounded exhaustive k-NN baseline.
+- [x] E2.3: original quadratic-split R-Tree, capacity/occupancy policy,
+  root growth and structural validation.
+- [x] E2.4: actual indexed traversals, conservative metric bounds, exact
+  residuals, stable-ID ties, real counters and Heap RID resolution.
+- [x] E2.5: versioned/checksummed atomic save, validated reopen, INSERT
+  maintenance, once-per-DELETE rebuild and existing physical undo/reopen.
+- [x] E2.6: differential geometry/tree/Heap tests, duplicates/boundaries,
+  mutation/rollback, save failure, locks, cancellation and clean restart.
+
+Independent evidence: `../benchmarks/results/spatial_e2_100k_smoke.json`
+(100k core entries, synthetic RIDs, 36 differential distance-query cases,
+polygon and reopen; not an E4 measurement or a 100k Heap load), and
+`../benchmarks/results/spatial_e2_owner_smoke.json` (real nine-row fixtures,
+both metrics, polygon and fresh reopen). Automated loading covers a real
+1k Heap dataset and exactly one index build. Commands for larger offline
+loads are provided for E4 without changing the HTTP import limit.
+
+Focused regression: **325 tests passed in 126.12 s** with warnings as errors
+before the final small-polygon precision test. The complete engine regression
+ran **2,964 cases in 2035.07 s** with warnings as errors: **2,963 passed**
+and one architecture policy test did not recognize the new `spatial` layer.
+That test was updated to allow only the spatial core's actual dependencies;
+maintenance/transactions are permitted only in its lifecycle adapter.
+Its final rerun passed **22 architecture tests in
+66.32 s**, including three new isolated spatial imports.
+All other engine sources stayed unchanged after the full run. Together the
+two runs verify **2,967 distinct final cases**; this is not presented
+as a second successful full-suite invocation.
+The broken local venv interpreter was left untouched; verification used an
+isolated temporary Python 3.12.14 environment with local dependencies and
+project resolution available to isolated child interpreters. Evidence:
+`../benchmarks/results/spatial_e2_verification.json` and
+`../benchmarks/results/logs/spatial-e2-tests.log`, plus the final architecture
+log `../benchmarks/results/logs/spatial-e2-architecture.log`.
+Spatial SQL, HTTP and map remain E3 work.
+
 **Source:** `Proyecto_Final.pdf`, §2.2, physical page 3; deliverables and partial-delivery milestone in §§3–4, physical page 5.
 
 ## 1. What this revision changes
@@ -290,13 +365,14 @@ The following are outside this deadline unless already implemented and stable:
 
 ## 10. Delivery checklist
 
-- [ ] Own R-Tree actually performs indexed spatial traversal.
-- [ ] Radius, exact k-NN and polygon intersection work on stored points.
-- [ ] Euclidean and Haversine are implemented with explicit units and scope.
+- [x] Own R-Tree actually performs indexed spatial traversal.
+- [x] Radius, exact k-NN and polygon intersection work on stored points.
+- [x] Euclidean and Haversine are implemented with explicit units and scope.
 - [ ] Both assignment SQL examples execute one at a time through the application.
 - [ ] The map is interactive and highlights the engine's actual results.
-- [ ] Data/index reopening and exposed mutation/rollback paths are consistent.
-- [ ] Relevant correctness and Part 1 regression checks pass.
+- [x] Data/index reopening and exposed mutation/rollback paths are consistent.
+- [x] Relevant correctness and Part 1 regression checks pass (E2 full suite;
+  final E3–E5 delivery must rerun affected checks).
 - [ ] All required sizes, radii and k values have sequential/R-Tree/GiST measurements.
 - [ ] Query averages use 100 queries; build, memory and disk measurements are included.
 - [ ] Graphs, summary table, report, README and demo are reproducible and accurate.

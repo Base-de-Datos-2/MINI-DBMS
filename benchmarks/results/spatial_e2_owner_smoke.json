@@ -1,0 +1,33 @@
+{
+  "purpose": "E2 real Heap fixture integration, not E4 measurements",
+  "tables": [
+    {
+      "table": "tiendas",
+      "rows": 9,
+      "polygon_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "index": "__spatial_tiendas.rtree"
+    },
+    {
+      "table": "restaurantes",
+      "rows": 9,
+      "polygon_ids": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "index": "__spatial_restaurantes.rtree"
+    }
+  ],
+  "clean_reopen_verified": true,
+  "saved_100k_polygon_final_geometry_verified": true
+}

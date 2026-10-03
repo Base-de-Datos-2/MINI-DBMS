@@ -9,6 +9,14 @@
 **Course:** Base de Datos 2 — 2026-2  
 **Scope:** Part 1 — Relational Database (Tables and SQL)
 
+Part 2 E1 preparation and E2 engine implementation were authorized on 2026-10-03 under
+`../PART_02/PLAN_PARTE_02.md`; setup is in `../docs/spatial.md`.
+E1.5 started the existing 100k file/index experiments on Windows with
+separate provenance/results; their completion and analysis remain pending.
+E2 adds the spatial engine and its owner lifecycle; it does not close Stage 10
+or replace outstanding Part 1 experiments. The launched Part 1 sources were
+snapshotted before E2 under ignored `data/generated/postgres_e1/part1_source_snapshot`.
+
 ---
 
 # 1. Purpose of this document
