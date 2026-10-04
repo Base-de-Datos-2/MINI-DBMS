@@ -1,0 +1,4 @@
+[official-100k-indexes] indexes size=100000 repetition=1: 2737.5s
+[official-100k-indexes] indexes size=100000 repetition=2: 2794.4s
+[official-100k-indexes] indexes size=100000 repetition=3: 2479.3s
+Results appended to benchmarks/results/part1_results_100k_indexes.jsonl
