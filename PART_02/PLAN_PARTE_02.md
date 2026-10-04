@@ -4,8 +4,9 @@
 **Purpose:** Deliver a functional, understandable Part 2 that meets the assignment, while completing the outstanding Part 1 work.
 **Status:** E1.1–E1.5 and E2.1–E2.6 completed and verified (2026-10-03).
 E3–E5 remain planned.
-PostgreSQL/PostGIS is prepared in Docker; long Part 1 runs are started,
-not completed. Stage 10 remains open.
+PostgreSQL/PostGIS is prepared in Docker. Part 1 Stage 10 closed on
+2026-10-04 (`../docs/ETAPA_10_AUDIT.md`); its official 100k results are the WSL
+runs, so the Windows E1.5 runs are only supplementary.
 
 **E1 progress:**
 
@@ -376,6 +377,7 @@ The following are outside this deadline unless already implemented and stable:
 - [ ] All required sizes, radii and k values have sequential/R-Tree/GiST measurements.
 - [ ] Query averages use 100 queries; build, memory and disk measurements are included.
 - [ ] Graphs, summary table, report, README and demo are reproducible and accurate.
-- [ ] Outstanding Part 1 requirements, including Stage 10, are completed for the combined delivery.
+- [x] Outstanding Part 1 requirements, including Stage 10, are completed for the combined delivery
+  (Stage 10 closed 2026-10-04, `../docs/ETAPA_10_AUDIT.md`).
 
 **Implementation instruction:** Read the repository instructions and this revision, inspect the current implementation, then execute E1–E5 in small working increments. Reuse completed components and the selected application path. Keep optional items deferred and maintain a short progress checklist. Resolve routine choices using the defaults above; ask only about an actual blocker or material conflict. Completion is defined by the assignment coverage and demonstrated behavior, not by the size of the architecture.

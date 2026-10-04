@@ -79,6 +79,28 @@ def _scale(value: float, unit: str) -> float:
     return value / 1024 if unit == "KiB" else value
 
 
+LABEL_GAP_POINTS = 11
+
+
+def _label_line_ends(axis, ends) -> None:
+    """Direct labels at line ends, pushed apart vertically when lines meet."""
+
+    axis.autoscale_view()
+    points_per_pixel = 72 / axis.figure.dpi
+    placed = sorted(
+        (axis.transData.transform((x, y))[1] * points_per_pixel, label, x, y)
+        for label, x, y in ends
+    )
+    previous = None
+    for natural, label, x, y in placed:
+        target = natural if previous is None else max(natural, previous + LABEL_GAP_POINTS)
+        axis.annotate(
+            label, (x, y), xytext=(8, target - natural), textcoords="offset points",
+            va="center", fontsize=8, color=TEXT_PRIMARY,
+        )
+        previous = target
+
+
 def line_chart(path: Path, title: str, unit_label: str, unit: str, series) -> bool:
     """One log-log chart; ``series`` is a list of (label, sizes, stats)."""
 
@@ -94,6 +116,7 @@ def line_chart(path: Path, title: str, unit_label: str, unit: str, series) -> bo
     figure, axis = plt.subplots(figsize=(7.2, 4.2), dpi=150)
     figure.patch.set_facecolor(SURFACE)
     axis.set_facecolor(SURFACE)
+    ends = []
     for position, (label, sizes, stats) in enumerate(series):
         color = SERIES_COLORS[position]
         medians = [_scale(item[0], unit) for item in stats]
@@ -105,10 +128,7 @@ def line_chart(path: Path, title: str, unit_label: str, unit: str, series) -> bo
             markeredgewidth=2, capsize=0, elinewidth=1, label=label,
             solid_joinstyle="round", solid_capstyle="round",
         )
-        axis.annotate(
-            label, (sizes[-1], medians[-1]), xytext=(8, 0), textcoords="offset points",
-            va="center", fontsize=8, color=TEXT_PRIMARY,
-        )
+        ends.append((label, sizes[-1], medians[-1]))
     axis.set_xscale("log")
     axis.set_yscale("log")
     axis.set_xlabel("Registros", color=TEXT_SECONDARY)
@@ -125,6 +145,7 @@ def line_chart(path: Path, title: str, unit_label: str, unit: str, series) -> bo
     axis.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:,.10g}"))
     axis.yaxis.set_minor_formatter(NullFormatter())
     axis.set_xlim(all_sizes[0] / 1.6, all_sizes[-1] * 4.5)
+    _label_line_ends(axis, ends)
     if len(series) > 1:
         axis.legend(frameon=False, fontsize=8, labelcolor=TEXT_PRIMARY,
                     loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=len(series))

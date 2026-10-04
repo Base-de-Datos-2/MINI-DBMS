@@ -1,8 +1,7 @@
 # AGENTS.md
 
-> Context version: **5.0** — preserves formal Stage 7/8 closures, records the
-> implemented transaction-aware Stage 9 integration, and identifies its pending
-> formal closure and Stage 10 work.
+> Context version: **6.0** — records the formal Stage 9 and Stage 10 closures
+> (Part 1 complete) and the active Part 2 plan.
 
 ## Purpose
 
@@ -18,7 +17,8 @@ Part 2 **E1 and E2** were explicitly requested on 2026-10-03. Its active plan
 is `PART_02/PLAN_PARTE_02.md` (five delivery blocks); implementation and limits
 are documented in `docs/spatial.md`. E3–E5 remain planned. Spatial SQL, HTTP
 exposure and the map belong to E3; do not implement them without a request.
-The Part 1 roadmap is `PART_01/PLAN_PARTE_01.md`; Stage 10 remains open.
+The Part 1 roadmap is `PART_01/PLAN_PARTE_01.md`; Part 1 is complete
+(Stage 10 closed 2026-10-04, `docs/ETAPA_10_AUDIT.md`).
 
 Do not implement future parts unless the user explicitly asks for them.
 
@@ -323,11 +323,11 @@ Part 1 is implemented through the 10-stage roadmap defined in:
 
 Latest formally completed stage:
 
-> **Stage 9 Tasks 9.1–9.18 — API and Frontend** (closed 2026-10-01; `docs/ETAPA_09_AUDIT.md`)
+> **Stage 10 Tasks 10.1–10.14 — Experiments, Integration, and Delivery** (closed 2026-10-04; `docs/ETAPA_10_AUDIT.md`)
 
 Current implementation block:
 
-> **Stage 10 — Experiments, Integration, and Delivery** (plan: `PART_01/ETAPA_10.md`; Task 10.1 inspection done 2026-10-01)
+> **Part 1 complete.** Part 2 follows `PART_02/PLAN_PARTE_02.md` (E1/E2 done; E3–E5 planned).
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.
@@ -430,12 +430,18 @@ session; do not widen it again. Evidence is in
 `docs/ETAPA_09_REVISION_2026_09_25.md`. **Stage 9 was formally closed on
 2026-10-01**: all Section 11 and handoff checklist items hold, the complete
 strict suite passes 2,889 tests, and two real-browser runs pass; evidence is in
-`docs/ETAPA_09_AUDIT.md`. Stage 10 starts from `PART_01/ETAPA_10.md`. The SQL parser is handwritten by team decision; do not introduce
+`docs/ETAPA_09_AUDIT.md`. **Stage 10 was formally closed on 2026-10-04**:
+official benchmark runs at 1,000/10,000/100,000 rows, SQL-level plan
+confirmation, charts and `docs/EXPERIMENTOS.md`, a real-server and
+real-browser integration check, delivery documents in `docs/informe/`, and
+2,968 strict tests; evidence is in `docs/ETAPA_10_AUDIT.md`. Every change Stage
+10 made to closed-stage code is logged in
+`docs/ETAPA_10_CAMBIOS_MODULOS_PREVIOS.md`. The SQL parser is handwritten by team decision; do not introduce
 Lark or another parser generator.
 
 Latest completed stage specification:
 
-> `PART_01/ETAPA_09.md`
+> `PART_01/ETAPA_10.md`
 
 Stage 1 includes, at the planning level:
 

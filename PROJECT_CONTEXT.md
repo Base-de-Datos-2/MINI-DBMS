@@ -86,8 +86,8 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-Part 1 Stage 10 remains open. On 2026-10-03 the user authorized Part 2 E1
-and then E2, using `PART_02/PLAN_PARTE_02.md`. The spatial engine now supports
+Part 1 is complete: Stage 10 closed on 2026-10-04 (`docs/ETAPA_10_AUDIT.md`).
+On 2026-10-03 the user authorized Part 2 E1 and then E2, using `PART_02/PLAN_PARTE_02.md`. The spatial engine now supports
 typed radius/k-NN/polygon queries. E3–E5 remain planned, including spatial
 SQL/HTTP/map and the full experimental matrix.
 
@@ -136,8 +136,9 @@ port 127.0.0.1:5433. Its preparer uses container-local psql; native psql/pgpass
 remains an alternative. Exact 1k/10k/100k inputs, actual radius/k-NN GiST
 plans and container-restart persistence were verified in E1.5. The actual
 spherical radius is 6371008.771414968 m (within 1e-6 m of the adopted value).
-Part 1 100k experiments have started under Windows, using separate evidence
-from the historical WSL/Linux timings; completion and analysis remain open.
+Part 1 100k experiments were also started under Windows with separate
+evidence; the official 100k results are the Stage 10 WSL runs, on the same
+machine as 1k/10k, and the Windows runs are only supplementary.
 E2 uses an original in-memory R-Tree with quadratic splits, capacity 16 and
 minimum non-root occupancy 8 (configurable capacity 4–64). Leaves store
 unique ID, stable live Heap RID and coordinates. MBRs use latitude/longitude;
@@ -2321,6 +2322,31 @@ Measure:
 
 The report must include comparative charts, a summary table and conclusions about when each technique is preferable.
 
+### Adopted Stage 10 benchmark contract and results (closed 2026-10-04)
+
+- Benchmark code lives only in `benchmarks/` (never imported by `engine/` or
+  `api/`): `python -m benchmarks run` measures, `report` renders charts and
+  tables from raw JSONL, `plans` records the SQL planner's plans with
+  `EXPLAIN ANALYZE` through `api.database.Database`.
+- Dataset: `id, name, career, age, score`; seed `20 261 000 + N`; `id` is a
+  random permutation of `1..N` and is the arrival order of every load.
+- Timing with `perf_counter` on the storage/index classes the planner uses;
+  one fresh temporary directory per measurement; warm OS page cache.
+  Repetitions: 5 for 1,000 and 10,000 rows, 3 for 100,000; medians with
+  minimum/maximum. Each row records configuration, environment, commit and a
+  SHA-256 of all engine and benchmark sources.
+- Extendible Hashing has no order: its range rows measure a Heap scan with a
+  filter and its sorting row the SQL engine's `ExternalSort`.
+- Official results: `benchmarks/results/part1_results.jsonl` (1k/10k),
+  `part1_results_100k_files.jsonl`, `part1_results_100k_indexes.jsonl`
+  (clean commit `075eae8`) and `part1_sql_plans.jsonl`; analysis in
+  `docs/EXPERIMENTOS.md`.
+- Measured conclusions the design must keep in mind: B+ range access pays one
+  record read per RID, so it wins up to ~1 % selectivity and loses to a scan at
+  10 % (interpolated crossover ~4–5 % at 100,000 rows); the rule-based planner
+  still picks the B+ there; full ordered retrieval is faster through a scan
+  plus `ExternalSort`; the clustered B+ rebuilds after every insertion.
+
 ---
 
 ## 10-stage implementation roadmap
@@ -2361,7 +2387,7 @@ Benchmarks, graphs, conclusions and delivery cleanup.
 
 Latest formally completed stage:
 
-> **Stage 9 Tasks 9.1–9.18 — API and Frontend** (closed 2026-10-01; `docs/ETAPA_09_AUDIT.md`)
+> **Stage 10 Tasks 10.1–10.14 — Experiments, Integration, and Delivery** (closed 2026-10-04; `docs/ETAPA_10_AUDIT.md`)
 
 Overall Part 1 roadmap:
 
@@ -2369,9 +2395,9 @@ Overall Part 1 roadmap:
 
 Current implementation block:
 
-> **Stage 10 — Experiments, Integration, and Delivery** (plan: `PART_01/ETAPA_10.md`; Task 10.1 inspection done 2026-10-01)
+> **Part 1 complete.** Part 2 work follows `PART_02/PLAN_PARTE_02.md`.
 
-Current implementation guide:
+Latest Part 1 stage guide:
 
 > `PART_01/ETAPA_10.md`
 
