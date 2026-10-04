@@ -5,7 +5,7 @@
 **Revision:** 2026-10-01  
 **Part:** Relational Database  
 **Starting point:** Stage 9 formally closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`)  
-**Status:** Tasks 10.1–10.8 and 10.10 complete (2026-10-04): engine changes 10.2–10.2d, benchmark contract and harness, official runs at 1,000/10,000 rows (5 repetitions) and 100,000 rows (3 repetitions, clean commit `075eae8`), and charts/tables in `docs/experimentos/`. Pending: 10.9, 10.11–10.14. Every change to earlier stages is logged in `docs/ETAPA_10_CAMBIOS_MODULOS_PREVIOS.md`.  
+**Status:** Tasks 10.1–10.11 complete (2026-10-04): engine changes 10.2–10.2d, benchmark contract and harness, official runs at 1,000/10,000 rows (5 repetitions) and 100,000 rows (3 repetitions, clean commit `075eae8`), charts/tables in `docs/experimentos/`, SQL-level plan confirmation (`docs/experimentos/planes_sql.md`) and the experiment report `docs/EXPERIMENTOS.md`. Pending: 10.12–10.14. Every change to earlier stages is logged in `docs/ETAPA_10_CAMBIOS_MODULOS_PREVIOS.md`.  
 **Objective:** Produce the required comparative evidence (REQUIREMENTS §9), prove that every Part 1 layer works together, and assemble the delivery material (REQUIREMENTS §10).
 
 ## 1. Sources and scope
@@ -238,13 +238,13 @@ the budget.
 | 10.2d | B+ node reuse and leaf-checked ranges; same reuse for Hash buckets (Section 3) | done 2026-10-02 |
 | 10.3 | Freeze the benchmark contract (Section 4) | done 2026-10-02 |
 | 10.4 | Dataset generator, harness, experiments and CLI, with tests | done 2026-10-02 |
-| 10.5 | File-organization experiment: insertion, primary-key search (present and absent keys), disk space, reorganization after deletions above the 30 % threshold; Heap free-space reuse as its counterpart | done 2026-10-04 |
+| 10.5 | File-organization experiment: insertion, primary-key search (present and absent keys), disk space, reorganization time after lazily deleting 40 % of the rows (`reorganize()` is explicit by design; the measured wasted-space ratio and the 30 % predicate are recorded); Heap free-space reuse as its counterpart | done 2026-10-04 |
 | 10.6 | Index construction and extra disk space | done 2026-10-04 |
 | 10.7 | Index queries: equality (present/absent), ranges of three selectivities, ordered retrieval (clustered B+ scan, unclustered B+ ordered scan, Hash plus `ExternalSort`) | done 2026-10-04 |
 | 10.8 | Frequent insertions/deletions on each index, with structure validation afterwards | done 2026-10-04 |
-| 10.9 | SQL-level confirmation: the planner's chosen access path and plan for the same queries | 10.7 |
+| 10.9 | SQL-level confirmation: the planner's chosen access path and plan for the same queries | done 2026-10-04 |
 | 10.10 | Charts (matplotlib, `bench` optional dependency) and summary tables generated from results | done 2026-10-04 |
-| 10.11 | Experiment report `docs/EXPERIMENTOS.md`: method, results, advantages/disadvantages table, conclusions that follow from the data | 10.10 |
+| 10.11 | Experiment report `docs/EXPERIMENTOS.md`: method, results, advantages/disadvantages table, conclusions that follow from the data | done 2026-10-04 |
 | 10.12 | Final integration check of the full path (frontend → API → engine → operators → indexes/storage → pages → disk), restart, table loading, SQL errors, concurrency | 10.4 |
 | 10.13 | Delivery documents: README/installation manual, architecture, data domain, algorithm explanations, incremental report, demo-video script and presentation outline | 10.11–10.12 |
 | 10.14 | Stage 10 and Part 1 closure audit against REQUIREMENTS §14 | all |
