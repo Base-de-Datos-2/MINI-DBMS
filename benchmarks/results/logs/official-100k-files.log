@@ -1,0 +1,4 @@
+[official-100k-files] files size=100000 repetition=1: 2111.4s
+[official-100k-files] files size=100000 repetition=2: 2166.7s
+[official-100k-files] files size=100000 repetition=3: 2134.2s
+Results appended to benchmarks/results/part1_results_100k_files.jsonl
