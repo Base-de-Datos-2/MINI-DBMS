@@ -1,0 +1,65 @@
+{
+  "recorded_at": "2026-10-03T23:42:51.316376+00:00",
+  "phase": "E2",
+  "git_head": "d07dec3e412ae15ea86ccce8c0214108cf277fc1",
+  "uncommitted_working_tree": true,
+  "affected_python_sources": [
+    "api/__main__.py",
+    "api/database.py",
+    "benchmarks/spatial/__init__.py",
+    "benchmarks/spatial/__main__.py",
+    "benchmarks/spatial/datasets.py",
+    "benchmarks/spatial/postgres.py",
+    "engine/maintenance/service.py",
+    "engine/query/executor.py",
+    "engine/spatial/__init__.py",
+    "engine/spatial/geometry.py",
+    "engine/spatial/index.py",
+    "engine/spatial/lifecycle.py",
+    "engine/spatial/metadata.py",
+    "engine/spatial/rtree.py",
+    "engine/transactions/resources.py",
+    "engine/transactions/session.py",
+    "scripts/setup_spatial.py",
+    "tests/spatial/test_e1_inputs.py",
+    "tests/spatial/test_e2_engine.py",
+    "tests/test_architecture.py"
+  ],
+  "source_sha256": "1f0d4b4a417fa14f11a50861adc09a37e7023a3121c1e8cfa533a9b499806a5f",
+  "source_digest_method": "sorted affected Python paths: UTF-8 path, NUL, file bytes, NUL",
+  "full_regression": {
+    "passed": 2963,
+    "failed": 1,
+    "elapsed_seconds": 2035.07,
+    "warnings_as_errors": true,
+    "scope": "tests",
+    "failure": "architecture allowed_layers missing spatial",
+    "resolved_by": "architecture policy update only; no engine changes",
+    "log": "benchmarks/results/logs/spatial-e2-tests.log"
+  },
+  "final_architecture_rerun": {
+    "passed": 22,
+    "elapsed_seconds": 66.32,
+    "warnings_as_errors": true,
+    "new_cases": 3,
+    "log": "benchmarks/results/logs/spatial-e2-architecture.log"
+  },
+  "distinct_final_cases_verified": 2967,
+  "environment": {
+    "os": "Windows",
+    "python": "3.12.14",
+    "pytest": "8.4.2",
+    "runtime": "temporary isolated venv; existing local dependency packages; project import path available in isolated subprocesses"
+  },
+  "syntax_sources_checked": 20,
+  "git_diff_check_passed": true,
+  "core_100k_evidence": "benchmarks/results/spatial_e2_100k_smoke.json",
+  "real_heap_fixture_evidence": "benchmarks/results/spatial_e2_owner_smoke.json",
+  "limits": [
+    "100k core smoke uses synthetic RIDs; actual Heap loading tested at 1k",
+    "spatial SQL/HTTP/map remain E3",
+    "full performance matrix remains E4",
+    "clean restart and rollback; no WAL or crash-atomic multi-file commit",
+    "Part 1 Stage 10 remains open"
+  ]
+}

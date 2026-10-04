@@ -1,0 +1,31 @@
+{
+  "recorded_at": "2026-10-03T22:01:36+00:00",
+  "status_at_recording": "both processes running; three repetitions requested, completion pending",
+  "platform": "Windows",
+  "python": "3.12.14",
+  "size": 100000,
+  "repetitions": 3,
+  "seed": 20361000,
+  "workload_budget_seconds": 60,
+  "source_sha256": "4905f38e904ea3a545c45dce04f92b96c3e2d413081e2473eda5f38bcaea9450",
+  "historical_results": "benchmarks/results/part1_results.jsonl",
+  "provenance_note": "Historical 1k/10k timings use WSL/Linux; do not combine with Windows timings to infer size scaling.",
+  "processes": [
+    {
+      "pid": 31436,
+      "log": "benchmarks/results/logs/e1-5-windows-100k-files.log",
+      "stderr": "benchmarks/results/logs/e1-5-windows-100k-files.stderr.log",
+      "experiment": "files",
+      "results": "benchmarks/results/part1_results_100k_windows_files.jsonl",
+      "logical_cpu": 0
+    },
+    {
+      "pid": 28940,
+      "log": "benchmarks/results/logs/e1-5-windows-100k-indexes.log",
+      "stderr": "benchmarks/results/logs/e1-5-windows-100k-indexes.stderr.log",
+      "experiment": "indexes",
+      "results": "benchmarks/results/part1_results_100k_windows_indexes.jsonl",
+      "logical_cpu": 2
+    }
+  ]
+}

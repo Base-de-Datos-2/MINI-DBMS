@@ -46,7 +46,7 @@ from .locks import LockManager
 from .model import TransactionId, TransactionReport
 from .gate import MetadataGate
 from .observability import TraceSnapshot, TransactionMetrics, TransactionObservability
-from .resources import LockMode, ResourceCatalog, StaleAccessPlanError, TableFiles
+from .resources import LockMode, ResourceCatalog, StaleAccessPlanError, TableFiles, TableResource
 from .completion import CompletionService
 from .runtime import TableRuntime
 from .undo import UndoLimits
@@ -843,6 +843,40 @@ class SqlSession:
                     _PROTECTED_WRITE.reset(token)
             except BaseException as error:
                 self._abort_after_failure(error, transaction_id)
+                raise
+        finally:
+            self._leave_call()
+            self._call.release()
+
+    def run_programmatic_read(self, table_name: str, action: Callable[[], object]) -> object:
+        """Run a typed engine read under the existing session/schema/table locks."""
+        if not self._call.acquire(blocking=False):
+            raise SessionBusyError("Another call is already using this session", session_id=self.id)
+        self._enter_call(new_work=True)
+        try:
+            if self._closed:
+                raise TransactionUnavailableError("Session is closed", session_id=self.id)
+            if self.active_result is not None:
+                raise TransactionProtocolError("Close the active result before a read", session_id=self.id)
+            implicit = self._transaction_id is None
+            transaction_id = self._begin(explicit=False).id if implicit else self._transaction_id
+            try:
+                self._owner.locks.acquire(transaction_id, self._owner.locks.schema_resource, LockMode.S)
+                files = self._owner.resources.table_files(table_name)
+                self._owner.locks.acquire(transaction_id,
+                    TableResource(self._owner.resources.database_identity, files.identity), LockMode.S)
+                self._owner.transactions.record_resources(transaction_id, held=frozenset({"schema", files.identity}))
+                with cancellation_scope(lambda: self._raise_if_cancelled(transaction_id)):
+                    self._raise_if_cancelled(transaction_id)
+                    result = action()
+                    self._raise_if_cancelled(transaction_id)
+                if implicit:
+                    self._owner.completion.commit(transaction_id)
+                    self._clear_transaction()
+                return result
+            except BaseException as error:
+                if self._transaction_id == transaction_id:
+                    self._abort_after_failure(error, transaction_id)
                 raise
         finally:
             self._leave_call()

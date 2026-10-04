@@ -50,6 +50,9 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         # Physical indexes consume catalog DataType definitions but the catalog
         # never imports runtime index implementations, so the graph stays acyclic.
         "indexes": {"errors", "catalog", "storage", "indexes"},
+        # The E2 core consumes stored points and the cancellation helper.
+        # Only its lifecycle adapter composes maintenance and transactions.
+        "spatial": {"errors", "catalog", "storage", "operators", "spatial"},
         "operators": {"errors", "catalog", "storage", "indexes", "operators"},
         # Maintenance is the Stage 7 write path (INSERT/DELETE + index upkeep):
         # a storage-layer concern the query engine consumes, so it sits beside
@@ -76,7 +79,10 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
             assert root not in {"api", "frontend", "tests", "pytest", "sqlite3"}, (module, imported)
             if root == "engine":
                 target = imported.split(".")[1] if "." in imported else "engine"
-                assert target in allowed_layers[layer], (module, imported)
+                allowed = allowed_layers[layer]
+                if module == "engine.spatial.lifecycle":
+                    allowed = allowed | {"maintenance", "transactions"}
+                assert target in allowed, (module, imported)
             else:
                 assert root in sys.stdlib_module_names, (module, imported)
 
@@ -132,7 +138,8 @@ def test_raw_file_access_dependencies_are_confined_to_page_manager():
      "engine.storage.organization", "engine.storage.heap_file",
      "engine.storage.metrics",
      "engine.storage.sequential_ordering",
-     "engine.storage.paged_sequential_file"],
+     "engine.storage.paged_sequential_file", "engine.spatial",
+     "engine.spatial.rtree", "engine.spatial.index"],
 )
 def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
     # -I removes cwd/PYTHONPATH influence: the README's editable installation
