@@ -12,9 +12,10 @@
 Part 2 E1 preparation and E2 engine implementation were authorized on 2026-10-03 under
 `../PART_02/PLAN_PARTE_02.md`; setup is in `../docs/spatial.md`.
 E1.5 started the existing 100k file/index experiments on Windows with
-separate provenance/results; their completion and analysis remain pending.
-E2 adds the spatial engine and its owner lifecycle; it does not close Stage 10
-or replace outstanding Part 1 experiments. The launched Part 1 sources were
+separate provenance/results; the official Part 1 100k results are the WSL runs
+of Stage 10, on the same machine as 1k/10k, so the Windows runs are only
+supplementary. E2 adds the spatial engine and its owner lifecycle; Stage 10
+closed separately on 2026-10-04. The launched Part 1 sources were
 snapshotted before E2 under ignored `data/generated/postgres_e1/part1_source_snapshot`.
 
 ---
@@ -1377,7 +1378,7 @@ Part 1 is complete only when:
 [x] Stage 7 CREATE/EXPLAIN extension complete (Tasks 7.31–7.40 closed 2026-09-20; 2742 strict tests)
 [x] Stage 8 complete (Tasks 8.1–8.30 closed 2026-09-24; 37 criteria; 2831 strict tests)
 [x] Stage 9 complete (demo ready 2026-09-18; HTTP/UI sessions verified 2026-09-25; closed 2026-10-01; 2889 strict tests)
-[ ] Stage 10 complete
+[x] Stage 10 complete (closed 2026-10-04; official 1k/10k/100k results; 2968 strict tests; `docs/ETAPA_10_AUDIT.md`)
 ```
 
 and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
@@ -1388,11 +1389,11 @@ and the completion checklist in `REQUIREMENTS.md` is fully satisfied.
 
 Latest formally completed stage:
 
-> **Stage 9 Tasks 9.1–9.18 — API and Frontend** (closed 2026-10-01; `docs/ETAPA_09_AUDIT.md`)
+> **Stage 10 Tasks 10.1–10.14 — Experiments, Integration, and Delivery** (closed 2026-10-04; `docs/ETAPA_10_AUDIT.md`)
 
 Current implementation block:
 
-> **Stage 10 — Experiments, Integration, and Delivery** (plan: `PART_01/ETAPA_10.md`; Task 10.1 inspection done 2026-10-01)
+> **Part 1 complete.** Further work follows `PART_02/PLAN_PARTE_02.md`.
 
 Authorized sequencing exception: the team chose to build an emergency Stage 9
 demo before Stage 8 (see `ETAPA_09.md` Section 1). It is **demo ready** as of
@@ -1403,8 +1404,8 @@ order only. Stage 8 transactions/concurrency closed on 2026-09-24; Stage 9
 session integration was implemented and verified on 2026-09-25, including
 BEGIN/END/ROLLBACK, result/error contracts, cancellation, and concurrent HTTP
 tests. Admission now serializes only sessionless default-session calls.
-Stage 9 was formally closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`); Stage 10
-experiments/delivery remain required. The team
+Stage 9 was formally closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`) and
+Stage 10 on 2026-10-04 (`docs/ETAPA_10_AUDIT.md`). The team
 also replaced the earlier Lark recommendation with the handwritten SQL parser
 delivered in Stage 7.
 
@@ -1509,7 +1510,7 @@ Stage 8 criteria pass with **2,831 strict tests in 950.74 seconds**; evidence is
 in `docs/ETAPA_08_AUDIT.md`. Stage 9 integration evidence is in
 `docs/ETAPA_09_REVISION_2026_09_25.md`; the rollback-reporting/documentation
 correction is in `docs/ETAPA_09_REVISION_2026_09_30.md`. Stage 9 was formally
-closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`). Stage 10 remains pending, so
-Part 1 is not complete.
+closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`). Stage 10 was formally closed
+on 2026-10-04 (`docs/ETAPA_10_AUDIT.md`), so Part 1 is complete.
 
 Codex must inspect the repository before assuming which components are already implemented.

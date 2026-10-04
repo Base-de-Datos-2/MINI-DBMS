@@ -43,7 +43,27 @@ def main(argv: list[str] | None = None) -> int:
     report.add_argument("--results", type=Path, nargs="+",
                         default=[DEFAULT_RESULTS / "part1_results.jsonl"])
     report.add_argument("--output", type=Path, default=REPOSITORY / "docs" / "experimentos")
+    plans = commands.add_parser("plans", help="record the SQL planner's plans for the measured queries")
+    plans.add_argument("--size", type=int, default=10_000)
+    plans.add_argument("--repetitions", type=int, default=3)
+    plans.add_argument("--results", type=Path, default=DEFAULT_RESULTS / "part1_sql_plans.jsonl")
+    plans.add_argument("--output", type=Path,
+                       default=REPOSITORY / "docs" / "experimentos" / "planes_sql.md")
+    plans.add_argument("--workdir", type=Path, default=DEFAULT_WORKDIR)
+    plans.add_argument("--run-id", default=None)
     args = parser.parse_args(argv)
+
+    if args.command == "plans":
+        from . import sql_plans
+
+        writer = ResultWriter(
+            args.results, args.run_id or uuid4().hex[:12],
+            config={"size": args.size, "repetitions": args.repetitions},
+        )
+        rows = sql_plans.run(args.size, args.repetitions, writer, args.workdir)
+        print(f"Results appended to {args.results}")
+        print(f"wrote {sql_plans.render(rows, args.output)}")
+        return 0
 
     if args.command == "report":
         from .report import render

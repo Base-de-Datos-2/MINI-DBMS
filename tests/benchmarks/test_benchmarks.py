@@ -102,3 +102,24 @@ def test_report_uses_medians_and_ranges_from_raw_rows(tmp_path):
     assert "| Heap File | 2.000 [1.000 – 9.000] (n=3) | 20.0 [10.0 – 30.0] (n=3) |" in table
     assert "Paged Sequential (orden aleatorio) | — | — |" in table
     assert len(written) == 2  # one chart with data plus the summary
+
+
+def test_sql_plans_record_the_real_access_path_of_each_structure(tmp_path):
+    from benchmarks import sql_plans
+
+    writer = ResultWriter(tmp_path / "plans.jsonl", "plans", config={})
+    rows = sql_plans.run(300, 1, writer, tmp_path / "work")
+
+    assert len(rows) == len(sql_plans.TABLES) * len(sql_plans.queries(300)) * 2
+    plan = {(row["table"], row["operation"], row["selectivity"], row["use_indexes"]): row
+            for row in rows}
+    assert plan["t_hash", "equality_present", None, True]["plan"].endswith("IndexScan(t_hash_id)")
+    assert plan["t_hash", "range", 0.01, True]["access"] == "TableScan"
+    assert plan["t_unclustered", "range", 0.01, True]["access"] == "IndexScan"
+    assert plan["t_clustered", "equality_present", None, False]["access"] == "TableScan"
+    assert "ExternalSort" in plan["t_clustered", "ordered_retrieval", None, True]["plan"]
+    for (table, operation, selectivity, _), row in plan.items():
+        baseline = plan[table, operation, selectivity, False]
+        assert row["rows_returned"] == baseline["rows_returned"]
+    output = sql_plans.render(rows, tmp_path / "planes.md")
+    assert "IndexScan(t_unclustered_id)" in output.read_text(encoding="utf-8")
