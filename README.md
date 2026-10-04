@@ -3,6 +3,21 @@
 Proyecto académico de **Base de Datos 2 (2026-2)**. El objetivo es implementar
 un motor de base de datos propio, comenzando por la Parte 1 relacional.
 
+## Entrega de la Parte 1
+
+La Parte 1 (base de datos relacional) está completa: las diez etapas están
+cerradas y auditadas ([auditoría de la Etapa 10](docs/ETAPA_10_AUDIT.md)).
+
+| Documento | Contenido |
+|---|---|
+| [Informe de la Parte 1](docs/informe/informe_parte_01.md) | Arquitectura, dominio de datos, explicación de algoritmos, resumen experimental y desarrollo por etapas |
+| [Comparación experimental](docs/EXPERIMENTOS.md) | Método, resultados con 1 000 / 10 000 / 100 000 registros, ventajas y desventajas, conclusiones |
+| [Gráficos y tablas](docs/experimentos/resultados.md) | Generados desde los resultados crudos con `python -m benchmarks report` |
+| [Ajustes a módulos anteriores](docs/informe/ajustes_modulos_previos.md) | Cambios de la etapa de experimentos y su justificación |
+| [Guion del video](docs/informe/guion_video.md) y [presentación](docs/informe/presentacion.md) | Material para la demostración y la exposición |
+| [Instalación](#requisitos-e-instalación), [demo](docs/demo.md) y [despliegue](docs/despliegue.md) | Cómo instalar, ejecutar y publicar la interfaz |
+| [Gramática SQL](docs/sql-grammar.md), [guía SQL](docs/sql.md), [transacciones](docs/transactions.md) | Referencia técnica |
+
 ## Estado actual
 
 **Etapa 1 completa y auditada (2026-08-31):** estructura del repositorio, configuración Python,
@@ -203,8 +218,10 @@ oráculo serial. El runbook y las matrices de evidencia están en
 
 - Python **3.11 o superior**; los comandos de Windows utilizan Python 3.12.
 - `pip` y `venv`.
-- Sin dependencias de ejecución del motor en esta etapa; `pytest` es la única
-  dependencia directa de pruebas. `setuptools` se utiliza para empaquetar.
+- El motor no tiene dependencias de ejecución. Los extras opcionales son
+  `test` (pytest y el cliente de pruebas HTTP), `api` (FastAPI y uvicorn, para
+  la interfaz) y `bench` (matplotlib, para los gráficos de los experimentos).
+- Node.js 20 o superior, solo para compilar el frontend.
 
 Desde la raíz del repositorio, en **Windows / PowerShell**:
 
@@ -226,6 +243,20 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[test]"
 .venv/bin/python -m pytest -q
 ```
+
+Para la interfaz gráfica y los experimentos (Linux/macOS; en Windows usa
+`.\.venv\Scripts\python.exe`):
+
+```bash
+.venv/bin/python -m pip install -e ".[test,api,bench]"
+(cd frontend && npm ci && npm run build)
+.venv/bin/python scripts/setup_demo.py      # base de la demo, una sola vez
+.venv/bin/python -m api                     # http://127.0.0.1:8000
+.venv/bin/python -m benchmarks run --help   # experimentos (docs/EXPERIMENTOS.md)
+```
+
+La guía completa de la demo está en [docs/demo.md](docs/demo.md) y la
+publicación para otras personas en [docs/despliegue.md](docs/despliegue.md).
 
 La instalación inicial puede necesitar acceso a Internet para descargar las
 dependencias de construcción y pruebas. Una vez instalado el entorno, las
@@ -905,10 +936,11 @@ engine/
   operators/     # Operadores físicos, algoritmos externos y runner de planes
   query/         # AST, lexer/parser manual, binding, planes y ejecución SQL
   maintenance/   # Mantenimiento compartido de storage e índices para escrituras
-  transactions/  # Base de sesiones/estados/controles/recursos; bloqueo y undo pendientes
-api/             # Demo de la Etapa 9: servicio del motor y rutas FastAPI
+  transactions/  # Sesiones, transacciones, locks S/X, detección de deadlocks y undo
+api/             # Servicio HTTP del motor (FastAPI) con sesiones por cliente
 frontend/        # GUI React + TypeScript + Vite con los cuatro paneles
-scripts/         # setup_demo.py: prepara la base de datos de la demo
+scripts/         # setup_demo.py (base de la demo), integration_check.py (verificación completa)
+demos/           # transactions_demo.py: demostración de concurrencia con hilos
 tests/
   doubles.py     # Implementaciones mínimas solo para pruebas; no son el motor
   conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
@@ -927,9 +959,9 @@ tests/
   test_stage2_persistence_pipeline.py # Recorrido completo y procesos independientes
   page_corruption.py                 # Casos compartidos de corrupción de metadatos
   helpers/stage2_restart.py           # Escenario de prueba; no es un algoritmo del motor
-benchmarks/      # Reservado para experimentos
+benchmarks/      # Experimentos de la Parte 1, resultados crudos y generación de gráficos
 data/            # Reservado para datos
-docs/            # Evidencia de auditoría y documentación adicional
+docs/            # Informe, experimentos, auditorías y guías
 ```
 
 Los archivos `.gitkeep` conservan en Git los directorios que aún están vacíos.
@@ -1046,13 +1078,18 @@ del frontend porque este bloque no modificó archivos de `frontend/`.
 - [ETAPA_09.md](ETAPA_09.md): contrato de la API/frontend con integración
   transaccional implementada; cerrada el 2026-10-01.
 - [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).
+- [ETAPA_10.md](PART_01/ETAPA_10.md): experimentos, integración y entrega;
+  cerrada el 2026-10-04.
+- [Auditoría de la Etapa 10](docs/ETAPA_10_AUDIT.md), [verificación de
+  integración](docs/ETAPA_10_INTEGRACION.md) y [registro de cambios a módulos
+  anteriores](docs/ETAPA_10_CAMBIOS_MODULOS_PREVIOS.md).
 - [AGENTS.md](AGENTS.md): reglas de trabajo en el repositorio.
 
-Las **Etapas 1–9 están completas y auditadas**. La Etapa 9 integra desde el
-2026-09-25 sesiones entre peticiones HTTP, todos los serializadores de resultado,
-controles transaccionales, cancelación/estado y concurrencia verificada. El
-guard global se redujo a las peticiones sin sesión. Quedan los experimentos y
-la entrega de la Etapa 10 ([plan](PART_01/ETAPA_10.md)).
+Las **Etapas 1–10 están completas y auditadas**: la Parte 1 está terminada.
+La Etapa 10 midió las estructuras con 1 000, 10 000 y 100 000 registros,
+confirmó los planes desde SQL, verificó la ruta completa con un servidor real y
+un navegador, y reunió los documentos de entrega listados al inicio. La suite
+estricta completa pasa **2968 pruebas** (incluye la Parte 2 E1/E2).
 
 
 ## Parte 02 E1/E2 Motor espacial
