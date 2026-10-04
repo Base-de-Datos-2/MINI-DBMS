@@ -25,7 +25,7 @@ from time import perf_counter
 import uvicorn
 
 from .app import create_app
-from .database import Database, DatabaseSetupError
+from .database import Database, DatabaseDefinition, DatabaseSetupError
 from .demo import DEMO_MEMORY_BUDGET_BYTES, PRESETS, demo_database
 from .engine_service import EngineService
 
@@ -68,9 +68,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--data-dir",
         type=Path,
-        default=REPOSITORY / "data" / "generated" / "demo",
+        default=None,
         help="directorio preparado con scripts/setup_demo.py",
     )
+    parser.add_argument("--spatial", action="store_true",
+                        help="abre la muestra de Parte 02 preparada con setup_spatial.py")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument(
@@ -85,6 +87,10 @@ def main(argv: list[str] | None = None) -> None:
         help="habilita INSERT/DELETE (solo sobre la base de demo desechable)",
     )
     args = parser.parse_args(argv)
+    if args.data_dir is None:
+        args.data_dir = REPOSITORY / "data/generated" / ("spatial" if args.spatial else "demo")
+    setup_script = "setup_spatial.py" if args.spatial else "setup_demo.py"
+    definition = DatabaseDefinition("spatial") if args.spatial else demo_database()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     if not port_is_free(args.host, args.port):
@@ -94,13 +100,15 @@ def main(argv: list[str] | None = None) -> None:
         )
     started = perf_counter()
     try:
+        if args.spatial and not (args.data_dir / "spatial_tables.json").is_file():
+            raise DatabaseSetupError("Falta el mapeo de la muestra espacial")
         database = Database.open(
-            demo_database(), args.data_dir, memory_budget_bytes=DEMO_MEMORY_BUDGET_BYTES
+            definition, args.data_dir, memory_budget_bytes=DEMO_MEMORY_BUDGET_BYTES
         )
     except DatabaseSetupError as error:
         sys.exit(
             f"No se pudo abrir la base de demo: {error}\n"
-            "Prepárala primero con: python scripts/setup_demo.py"
+            f"Prepárala primero con: python scripts/{setup_script}"
         )
     service = EngineService(database, allow_writes=args.allow_writes)
     print(
@@ -108,7 +116,8 @@ def main(argv: list[str] | None = None) -> None:
         flush=True,
     )
     try:
-        app = create_app(service, presets=PRESETS, frontend_dir=args.frontend_dir)
+        app = create_app(service, presets=() if args.spatial else PRESETS,
+                         frontend_dir=args.frontend_dir)
         # Running statements are cancelled when the stop is requested, so open
         # connections get a real answer; the bound only caps a stuck client.
         config = uvicorn.Config(

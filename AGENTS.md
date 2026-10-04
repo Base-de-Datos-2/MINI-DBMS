@@ -14,6 +14,12 @@ The current implementation priority is:
 
 > **Part 1: Relational Database (Tables and SQL)**
 
+Part 2 **E1 and E2** were explicitly requested on 2026-10-03. Its active plan
+is `PART_02/PLAN_PARTE_02.md` (five delivery blocks); implementation and limits
+are documented in `docs/spatial.md`. E3–E5 remain planned. Spatial SQL, HTTP
+exposure and the map belong to E3; do not implement them without a request.
+The Part 1 roadmap is `PART_01/PLAN_PARTE_01.md`; Stage 10 remains open.
+
 Do not implement future parts unless the user explicitly asks for them.
 
 ---

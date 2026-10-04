@@ -1143,6 +1143,7 @@ class SqlEngine:
         "_execution_router",
         "_execution_bypass",
         "_metadata_guard",
+        "_mutation_service",
     )
 
     def __init__(
@@ -1154,6 +1155,7 @@ class SqlEngine:
         materialization_limit: int = DEFAULT_MATERIALIZATION_LIMIT,
         planning_options: PhysicalPlanningOptions | None = None,
         ddl_service: DdlService | None = None,
+        mutation_service: MutationService | None = None,
     ) -> None:
         if not isinstance(environment, QueryEnvironment):
             raise InvalidTypeError("SqlEngine requires a QueryEnvironment")
@@ -1179,6 +1181,9 @@ class SqlEngine:
             )
         if ddl_service is not None and not isinstance(ddl_service, DdlService):
             raise InvalidTypeError("ddl_service must implement DdlService or be None")
+        if mutation_service is not None and not isinstance(mutation_service, MutationService):
+            raise InvalidTypeError("mutation_service must implement MutationService or be None")
+        self._mutation_service = MutationService() if mutation_service is None else mutation_service
         self._environment = environment
         self._memory_budget_bytes = memory_budget_bytes
         self._max_open_handles = max_open_handles
@@ -1483,7 +1488,7 @@ class SqlEngine:
             spec = prepared._spec
             if not isinstance(spec, (InsertPlanSpec, DeletePlanSpec)):
                 raise RuntimeError("A mutation prepared query lost its plan")
-            service = MutationService()
+            service = self._mutation_service
             indexes = self._maintenance_indexes(spec)
             if isinstance(spec, InsertPlanSpec):
                 bound = spec.bound
