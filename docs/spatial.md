@@ -174,9 +174,11 @@ del plan, sin asumir que su orden coincide con el desempate por ID del motor.
 ## Parte 01 pendiente
 
 El commit de inicio es `d07dec3e412ae15ea86ccce8c0214108cf277fc1`.
-Etapa 9 está formalmente cerrada. Etapa 10 tiene generador/harness y resultados
-de 1.000/10.000 filas; faltan completar y comprobar el conjunto requerido de
-100.000, confirmación SQL, gráficos, informe, integración y cierre.
+**Actualización 2026-10-04:** la Etapa 10 y la Parte 01 están cerradas
+([auditoría](ETAPA_10_AUDIT.md)). Los resultados oficiales de 100.000 filas son
+las corridas WSL de la Etapa 10, en la misma máquina que 1.000/10.000; las
+corridas Windows descritas abajo solo sirven como evidencia complementaria.
+El texto que sigue conserva el registro original de E1.5.
 Los comandos existentes permanecen separados de Parte 02:
 
 ```powershell

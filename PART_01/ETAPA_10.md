@@ -5,7 +5,7 @@
 **Revision:** 2026-10-01  
 **Part:** Relational Database  
 **Starting point:** Stage 9 formally closed on 2026-10-01 (`docs/ETAPA_09_AUDIT.md`)  
-**Status:** Tasks 10.1–10.12 complete (2026-10-04): engine changes 10.2–10.2d, benchmark contract and harness, official runs at 1,000/10,000 rows (5 repetitions) and 100,000 rows (3 repetitions, clean commit `075eae8`), charts/tables in `docs/experimentos/`, SQL-level plan confirmation (`docs/experimentos/planes_sql.md`) the experiment report `docs/EXPERIMENTOS.md`, and the full-path integration check `docs/ETAPA_10_INTEGRACION.md`. Pending: 10.13–10.14. Every change to earlier stages is logged in `docs/ETAPA_10_CAMBIOS_MODULOS_PREVIOS.md`.  
+**Status:** **Formally closed 2026-10-04** — Tasks 10.1–10.14 and all Definition of Done criteria complete; Part 1 is complete. Evidence: `docs/ETAPA_10_AUDIT.md`. Every change to earlier stages is logged in `docs/ETAPA_10_CAMBIOS_MODULOS_PREVIOS.md`.  
 **Objective:** Produce the required comparative evidence (REQUIREMENTS §9), prove that every Part 1 layer works together, and assemble the delivery material (REQUIREMENTS §10).
 
 ## 1. Sources and scope
@@ -246,18 +246,18 @@ the budget.
 | 10.10 | Charts (matplotlib, `bench` optional dependency) and summary tables generated from results | done 2026-10-04 |
 | 10.11 | Experiment report `docs/EXPERIMENTOS.md`: method, results, advantages/disadvantages table, conclusions that follow from the data | done 2026-10-04 |
 | 10.12 | Final integration check of the full path (frontend → API → engine → operators → indexes/storage → pages → disk), restart, table loading, SQL errors, concurrency | done 2026-10-04 |
-| 10.13 | Delivery documents: README/installation manual, architecture, data domain, algorithm explanations, incremental report, demo-video script and presentation outline | 10.11–10.12 |
-| 10.14 | Stage 10 and Part 1 closure audit against REQUIREMENTS §14 | all |
+| 10.13 | Delivery documents: README/installation manual, architecture, data domain, algorithm explanations, incremental report, demo-video script and presentation outline | done 2026-10-04 |
+| 10.14 | Stage 10 and Part 1 closure audit against REQUIREMENTS §14 | done 2026-10-04 |
 
 ## 6. Definition of Done
 
-- [ ] Datasets of 1,000, 10,000 and 100,000 rows are reproducible from their seeds.
-- [ ] Every REQUIREMENTS §9 measurement exists for every structure and size, from real runs.
-- [ ] Raw results, configuration and environment are stored and versioned.
-- [ ] Charts and tables are regenerated from raw results by one command.
-- [ ] Conclusions state when each structure is preferable and follow from the data.
-- [ ] Benchmark code stays outside `engine/` and `api/`.
-- [ ] The full-path integration check passes after a clean restart.
-- [ ] The complete strict test suite and frontend checks pass.
-- [ ] Delivery documents listed in REQUIREMENTS §10 exist (the video and the live presentation are recorded by the team).
-- [ ] `PROJECT_CONTEXT.md`, `PLAN_PARTE_01.md`, `AGENTS.md` and `README.md` record the closure.
+- [x] Datasets of 1,000, 10,000 and 100,000 rows are reproducible from their seeds.
+- [x] Every REQUIREMENTS §9 measurement exists for every structure and size, from real runs.
+- [x] Raw results, configuration and environment are stored and versioned.
+- [x] Charts and tables are regenerated from raw results by one command.
+- [x] Conclusions state when each structure is preferable and follow from the data.
+- [x] Benchmark code stays outside `engine/` and `api/`.
+- [x] The full-path integration check passes after a clean restart.
+- [x] The complete strict test suite and frontend checks pass.
+- [x] Delivery documents listed in REQUIREMENTS §10 exist (the video and the live presentation are recorded by the team).
+- [x] `PROJECT_CONTEXT.md`, `PLAN_PARTE_01.md`, `AGENTS.md` and `README.md` record the closure.
