@@ -13,7 +13,7 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 1 — Relational Database (Tables and SQL)**
+> **Audit-driven backend corrections and completion; frontend deferred**
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -27,15 +27,15 @@ The repository uses the following documentation structure:
 |---|---|
 | `REQUIREMENTS.md` | Official academic requirements |
 | `PROJECT_CONTEXT.md` | Stable architectural and technical decisions |
-| `PLAN.md` | Part 1 implementation roadmap |
-| `ETAPA_XX.md` | Detailed implementation plan for the current stage |
+| `PART_01/PLAN_PARTE_01.md` | Historical Part 1 implementation roadmap |
+| `PART_01/ETAPA_XX.md` | Historical relational stage details |
 | `AGENTS.md` | Operating instructions for Codex |
 
 These documents have different responsibilities and should not be collapsed into one source.
 
 Implementation details discovered while working on a stage should only be promoted to `PROJECT_CONTEXT.md` after they become stable architectural decisions.
 
-`PLAN.md` and `ETAPA_XX.md` organize implementation work; they do not override the official requirements in `REQUIREMENTS.md`.
+`PART_01/PLAN_PARTE_01.md` and `PART_01/ETAPA_XX.md` organize implementation work; they do not override the official requirements in `REQUIREMENTS.md`.
 
 ---
 
@@ -86,7 +86,12 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-Part 1 is complete: Stage 10 closed on 2026-10-04 (`docs/ETAPA_10_AUDIT.md`).
+Part 1 Stage 10 closed on 2026-10-04 (`docs/ETAPA_10_AUDIT.md`). The later
+independent audit identified follow-up corrections. The user authorized
+completion of all backend parts on 2026-10-04, ordered by that audit rather
+than folder numbering; frontend work is expressly deferred. Current progress
+and verification are in `docs/implementacion/SEGUIMIENTO.md`. Earlier stage
+closures retain their historical meaning.
 On 2026-10-03 the user authorized Part 2 E1 and then E2, using `PART_02/PLAN_PARTE_02.md`. The spatial engine now supports
 typed radius/k-NN/polygon queries. E3–E5 remain planned, including spatial
 SQL/HTTP/map and the full experimental matrix.
@@ -199,7 +204,7 @@ If the repository already contains a working alternative stack that satisfies th
 
 ---
 
-## Proposed repository organization
+## Repository organization
 
 ```text
 mini-dbms/
@@ -207,8 +212,8 @@ mini-dbms/
 ├── AGENTS.md
 ├── REQUIREMENTS.md
 ├── PROJECT_CONTEXT.md
-├── PLAN.md
-├── ETAPA_01.md
+├── PART_01/                 # Relational roadmap and historical stage plans
+├── PART_02/                 # Spatial delivery plan
 ├── README.md
 |
 ├── engine/
@@ -217,6 +222,9 @@ mini-dbms/
 │   ├── operators/
 │   ├── query/
 │   ├── transactions/
+│   ├── database/
+│   ├── maintenance/
+│   ├── spatial/
 │   └── catalog/
 |
 ├── api/
@@ -227,7 +235,10 @@ mini-dbms/
 └── docs/
 ```
 
-This is a target organization, not an instruction to rewrite an existing repository that already has a coherent structure.
+The two database owners compose shared engine services for managed SQL and
+API/demo storage respectively. Spatial access currently uses the API owner.
+The audit-driven work reuses these services; this organization does not
+authorize replacement of existing implementations.
 
 ---
 
@@ -2394,7 +2405,7 @@ Latest formally completed stage:
 
 Overall Part 1 roadmap:
 
-> `PLAN.md`
+> `PART_01/PLAN_PARTE_01.md`
 
 Current implementation block:
 
@@ -2594,7 +2605,7 @@ aggregation, join-provenance and observability fixes; its strict suite passes
 
 If the repository already contains code from later stages, do not delete it. First inspect the repository, determine its actual implementation status, and preserve compatible working functionality.
 
-When the project advances to a new stage, update this section and point it to the corresponding `ETAPA_XX.md`.
+When the project advances to a new stage, update this section and point it to the corresponding `PART_01/ETAPA_XX.md`.
 
 ---
 
@@ -2616,7 +2627,7 @@ unsafe/protected demonstration against a serial oracle. Tasks 8.27–8.30 closed
 bounded stress, regression, documentation, and the Stage 8 audit on 2026-09-24.
 Stage 9 request sessions, results/errors, cancellation, and UI controls were
 implemented and verified on 2026-09-25; Stage 9 was formally closed on
-2026-10-01. Stage 10 remains pending; a real network-drop schedule has not been
+2026-10-01. Stage 10 closed on 2026-10-04; a real network-drop schedule has not been
 verified. The demo
 retains its legacy owner to support Sequential/B+/Hash fixtures; migration for
 SQL CREATE is separate from the completed session integration.

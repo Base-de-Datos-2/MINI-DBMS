@@ -20,6 +20,13 @@ cerradas y auditadas ([auditoría de la Etapa 10](docs/ETAPA_10_AUDIT.md)).
 
 ## Estado actual
 
+La corrección posterior a la auditoría independiente sigue
+[el seguimiento del backend](docs/implementacion/SEGUIMIENTO.md). Se conservan
+los cierres históricos descritos abajo; sus conteos y tiempos pertenecen a
+esas revisiones. La fase actual implementa las brechas de las cinco partes,
+con todo desarrollo de frontend postergado. La auditoría completa está en
+[docs/auditoria](docs/auditoria/AUDITORIA_TECNICA.md).
+
 **Etapa 1 completa y auditada (2026-08-31):** estructura del repositorio, configuración Python,
 `DataType`, `Column`, `Schema`, `RID`, `Record`, metadatos de tablas/índices y
 `Catalog` en memoria. Ya existen los contratos abstractos de almacenamiento,
@@ -39,7 +46,7 @@ con esquemas externos, varias páginas, slots eliminados y reescrituras.
 
 Los cierres están registrados en [la auditoría de la Etapa 1](docs/ETAPA_01_AUDIT.md)
 y [la auditoría de la Etapa 2](docs/ETAPA_02_AUDIT.md). Los 47 criterios de
-[ETAPA_02.md](ETAPA_02.md) se cumplen.
+[ETAPA_02.md](PART_01/ETAPA_02.md) se cumplen.
 
 **Etapa 3 completa y auditada (2026-09-02):** `HeapFile` permite
 insertar registros en varias páginas, leerlos por RID, eliminarlos, reutilizar
@@ -553,8 +560,11 @@ with TemporaryDirectory() as directory:
 `HeapFreeSpaceTracker` mantiene en memoria, por página, la mayor carga útil que
 podría insertarse después de compactar localmente. Al reabrir, `HeapFile` lee
 una vez cada página de datos, valida los contadores persistidos y reconstruye
-el directorio. La elección usa el menor `page_id` elegible, pero `Page.insert`
-seguirá siendo la autoridad final ante información obsoleta. El seguimiento no
+el directorio y las páginas con slots borrados. Se reutiliza el menor `page_id`
+con un slot borrado que pueda recibir la fila; de lo contrario se usa la última
+página o se añade una. Así la carga inicial conserva llegada incluso con filas
+de tamaños diferentes. `Page.insert` sigue siendo la autoridad final ante
+información obsoleta. El seguimiento no
 es un índice ni se persiste por separado. `scan()` lee una página de datos cada
 vez, omite slots eliminados y produce `(RID, Record)` en orden físico. Reutilizar
 un slot puede hacer que un RID eliminado pase a identificar un registro nuevo.
@@ -931,12 +941,14 @@ ciclo de vida, agotamiento y liberación de recursos.
 engine/
   errors.py      # Errores compartidos, sin dependencias de otros componentes
   catalog/       # Tipos, esquemas, metadatos y catálogo en memoria
+  database/      # Propietario persistente con manifiesto y CREATE SQL
   storage/       # Páginas, PageManager, HeapFile y PagedSequentialFile
   indexes/       # Contratos, B+ y Hashing Extensible completos hasta Etapa 5
   operators/     # Operadores físicos, algoritmos externos y runner de planes
   query/         # AST, lexer/parser manual, binding, planes y ejecución SQL
   maintenance/   # Mantenimiento compartido de storage e índices para escrituras
   transactions/  # Sesiones, transacciones, locks S/X, detección de deadlocks y undo
+  spatial/       # Geometría, R-Tree propio y mantenimiento de índices espaciales
 api/             # Servicio HTTP del motor (FastAPI) con sesiones por cliente
 frontend/        # GUI React + TypeScript + Vite con los cuatro paneles
 scripts/         # setup_demo.py (base de la demo), integration_check.py (verificación completa)
@@ -945,6 +957,8 @@ tests/
   doubles.py     # Implementaciones mínimas solo para pruebas; no son el motor
   conftest.py    # Bloqueo de apertura de archivos durante operaciones de integración
   catalog/       # Pruebas del modelo implementado
+  database/      # Descubrimiento persistente y creación SQL
+  spatial/       # Geometría, R-Tree, persistencia y lifecycle espacial
   storage/       # Modelo, codecs, páginas, archivos, organización/Heap y fallos de E/S
   indexes/       # Contratos y pruebas persistentes de B+ y Hashing Extensible
   operators/     # Ciclo de vida, operadores, temporales y algoritmos externos
@@ -959,7 +973,7 @@ tests/
   test_stage2_persistence_pipeline.py # Recorrido completo y procesos independientes
   page_corruption.py                 # Casos compartidos de corrupción de metadatos
   helpers/stage2_restart.py           # Escenario de prueba; no es un algoritmo del motor
-benchmarks/      # Experimentos de la Parte 1, resultados crudos y generación de gráficos
+benchmarks/      # Experimentos relacionales y preparación del comparador espacial
 data/            # Reservado para datos
 docs/            # Informe, experimentos, auditorías y guías
 ```
@@ -976,7 +990,7 @@ de estos componentes realiza acceso a disco. Los codecs conocen tipos/esquemas;
 `Page`, `SlotEntry`, `PageHeader` y los validadores de geometría no conocen
 registros lógicos ni tipos SQL. Page recibe bytes, no objetos Record.
 `PageManager` conoce páginas y cabecera de archivo, pero no registros, esquemas,
-codecs ni organizaciones como Heap File. Es el propietario del acceso a disco.
+codecs ni organizaciones como Heap File. Es el propietario de la E/S paginada.
 `OrganizationMetadata`, `HeapFile`, `PagedSequentialFile`, B+ y Hashing
 Extensible se apoyan en él sin repetir offsets físicos. Los índices reutilizan
 el codec canónico de claves y mantienen sus algoritmos visibles en
@@ -984,7 +998,12 @@ el codec canónico de claves y mantienen sus algoritmos visibles en
 `Storage` e `Index` y los adaptadores de índice sin conocer páginas ni nodos, y
 escriben sus temporales a través de `PageManager`; la gestión de directorios
 temporales vive en esta capa porque la de almacenamiento reserva el acceso a
-archivos para `PageManager`. `engine/query` construye planes sobre esos
+archivos paginados para `PageManager`. Los manifiestos, snapshots espaciales
+y archivos de undo tienen E/S propia bajo sus respectivos propietarios;
+los contadores de páginas no representan todo el disco del proceso.
+`engine.database.Database` compone CREATE y el manifiesto persistente;
+`api.database.Database` compone la demo, importación y recursos espaciales.
+`engine/query` construye planes sobre esos
 operadores y `engine/maintenance` coordina las escrituras de storage e índices
 sin depender del parser. La capa transaccional coordina sesiones y recursos
 compartidos; la API y el frontend mantienen sesiones entre peticiones desde
@@ -1045,23 +1064,23 @@ del frontend porque este bloque no modificó archivos de `frontend/`.
 
 - [REQUIREMENTS.md](REQUIREMENTS.md): requisitos académicos.
 - [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md): arquitectura y decisiones estables.
-- [PLAN.md](PLAN.md): las diez etapas de la Parte 1.
-- [ETAPA_01.md](ETAPA_01.md): etapa de fundamentos, cerrada y auditada.
-- [ETAPA_02.md](ETAPA_02.md): etapa de persistencia, cerrada y auditada.
-- [ETAPA_03.md](ETAPA_03.md): etapa de organizaciones de archivo, cerrada.
+- [PLAN.md](PART_01/PLAN_PARTE_01.md): las diez etapas de la Parte 1.
+- [ETAPA_01.md](PART_01/ETAPA_01.md): etapa de fundamentos, cerrada y auditada.
+- [ETAPA_02.md](PART_01/ETAPA_02.md): etapa de persistencia, cerrada y auditada.
+- [ETAPA_03.md](PART_01/ETAPA_03.md): etapa de organizaciones de archivo, cerrada.
 - [Auditoría de la Etapa 3](docs/ETAPA_03_AUDIT.md): evidencia de cierre.
-- [ETAPA_04.md](ETAPA_04.md): etapa B+ cerrada; tareas 4.1–4.31 completas.
+- [ETAPA_04.md](PART_01/ETAPA_04.md): etapa B+ cerrada; tareas 4.1–4.31 completas.
 - [Inspección inicial de la Etapa 4](docs/ETAPA_04_TASK_4_1_INSPECTION.md):
   compatibilidad y extensiones mínimas identificadas antes de programar.
 - [Auditoría de la Etapa 4](docs/ETAPA_04_AUDIT.md): evidencia de sus 59
   criterios, validación estricta y límites conocidos.
-- [ETAPA_05.md](ETAPA_05.md): guía completa de Extendible Hashing.
+- [ETAPA_05.md](PART_01/ETAPA_05.md): guía completa de Extendible Hashing.
 - [Auditoría de la Etapa 5](docs/ETAPA_05_AUDIT.md): matriz conciliada de los 47
   criterios, 1772 pruebas tras revisión y límites conocidos.
-- [ETAPA_06.md](ETAPA_06.md): etapa de operadores y algoritmos externos, cerrada.
+- [ETAPA_06.md](PART_01/ETAPA_06.md): etapa de operadores y algoritmos externos, cerrada.
 - [Auditoría de la Etapa 6](docs/ETAPA_06_AUDIT.md): evidencia de los 59
   criterios, 2252 pruebas, salvedades declaradas y traspaso a la Etapa 7.
-- [ETAPA_07.md](ETAPA_07.md): etapa SQL cerrada; tareas 7.1–7.40 completas.
+- [ETAPA_07.md](PART_01/ETAPA_07.md): etapa SQL cerrada; tareas 7.1–7.40 completas.
 - [Guía del motor SQL](docs/sql.md): API pública, sintaxis, planes, resultados,
   mutaciones, errores y límites soportados.
 - [Auditoría de la Etapa 7](docs/ETAPA_07_AUDIT.md): evidencia de los 63
@@ -1069,13 +1088,13 @@ del frontend porque este bloque no modificó archivos de `frontend/`.
 - [Auditoría de la extensión de la Etapa 7](docs/ETAPA_07_EXTENSION_AUDIT.md):
   CREATE/EXPLAIN, escenario exacto, reinicio, fallos, regresión y cierre de las
   tareas 7.31–7.40.
-- [ETAPA_08.md](ETAPA_08.md): etapa de transacciones y concurrencia cerrada;
+- [ETAPA_08.md](PART_01/ETAPA_08.md): etapa de transacciones y concurrencia cerrada;
   tareas 8.1–8.30 y 37 criterios completos.
 - [Auditoría de la Etapa 8](docs/ETAPA_08_AUDIT.md): stress, regresión completa,
   demostración, límites y decisión de cierre.
 - [Handoff de la Etapa 8 a la 9](docs/ETAPA_08_STAGE_9_HANDOFF.md): sesiones
   HTTP, resultados, errores, cancelación y condiciones para retirar el guard.
-- [ETAPA_09.md](ETAPA_09.md): contrato de la API/frontend con integración
+- [ETAPA_09.md](PART_01/ETAPA_09.md): contrato de la API/frontend con integración
   transaccional implementada; cerrada el 2026-10-01.
 - [Runbook de la demo](docs/demo.md) e [informe de avance de la Etapa 9](docs/ETAPA_09_AVANCE.md).
 - [ETAPA_10.md](PART_01/ETAPA_10.md): experimentos, integración y entrega;

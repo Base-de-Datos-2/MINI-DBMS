@@ -23,11 +23,11 @@ This file is the source of truth for **official academic requirements**.
 The following files have different purposes:
 
 - `PROJECT_CONTEXT.md` records architectural and technical decisions;
-- `PLAN.md` defines the implementation roadmap for Part 1;
-- `ETAPA_XX.md` defines the detailed tasks for the current stage;
+- `PART_01/PLAN_PARTE_01.md` defines the implementation roadmap for Part 1;
+- `PART_01/ETAPA_XX.md` defines the detailed tasks for the current stage;
 - `AGENTS.md` defines how Codex should work in the repository.
 
-`PLAN.md` and `ETAPA_XX.md` may explain how the team intends to satisfy a requirement, but they must not add, remove, weaken or override an official requirement in this file.
+`PART_01/PLAN_PARTE_01.md` and `PART_01/ETAPA_XX.md` may explain how the team intends to satisfy a requirement, but they must not add, remove, weaken or override an official requirement in this file.
 
 If an implementation document conflicts with `REQUIREMENTS.md`, the requirement in this file takes precedence and the conflict must be reported before implementation continues.
 
@@ -54,8 +54,11 @@ Therefore the implementation should remain modular from the beginning.
 
 ## Part 1 — Relational Database (Tables and SQL)
 
-Part 1 remains a delivery obligation. Part 2 E1 preparation was authorized
-on 2026-10-03; the spatial requirements are transcribed in section 15.
+All five parts remain delivery obligations. The user authorized the complete
+backend correction/implementation phase on 2026-10-04; frontend implementation
+is deferred, without removing its academic requirements. Spatial requirements
+are in section 15; text, multimedia and application requirements follow below.
+The official source is the current `Proyecto_Final.pdf`.
 
 ---
 
@@ -342,7 +345,7 @@ The project deliverables include:
 - data domain;
 - explanation of algorithms;
 - experimental section;
-- final presentation.
+- final presentation (15 minutes plus 5 minutes of questions).
 
 ---
 
@@ -463,8 +466,9 @@ Part 1 should not be considered complete unless all of the following are demonst
 
 # 15. Part 2 — Spatial Database (Coordinates and Maps)
 
-Source: assignment §2.2, checked against the tracked `Proyecto_Final (3).docx`
-on 2026-10-03. The PDF cited by older documents is not present in this checkout.
+Source: `Proyecto_Final.pdf`, physical page 3, section 2.2. The earlier DOCX
+comparison is historical; the current PDF is present and was decomposed into
+verifiable requirements in `docs/auditoria/MATRIZ_REQUISITOS.csv`.
 Implementation choices and preparation status belong in the Part 2 plan/context.
 
 ## 15.1 Implementation
@@ -496,3 +500,47 @@ graphs and a table explaining when each technique is appropriate.
 The assignment does not prescribe an R-Tree page layout, persistent POINT DDL,
 two database-owner integrations or a second complete metric matrix. These are
 implementation decisions, not additional academic requirements.
+
+# 16. Part 3 — Full-text search
+
+Source: `Proyecto_Final.pdf`, physical pages 3–4, section 2.3.
+
+- Implement an inverted index using SPIMI.
+- Implement TF-IDF with cosine similarity and BM25 ranking.
+- Extend SQL with MATCH, selection of TF_IDF/BM25, SCORE, ordering and LIMIT
+  as illustrated by the assignment.
+- Compare TF-IDF/cosine, BM25 and PostgreSQL GIN with identical queries and
+  1,000/10,000/100,000 documents; query lengths are 1, 3 and 5+ words.
+- Measure construction/query time, Precision@10, Recall@10, memory and disk;
+  present comparative graphs and a advantages/disadvantages table.
+
+# 17. Part 4 — Multimedia search
+
+Source: `Proyecto_Final.pdf`, physical page 4, section 2.4.
+
+- ExtractFeatures uses SIFT for images and MFCC for audio.
+- Quantize descriptors with K-Means or Tree Quantization, count visual/audio
+  words and apply TF-IDF to obtain a K-dimensional histogram.
+- Implement IVF and HNSW and Euclidean, dot-product and cosine metrics.
+- Extend SQL with SIMILAR_TO, index/metric selection and SIMILARITY_SCORE as
+  illustrated by the assignment.
+- Compare both indexes and Euclidean/cosine with k=10 at
+  1,000/10,000/100,000 images/audio objects.
+- Measure construction/query time, Recall@10 and memory; provide time-versus-
+  dataset-size graphs, a gallery of actual success/error cases and a table.
+
+# 18. Part 5 — Application
+
+Source: `Proyecto_Final.pdf`, physical pages 4–5, section 2.5; Anexo A,
+physical pages 6–7.
+
+- Build one real application consuming the own engine's REST or GraphQL API.
+- Integrate at least two of relational, spatial, text or multimedia data.
+- Provide a user interface demonstrating the system (deferred in this phase).
+- Select one Anexo A option: academic-document RAG, hybrid e-commerce,
+  audio copyright detection, or face recognition. Only the selected option's
+  specific components apply; optional features remain optional.
+
+The application's selection and implementation details belong in
+PROJECT_CONTEXT.md and its implementation documentation. PostgreSQL is solely
+an experimental comparator; it does not implement this project's algorithms.

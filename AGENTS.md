@@ -9,14 +9,22 @@ This repository implements the academic project **"Minigestor de Base de Datos M
 
 Codex must treat this repository as an educational database-management-system implementation. The goal is to implement the required database structures and algorithms, not to hide them behind an existing DBMS or high-level library.
 
-The current implementation priority is:
+The current implementation priority, authorized on 2026-10-04, is:
 
-> **Part 1: Relational Database (Tables and SQL)**
+> **Audit-driven backend corrections and completion; frontend deferred**
+
+Use `docs/auditoria/AUDITORIA_TECNICA.md` and its dependency/criticality order
+without repeating the general audit. Current work is recorded in
+`docs/implementacion/SEGUIMIENTO.md`. The user authorized later parts explicitly
+and requested automatic continuation and logical, validated commits according
+to `docs/commits.md`. Do not implement frontend in this phase; prepare backend
+contracts when required. Historical stage plans below remain references for
+existing implementations, not a replacement for the authorized audit order.
 
 Part 2 **E1 and E2** were explicitly requested on 2026-10-03. Its active plan
 is `PART_02/PLAN_PARTE_02.md` (five delivery blocks); implementation and limits
-are documented in `docs/spatial.md`. E3–E5 remain planned. Spatial SQL, HTTP
-exposure and the map belong to E3; do not implement them without a request.
+are documented in `docs/spatial.md`. E3–E5 were planned at that closure.
+Spatial SQL and HTTP are now authorized; the map is deferred with the frontend.
 The Part 1 roadmap is `PART_01/PLAN_PARTE_01.md`; Part 1 is complete
 (Stage 10 closed 2026-10-04, `docs/ETAPA_10_AUDIT.md`).
 
@@ -30,7 +38,7 @@ Before modifying any source file:
 
 1. Read `REQUIREMENTS.md`.
 2. Read `PROJECT_CONTEXT.md`.
-3. Read `PLAN.md`.
+3. Read `PART_01/PLAN_PARTE_01.md`.
 4. Identify the current development stage.
 5. Read the corresponding stage document, for example:
    - `ETAPA_01.md` for Stage 1;
@@ -62,13 +70,13 @@ Contains stable architectural decisions and the current technical model.
 
 It defines **HOW the system has been designed**.
 
-### `PLAN.md`
+### `PART_01/PLAN_PARTE_01.md`
 
 Contains the Part 1 implementation roadmap.
 
 It defines **IN WHAT ORDER the system will be implemented**.
 
-### `ETAPA_XX.md`
+### `PART_01/ETAPA_XX.md`
 
 Contains the detailed plan for the current implementation stage.
 
@@ -86,10 +94,10 @@ It defines **HOW CODEX SHOULD WORK** in the repository.
 
 ### For official academic requirements
 
-1. `REQUIREMENTS.md`
-2. Original assignment document (`Proyecto_Final.pdf`)
+1. Original assignment document (`Proyecto_Final.pdf`)
+2. `REQUIREMENTS.md` (its transcription; report any disagreement)
 3. `PROJECT_CONTEXT.md`
-4. `PLAN.md` / current `ETAPA_XX.md`
+4. `PART_01/PLAN_PARTE_01.md` / current `PART_01/ETAPA_XX.md`
 5. Existing code
 6. Assumptions
 
@@ -98,18 +106,18 @@ It defines **HOW CODEX SHOULD WORK** in the repository.
 1. `PROJECT_CONTEXT.md`
 2. Existing tests
 3. Existing code
-4. `PLAN.md` / current `ETAPA_XX.md`
+4. `PART_01/PLAN_PARTE_01.md` / current `PART_01/ETAPA_XX.md`
 5. New assumptions
 
 ### For implementation order
 
-1. `PLAN.md`
-2. Current `ETAPA_XX.md`
+1. `PART_01/PLAN_PARTE_01.md`
+2. Current `PART_01/ETAPA_XX.md`
 
 ### For tasks inside the current stage
 
-1. Current `ETAPA_XX.md`
-2. `PLAN.md`
+1. Current `PART_01/ETAPA_XX.md`
+2. `PART_01/PLAN_PARTE_01.md`
 
 ### For how Codex should work
 
@@ -142,7 +150,8 @@ When a design decision made during a stage becomes stable, promote that decision
 
 ## Current scope
 
-Work only on **Part 1: Relational Database** unless explicitly requested otherwise.
+The user explicitly authorized all necessary backend work for Parts 1–5.
+Preserve existing correct implementations and follow the audit dependencies.
 
 Part 1 includes:
 
@@ -161,7 +170,9 @@ Part 1 includes:
 - REST API / frontend integration;
 - experimental comparison and benchmarks.
 
-Future spatial, text-retrieval, multimedia and AI features must not be mixed into the Part 1 implementation prematurely.
+Spatial, text, multimedia and application extensions must keep clear
+responsibilities and integrate through the existing engine/owner contracts.
+The frontend remains deferred even when the backend of a later part is ready.
 
 ---
 
@@ -319,7 +330,7 @@ Do not force an abstraction if the repository already has an equivalent, tested 
 
 Part 1 is implemented through the 10-stage roadmap defined in:
 
-> `PLAN.md`
+> `PART_01/PLAN_PARTE_01.md`
 
 Latest formally completed stage:
 
@@ -469,10 +480,10 @@ Before moving to the next stage:
 - the current-stage functionality must exist;
 - relevant tests must pass;
 - integration with previous stages must work;
-- the current `ETAPA_XX.md` Definition of Done must be satisfied;
+- the current `PART_01/ETAPA_XX.md` Definition of Done must be satisfied;
 - stable decisions discovered during the stage must be reflected in `PROJECT_CONTEXT.md`.
 
-For the complete descriptions of Stages 2–10, use `PLAN.md`.
+For the complete descriptions of Stages 2–10, use `PART_01/PLAN_PARTE_01.md`.
 
 ---
 
@@ -621,6 +632,6 @@ Before moving to a later stage:
 - no official requirement has been removed;
 - persistence assumptions are explicit when persistence applies;
 - documentation reflects important architectural decisions;
-- the current `ETAPA_XX.md` Definition of Done is satisfied.
+- the current `PART_01/ETAPA_XX.md` Definition of Done is satisfied.
 
 If any item is not satisfied, remain in the current stage unless the user explicitly changes the implementation plan.

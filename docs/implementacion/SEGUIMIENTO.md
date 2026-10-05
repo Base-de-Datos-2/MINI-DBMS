@@ -81,4 +81,32 @@ Estado: COMPLETADA.
 - Unidad de commit: `fix(api): corregir cierre y relanzamiento del servidor`.
 - Pendientes de esta etapa: ninguno.
 
-Siguiente: etapa 3, correcciones documentales H5.
+Commit de etapa 2: f961608.
+
+## Etapa 3 — Coherencia documental
+
+Estado: COMPLETADA para la documentación vigente del backend.
+
+- H5/T.1.2: rutas de planes y etapas resuelven bajo PART_01; organización y
+  responsabilidades incluyen ambos propietarios de base y el núcleo espacial.
+- Se corrigió la frase de Stage 10 pendiente y se distinguieron cierres
+  históricos, evaluación independiente y avance actual.
+- REQUIREMENTS transcribe las Partes 3–5 y precisa la exposición 15+5 según el
+  PDF. AGENTS/PROJECT_CONTEXT reflejan la autorización actual y frontend
+  postergado, sin reemplazar algoritmos correctos ni cambiar planes históricos.
+- PageManager se describe como propietario de E/S paginada, sin atribuirle
+  manifests, undo o snapshots espaciales. Informe/README describen la política
+  de Heap corregida.
+- H7: el documento experimental precisa la mezcla agrupada 100k (una
+  inserción, cero borrados y operación mayor a 60 s), la revisión de presupuesto
+  entre operaciones y la procedencia de revisiones/árbol dirty. No altera ni
+  inventa resultados históricos.
+- Validación: 108 enlaces locales comprobados, todos existentes; git diff
+  --check. La regresión del código ya está acreditada en etapa 2; estos cambios
+  son documentales y no requieren repetirla.
+- Evidencia: documentacion.json.
+- Unidad de commit: `docs: corregir referencias y arquitectura vigentes`.
+- Pendientes finales: video, presentación y documentación de partes futuras
+  permanecen explícitamente pendientes; no se consideran implementados.
+
+Siguiente: etapa 4, elegir una opción del Anexo A y fijar su dominio.

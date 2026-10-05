@@ -199,11 +199,12 @@ esta implementación los dos obtienen cada fila leyendo su registro por RID, y
 el agrupado no aprovecha que esas filas estén contiguas para leer páginas
 completas. La diferencia aparece al escribir: el Archivo Secuencial puede mover
 registros cuando divide una página, así que el B+ agrupado se reconstruye
-completo después de cada inserción. Procesa 35, 3 y 1 operación dentro del
-presupuesto de 60 s, contra ~230 operaciones por segundo del no agrupado y del
+completo después de cada inserción. Procesa 35–37, 3 y 1 operación con un
+presupuesto revisado entre operaciones, contra ~230 operaciones por segundo del no agrupado y del
 Hash, que solo actualizan una entrada. Con 100 000 registros completó una
 operación por repetición; la tasa reportada se calcula sobre esa única
-operación.
+operación, que fue una inserción; no hubo borrados en ese tamaño y el tiempo
+de esa operación excedió los 60 s.
 
 Tras cada carga mixta, los tres índices pasaron la validación completa de su
 estructura con el número exacto de entradas esperado.
@@ -267,7 +268,13 @@ con el cruce medido en la sección 3. `ORDER BY` siempre se resuelve con
 - **Python.** Los tiempos absolutos reflejan un intérprete; las comparaciones
   entre estructuras y su crecimiento con N son lo que se debe leer.
 - **Carga mixta del B+ agrupado.** El presupuesto de 60 s limitó la muestra a
-  35, 3 y 1 operación; la tasa es correcta, pero se basa en pocas operaciones.
+35–37, 3 y 1 operación; la tasa es correcta, pero se basa en pocas operaciones.
+  En 100k esa operación fue una inserción, sin eliminaciones. Hash y B+ no
+  agrupado ejecutaron 100 inserciones y 100 eliminaciones: sus mezclas no son
+  iguales. El presupuesto se comprueba entre operaciones y una sola inserción
+  agrupada lo excedió (373–432 s); no es un timeout estricto. El mínimo del PDF
+  se acredita en tamaños menores; el párrafo de índices no exige repetir esa
+  carga mixta en los tres tamaños. La cifra 100k no demuestra borrados frecuentes.
 - **100 000 registros en paralelo.** Los dos experimentos de 100 000 corrieron
   a la vez en núcleos distintos. Comparten memoria y disco, aunque cada uno usó
   un solo núcleo y la máquina tenía 8.
@@ -276,3 +283,12 @@ con el cruce medido en la sección 3. `ORDER BY` siempre se resuelve con
 - **Planner por reglas.** Sin modelo de costos, el motor no puede evitar el B+
   en rangos amplios; es una decisión de alcance (el plan de la etapa excluye
   un optimizador por costos), no un error de medición.
+- **Procedencia y versiones.** Los ensayos 1k/10k registran el commit d191e7c
+  con árbol dirty y huella de código; falta el snapshot exacto de ese árbol.
+  Los de 100k registran 075eae87 y su huella coincide con sus archivos Git.
+  No atribuir todas las diferencias a N sin reconocer cambios de código.
+- **Correcciones posteriores.** Estas tablas son resultados históricos. El
+  cambio de política del Heap y las siguientes correcciones no generan nuevos
+  tiempos por sí mismos; las nuevas corridas deben tener configuración, huella
+  y resultados propios. La auditoría verificó la correspondencia exacta entre
+  los JSONL oficiales y sus tablas.
