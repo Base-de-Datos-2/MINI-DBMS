@@ -84,6 +84,12 @@ class AggregateCall(SqlExpr):
 
 
 @dataclass(frozen=True, slots=True)
+class FunctionCall(SqlExpr):
+    function: str
+    arguments: tuple[SqlExpr, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Comparison(SqlExpr):
     left: SqlExpr
     operator: str  # one of '=', '<>', '<', '<=', '>', '>='
@@ -144,6 +150,7 @@ class SelectStatement(SyntaxNode):
     where: SqlExpr | None = None
     group_by: tuple[ColumnRef, ...] = field(default_factory=tuple)
     order_by: tuple[OrderItem, ...] = field(default_factory=tuple)
+    limit: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
