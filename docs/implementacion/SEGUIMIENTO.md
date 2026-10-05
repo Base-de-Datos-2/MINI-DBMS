@@ -55,4 +55,30 @@ Estado: COMPLETADA.
 - Pendientes de esta etapa: ninguno. Las cargas antiguas no se reordenan sin
   una fuente que acredite el orden original.
 
-Siguiente: etapa 2, cierre y relanzamiento HTTP.
+Commit de etapa 1: b40f6c0.
+
+## Etapa 2 — Cierre y relanzamiento HTTP
+
+Estado: COMPLETADA.
+
+- Corrección H2: la sonda POSIX usa la política de reutilización de Uvicorn
+  para TIME_WAIT y continúa rechazando un listener activo. Windows conserva
+  su política exclusiva de bind sin introducir SO_REUSEADDR.
+- El entrypoint admite KeyboardInterrupt después del cierre de Uvicorn,
+  ejecuta siempre service.close y conserva errores reales del cierre.
+- El comprobador admite `--backend-only`: omite solo el chequeo de assets
+  compilados; no altera su comportamiento completo predeterminado.
+- Validación: 96 tests de launcher/transacciones; 24/24 casos HTTP reales de
+  backend; dos SIGINT terminan con estado 0, sin traceback y espera de puerto
+  de 0 s; commit, rollback e índices sobreviven a reapertura correctamente.
+- Regresión completa: 2.973 tests aprobados con warnings como errores,
+  134,06 s. El intento anterior tenía 18 fallos de resolución del editable
+  histórico en procesos `-I`; se preservó ese diagnóstico y se corrigió el
+  entorno con una instalación editable independiente, sin modificar tests
+  para esconderlo. No se realizó trabajo de frontend.
+- Evidencias: launcher.log, launcher_http.json/log, regresion_critica.log,
+  regresion_entorno_previo.log y versiones en entorno_pruebas.txt.
+- Unidad de commit: `fix(api): corregir cierre y relanzamiento del servidor`.
+- Pendientes de esta etapa: ninguno.
+
+Siguiente: etapa 3, correcciones documentales H5.

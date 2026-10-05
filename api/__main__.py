@@ -54,6 +54,9 @@ def port_is_free(host: str, port: int) -> bool:
     """
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        if sys.platform != "win32":
+            # Match Uvicorn on POSIX: TIME_WAIT is not an active listener.
+            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             probe.bind((host, port))
         except OSError:
@@ -124,7 +127,11 @@ def main(argv: list[str] | None = None) -> None:
             app, host=args.host, port=args.port, workers=1, reload=False,
             timeout_graceful_shutdown=5,
         )
-        _Server(config, service).run()
+        try:
+            _Server(config, service).run()
+        except KeyboardInterrupt:
+            # Uvicorn may re-raise SIGINT after completing its graceful shutdown.
+            pass
     finally:
         try:
             service.close()

@@ -1,7 +1,7 @@
 set -eu
 original='/mnt/c/Users/Ian/Desktop/UTEC/TRABAJOS (PAGOS)/Paolo - BD2'
 implementation='/home/ian/.cache/minidbms-implementation-20261004'
-python='/home/ian/.cache/minidbms-audit-20261004/env/bin/python'
+python='/home/ian/.cache/minidbms-implementation-20261004/env/bin/python'
 stage="$1"
 shift
 mkdir -p "$implementation/source" "$implementation/results"

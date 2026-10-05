@@ -1,0 +1,1144 @@
+........................................................................ [  2%]
+........................................................................ [  4%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 16%]
+........................................................................ [ 19%]
+........................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 26%]
+........................................................................ [ 29%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 46%]
+........................................................................ [ 48%]
+........................................................................ [ 50%]
+........................................................................ [ 53%]
+........................................................................ [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 72%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 92%]
+.....................................................FFFFFFFFFFFFFFFFFF. [ 94%]
+........................................................................ [ 96%]
+........................................................................ [ 99%]
+.....................                                                    [100%]
+=================================== FAILURES ===================================
+___ test_public_imports_work_from_fresh_isolated_interpreters[engine.errors] ___
+
+first_module = 'engine.errors'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_0')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.catalog.schema] _
+
+first_module = 'engine.catalog.schema'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_1')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+__ test_public_imports_work_from_fresh_isolated_interpreters[engine.catalog] ___
+
+first_module = 'engine.catalog'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_2')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+__ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage] ___
+
+first_module = 'engine.storage'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_3')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+__ test_public_imports_work_from_fresh_isolated_interpreters[engine.indexes] ___
+
+first_module = 'engine.indexes'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_4')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.operators] __
+
+first_module = 'engine.operators'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_5')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.page_manager] _
+
+first_module = 'engine.storage.page_manager'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_6')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.file_header] _
+
+first_module = 'engine.storage.file_header'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_7')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.page] _
+
+first_module = 'engine.storage.page'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_8')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.record_codec] _
+
+first_module = 'engine.storage.record_codec'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_9')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.organization] _
+
+first_module = 'engine.storage.organization'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_10')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.heap_file] _
+
+first_module = 'engine.storage.heap_file'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_11')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.metrics] _
+
+first_module = 'engine.storage.metrics'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_12')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.sequential_ordering] _
+
+first_module = 'engine.storage.sequential_ordering'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_13')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.paged_sequential_file] _
+
+first_module = 'engine.storage.paged_sequential_file'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_14')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+__ test_public_imports_work_from_fresh_isolated_interpreters[engine.spatial] ___
+
+first_module = 'engine.spatial'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_15')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.spatial.rtree] _
+
+first_module = 'engine.spatial.rtree'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_16')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+_ test_public_imports_work_from_fresh_isolated_interpreters[engine.spatial.index] _
+
+first_module = 'engine.spatial.index'
+tmp_path = PosixPath('/home/ian/.cache/minidbms-implementation-20261004/regresion_critica-tests/test_public_imports_work_from_17')
+
+    @pytest.mark.parametrize(
+        "first_module",
+        ["engine.errors", "engine.catalog.schema", "engine.catalog",
+         "engine.storage", "engine.indexes", "engine.operators",
+         "engine.storage.page_manager", "engine.storage.file_header",
+         "engine.storage.page", "engine.storage.record_codec",
+         "engine.storage.organization", "engine.storage.heap_file",
+         "engine.storage.metrics",
+         "engine.storage.sequential_ordering",
+         "engine.storage.paged_sequential_file", "engine.spatial",
+         "engine.spatial.rtree", "engine.spatial.index"],
+    )
+    def test_public_imports_work_from_fresh_isolated_interpreters(first_module, tmp_path):
+        # -I removes cwd/PYTHONPATH influence: the README's editable installation
+        # must work from outside the repository, without pytest preloading modules.
+        modules = list(reversed(engine_sources()))
+        forbidden = ["tests", "pytest", "api", "frontend", "engine.query", "engine.transactions"]
+        if first_module in {"engine.errors", "engine.catalog", "engine.catalog.schema"}:
+            forbidden += ["engine.storage", "engine.indexes", "engine.operators"]
+        elif first_module.startswith("engine.storage"):
+            forbidden += ["engine.indexes", "engine.operators"]
+        elif first_module == "engine.indexes":
+            forbidden += ["engine.operators"]
+        if first_module == "engine.errors":
+            forbidden += ["engine.catalog"]
+        script = f"""
+    import importlib
+    from pathlib import Path
+    import sys
+    
+    root = Path({str(ROOT)!r}).resolve()
+    importlib.import_module({first_module!r})
+    for prefix in {forbidden!r}:
+        assert not any(name == prefix or name.startswith(prefix + '.') for name in sys.modules), prefix
+    for name in {modules!r}:
+        module = importlib.import_module(name)
+        assert Path(module.__file__).resolve().is_relative_to(root), module.__file__
+        for symbol in getattr(module, '__all__', ()):
+            value = getattr(module, symbol)
+            assert getattr(importlib.import_module(value.__module__), symbol) is value
+    assert not any(name == 'tests' or name.startswith('tests.') for name in sys.modules)
+    """
+        result = subprocess.run(
+            [sys.executable, "-I", "-B", "-c", script], cwd=tmp_path,
+            capture_output=True, text=True, timeout=20,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: Traceback (most recent call last):
+E           File "<string>", line 12, in <module>
+E         AssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/ian/.cache/minidbms-audit-20261004/env/bin/python', '-I', '-B', '-c', "\nimport importli..., line 12, in <module>\nAssertionError: /home/ian/.cache/minidbms-audit-20261004/source/engine/transactions/undo.py\n').returncode
+
+tests/test_architecture.py:178: AssertionError
+- generated xml file: /home/ian/.cache/minidbms-implementation-20261004/results/regresion_critica.xml -
+=========================== short test summary info ============================
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.errors]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.catalog.schema]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.catalog]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.indexes]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.operators]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.page_manager]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.file_header]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.page]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.record_codec]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.organization]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.heap_file]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.metrics]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.sequential_ordering]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.storage.paged_sequential_file]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.spatial]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.spatial.rtree]
+FAILED tests/test_architecture.py::test_public_imports_work_from_fresh_isolated_interpreters[engine.spatial.index]
+18 failed, 2955 passed in 130.47s (0:02:10)
