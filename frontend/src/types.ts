@@ -302,6 +302,57 @@ export interface QueryOptions {
   join_strategy: JoinStrategy;
 }
 
+export type Coordinate = [number, number];
+export type PointParameters = Record<string, Coordinate>;
+export interface SpatialTable {
+  table: string;
+  location_column: string;
+  id_column: string;
+  latitude_column: string;
+  longitude_column: string;
+  row_count: number;
+  conventions: {
+    origin: Coordinate;
+    latitude_bounds: Coordinate;
+    longitude_bounds: Coordinate;
+    point_order: string;
+    default_metric: "haversine" | "euclidean";
+    distance_unit: string;
+  };
+}
+export interface SpatialPoint {
+  id: number | string;
+  latitude: number;
+  longitude: number;
+}
+export interface SpatialMatch extends SpatialPoint {
+  distance_metres: number | null;
+  record: Record<string, unknown>;
+}
+export interface SpatialRequest {
+  table: string;
+  kind: "radius" | "knn" | "polygon";
+  center?: Coordinate;
+  radius?: number;
+  k?: number;
+  vertices?: Coordinate[];
+  metric: "haversine" | "euclidean";
+  use_indexes: boolean;
+  max_rows: number;
+}
+export interface SpatialResponse {
+  table: string;
+  kind: SpatialRequest["kind"];
+  total_rows: number | null;
+  returned_rows: number;
+  truncated: boolean;
+  truncation_reason?: string | null;
+  matches: SpatialMatch[];
+  stats: Record<string, string | number | null>;
+  backend_elapsed_ms: number;
+  session?: SessionStatus;
+}
+
 /** How one submitted statement ended, tied to the SQL that produced it. */
 export type Outcome =
   | { status: "success"; sql: string; roundTripMs: number; body: QueryResponse }

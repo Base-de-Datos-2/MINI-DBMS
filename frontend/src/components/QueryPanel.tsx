@@ -45,7 +45,7 @@ function Diagnostics({ outcome }: { outcome: Outcome | null }) {
     return (
       <div className="error-box" role="alert">
         <p className="error-type">No se pudo contactar con el servidor</p>
-        <p className="small">{outcome.message}. Comprueba que `python -m api` siga en ejecución.</p>
+        <p className="small">{outcome.message}. Comprueba que <code>python -m api</code> siga en ejecución.</p>
       </div>
     );
   }
@@ -91,18 +91,18 @@ export default function QueryPanel({
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
-      onExecute();
+      if (!busy && sql.trim() !== "") onExecute();
     }
   };
 
   return (
-    <section className="panel query-panel" aria-labelledby="query-title">
+    <section className="panel query-panel" aria-labelledby="query-title" aria-busy={busy}>
       <div className="panel-heading">
         <h2 id="query-title" className="panel-title">
           Consulta
         </h2>
         <label className="inline-field">
-          <span className="muted small">Presets</span>
+          <span className="muted small">Ejemplos SQL</span>
           <select
             aria-label="Presets"
             value=""
@@ -125,6 +125,9 @@ export default function QueryPanel({
         aria-label="Editor SQL"
         value={sql}
         spellCheck={false}
+        aria-describedby="query-shortcut"
+        autoCapitalize="off"
+        autoCorrect="off"
         onChange={(event) => onSqlChange(event.target.value)}
         onKeyDown={onKeyDown}
       />
@@ -171,11 +174,14 @@ export default function QueryPanel({
           />
         </label>
         <span className="toolbar-spacer" />
-        <button type="button" className="primary" disabled={busy} onClick={onExecute}>
+        <button type="button" className="primary" disabled={busy || sql.trim() === ""} onClick={onExecute}>
           {busy ? "Ejecutando…" : "Ejecutar"}
         </button>
       </div>
-      <p className="muted small">Ctrl + Enter ejecuta. Cada envío se ejecuta una sola vez.</p>
+      <p id="query-shortcut" className="muted small query-shortcut">
+        <kbd>Ctrl</kbd> + <kbd>Enter</kbd> o <kbd>⌘</kbd> + <kbd>Enter</kbd> para ejecutar.
+        {" "}Cada envío se ejecuta una sola vez.
+      </p>
       <Diagnostics outcome={outcome} />
     </section>
   );

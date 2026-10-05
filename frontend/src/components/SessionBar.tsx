@@ -16,13 +16,13 @@ interface Props {
  */
 export default function SessionBar({ status, notice, busy, onRun, onCancel, onRenew }: Props) {
   if (status === null) {
-    return <span className="mode-badge">{notice ?? "Abriendo sesión…"}</span>;
+    return <span className="mode-badge" role="status">{notice ?? "Abriendo sesión…"}</span>;
   }
   const open = groupOpen(status);
   const waiting = waitingText(status);
   return (
     <div className="session-bar" role="group" aria-label="Sesión y transacción">
-      <span className="mode-badge" title="Sesión propia de esta pestaña en el motor (Etapa 8)">
+      <span className="mode-badge" title="Sesión propia de esta pestaña en el motor">
         Sesión #{status.session_id}
       </span>
       <span className={`session-state${open ? " open" : ""}`} role="status">
@@ -30,13 +30,13 @@ export default function SessionBar({ status, notice, busy, onRun, onCancel, onRe
       </span>
       {waiting !== null && <span className="chip warn-chip">{waiting}</span>}
       {status.cancel_requested && <span className="chip warn-chip">cancelación pedida…</span>}
-      <button type="button" className="secondary small-button" disabled={busy || open} onClick={() => onRun("BEGIN TRANSACTION")}>
+      <button type="button" className="secondary small-button" title="Abrir una transacción para agrupar operaciones" disabled={busy || open} onClick={() => onRun("BEGIN TRANSACTION")}>
         BEGIN
       </button>
-      <button type="button" className="secondary small-button" disabled={busy || !open} onClick={() => onRun("END TRANSACTION")}>
+      <button type="button" className="secondary small-button" title="Confirmar las operaciones de la transacción abierta" disabled={busy || !open} onClick={() => onRun("END TRANSACTION")}>
         END
       </button>
-      <button type="button" className="secondary small-button" disabled={busy || !open} onClick={() => onRun("ROLLBACK")}>
+      <button type="button" className="secondary small-button" title="Deshacer las operaciones de la transacción abierta" disabled={busy || !open} onClick={() => onRun("ROLLBACK")}>
         ROLLBACK
       </button>
       {busy && (
@@ -53,7 +53,7 @@ export default function SessionBar({ status, notice, busy, onRun, onCancel, onRe
       >
         Nueva sesión
       </button>
-      {notice !== null && <span className="chip warn-chip">{notice}</span>}
+      {notice !== null && <span className="chip warn-chip" role="status">{notice}</span>}
     </div>
   );
 }

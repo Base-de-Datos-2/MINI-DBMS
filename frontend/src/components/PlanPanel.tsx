@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { KeyboardEvent } from "react";
 import { formatBytes, formatCount, formatMs } from "../format";
 import { OPERATOR_DESCRIPTIONS, indexesUsed, isRuntimeNode, splitDetails } from "../plan";
 import type {
@@ -13,6 +14,7 @@ import type {
 
 interface Props {
   outcome: Outcome | null;
+  busy?: boolean;
 }
 
 type View = "runtime" | "prepared";
@@ -117,6 +119,12 @@ function Summary({ metrics, partial, root }: {
     ? Math.min(100, (100 * metrics.memory.peak_reserved_bytes) / metrics.memory.budget_bytes)
     : 0;
   const indexes = indexesUsed(root, "runtime");
+  const accesses = new Set<string>();
+  const collectAccesses = (node: RuntimeNode) => {
+    node.details.forEach((detail) => { if (detail.key === "access") accesses.add(detail.value); });
+    node.children.forEach(collectAccesses);
+  };
+  collectAccesses(root);
   return (
     <div className="plan-summary">
       {partial && (
@@ -126,8 +134,9 @@ function Summary({ metrics, partial, root }: {
       )}
       <p className="small">
         <span className="metric-label">Índices abiertos: </span>
-        {indexes.length > 0 ? indexes.join(", ") : "ninguno (recorrido de tabla)"}
+        {indexes.length > 0 ? indexes.join(", ") : "sin nombres de índice declarados"}
       </p>
+      {accesses.size > 0 && <p className="small"><span className="metric-label">Accesos ejecutados: </span>{[...accesses].join(", ")}</p>}
       <div className="metric">
         <span className="metric-label">Memoria reservada (pico)</span>
         <span className="metric-value">
@@ -176,8 +185,8 @@ function Summary({ metrics, partial, root }: {
   );
 }
 
-export default function PlanPanel({ outcome }: Props) {
-  const data = planData(outcome);
+export default function PlanPanel({ outcome, busy = false }: Props) {
+  const data = busy ? null : planData(outcome);
   const [view, setView] = useState<View>("runtime");
   const runtime = data?.plan.runtime ?? null;
 
@@ -185,27 +194,49 @@ export default function PlanPanel({ outcome }: Props) {
     setView(runtime !== null ? "runtime" : "prepared");
   }, [runtime]);
 
+  const changeTabWithKeyboard = (event: KeyboardEvent<HTMLDivElement>) => {
+    const choices: View[] = runtime === null ? ["prepared"] : ["runtime", "prepared"];
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const current = Math.max(0, choices.indexOf(view));
+    const position = event.key === "Home" ? 0
+      : event.key === "End" ? choices.length - 1
+        : (current + (event.key === "ArrowRight" ? 1 : choices.length - 1)) % choices.length;
+    const next = choices[position];
+    if (next === undefined) return;
+    setView(next);
+    event.currentTarget.querySelector<HTMLButtonElement>(`[data-view="${next}"]`)?.focus();
+  };
+
   return (
-    <section className="panel plan-panel" aria-labelledby="plan-title">
+    <section className="panel plan-panel" aria-labelledby="plan-title" aria-busy={busy}>
       <div className="panel-heading">
         <h2 id="plan-title" className="panel-title">
           Plan de ejecución
         </h2>
         {data !== null && (
-          <div className="tabs" role="tablist" aria-label="Vista del plan">
+          <div className="tabs" role="tablist" aria-label="Vista del plan" onKeyDown={changeTabWithKeyboard}>
             <button
+              id="plan-runtime-tab"
+              data-view="runtime"
               type="button"
               role="tab"
+              aria-controls="plan-content"
               aria-selected={view === "runtime"}
+              tabIndex={view === "runtime" ? 0 : -1}
               disabled={runtime === null}
               onClick={() => setView("runtime")}
             >
               Ejecutado
             </button>
             <button
+              id="plan-prepared-tab"
+              data-view="prepared"
               type="button"
               role="tab"
+              aria-controls="plan-content"
               aria-selected={view === "prepared"}
+              tabIndex={view === "prepared" ? 0 : -1}
               onClick={() => setView("prepared")}
             >
               Preparado
@@ -216,7 +247,8 @@ export default function PlanPanel({ outcome }: Props) {
 
       {data === null && (
         <p className="muted">
-          {outcome?.status === "success" && outcome.body.kind === "transaction"
+          {busy ? "Ejecutando… el plan de esta consulta aparecerá al finalizar."
+            : outcome?.status === "success" && outcome.body.kind === "transaction"
             ? "BEGIN, END y ROLLBACK controlan la transacción: no tienen plan de ejecución."
             : "El plan aparece al ejecutar una consulta."}
         </p>
@@ -229,7 +261,8 @@ export default function PlanPanel({ outcome }: Props) {
         </p>
       )}
 
-      {data !== null && view === "runtime" && runtime !== null && (
+      {data !== null && <div id="plan-content" role="tabpanel" aria-labelledby={`plan-${view}-tab`} tabIndex={0}>
+      {view === "runtime" && runtime !== null && (
         <>
           {data.metrics !== null && (
             <Summary metrics={data.metrics} partial={data.partial} root={runtime.root} />
@@ -241,7 +274,7 @@ export default function PlanPanel({ outcome }: Props) {
         </>
       )}
 
-      {data !== null && view === "prepared" && (
+      {view === "prepared" && (
         <>
           <p className="muted small">
             Lo que el planner eligió antes de ejecutar. No contiene mediciones.
@@ -254,6 +287,7 @@ export default function PlanPanel({ outcome }: Props) {
           )}
         </>
       )}
+      </div>}
     </section>
   );
 }

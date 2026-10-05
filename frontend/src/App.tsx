@@ -11,6 +11,8 @@ import {
   fetchTables,
   openSession,
   runQuery,
+  fetchSpatialTables,
+  runSpatialQuery,
 } from "./api";
 import CreateTableDialog from "./components/CreateTableDialog";
 import FilesPanel from "./components/FilesPanel";
@@ -18,6 +20,7 @@ import PlanPanel from "./components/PlanPanel";
 import QueryPanel from "./components/QueryPanel";
 import ResultsPanel from "./components/ResultsPanel";
 import SessionBar from "./components/SessionBar";
+import SpatialPanel from "./components/SpatialPanel";
 import { groupOpen } from "./session";
 import type {
   CreateTableResponse,
@@ -28,6 +31,10 @@ import type {
   SessionStatus,
   TableDetail,
   TableSummary,
+  SpatialTable,
+  SpatialRequest,
+  PointParameters,
+  QueryResponse,
 } from "./types";
 
 function describeFailure(error: unknown): string {
@@ -57,6 +64,11 @@ export default function App() {
   const [creating, setCreating] = useState(false);
   const [session, setSession] = useState<SessionStatus | null>(null);
   const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  const [spatialTables, setSpatialTables] = useState<SpatialTable[]>([]);
+  const [spatialError, setSpatialError] = useState<string | null>(null);
+  const [spatialRevision, setSpatialRevision] = useState(0);
+  const [parameters, setParameters] = useState<PointParameters | undefined>();
+  const operationLock = useRef(false);
   // The token is a credential for this tab's engine session: kept in memory
   // only, never rendered, and closed when the page goes away.
   const token = useRef<string | null>(null);
@@ -77,6 +89,10 @@ export default function App() {
   const loadTables = useCallback(async (): Promise<TableSummary[]> => {
     const loaded = await fetchTables();
     setTables(loaded);
+    try {
+      setSpatialTables(await fetchSpatialTables());
+      setSpatialError(null);
+    } catch (error: unknown) { setSpatialError(describeFailure(error)); }
     return loaded;
   }, []);
 
@@ -136,13 +152,14 @@ export default function App() {
   }, [busy]);
 
   const run = useCallback(
-    async (text: string) => {
-      if (busy || text.trim() === "") return;
+    async (text: string, pointParameters?: PointParameters) => {
+      if (operationLock.current || busy || text.trim() === "") return;
+      operationLock.current = true;
       const requestNumber = gate.current.begin();
       setBusy(true);
       setSessionNotice(null);
       try {
-        const next = await runQuery(text, options, token.current);
+        const next = await runQuery(text, options, token.current, pointParameters);
         const status = next.status === "unreachable" ? undefined : next.body.session;
         if (status !== undefined) setSession(status);
         // Only the newest submission may replace what is on screen.
@@ -165,13 +182,48 @@ export default function App() {
         if (changedData || aborted) {
           await loadTables();
           if (selected !== null) await selectTable(selected.id);
+          setSpatialRevision((value) => value + 1);
         }
       } finally {
+        operationLock.current = false;
         if (gate.current.isLatest(requestNumber)) setBusy(false);
       }
     },
     [busy, options, loadTables, selectTable, selected, startSession],
   );
+
+  const spatialOperation = useCallback(async <T,>(call: () => Promise<T & { session?: SessionStatus }>): Promise<T> => {
+    if (operationLock.current) throw new Error("La sesión está ocupada. Espera a que termine la consulta y vuelve a actualizar.");
+    operationLock.current = true;
+    setBusy(true); setSessionNotice(null);
+    try {
+      const answer = await call();
+      if (answer.session !== undefined) setSession(answer.session);
+      return answer;
+    } catch (error: unknown) {
+      if (error instanceof ApiError && error.envelope?.session !== undefined) setSession(error.envelope.session);
+      if (error instanceof ApiError && error.envelope?.error.code === "SESSION_NOT_FOUND") {
+        await startSession();
+        setSessionNotice("Se abrió una nueva sesión. La búsqueda anterior no se vuelve a ejecutar automáticamente.");
+      }
+      if (error instanceof ApiError && error.envelope?.error.details?.group_aborted === true) {
+        await loadTables();
+        setSpatialRevision((value) => value + 1);
+      }
+      throw error;
+    } finally { operationLock.current = false; setBusy(false); }
+  }, [startSession, loadTables]);
+
+  const spatialPreview = useCallback((table: string) => spatialOperation<QueryResponse>(async () => {
+    const result = await runQuery(`SELECT * FROM ${table} LIMIT 500;`, { max_rows: 500, use_indexes: true, join_strategy: "AUTO" }, token.current);
+    if (result.status === "unreachable") throw new Error(result.message);
+    if (result.status === "error") throw new ApiError(result.httpStatus, result.body, result.body.error.message);
+    return result.body;
+  }), [spatialOperation]);
+
+  const spatialRequest = useCallback((request: SpatialRequest) => spatialOperation(() => runSpatialQuery(request, token.current)), [spatialOperation]);
+
+  const editorParameters = /^\s*(?:--[^\n]*\n\s*)*(?:SELECT|EXPLAIN)\b/i.test(sql) && /\bmi_ubicacion\b/i.test(sql) ? parameters : undefined;
 
   const cancel = useCallback(async () => {
     if (token.current === null) return;
@@ -191,6 +243,7 @@ export default function App() {
     setSessionNotice(null);
     await startSession();
     await loadTables().catch(() => undefined);
+    setSpatialRevision((value) => value + 1);
   }, [loadTables, startSession]);
 
   const tableCreated = useCallback(
@@ -199,6 +252,7 @@ export default function App() {
       if (created.session !== undefined) setSession(created.session);
       const name = created.table.name;
       setSql(`SELECT * FROM ${name};`);
+      setParameters(undefined);
       try {
         await loadTables();
       } catch (error: unknown) {
@@ -206,6 +260,7 @@ export default function App() {
         return;
       }
       setSelected(created.table);
+      setSpatialRevision((value) => value + 1);
       setFilesMessage(
         created.table.origin === "csv"
           ? `Tabla «${name}» creada con ${created.loaded_rows} filas importadas.`
@@ -220,7 +275,8 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>MINI-DBMS</h1>
+        <div className="brand"><h1>MINI-DBSM</h1><p className="app-description">Motor relacional y espacial</p></div>
+        <nav className="workspace-nav" aria-label="Secciones de trabajo"><a href="#query-title">SQL</a><a href="#spatial-title">Mapa</a></nav>
         {health !== null && (
           <>
             <span
@@ -269,7 +325,7 @@ export default function App() {
             }
             onCreate={() => setCreating(true)}
             onSelect={(id) => void selectTable(id)}
-            onUseInQuery={(name) => setSql(`SELECT * FROM ${name};`)}
+            onUseInQuery={(name) => { setSql(`SELECT * FROM ${name};`); setParameters(undefined); }}
           />
           <QueryPanel
             sql={sql}
@@ -280,16 +336,22 @@ export default function App() {
             onOptionsChange={setOptions}
             busy={busy}
             outcome={outcome}
-            onExecute={() => void run(sql)}
+            onExecute={() => void run(sql, editorParameters)}
           />
           <ResultsPanel
             outcome={outcome}
             busy={busy}
             maxResponseBytes={health?.limits.max_response_bytes ?? 1024 * 1024}
           />
-          <PlanPanel outcome={outcome} />
+          <PlanPanel outcome={outcome} busy={busy} />
         </main>
       )}
+
+      {loadError === null && <>
+        {editorParameters !== undefined && <p className="parameter-note small">Parámetro SQL mi_ubicacion = [{editorParameters.mi_ubicacion?.join(", ")}]. Se congela para cada envío; vuelve a cargar desde el mapa para cambiarlo.</p>}
+        <SpatialPanel tables={spatialTables} metadataError={spatialError} revision={spatialRevision} busy={busy} outcome={outcome}
+          onPreview={spatialPreview} onRequest={spatialRequest} onSql={(text, values) => { setSql(text); setParameters(values); }} />
+      </>}
 
       {creating && health !== null && (
         <CreateTableDialog

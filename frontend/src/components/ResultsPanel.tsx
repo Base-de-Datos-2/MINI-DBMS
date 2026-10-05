@@ -59,8 +59,13 @@ export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props)
         Resultados
       </h2>
 
-      {busy && <p className="muted">Ejecutando…</p>}
-      {!busy && outcome === null && <p className="muted">Ejecuta una consulta para ver sus filas.</p>}
+      {busy && <p className="muted loading-state" role="status"><span className="loading-dot" aria-hidden="true" />Ejecutando…</p>}
+      {!busy && outcome === null && (
+        <div className="empty-state">
+          <p>Los resultados de tu consulta aparecerán aquí.</p>
+          <p className="muted small">Escribe SQL o elige un ejemplo y pulsa Ejecutar.</p>
+        </div>
+      )}
 
       {!busy && outcome !== null && outcome.status !== "success" && (
         // Never keep an earlier success on screen as if it answered this query.
@@ -99,7 +104,7 @@ export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props)
       {!busy && outcome?.status === "success" && outcome.body.kind === "rows" && (
         <>
           <div className="status-block">
-            <p className="status-line">
+            <p className="status-line" role="status">
               {completenessMessage(outcome.body, maxResponseBytes)}
               {outcome.body.truncated && <span className="chip warn-chip">vista previa</span>}
             </p>
@@ -108,13 +113,15 @@ export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props)
               ida y vuelta del navegador {formatMs(outcome.roundTripMs)} · request_id{" "}
               {outcome.body.request_id.slice(0, 8)}
             </p>
-            <p className="muted small submitted-sql" title="SQL que produjo este resultado">
-              {outcome.sql}
-            </p>
+            <details className="submitted-query">
+              <summary>Consulta que produjo este resultado</summary>
+              <pre className="submitted-sql">{outcome.sql}</pre>
+            </details>
           </div>
           {outcome.body.columns.length > 0 && (
             <div className="table-scroll">
               <table className="result-table">
+                <caption className="sr-only">Filas devueltas por la última consulta completada</caption>
                 <thead>
                   <tr>
                     {outcome.body.columns.map((column) => (
@@ -145,6 +152,9 @@ export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props)
                 </tbody>
               </table>
             </div>
+          )}
+          {outcome.body.rows.length === 0 && !outcome.body.truncated && (
+            <p className="muted empty-state">La consulta no devolvió filas.</p>
           )}
         </>
       )}

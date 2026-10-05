@@ -12,6 +12,10 @@ import type {
   QueryResponse,
   TableDetail,
   TableSummary,
+  PointParameters,
+  SpatialTable,
+  SpatialRequest,
+  SpatialResponse,
 } from "./types";
 
 /**
@@ -76,6 +80,10 @@ export const fetchTables = () => getJson<TableSummary[]>("/api/tables");
 export const fetchTable = (id: string) =>
   getJson<TableDetail>(`/api/tables/${encodeURIComponent(id)}`);
 
+export const fetchSpatialTables = () => getJson<SpatialTable[]>("/api/spatial/tables");
+export const runSpatialQuery = (request: SpatialRequest, token: string | null) =>
+  postJson<SpatialResponse>("/api/spatial/query", request, token);
+
 /** Parse a CSV on the server and infer column types; nothing is loaded. */
 export const previewCsv = (text: string, filename: string | null) =>
   postJson<CsvPreview>("/api/import/preview", { text, filename });
@@ -110,6 +118,7 @@ export async function runQuery(
   sql: string,
   options: QueryOptions,
   token: string | null = null,
+  parameters?: PointParameters,
 ): Promise<Outcome> {
   const started = performance.now();
   let response: Response;
@@ -117,7 +126,7 @@ export async function runQuery(
     response = await fetch(`${BASE}/api/query`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...sessionHeaders(token) },
-      body: JSON.stringify({ sql, ...options }),
+      body: JSON.stringify({ sql, ...options, ...(parameters === undefined ? {} : { parameters }) }),
     });
   } catch (error: unknown) {
     return {

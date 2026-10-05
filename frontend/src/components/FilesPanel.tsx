@@ -88,7 +88,7 @@ export default function FilesPanel({
         </button>
       </div>
       {tables.length === 0 ? (
-        <p className="muted">Cargando tablas del catálogo…</p>
+        <p className="muted">Las tablas cargadas aparecerán aquí.</p>
       ) : (
         <ul className="table-list" aria-label="Tablas cargadas">
           {tables.map((table) => (
@@ -134,6 +134,7 @@ export default function FilesPanel({
           </p>
           {originText(selected) !== null && <p className="muted small">{originText(selected)}</p>}
           <table className="column-table">
+            <caption className="sr-only">Estructura de {selected.name}</caption>
             <thead>
               <tr>
                 <th scope="col">#</th>
@@ -154,7 +155,7 @@ export default function FilesPanel({
               ))}
             </tbody>
           </table>
-          <p className="muted small">Ninguna columna admite NULL: el motor no lo soporta.</p>
+          <p className="muted small">Las columnas de este motor requieren valores; NULL no está disponible.</p>
           {selected.indexes.length > 0 ? (
             <ul className="index-list" aria-label={`Índices de ${selected.name}`}>
               {selected.indexes.map((index) => (
