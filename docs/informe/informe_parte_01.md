@@ -38,7 +38,7 @@ Operadores físicos                   TableScan, IndexScan, Filter, Projection,
         │                            GraceHashJoin, NestedLoopJoin, IndexNestedLoopJoin
 Índices          Almacenamiento      B+ (agrupado / no agrupado), Hash extensible
         │        │                   Heap File, Archivo Secuencial Paginado
-PageManager                          único dueño del acceso a disco
+PageManager                          dueño de la E/S paginada relacional
         │
 Páginas de 4096 bytes en archivos
 ```
@@ -52,6 +52,8 @@ Páginas de 4096 bytes en archivos
 | `engine/query` | Lexer, parser, AST, binder, planner y ejecución SQL |
 | `engine/maintenance` | Mantenimiento de índices en INSERT y DELETE |
 | `engine/transactions` | Sesiones, transacciones, gestor de locks, undo |
+| `engine/database` | Manifiesto persistente y propietario de CREATE SQL |
+| `engine/spatial` | Núcleo espacial, R-Tree y su mantenimiento posterior a Parte 1 |
 | `api/` | Servicio HTTP sobre el motor |
 | `frontend/` | Interfaz gráfica |
 | `benchmarks/` | Experimentos, separados del motor |
@@ -108,16 +110,21 @@ el final. Eliminar un registro marca su slot como libre y deja un hueco;
 compactar reacomoda los registros sin cambiar sus slots, así los RID siguen
 siendo válidos. Los registros se codifican en binario: enteros de 64 bits,
 flotantes IEEE-754, booleanos de un byte y texto UTF-8 con su longitud.
-`PageManager` es el único componente que lee y escribe archivos; cada archivo
-empieza con una cabecera que identifica el formato y el tamaño de página.
+`PageManager` lee y escribe archivos paginados; cada uno empieza con una
+cabecera que identifica el formato y el tamaño de página. Manifiestos, undo y
+snapshots espaciales usan archivos auxiliares con sus propios propietarios;
+sus bytes no están incluidos en los contadores de páginas del motor.
 
 ### 3.2 Heap File
 
 Los registros se guardan en orden de llegada. Para reutilizar espacio, el
 archivo mantiene en memoria un directorio "página → espacio que se puede
-insertar", reconstruido al abrir. Una inserción va a la primera página que
-tenga lugar (con compactación local si hace falta) y solo pide una página
-nueva si ninguna sirve. Eliminar marca el slot como libre y actualiza ese
+insertar", reconstruido al abrir junto con la disponibilidad de slots borrados.
+Una inserción reutiliza una página con un slot borrado que tenga lugar; en
+ausencia de ese hueco usa la última página o añade una nueva. Esa corrección
+posterior a la auditoría conserva llegada durante la carga inicial, incluso
+con registros de distinto tamaño, y conserva RIDs/formato existentes.
+Eliminar marca el slot como libre y actualiza ese
 directorio, así el espacio queda disponible para la siguiente inserción.
 Buscar sin índice exige recorrer el archivo página por página.
 

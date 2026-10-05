@@ -1,0 +1,12 @@
+{
+  "local_links": 108,
+  "missing": [],
+  "checked_documents": [
+    "README.md",
+    "PROJECT_CONTEXT.md",
+    "REQUIREMENTS.md",
+    "AGENTS.md",
+    "docs/informe/informe_parte_01.md",
+    "docs/EXPERIMENTOS.md"
+  ]
+}
