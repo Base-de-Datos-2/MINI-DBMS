@@ -1,0 +1,13 @@
+
+> mini-dbms-frontend@0.9.0 build
+> tsc --noEmit && vite build
+
+vite v6.4.3 building for production...
+transforming...
+✓ 38 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.39 kB │ gzip:  0.26 kB
+dist/assets/index-DMnaICSr.css    9.28 kB │ gzip:  2.69 kB
+dist/assets/index-DI-IAhm-.js   186.81 kB │ gzip: 59.41 kB
+✓ built in 549ms

@@ -1,0 +1,992 @@
+[
+  {
+    "id": "1.1.1",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Heap File en páginas de disco",
+    "criterios": [
+      "Registros codificados en páginas",
+      "Escritura y lectura de archivos reales",
+      "Reapertura conserva filas"
+    ]
+  },
+  {
+    "id": "1.1.2",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Heap sin ordenamiento por clave y con inserción en orden de llegada",
+    "criterios": [
+      "Inserción inicial conserva llegada",
+      "No ordena por clave",
+      "Política de reutilización explícita"
+    ]
+  },
+  {
+    "id": "1.1.3",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Reutilización de espacio libre del Heap",
+    "criterios": [
+      "Borrado libera espacio",
+      "Inserción reutiliza espacio",
+      "Reapertura reconstruye reutilización"
+    ]
+  },
+  {
+    "id": "1.1.4",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Inserción ordenada en Archivo Secuencial Paginado",
+    "criterios": [
+      "Entradas desordenadas quedan ordenadas",
+      "División multipágina conserva orden",
+      "Reapertura conserva orden"
+    ]
+  },
+  {
+    "id": "1.1.5",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Eliminación lazy del secuencial",
+    "criterios": [
+      "Borrado lógico",
+      "Scan excluye eliminados",
+      "Persistencia de tombstones"
+    ]
+  },
+  {
+    "id": "1.1.6",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Estrategia de reorganización del secuencial",
+    "criterios": [
+      "Criterio de activación documentado",
+      "Reorganización compacta",
+      "Filas e índices conservan coherencia"
+    ]
+  },
+  {
+    "id": "1.2.1",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "Índice B+ agrupado",
+    "criterios": [
+      "B+ propio",
+      "Almacenamiento ordenado por clave indexada",
+      "Igualdad y rango correctos",
+      "Mantenimiento tras mutaciones"
+    ]
+  },
+  {
+    "id": "1.2.2",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "Índice B+ no agrupado",
+    "criterios": [
+      "B+ propio",
+      "RIDs hacia almacenamiento independiente",
+      "Igualdad y rango correctos",
+      "Mantenimiento tras mutaciones"
+    ]
+  },
+  {
+    "id": "1.2.3",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "Hash dinámico extensible",
+    "criterios": [
+      "Directorio y profundidades",
+      "Split y doubling",
+      "Igualdad y colisiones",
+      "Borrado y reapertura"
+    ]
+  },
+  {
+    "id": "1.2.4",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "ORDER BY con External Sorting k-way merge",
+    "criterios": [
+      "Generación de runs en disco",
+      "Merge k-way",
+      "Integración SQL",
+      "Resultados y limpieza"
+    ]
+  },
+  {
+    "id": "1.2.5",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "GROUP BY optimizado con hashing externo o índices",
+    "criterios": [
+      "Algoritmo propio compatible",
+      "Ruta externa o indexada real",
+      "Integración SQL",
+      "Agregados correctos"
+    ]
+  },
+  {
+    "id": "1.2.6",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "JOIN optimizado con hashing externo o índices",
+    "criterios": [
+      "Algoritmo propio compatible",
+      "Ruta externa o indexada real",
+      "Integración SQL",
+      "Multiplicidad correcta"
+    ]
+  },
+  {
+    "id": "1.3.1",
+    "parte": "1",
+    "etapa": "3",
+    "pagina": "1–2",
+    "seccion": "2.1.3",
+    "requisito": "SELECT y WHERE básicos",
+    "criterios": [
+      "Parser y AST",
+      "Binding de tablas y columnas",
+      "Ejecución y resultados",
+      "Errores controlados"
+    ]
+  },
+  {
+    "id": "1.3.2",
+    "parte": "1",
+    "etapa": "3",
+    "pagina": "1–2",
+    "seccion": "2.1.3",
+    "requisito": "INSERT INTO VALUES",
+    "criterios": [
+      "Sintaxis requerida",
+      "Escritura real",
+      "Mantenimiento de índices"
+    ]
+  },
+  {
+    "id": "1.3.3",
+    "parte": "1",
+    "etapa": "3",
+    "pagina": "1–2",
+    "seccion": "2.1.3",
+    "requisito": "DELETE WHERE",
+    "criterios": [
+      "Sintaxis requerida",
+      "Selección y borrado exactos",
+      "Mantenimiento de índices"
+    ]
+  },
+  {
+    "id": "1.4.1",
+    "parte": "1",
+    "etapa": "4",
+    "pagina": 2,
+    "seccion": "2.1.4",
+    "requisito": "BEGIN TRANSACTION y END TRANSACTION",
+    "criterios": [
+      "Agrupación entre sentencias",
+      "Publicación al END",
+      "Aislamiento por sesión"
+    ]
+  },
+  {
+    "id": "1.4.2",
+    "parte": "1",
+    "etapa": "4",
+    "pagina": 2,
+    "seccion": "2.1.4",
+    "requisito": "Control de concurrencia para múltiples usuarios",
+    "criterios": [
+      "Locks o mecanismo equivalente propio",
+      "Lectores y escritores concurrentes",
+      "Conflictos gestionados correctamente"
+    ]
+  },
+  {
+    "id": "1.4.3",
+    "parte": "1",
+    "etapa": "4",
+    "pagina": 2,
+    "seccion": "2.1.4",
+    "requisito": "Demostración obligatoria con threads",
+    "criterios": [
+      "Transacciones simultáneas",
+      "Race condition reproducida",
+      "Resultado protegido comparado con referencia"
+    ]
+  },
+  {
+    "id": "1.5.1",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Archivos",
+    "criterios": [
+      "Tablas cargadas visibles",
+      "Estructura de tablas visible"
+    ]
+  },
+  {
+    "id": "1.5.2",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Consultas",
+    "criterios": [
+      "Editor SQL",
+      "Envío al motor"
+    ]
+  },
+  {
+    "id": "1.5.3",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Resultados",
+    "criterios": [
+      "Resultados reales en tabla",
+      "Errores visibles"
+    ]
+  },
+  {
+    "id": "1.5.4",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Plan de Ejecución",
+    "criterios": [
+      "Operadores reales",
+      "Índices realmente usados",
+      "Orden de operaciones"
+    ]
+  },
+  {
+    "id": "1.6.1",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Comparación experimental Heap frente a secuencial",
+    "criterios": [
+      "Datos 1000 10000 100000",
+      "Tiempo inserción",
+      "Búsqueda PK",
+      "Espacio disco",
+      "Reorganización"
+    ]
+  },
+  {
+    "id": "1.6.2",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Comparación experimental B+ agrupado no agrupado y hash",
+    "criterios": [
+      "Tres estructuras reales",
+      "Igualdad",
+      "Rango",
+      "Ordenamiento",
+      "Construcción",
+      "Consulta",
+      "Espacio adicional",
+      "Inserciones y borrados frecuentes"
+    ]
+  },
+  {
+    "id": "1.6.3",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Gráficos comparativos relacionales",
+    "criterios": [
+      "Gráficos existentes",
+      "Correspondencia con datos crudos"
+    ]
+  },
+  {
+    "id": "1.6.4",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Tabla de ventajas y desventajas relacionales",
+    "criterios": [
+      "Todas las técnicas requeridas",
+      "Ventajas y desventajas"
+    ]
+  },
+  {
+    "id": "1.6.5",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Conclusiones de cuándo usar cada estructura",
+    "criterios": [
+      "Heap y secuencial",
+      "B+ agrupado y no agrupado y hash",
+      "Conclusiones respaldadas por mediciones"
+    ]
+  },
+  {
+    "id": "2.1.1",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "R-Tree propio sobre puntos latitud longitud",
+    "criterios": [
+      "Nodos y MBR propios",
+      "Inserción y división",
+      "Árbol multinivel",
+      "Persistencia y asociación con datos"
+    ]
+  },
+  {
+    "id": "2.1.2",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Consultas espaciales por rango o radio",
+    "criterios": [
+      "Resultados correctos",
+      "Traversal del índice real",
+      "Validación contra secuencial"
+    ]
+  },
+  {
+    "id": "2.1.3",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "k vecinos más cercanos",
+    "criterios": [
+      "Orden por distancia",
+      "k y empates",
+      "Traversal indexado real"
+    ]
+  },
+  {
+    "id": "2.1.4",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Intersección de puntos con polígonos",
+    "criterios": [
+      "Filtro MBR",
+      "Predicado geométrico exacto",
+      "Límites y polígonos cóncavos"
+    ]
+  },
+  {
+    "id": "2.1.5",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Distancia Euclidiana",
+    "criterios": [
+      "Métrica implementada",
+      "Unidades y proyección explícitas",
+      "Resultado verificado"
+    ]
+  },
+  {
+    "id": "2.1.6",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Distancia geodésica Haversine",
+    "criterios": [
+      "Fórmula implementada",
+      "Unidades explícitas",
+      "Resultado verificado"
+    ]
+  },
+  {
+    "id": "2.2.1",
+    "parte": "2",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.2.2",
+    "requisito": "Panel de mapa interactivo",
+    "criterios": [
+      "Mapa interactivo",
+      "Puntos almacenados visibles"
+    ]
+  },
+  {
+    "id": "2.2.2",
+    "parte": "2",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.2.2",
+    "requisito": "Resultados espaciales resaltados en el mapa",
+    "criterios": [
+      "Consultas conectadas al mapa",
+      "Resultados resaltados"
+    ]
+  },
+  {
+    "id": "2.3.1",
+    "parte": "2",
+    "etapa": "3",
+    "pagina": 3,
+    "seccion": "2.2.3",
+    "requisito": "SQL espacial por distancia y POINT",
+    "criterios": [
+      "Sintaxis espacial",
+      "Binding de ubicación",
+      "Ejecución con resultados reales"
+    ]
+  },
+  {
+    "id": "2.3.2",
+    "parte": "2",
+    "etapa": "3",
+    "pagina": 3,
+    "seccion": "2.2.3",
+    "requisito": "SQL espacial k-NN por distancia y LIMIT",
+    "criterios": [
+      "Ordenamiento por distancia",
+      "Límite k",
+      "Integración con motor espacial"
+    ]
+  },
+  {
+    "id": "2.4.1",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Comparador secuencial R-Tree propio y GiST PostgreSQL",
+    "criterios": [
+      "Secuencial medido",
+      "R-Tree medido",
+      "GiST medido",
+      "Consultas y datos equivalentes"
+    ]
+  },
+  {
+    "id": "2.4.2",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Experimentos espaciales con radios k y tamaños requeridos",
+    "criterios": [
+      "Radios 1 5 10 km",
+      "k 10 50 100",
+      "1000 10000 100000 puntos"
+    ]
+  },
+  {
+    "id": "2.4.3",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Tiempos espaciales de construcción y consulta",
+    "criterios": [
+      "Tiempo construcción",
+      "Promedio de 100 consultas"
+    ]
+  },
+  {
+    "id": "2.4.4",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Memoria y espacio en disco espaciales",
+    "criterios": [
+      "Memoria medida",
+      "Disco medido"
+    ]
+  },
+  {
+    "id": "2.4.5",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Presentación experimental espacial",
+    "criterios": [
+      "Gráficas comparativas",
+      "Tabla de cuándo usar cada técnica"
+    ]
+  },
+  {
+    "id": "3.1.1",
+    "parte": "3",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.3.1",
+    "requisito": "Índice invertido con SPIMI",
+    "criterios": [
+      "Procesamiento de documentos",
+      "Bloques SPIMI",
+      "Postings y merge propios"
+    ]
+  },
+  {
+    "id": "3.1.2",
+    "parte": "3",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.3.1",
+    "requisito": "Ranking TF-IDF con similitud coseno",
+    "criterios": [
+      "Pesos TF-IDF",
+      "Coseno",
+      "Ranking correcto"
+    ]
+  },
+  {
+    "id": "3.1.3",
+    "parte": "3",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.3.1",
+    "requisito": "Ranking BM25",
+    "criterios": [
+      "Fórmula y estadísticas",
+      "Ranking correcto"
+    ]
+  },
+  {
+    "id": "3.2.1",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Comparación TF-IDF Coseno BM25 y GIN PostgreSQL",
+    "criterios": [
+      "Tres técnicas medidas",
+      "Mismas consultas"
+    ]
+  },
+  {
+    "id": "3.2.2",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Datasets y longitud de consulta textual",
+    "criterios": [
+      "1000 10000 100000 documentos",
+      "Consultas 1 3 y 5+ palabras"
+    ]
+  },
+  {
+    "id": "3.2.3",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Tiempos textuales de construcción y consulta",
+    "criterios": [
+      "Construcción medida",
+      "Consulta medida"
+    ]
+  },
+  {
+    "id": "3.2.4",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Relevancia Precision@10 y Recall@10",
+    "criterios": [
+      "Juicios de relevancia",
+      "Precision@10",
+      "Recall@10"
+    ]
+  },
+  {
+    "id": "3.2.5",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Uso de memoria y disco textual",
+    "criterios": [
+      "Memoria medida",
+      "Disco medido"
+    ]
+  },
+  {
+    "id": "3.2.6",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Presentación experimental textual",
+    "criterios": [
+      "Gráficas",
+      "Tabla de ventajas y desventajas"
+    ]
+  },
+  {
+    "id": "3.3.1",
+    "parte": "3",
+    "etapa": "3",
+    "pagina": "3–4",
+    "seccion": "2.3.3",
+    "requisito": "SQL textual MATCH USING SCORE LIMIT",
+    "criterios": [
+      "MATCH",
+      "USING TF_IDF y BM25",
+      "SCORE y ordenamiento",
+      "LIMIT"
+    ]
+  },
+  {
+    "id": "4.1.1",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "ExtractFeatures para imágenes mediante SIFT",
+    "criterios": [
+      "Función de extracción",
+      "Descriptores SIFT"
+    ]
+  },
+  {
+    "id": "4.1.2",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "ExtractFeatures para audio mediante MFCC",
+    "criterios": [
+      "Función de extracción",
+      "Descriptores MFCC"
+    ]
+  },
+  {
+    "id": "4.1.3",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "Cuantización Bag of Visual Audio Words",
+    "criterios": [
+      "K-Means o Tree Quantization",
+      "Asignación de descriptores a K centroides"
+    ]
+  },
+  {
+    "id": "4.1.4",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "Histogramas multimedia con TF-IDF de dimensión K",
+    "criterios": [
+      "Frecuencias por palabra",
+      "Pesos TF-IDF",
+      "Vector dimensión K"
+    ]
+  },
+  {
+    "id": "4.2.1",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Índice IVF",
+    "criterios": [
+      "Índice propio",
+      "Búsqueda vectorial"
+    ]
+  },
+  {
+    "id": "4.2.2",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Índice HNSW",
+    "criterios": [
+      "Grafo jerárquico propio",
+      "Búsqueda vectorial"
+    ]
+  },
+  {
+    "id": "4.2.3",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Métrica vectorial Euclidiana",
+    "criterios": [
+      "Distancia alta dimensión",
+      "Integración con búsqueda"
+    ]
+  },
+  {
+    "id": "4.2.4",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Métrica vectorial Producto Punto",
+    "criterios": [
+      "Producto punto",
+      "Integración con búsqueda"
+    ]
+  },
+  {
+    "id": "4.2.5",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Métrica vectorial Coseno",
+    "criterios": [
+      "Coseno alta dimensión",
+      "Integración con búsqueda"
+    ]
+  },
+  {
+    "id": "4.3.1",
+    "parte": "4",
+    "etapa": "3",
+    "pagina": 4,
+    "seccion": "2.4.3",
+    "requisito": "SQL multimedia SIMILAR_TO USING WITH METRIC",
+    "criterios": [
+      "SIMILAR_TO con k",
+      "Selección IVF HNSW",
+      "WITH METRIC",
+      "SIMILARITY_SCORE y ordenamiento"
+    ]
+  },
+  {
+    "id": "4.4.1",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Comparación multimedia IVF HNSW y métricas",
+    "criterios": [
+      "IVF frente a HNSW",
+      "Euclidiana frente a coseno"
+    ]
+  },
+  {
+    "id": "4.4.2",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Datasets multimedia y k-NN requeridos",
+    "criterios": [
+      "1000 10000 100000 imágenes audios",
+      "k igual a 10"
+    ]
+  },
+  {
+    "id": "4.4.3",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Tiempos y memoria multimedia",
+    "criterios": [
+      "Tiempo construcción",
+      "Tiempo consulta",
+      "Memoria"
+    ]
+  },
+  {
+    "id": "4.4.4",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Recall@10 multimedia",
+    "criterios": [
+      "Oracle de vecinos",
+      "Recall@10"
+    ]
+  },
+  {
+    "id": "4.4.5",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Presentación experimental multimedia",
+    "criterios": [
+      "Gráficas tiempo tamaño",
+      "Galería de éxito y error",
+      "Tabla de recomendaciones"
+    ]
+  },
+  {
+    "id": "5.1.1",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Aplicación real consume API REST o GraphQL del motor",
+    "criterios": [
+      "Aplicación de dominio real",
+      "Consumo del API propio"
+    ]
+  },
+  {
+    "id": "5.1.2",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Aplicación integra al menos dos tipos de datos",
+    "criterios": [
+      "Primer tipo funcional",
+      "Segundo tipo funcional",
+      "Integración en una experiencia"
+    ]
+  },
+  {
+    "id": "5.1.3",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Interfaz de aplicación demuestra capacidades",
+    "criterios": [
+      "Flujo de usuario del dominio",
+      "Resultados multimodales reales"
+    ]
+  },
+  {
+    "id": "5.1.4",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Una opción de aplicación del Anexo A",
+    "criterios": [
+      "Opción elegida",
+      "Componentes obligatorios de esa opción"
+    ]
+  },
+  {
+    "id": "T.1.1",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Código en repositorio GitHub o GitLab",
+    "criterios": [
+      "Código versionado",
+      "Remoto configurado",
+      "Publicación accesible verificada"
+    ]
+  },
+  {
+    "id": "T.1.2",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "README con arquitectura y organización",
+    "criterios": [
+      "Arquitectura documentada",
+      "Organización documentada",
+      "Correspondencia con código actual"
+    ]
+  },
+  {
+    "id": "T.1.3",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Manual de instalación",
+    "criterios": [
+      "Instrucciones y dependencias",
+      "Arranque reproducible"
+    ]
+  },
+  {
+    "id": "T.1.4",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Video demo de 5 a 10 minutos",
+    "criterios": [
+      "Video disponible",
+      "Duración requerida",
+      "Funcionalidades demostradas"
+    ]
+  },
+  {
+    "id": "T.1.5",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Informe incremental técnico",
+    "criterios": [
+      "Diseño arquitectónico",
+      "Dominio de datos",
+      "Algoritmos",
+      "Sección experimental",
+      "Cobertura del avance multimodal"
+    ]
+  },
+  {
+    "id": "T.1.6",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Presentación final de 15 minutos y 5 de preguntas",
+    "criterios": [
+      "Material de presentación",
+      "Duración prevista",
+      "Presentación final acreditada"
+    ]
+  }
+]

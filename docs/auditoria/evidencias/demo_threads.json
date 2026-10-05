@@ -1,0 +1,113 @@
+{
+  "protected": {
+    "aborted_attempts": 1,
+    "attempts": [
+      {
+        "attempt": 1,
+        "blocker_ids": [
+          4
+        ],
+        "failure": "DeadlockVictimError",
+        "lock_wait_seconds": 1.81e-05,
+        "outcome": "ABORTED",
+        "read_value": 0,
+        "transaction_id": 3,
+        "worker": "protected-1",
+        "written_value": 1
+      },
+      {
+        "attempt": 2,
+        "blocker_ids": [
+          4
+        ],
+        "failure": null,
+        "lock_wait_seconds": 0.0132372,
+        "outcome": "COMMITTED",
+        "read_value": 1,
+        "transaction_id": 5,
+        "worker": "protected-1",
+        "written_value": 2
+      },
+      {
+        "attempt": 1,
+        "blocker_ids": [
+          3
+        ],
+        "failure": null,
+        "lock_wait_seconds": 0.0002886,
+        "outcome": "COMMITTED",
+        "read_value": 0,
+        "transaction_id": 4,
+        "worker": "protected-2",
+        "written_value": 1
+      }
+    ],
+    "committed_business_operations": 2,
+    "completed_business_operations": 2,
+    "final_value": 2,
+    "initial_value": 0
+  },
+  "protected_matches_serial_oracle": true,
+  "serial_oracle": {
+    "aborted_attempts": 0,
+    "attempts": [
+      {
+        "attempt": 1,
+        "blocker_ids": [],
+        "failure": null,
+        "lock_wait_seconds": 0.0,
+        "outcome": "COMMITTED",
+        "read_value": 0,
+        "transaction_id": 3,
+        "worker": "serial-1",
+        "written_value": 1
+      },
+      {
+        "attempt": 1,
+        "blocker_ids": [],
+        "failure": null,
+        "lock_wait_seconds": 0.0,
+        "outcome": "COMMITTED",
+        "read_value": 1,
+        "transaction_id": 4,
+        "worker": "serial-2",
+        "written_value": 2
+      }
+    ],
+    "committed_business_operations": 2,
+    "completed_business_operations": 2,
+    "final_value": 2,
+    "initial_value": 0
+  },
+  "unsafe": {
+    "aborted_attempts": 0,
+    "attempts": [
+      {
+        "attempt": 1,
+        "blocker_ids": [],
+        "failure": null,
+        "lock_wait_seconds": 0.0,
+        "outcome": "UNSAFE_WRITE",
+        "read_value": 0,
+        "transaction_id": null,
+        "worker": "unsafe-1",
+        "written_value": 1
+      },
+      {
+        "attempt": 1,
+        "blocker_ids": [],
+        "failure": null,
+        "lock_wait_seconds": 0.0,
+        "outcome": "UNSAFE_WRITE",
+        "read_value": 0,
+        "transaction_id": null,
+        "worker": "unsafe-2",
+        "written_value": 1
+      }
+    ],
+    "committed_business_operations": 0,
+    "completed_business_operations": 2,
+    "final_value": 1,
+    "initial_value": 0
+  }
+}

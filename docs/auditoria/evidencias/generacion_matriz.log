@@ -1,0 +1,98 @@
+{
+  "1": {
+    "requisitos": 27,
+    "implementado_equivalentes": "27",
+    "implementado_porcentaje": 100.0,
+    "verificado_equivalentes": "80/3",
+    "verificado_porcentaje": 98.76543209876543,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 26,
+      "PARCIAL": 0,
+      "INCORRECTO": 1,
+      "NO IMPLEMENTADO": 0,
+      "NO VERIFICADO": 0
+    }
+  },
+  "2": {
+    "requisitos": 15,
+    "implementado_equivalentes": "19/3",
+    "implementado_porcentaje": 42.22222222222222,
+    "verificado_equivalentes": "19/3",
+    "verificado_porcentaje": 42.22222222222222,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 6,
+      "PARCIAL": 1,
+      "INCORRECTO": 0,
+      "NO IMPLEMENTADO": 8,
+      "NO VERIFICADO": 0
+    }
+  },
+  "3": {
+    "requisitos": 10,
+    "implementado_equivalentes": "0",
+    "implementado_porcentaje": 0.0,
+    "verificado_equivalentes": "0",
+    "verificado_porcentaje": 0.0,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 0,
+      "PARCIAL": 0,
+      "INCORRECTO": 0,
+      "NO IMPLEMENTADO": 10,
+      "NO VERIFICADO": 0
+    }
+  },
+  "4": {
+    "requisitos": 15,
+    "implementado_equivalentes": "0",
+    "implementado_porcentaje": 0.0,
+    "verificado_equivalentes": "0",
+    "verificado_porcentaje": 0.0,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 0,
+      "PARCIAL": 0,
+      "INCORRECTO": 0,
+      "NO IMPLEMENTADO": 15,
+      "NO VERIFICADO": 0
+    }
+  },
+  "5": {
+    "requisitos": 4,
+    "implementado_equivalentes": "0",
+    "implementado_porcentaje": 0.0,
+    "verificado_equivalentes": "0",
+    "verificado_porcentaje": 0.0,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 0,
+      "PARCIAL": 0,
+      "INCORRECTO": 0,
+      "NO IMPLEMENTADO": 4,
+      "NO VERIFICADO": 0
+    }
+  },
+  "T": {
+    "requisitos": 6,
+    "implementado_equivalentes": "14/3",
+    "implementado_porcentaje": 77.77777777777777,
+    "verificado_equivalentes": "13/3",
+    "verificado_porcentaje": 72.22222222222223,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 3,
+      "PARCIAL": 2,
+      "INCORRECTO": 0,
+      "NO IMPLEMENTADO": 0,
+      "NO VERIFICADO": 1
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "tables_identical": true,
+  "generated_files": 12,
+  "images": 11,
+  "stored_table_lines": 111,
+  "regenerated_table_lines": 111
+}
+[auditoria_20261004_1k] files size=1000 repetition=1: 11.6s
+[auditoria_20261004_1k] indexes size=1000 repetition=1: 20.0s
+Results appended to /mnt/c/Users/Ian/Desktop/UTEC/TRABAJOS (PAGOS)/Paolo - BD2/docs/auditoria/evidencias/repeticion_1k.jsonl

@@ -1,0 +1,2 @@
+origin	https://github.com/Base-de-Datos-2/MINI-DBMS (fetch)
+origin	https://github.com/Base-de-Datos-2/MINI-DBMS (push)

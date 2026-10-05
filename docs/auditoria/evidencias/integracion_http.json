@@ -1,0 +1,127 @@
+[
+  {
+    "check": "server starts on a fresh demo database",
+    "ok": true,
+    "detail": "0.4 s"
+  },
+  {
+    "check": "health reports ready with writes enabled",
+    "ok": true,
+    "detail": "serialized-writes"
+  },
+  {
+    "check": "compiled frontend is served with its assets",
+    "ok": true,
+    "detail": "index 200, ['/assets/index-DI-IAhm-.js'] 200"
+  },
+  {
+    "check": "catalog lists the demo tables",
+    "ok": true,
+    "detail": "courses, enrollments, enrollments_big, students, students_big"
+  },
+  {
+    "check": "equality uses the hash index",
+    "ok": true,
+    "detail": "[[3, 'Sol', 'CS', 24]]"
+  },
+  {
+    "check": "disabling indexes changes the real plan, not the answer",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "join, group and sort run the external operators",
+    "ok": true,
+    "detail": "8 groups"
+  },
+  {
+    "check": "syntax and semantic errors are reported and the server recovers",
+    "ok": true,
+    "detail": "[['Ana'], ['Omar'], ['Sol']]"
+  },
+  {
+    "check": "CSV import creates HEAP table it_heap",
+    "ok": true,
+    "detail": "status 201, rows 500"
+  },
+  {
+    "check": "CSV import creates SEQUENTIAL table it_seq",
+    "ok": true,
+    "detail": "status 201, rows 500"
+  },
+  {
+    "check": "it_heap: equality on the imported table uses its B+ index",
+    "ok": true,
+    "detail": "[[10, 'Luis Huamán', 'CE', 22, 10]]"
+  },
+  {
+    "check": "it_seq: equality on the imported table uses its B+ index",
+    "ok": true,
+    "detail": "[[10, 'Luis Huamán', 'CE', 22, 10]]"
+  },
+  {
+    "check": "it_heap: equality on a hash-indexed column",
+    "ok": true,
+    "detail": "[[68]]"
+  },
+  {
+    "check": "it_seq: ordered range on the sequential table",
+    "ok": true,
+    "detail": "[[10], [11], [12], [13], [14]]"
+  },
+  {
+    "check": "a second session waits for the writer's lock until END",
+    "ok": true,
+    "detail": "blocked True, waited 1.5 s, count [[5]], session view: {\"session_id\": 3, \"state\": \"ACTIVE\", \"transaction\": {\"id\": 13, \"state\": \"ACTIVE\", \"explicit\": false, \"tables\": []}, \"busy\": true, \"call_elapsed_ms\": 1501.1, \"ca"
+  },
+  {
+    "check": "ROLLBACK discards the provisional insert",
+    "ok": true,
+    "detail": "[[5]]"
+  },
+  {
+    "check": "server stops cleanly (Ctrl+C)",
+    "ok": true,
+    "detail": "shutdown complete: True; exit -2"
+  },
+  {
+    "check": "server stops cleanly (Ctrl+C): exit status 0 without traceback",
+    "ok": false,
+    "detail": "exit -2"
+  },
+  {
+    "check": "port free for the launcher right after the stop",
+    "ok": false,
+    "detail": "waited 62 s (TCP TIME_WAIT after client connections)"
+  },
+  {
+    "check": "restart reopens the same files",
+    "ok": true,
+    "detail": "0.6 s"
+  },
+  {
+    "check": "created tables and their indexes survive the restart",
+    "ok": true,
+    "detail": "it_heap=500, it_seq=500"
+  },
+  {
+    "check": "only the committed insert is durable",
+    "ok": true,
+    "detail": "count [[5]], committed [['X']], rolled back []"
+  },
+  {
+    "check": "indexed lookups work after the restart",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "server stops cleanly after the restart",
+    "ok": true,
+    "detail": "shutdown complete: True; exit -2"
+  },
+  {
+    "check": "server stops cleanly after the restart: exit status 0 without traceback",
+    "ok": false,
+    "detail": "exit -2"
+  }
+]

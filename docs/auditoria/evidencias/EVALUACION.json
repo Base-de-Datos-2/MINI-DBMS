@@ -1,0 +1,3087 @@
+[
+  {
+    "id": "1.1.1",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Heap File en páginas de disco",
+    "criterios": [
+      "Registros codificados en páginas",
+      "Escritura y lectura de archivos reales",
+      "Reapertura conserva filas"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "HeapFile codifica Record en slotted pages de 4096 bytes y mantiene metadatos persistentes.",
+    "evidencia": [
+      "engine/storage/heap_file.py:204 (def insert()",
+      "engine/storage/page_manager.py:72 (class PageManager)",
+      "tests/storage/test_heap_persistence.py:1"
+    ],
+    "evaluacion": "Cumple almacenamiento propio en páginas y reapertura con gestores nuevos; las pruebas de persistencia y E/S pasan.",
+    "problemas": "No se reprodujo un defecto del requisito. No ofrece recuperación automática ante caída, que el PDF no exige.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Conservar PageManager, RecordCodec y la estructura paginada existente.",
+    "validacion": "Insertar múltiples páginas, cerrar, abrir y comparar filas y RIDs; ver suite estricta y persistencia en procesos independientes.",
+    "dependencias": "Codecs y PageManager.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.1.2",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Heap sin ordenamiento por clave y con inserción en orden de llegada",
+    "criterios": [
+      "Inserción inicial conserva llegada",
+      "No ordena por clave",
+      "Política de reutilización explícita"
+    ],
+    "estado": "INCORRECTO",
+    "estado_actual": "Inserta sin ordenar por clave; selecciona la primera página apta mediante HeapFreeSpaceTracker.",
+    "evidencia": [
+      "engine/storage/heap_file.py:204 (def insert()",
+      "engine/storage/heap_file.py:288 (def scan()",
+      "tests/storage/test_heap_free_space.py:54 (def test_tracker_chooses_lowest)",
+      "docs/auditoria/evidencias/heap_orden_llegada.json"
+    ],
+    "evaluacion": "Bajo la lectura literal de almacenamiento en orden de llegada del PDF, la carga inicial ya falla con filas variables: entrada 1,2,3; páginas/RIDs y scan 1,3,2. Dos criterios de tres están satisfechos.",
+    "problemas": "Las filas de 3200,3200,100 bytes colocan la tercera en el hueco nunca ocupado de la primera página. No hubo borrados; reapertura conserva el mismo orden físico. Los tests validan first-fit sin contrastar este requisito.",
+    "correccion": "Priorizar la última página para carga nueva y distinguir huecos reutilizados tras borrado de espacio sobrante de páginas anteriores. Documentar la compatibilidad entre llegada inicial y reutilización posterior.",
+    "implementacion_recomendada": "Cambiar solo la selección de página en HeapFile.insert y su información de reutilización; conservar tracker, codecs y RIDs existentes. Aplicar la política a nuevas inserciones sin reordenar archivos antiguos; para corregir una carga antigua usar su fuente original y reconstruir índices.",
+    "validacion": "Añadir regresión 3200/3200/100 sin borrados: colocación y scan físico 1,2,3 antes/después de abrir; mantener tests de reutilización real. No imponer ORDER BY a un SELECT sin orden explícito.",
+    "dependencias": "1.1.1 y 1.1.3; revisar consumidores del tracker y adaptadores de índices. Si el docente interpreta llegada solo como ausencia de orden por clave, registrar esa aclaración y reevaluar este único criterio.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      0,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.1.3",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Reutilización de espacio libre del Heap",
+    "criterios": [
+      "Borrado libera espacio",
+      "Inserción reutiliza espacio",
+      "Reapertura reconstruye reutilización"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Actualiza espacio libre tras borrado; reutiliza slots, compacta cuando hace falta y reconstruye el directorio al abrir.",
+    "evidencia": [
+      "engine/storage/heap_file.py:174 (def _rebuild_free_space()",
+      "engine/storage/heap_file.py:274 (def delete()",
+      "tests/storage/test_heap_free_space.py:1"
+    ],
+    "evaluacion": "Las pruebas comprueban bytes recuperables y reutilización después de reapertura; los experimentos registran crecimiento real.",
+    "problemas": "El directorio es reconstruible en memoria; su reconstrucción lee las páginas. Es un coste de arranque, no incumplimiento.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Conservar el directorio reconstruible y las invariantes de slots.",
+    "validacion": "Borrar registros, insertar tamaños que caben en huecos, verificar páginas no añadidas innecesariamente y repetir tras abrir.",
+    "dependencias": "1.1.1.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.1.4",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Inserción ordenada en Archivo Secuencial Paginado",
+    "criterios": [
+      "Entradas desordenadas quedan ordenadas",
+      "División multipágina conserva orden",
+      "Reapertura conserva orden"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "PagedSequentialFile busca página por clave, redistribuye/divide y desplaza el sufijo del archivo contiguo.",
+    "evidencia": [
+      "engine/storage/paged_sequential_file.py:400 (def insert()",
+      "tests/storage/test_paged_sequential_split.py:1",
+      "tests/storage/test_paged_sequential_binary_search.py:1"
+    ],
+    "evaluacion": "Inserción, orden con duplicados, divisiones y reapertura están verificados. La implementación es propia.",
+    "problemas": "Los desplazamientos pueden cambiar RIDs y aumentar el coste. Los adaptadores existentes reconstruyen índices para mantener corrección.",
+    "correccion": "No reemplazar el almacenamiento por este coste. Mejorar mantenimiento solo si la evidencia experimental justifica el cambio.",
+    "implementacion_recomendada": "Conservar la política actual; para optimización futura, publicar cambios de RID de forma explícita y actualizar todos los consumidores.",
+    "validacion": "Cargar orden inverso y aleatorio; forzar divisiones de dos/tres páginas y comparar scan ordenado antes y después de abrir.",
+    "dependencias": "1.1.1; comparador y codecs.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.1.5",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Eliminación lazy del secuencial",
+    "criterios": [
+      "Borrado lógico",
+      "Scan excluye eliminados",
+      "Persistencia de tombstones"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "La eliminación crea tombstones, ajusta conteos y excluye filas del scan sin compactación inmediata.",
+    "evidencia": [
+      "engine/storage/paged_sequential_file.py:538 (def delete()",
+      "tests/storage/test_paged_sequential_maintenance.py:1"
+    ],
+    "evaluacion": "El borrado es lazy y persistente, con recuperación posterior mediante reorganización.",
+    "problemas": "No se reprodujo un incumplimiento del requisito.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Conservar tombstones y validación de RIDs.",
+    "validacion": "Comprobar filas excluidas, desperdicio conservado y reapertura antes de reorganizar.",
+    "dependencias": "1.1.4.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.1.6",
+    "parte": "1",
+    "etapa": "1",
+    "pagina": 1,
+    "seccion": "2.1.1",
+    "requisito": "Estrategia de reorganización del secuencial",
+    "criterios": [
+      "Criterio de activación documentado",
+      "Reorganización compacta",
+      "Filas e índices conservan coherencia"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Mide desperdicio por bytes, aplica umbral y crea un reemplazo compacto validado con métricas.",
+    "evidencia": [
+      "engine/storage/paged_sequential_file.py:567 (def should_reorganize()",
+      "engine/storage/paged_sequential_file.py:626 (def reorganize()",
+      "engine/indexes/clustered_bplus.py:343 (def reorganize()",
+      "tests/storage/test_paged_sequential_maintenance.py:1"
+    ],
+    "evaluacion": "Hay una estrategia real de activación y reorganización. El 30% del PDF es un ejemplo, no una obligación universal.",
+    "problemas": "Mover registros exige reconstrucción de asociaciones. La ruta agrupada la coordina; no invocar reorganización cruda con índices activos sin mantenimiento.",
+    "correccion": "Ninguna corrección del algoritmo identificada; mantener las rutas públicas coordinadas.",
+    "implementacion_recomendada": "Conservar reemplazo validado y reconstrucción de índices afectados.",
+    "validacion": "Borrar más del umbral, reorganizar, verificar igualdad de filas, menor desperdicio, índices y reapertura.",
+    "dependencias": "1.1.4, 1.1.5 y mantenimiento de índices.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.2.1",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "Índice B+ agrupado",
+    "criterios": [
+      "B+ propio",
+      "Almacenamiento ordenado por clave indexada",
+      "Igualdad y rango correctos",
+      "Mantenimiento tras mutaciones"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "ClusteredBPlusIndex asocia un B+ persistente propio a un secuencial físicamente ordenado por la misma clave.",
+    "evidencia": [
+      "engine/indexes/clustered_bplus.py:28 (class ClusteredBPlusIndex)",
+      "engine/indexes/bplus_tree.py:780 (def insert()",
+      "tests/indexes/test_clustered_bplus.py:1"
+    ],
+    "evaluacion": "Cumple agrupamiento físico, búsquedas, mutación y persistencia. El PDF no exige almacenar las filas dentro de las hojas del B+.",
+    "problemas": "Reconstruye el índice en cada inserción; en 100k una inserción tarda 373–432 s en los resultados históricos. Las lecturas por RID tampoco agrupan páginas.",
+    "correccion": "Es una limitación de rendimiento, no una estructura conceptualmente inválida. Completar primero la medición de borrados; evitar reescritura sin necesidad.",
+    "implementacion_recomendada": "Mantener el adaptador. Como mejora, propagar cambios concretos de RID o agrupar mantenimiento de lotes con publicación segura.",
+    "validacion": "Verificar igualdad/rango contra scan, divisiones/fusiones, inserción con RIDs movidos, reorganización y reapertura.",
+    "dependencias": "1.1.4 y núcleo B+ compartido.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.2.2",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "Índice B+ no agrupado",
+    "criterios": [
+      "B+ propio",
+      "RIDs hacia almacenamiento independiente",
+      "Igualdad y rango correctos",
+      "Mantenimiento tras mutaciones"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "UnclusteredBPlusIndex conserva asociaciones clave/RID hacia Heap independiente.",
+    "evidencia": [
+      "engine/indexes/unclustered_bplus.py:20 (class UnclusteredBPlusIndex)",
+      "engine/indexes/bplus_tree.py:1583 (def range_entries()",
+      "tests/indexes/test_unclustered_bplus.py:1",
+      "tests/indexes/test_bplus_tree_delete.py:1"
+    ],
+    "evaluacion": "Igualdad, rango, splits, reparación de underflow, duplicados y reapertura tienen cobertura real.",
+    "problemas": "Leer una página por RID penaliza rangos amplios. No significa que el índice esté incorrecto.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Reutilizar el núcleo B+; una futura lectura por lotes puede agrupar RIDs por página sin perder el orden solicitado.",
+    "validacion": "Comparar asociaciones con un mapa independiente y resultados de rango con un scan tras operaciones aleatorias y reinicios.",
+    "dependencias": "1.1.1 y núcleo B+.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.2.3",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "Hash dinámico extensible",
+    "criterios": [
+      "Directorio y profundidades",
+      "Split y doubling",
+      "Igualdad y colisiones",
+      "Borrado y reapertura"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "ExtendibleHashIndex tiene directorio paginado, profundidad global/local, split, duplicación y hash determinista.",
+    "evidencia": [
+      "engine/indexes/extendible_hash.py:74 (class ExtendibleHashIndex)",
+      "tests/indexes/test_hash_restart_differential.py:1",
+      "tests/indexes/test_hash_growth_review.py:1"
+    ],
+    "evaluacion": "Cumple hashing extensible propio, búsquedas, colisiones, borrado y persistencia. Merge/shrink no son obligaciones explícitas del PDF.",
+    "problemas": "La profundidad tiene un límite y las colisiones no separables se rechazan de forma controlada. Los límites están cubiertos.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Mantener el directorio y validación existentes; no atribuirle capacidad de rango.",
+    "validacion": "Forzar colisiones, split con/sin doubling, borrar asociaciones exactas y comparar con diccionario tras reapertura.",
+    "dependencias": "1.1.1; codec determinista de claves.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.2.4",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "ORDER BY con External Sorting k-way merge",
+    "criterios": [
+      "Generación de runs en disco",
+      "Merge k-way",
+      "Integración SQL",
+      "Resultados y limpieza"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "ExternalSort genera runs paginados y realiza merge k-way con heap, varias pasadas y presupuesto explícito.",
+    "evidencia": [
+      "engine/operators/sorting.py:406 (def _generate_runs()",
+      "engine/operators/sorting.py:446 (def _merge_rows()",
+      "engine/query/planner.py:33 (ExternalSort)",
+      "tests/integration/test_stage6_differential.py:100 (def test_external_sort_matches)"
+    ],
+    "evaluacion": "ORDER BY usa el operador real desde SQL; los tests fuerzan derrame y comparan secuencias estables con sorted.",
+    "problemas": "El presupuesto modela objetos y buffers; no es medición RSS del proceso. No presentarlo como memoria física observada.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Conservar runs y merge; usar RSS separadamente cuando un experimento pida memoria real.",
+    "validacion": "Presupuesto mínimo, múltiples runs y pasadas, claves repetidas, filas anchas, salida ordenada y temporales eliminados tras fallo/cierre.",
+    "dependencias": "Scans, RowLayout, temporales y ExecutionContext.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.2.5",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "GROUP BY optimizado con hashing externo o índices",
+    "criterios": [
+      "Algoritmo propio compatible",
+      "Ruta externa o indexada real",
+      "Integración SQL",
+      "Agregados correctos"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "ExternalHashGroup particiona a disco, acumula agregados y resuelve skew mediante rutas acotadas.",
+    "evidencia": [
+      "engine/operators/aggregation.py:714 (class ExternalHashGroup)",
+      "engine/operators/partitioning.py:1",
+      "tests/integration/test_stage6_differential.py:118 (def test_external_grouping_matches)"
+    ],
+    "evaluacion": "Cumple la alternativa de hashing externo y está conectado al planner SQL; no hace falta exigir también la alternativa por índices.",
+    "problemas": "El PDF no fija lista completa de agregados SQL ni semántica de NULL. El subconjunto implementado tiene límites explícitos.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Mantener agregados y particionado propios; reutilizar estados mergeables.",
+    "validacion": "Comparar con agrupación por diccionario, incluyendo AVG ponderado, claves dominantes, vacío, duplicados y presupuestos distintos.",
+    "dependencias": "1.2.4 para fallbacks que necesiten ordenar; particiones y expresión tipada.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.2.6",
+    "parte": "1",
+    "etapa": "2",
+    "pagina": 1,
+    "seccion": "2.1.2",
+    "requisito": "JOIN optimizado con hashing externo o índices",
+    "criterios": [
+      "Algoritmo propio compatible",
+      "Ruta externa o indexada real",
+      "Integración SQL",
+      "Multiplicidad correcta"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "GraceHashJoin y rutas indexadas realizan equijoins reales; NestedLoopJoin proporciona una referencia alternativa.",
+    "evidencia": [
+      "engine/operators/join.py:652 (class GraceHashJoin)",
+      "engine/operators/index_strategies.py:53 (class IndexNestedLoopJoin)",
+      "tests/integration/test_stage6_differential.py:143 (def test_grace_join_matches)"
+    ],
+    "evaluacion": "Los resultados preservan multiplicidad y las pruebas fuerzan particiones externas y skew. Cumple la optimización requerida.",
+    "problemas": "Solo se soportan joins del subconjunto acordado. El PDF no exige todos los joins del estándar.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Mantener GraceHashJoin y estrategia indexada elegible; no sustituirlos por operaciones de un DBMS externo.",
+    "validacion": "Comparar como multiconjunto contra bucles independientes, con duplicados, tablas vacías, skew y todas las rutas seleccionables.",
+    "dependencias": "Scans, particionado y acceso por igualdad.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.3.1",
+    "parte": "1",
+    "etapa": "3",
+    "pagina": "1–2",
+    "seccion": "2.1.3",
+    "requisito": "SELECT y WHERE básicos",
+    "criterios": [
+      "Parser y AST",
+      "Binding de tablas y columnas",
+      "Ejecución y resultados",
+      "Errores controlados"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Lexer y parser manuales producen AST; binder resuelve catálogo; planner construye operadores propios.",
+    "evidencia": [
+      "engine/query/parser.py:87 (class _Parser)",
+      "engine/query/binder.py:1",
+      "engine/query/planner.py:1",
+      "tests/query/test_stage7_acceptance.py:127 (def test_reproducible_selection_matrix)"
+    ],
+    "evaluacion": "SELECT, proyección y condiciones soportadas se ejecutan por el motor. Errores sintácticos/semánticos se verificaron también por HTTP y navegador.",
+    "problemas": "LIMIT, funciones espaciales y rankings están ausentes. Es correcto para Parte 1, pero bloquea extensiones posteriores.",
+    "correccion": "No exigir un SQL completo; ampliar AST/binder/planner de forma localizada al implementar los requisitos posteriores.",
+    "implementacion_recomendada": "Conservar descenso recursivo y spans; incorporar nodos tipados para capacidades multimodales.",
+    "validacion": "Oráculos de resultados, comparaciones con/sin índices, SQL inválido, límites de parser y recuperación de la consulta siguiente.",
+    "dependencias": "Catálogo, almacenamiento y operadores.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.3.2",
+    "parte": "1",
+    "etapa": "3",
+    "pagina": "1–2",
+    "seccion": "2.1.3",
+    "requisito": "INSERT INTO VALUES",
+    "criterios": [
+      "Sintaxis requerida",
+      "Escritura real",
+      "Mantenimiento de índices"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "INSERT valida columnas y tipos, escribe una vez y mantiene índices mediante MutationService bajo sesión.",
+    "evidencia": [
+      "engine/maintenance/service.py:401 (def insert()",
+      "engine/query/executor.py:1127 (class SqlEngine)",
+      "tests/query/test_executor_writes.py:1"
+    ],
+    "evaluacion": "Escritura real, mantenimiento y publicación/rollback están cubiertos; la API muestra resultados provisionales correctamente.",
+    "problemas": "La ruta cruda de SqlEngine sin coordinador tiene garantías distintas a la sesión pública. No usarla como fachada concurrente.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Mantener las escrituras bajo el owner y SqlSession; reservar rutas sin coordinador para pruebas/demos controladas.",
+    "validacion": "Insertar tipos correctos/incorrectos, duplicados de PK, confirmar/revertir y comprobar todos los índices tras reapertura.",
+    "dependencias": "1.1, 1.2 y 1.4.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.3.3",
+    "parte": "1",
+    "etapa": "3",
+    "pagina": "1–2",
+    "seccion": "2.1.3",
+    "requisito": "DELETE WHERE",
+    "criterios": [
+      "Sintaxis requerida",
+      "Selección y borrado exactos",
+      "Mantenimiento de índices"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "DELETE descubre RIDs en un spool acotado antes de escribir y coordina borrado y reparación de índices.",
+    "evidencia": [
+      "engine/maintenance/service.py:87 (class DeleteTargetSpool)",
+      "engine/maintenance/service.py:512 (def delete()",
+      "tests/query/test_mutation_maintenance.py:1"
+    ],
+    "evaluacion": "Los targets exactos evitan invalidación del scan durante mutación; las sesiones añaden undo y aislamiento.",
+    "problemas": "La compensación aislada del servicio conserva prefijos en fallos ordinarios; no equivale al rollback coordinado. El sistema documenta ambas rutas.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Conservar discovery cerrado y verificación RID/registro; ejecutar públicamente mediante sesiones.",
+    "validacion": "Borrado selectivo/no coincidente, fallos inyectados y rollback; comparar almacenamiento e índices y comprobar limpieza del spool.",
+    "dependencias": "1.3.1 y mantenimiento de índices/transacciones.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.4.1",
+    "parte": "1",
+    "etapa": "4",
+    "pagina": 2,
+    "seccion": "2.1.4",
+    "requisito": "BEGIN TRANSACTION y END TRANSACTION",
+    "criterios": [
+      "Agrupación entre sentencias",
+      "Publicación al END",
+      "Aislamiento por sesión"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "BEGIN/END agrupan sentencias en SqlSession; END publica commit y ROLLBACK restaura imágenes físicas.",
+    "evidencia": [
+      "engine/transactions/session.py:280 (class SqlSession)",
+      "engine/transactions/completion.py:1",
+      "tests/transactions/test_sql_integration.py:1"
+    ],
+    "evaluacion": "Agrupación entre peticiones reales y aislamiento por token fueron corroborados por HTTP y Chromium.",
+    "problemas": "No hay WAL ni recuperación automática de crash. Se detecta estado no limpio; el PDF no obliga a esos mecanismos.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Conservar owner, locks y before-images; declarar los límites de fallo.",
+    "validacion": "BEGIN con varias mutaciones, END, otra sesión observando, rollback y reapertura conservando solo lo confirmado.",
+    "dependencias": "1.3 y gestor de transacciones.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.4.2",
+    "parte": "1",
+    "etapa": "4",
+    "pagina": 2,
+    "seccion": "2.1.4",
+    "requisito": "Control de concurrencia para múltiples usuarios",
+    "criterios": [
+      "Locks o mecanismo equivalente propio",
+      "Lectores y escritores concurrentes",
+      "Conflictos gestionados correctamente"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Locks S/X por tabla, cola FIFO, wait-for graph, víctima de deadlock y latches físicos.",
+    "evidencia": [
+      "engine/transactions/locks.py:92 (class LockManager)",
+      "tests/transactions/test_locks.py:1",
+      "tests/transactions/test_controlled_evidence.py:1"
+    ],
+    "evaluacion": "Múltiples sesiones comparten el owner; los lectores/writers en conflicto esperan en el gestor, sin serializar todas las peticiones HTTP.",
+    "problemas": "Los locks y el lease son de un solo proceso. Ejecutar varios workers sobre la misma base queda fuera del contrato actual.",
+    "correccion": "Mantener un worker por base. Un bloqueo entre procesos sería una ampliación de despliegue, no requisito del PDF.",
+    "implementacion_recomendada": "Conservar locks del motor y cancelar/abortar mediante el ciclo de vida existente.",
+    "validacion": "Lectores compatibles, escritor excluyente, deadlock, timeout, cancelación y liberación solo después del estado terminal.",
+    "dependencias": "1.4.1; owner único por proceso.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.4.3",
+    "parte": "1",
+    "etapa": "4",
+    "pagina": 2,
+    "seccion": "2.1.4",
+    "requisito": "Demostración obligatoria con threads",
+    "criterios": [
+      "Transacciones simultáneas",
+      "Race condition reproducida",
+      "Resultado protegido comparado con referencia"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "La demo ejecuta la misma operación de incremento sin protección, protegida y en serie usando threads.",
+    "evidencia": [
+      "demos/transactions_demo.py:1",
+      "tests/transactions/test_controlled_evidence.py:1",
+      "docs/auditoria/evidencias/demo_threads.json"
+    ],
+    "evaluacion": "Se ejecutó nuevamente: resultado sin protección 1, protegido 2 y referencia serial 2; evidencia de intentos y conflictos real.",
+    "problemas": "El adaptador inseguro está deliberadamente fuera del motor productivo.",
+    "correccion": "Ninguna corrección obligatoria identificada.",
+    "implementacion_recomendada": "Preservar el calendario determinista y explicar qué protección se omite en la demostración.",
+    "validacion": "Dos operaciones terminadas, race visible y resultado protegido idéntico al serial; ejecución con warnings como errores.",
+    "dependencias": "1.4.1 y 1.4.2.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.5.1",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Archivos",
+    "criterios": [
+      "Tablas cargadas visibles",
+      "Estructura de tablas visible"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "FilesPanel muestra tablas, columnas, tipos, organización e índices desde /api/tables.",
+    "evidencia": [
+      "frontend/src/components/FilesPanel.tsx:1",
+      "api/database.py:606 (def describe_table()",
+      "docs/auditoria/evidencias/navegador.json"
+    ],
+    "evaluacion": "Tablas y estructura se observaron en Chromium real. Cuenta datos físicos y advierte sobre valores provisionales.",
+    "problemas": "Otra pestaña puede mantener conteos antiguos hasta refrescar; no afecta los resultados SQL ni la estructura mostrada.",
+    "correccion": "No se identificó una corrección obligatoria del requisito; las mejoras se priorizan aparte.",
+    "implementacion_recomendada": "Como mejora, refrescar metadatos al volver a enfocar o después de detectar una nueva versión; conservar la advertencia de provisionalidad.",
+    "validacion": "Cargar GUI, seleccionar tabla y contrastar esquema con /api/tables; verificar refresco entre pestañas al corregir esa mejora.",
+    "dependencias": "API, serialización y SqlEngine/SqlSession.",
+    "criterios_implementados": [
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.5.2",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Consultas",
+    "criterios": [
+      "Editor SQL",
+      "Envío al motor"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "QueryPanel ofrece textarea SQL, presets y controles que envían opciones reales al motor.",
+    "evidencia": [
+      "frontend/src/components/QueryPanel.tsx:1",
+      "frontend/src/api.ts:109 (runQuery)",
+      "docs/auditoria/evidencias/navegador.json"
+    ],
+    "evaluacion": "Editor, envío, errores con línea/columna y recuperación pasaron en navegador.",
+    "problemas": "No se reprodujo un defecto del requisito.",
+    "correccion": "No se identificó una corrección obligatoria del requisito; las mejoras se priorizan aparte.",
+    "implementacion_recomendada": "Conservar API y gating de solicitudes; ampliar presets solo cuando existan consultas multimodales reales.",
+    "validacion": "Enviar SELECT válido/inválido y comprobar que cada envío se ejecuta una vez.",
+    "dependencias": "API, serialización y SqlEngine/SqlSession.",
+    "criterios_implementados": [
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.5.3",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Resultados",
+    "criterios": [
+      "Resultados reales en tabla",
+      "Errores visibles"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "ResultsPanel renderiza filas reales y distingue comandos, explicaciones, vacío y previews parciales.",
+    "evidencia": [
+      "frontend/src/components/ResultsPanel.tsx:1",
+      "api/serialization.py:1",
+      "docs/auditoria/evidencias/navegador.json"
+    ],
+    "evaluacion": "Las filas del navegador coinciden con el JSON y los casos HTTP; rollback mostró resultado vacío correcto.",
+    "problemas": "Las previews tienen límite de filas/bytes; el panel lo declara. No equivale a materializar todo el resultado.",
+    "correccion": "No se identificó una corrección obligatoria del requisito; las mejoras se priorizan aparte.",
+    "implementacion_recomendada": "Conservar límites y estados de completitud; añadir vistas especializadas cuando se implementen nuevos tipos.",
+    "validacion": "Comparar celdas con resultados del motor, vacío, error y respuesta truncada.",
+    "dependencias": "API, serialización y SqlEngine/SqlSession.",
+    "criterios_implementados": [
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.5.4",
+    "parte": "1",
+    "etapa": "5",
+    "pagina": 2,
+    "seccion": "2.1.5",
+    "requisito": "Panel de Plan de Ejecución",
+    "criterios": [
+      "Operadores reales",
+      "Índices realmente usados",
+      "Orden de operaciones"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "PlanPanel distingue plan preparado y observado, muestra árbol de operadores, índices y métricas reales.",
+    "evidencia": [
+      "frontend/src/components/PlanPanel.tsx:1",
+      "api/serialization.py:151 (def runtime_json()",
+      "docs/auditoria/evidencias/navegador.json"
+    ],
+    "evaluacion": "Activar/desactivar índices cambió IndexScan a TableScan sin alterar filas; ORDER BY mostró ExternalSort.",
+    "problemas": "Las métricas de preview pueden ser parciales y el panel lo indica; la memoria reservada es un modelo de ejecución.",
+    "correccion": "No se identificó una corrección obligatoria del requisito; las mejoras se priorizan aparte.",
+    "implementacion_recomendada": "Conservar serialización de descriptores reales; para nuevas modalidades crear operadores/reportes reales antes de añadir etiquetas UI.",
+    "validacion": "Contrastar el árbol con el runtime, índices abiertos y orden de ejecución; verificar EXPLAIN sin confundirlo con ejecución.",
+    "dependencias": "API, serialización y SqlEngine/SqlSession.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.6.1",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Comparación experimental Heap frente a secuencial",
+    "criterios": [
+      "Datos 1000 10000 100000",
+      "Tiempo inserción",
+      "Búsqueda PK",
+      "Espacio disco",
+      "Reorganización"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Hay 143 mediciones de archivos: 55 por tamaño 1k/10k y 33 en 100k, con cargas, búsquedas, disco y reorganización.",
+    "evidencia": [
+      "benchmarks/file_organization.py:57 (def run()",
+      "docs/EXPERIMENTOS.md:71 (## 2.)",
+      "benchmarks/results/part1_results*.jsonl",
+      "docs/auditoria/evidencias/experimentos_auditados.json"
+    ],
+    "evaluacion": "Datos y repeticiones requeridos presentes; las tablas se regeneraron desde los JSONL. El harness se repitió a 1k como diagnóstico.",
+    "problemas": "No se volvieron a ejecutar todas las corridas. Las de 1k/10k registran working tree sucio; su snapshot exacto no queda identificado solo por el commit.",
+    "correccion": "Guardar un snapshot o manifiesto por archivo para futuras mediciones; conservar los resultados originales y su procedencia.",
+    "implementacion_recomendada": "Reutilizar datos reproducibles y el harness. Registrar fsync/caché y entorno explícitos; no mezclar la repetición diagnóstica con resultados oficiales.",
+    "validacion": "Cobertura de operaciones y tamaños, búsquedas con conteos esperados, repetición selectiva y tablas idénticas a las publicadas.",
+    "dependencias": "1.1 y harness de medición propio.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.6.2",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Comparación experimental B+ agrupado no agrupado y hash",
+    "criterios": [
+      "Tres estructuras reales",
+      "Igualdad",
+      "Rango",
+      "Ordenamiento",
+      "Construcción",
+      "Consulta",
+      "Espacio adicional",
+      "Inserciones y borrados frecuentes"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Hay 312 mediciones de índices; igualdad, rango, orden, construcción y disco están registrados para las tres estructuras.",
+    "evidencia": [
+      "benchmarks/indexes.py:207 (while done < workload_operations)",
+      "docs/EXPERIMENTOS.md:197 (**Agrupado frente a no agrupado.**)",
+      "docs/auditoria/evidencias/experimentos_auditados.json"
+    ],
+    "evaluacion": "La comparación mínima del PDF está cubierta: a 1k el agrupado sí realiza 17–18 borrados y 18–19 inserciones por repetición. La matriz ampliada a 100k no demuestra borrados frecuentes: inserted=1, deleted=0.",
+    "problemas": "El límite de 60 s se evalúa entre operaciones; una inserción duró 373–432 s. A 10k solo hubo un borrado por repetición. La tasa mide workloads distintos.",
+    "correccion": "Como mejora de la comparación ampliada, medir INSERT y DELETE por separado y completar un prefijo mixto común; etiquetar corridas censuradas y operaciones completadas.",
+    "implementacion_recomendada": "Conservar harness e índices. Añadir una medición explícita de borrado agrupado, o un lote mixto mínimo completo, aceptando y reportando su coste sin timeout ficticio.",
+    "validacion": "Las corridas 1k acreditan ambas mutaciones; al ampliar la evaluación a 100k completar borrados y validar filas/índices al final. No extrapolar el dato faltante. El PDF no fija explícitamente tamaños para este subexperimento de índices.",
+    "dependencias": "1.2.1–1.2.3; no requiere reescribir el B+ antes de medir.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.6.3",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Gráficos comparativos relacionales",
+    "criterios": [
+      "Gráficos existentes",
+      "Correspondencia con datos crudos"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Existen once PNG y tablas generadas por benchmarks.report.",
+    "evidencia": [
+      "benchmarks/report.py:195 (def render()",
+      "docs/experimentos/resultados.md:1",
+      "docs/auditoria/evidencias/reporte_contrastado.json"
+    ],
+    "evaluacion": "La regeneración con los tres JSONL oficiales produce tablas textualmente idénticas y once gráficos.",
+    "problemas": "El comando sin --results toma solo el archivo de 1k/10k; para reproducir todo deben pasarse los tres archivos. La gráfica de carga mixta hereda su limitación.",
+    "correccion": "Documentar el comando completo o ajustar el default en una corrección futura; revisar la leyenda de la carga mixta.",
+    "implementacion_recomendada": "Conservar generación desde datos crudos; no dibujar mediciones inexistentes.",
+    "validacion": "Regenerar y comparar tablas; inspeccionar etiquetas, unidades, series de 100k y notas de censura.",
+    "dependencias": "1.6.1 y 1.6.2.",
+    "criterios_implementados": [
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.6.4",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Tabla de ventajas y desventajas relacionales",
+    "criterios": [
+      "Todas las técnicas requeridas",
+      "Ventajas y desventajas"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "EXPERIMENTOS contiene ventajas y desventajas de Heap, secuencial, ambos B+ y hash.",
+    "evidencia": [
+      "docs/EXPERIMENTOS.md:232 (## 5.)"
+    ],
+    "evaluacion": "La tabla requerida existe y coincide con comportamiento y cifras observadas.",
+    "problemas": "El agrupado se describe con throughput de una sola inserción a 100k. Mantener explícito ese alcance al comparar mantenimiento.",
+    "correccion": "Ajustar esa celda tras completar 1.6.2.",
+    "implementacion_recomendada": "Conservar recomendaciones específicas de esta implementación y sus limitaciones.",
+    "validacion": "Cada ventaja/desventaja debe enlazar a un comportamiento probado o medición concreta, distinguiendo inferencias.",
+    "dependencias": "1.6.1 y 1.6.2.",
+    "criterios_implementados": [
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "1.6.5",
+    "parte": "1",
+    "etapa": "6",
+    "pagina": 2,
+    "seccion": "2.1.6",
+    "requisito": "Conclusiones de cuándo usar cada estructura",
+    "criterios": [
+      "Heap y secuencial",
+      "B+ agrupado y no agrupado y hash",
+      "Conclusiones respaldadas por mediciones"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Hay conclusiones por organización e índice, con cifras y límites de selectividad.",
+    "evidencia": [
+      "docs/EXPERIMENTOS.md:242 (## 6.)"
+    ],
+    "evaluacion": "Las recomendaciones están respaldadas por búsquedas, carga, espacio y rangos medidos.",
+    "problemas": "Tres tamaños no demuestran complejidad asintótica; la atribución del coste de hash a splits no fue aislada. El cruce 4–5% se reconoce como estimación.",
+    "correccion": "Reformular O(1) como comportamiento observado/expectativa bajo supuestos y la atribución causal como hipótesis; no añadir mediciones inventadas.",
+    "implementacion_recomendada": "Separar conclusiones empíricas, complejidad teórica y estimaciones; conservar las recomendaciones útiles.",
+    "validacion": "Trazar cada cifra a la mediana y cada afirmación causal a evidencia o etiqueta de inferencia.",
+    "dependencias": "1.6.1–1.6.4.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.1.1",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "R-Tree propio sobre puntos latitud longitud",
+    "criterios": [
+      "Nodos y MBR propios",
+      "Inserción y división",
+      "Árbol multinivel",
+      "Persistencia y asociación con datos"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "RTree implementa nodos/MBR, quadratic split, elección de subárbol y persistencia JSON versionada con checksum.",
+    "evidencia": [
+      "engine/spatial/rtree.py:80 (class RTree)",
+      "engine/spatial/rtree.py:123 (def _split()",
+      "engine/spatial/index.py:78 (class SpatialIndex)",
+      "tests/spatial/test_e2_engine.py:1",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "Es un R-Tree propio multinivel, asociado a RIDs del Heap y validado estructuralmente; el PDF no exige R-Tree paginado.",
+    "problemas": "El árbol completo vive en RAM; INSERT guarda todo el JSON y DELETE reconstruye todo el árbol. No confundir persistencia con paginación externa.",
+    "correccion": "Ninguna corrección obligatoria del algoritmo identificada; atender los límites señalados al integrarlo.",
+    "implementacion_recomendada": "Reutilizar el núcleo; medir memoria y mantenimiento antes de considerar nodos paginados o actualización incremental.",
+    "validacion": "Inserciones con varios niveles, ocupación, MBR, cobertura de RIDs, duplicados y reapertura; prueba actual sobre Heap de 100k.",
+    "dependencias": "Heap estable, SpatialMapping y owner/sesiones para consultas públicas.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.1.2",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Consultas espaciales por rango o radio",
+    "criterios": [
+      "Resultados correctos",
+      "Traversal del índice real",
+      "Validación contra secuencial"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "radius usa bounds conservadores y una comprobación exacta de distancia; existe SpatialScan independiente del traversal.",
+    "evidencia": [
+      "engine/spatial/rtree.py:166 (def radius()",
+      "engine/spatial/index.py:30 (def scan_radius()",
+      "tests/spatial/test_e2_engine.py:1",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "Resultados indexados y scan coinciden; se comprobó además contra un cálculo matemático independiente con Heap real.",
+    "problemas": "La cota Haversine solo usa latitud: es segura, pero puede podar poco en distribuciones de latitud similar.",
+    "correccion": "Ninguna corrección obligatoria del algoritmo identificada; atender los límites señalados al integrarlo.",
+    "implementacion_recomendada": "Conservar el residual exacto. Mejorar la cota únicamente con una prueba de que nunca excede la distancia mínima real.",
+    "validacion": "Radios 0/1/5/10 km, límites incluidos/excluidos, centros en los bordes y consultas dentro del dominio admitido.",
+    "dependencias": "Heap estable, SpatialMapping y owner/sesiones para consultas públicas.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.1.3",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "k vecinos más cercanos",
+    "criterios": [
+      "Orden por distancia",
+      "k y empates",
+      "Traversal indexado real"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "knn hace best-first sobre MBR y heap acotado de candidatos; ordena por distancia e ID.",
+    "evidencia": [
+      "engine/spatial/rtree.py:212 (def knn()",
+      "engine/spatial/index.py:57 (def scan_knn()",
+      "tests/spatial/test_e2_engine.py:1",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "k, empates, duplicados y k mayor que N tienen pruebas; el probe 100k comprueba k=10/50/100 con referencia independiente.",
+    "problemas": "El resultado materializa hasta k filas y no tiene presupuesto de consultas espaciales equivalente al pipeline relacional.",
+    "correccion": "Ninguna corrección obligatoria del algoritmo identificada; atender los límites señalados al integrarlo.",
+    "implementacion_recomendada": "Conservar ranking estable; al exponer por HTTP imponer límites de salida y definir un operador TopK con métricas reales.",
+    "validacion": "Comparar IDs y orden con ordenamiento exhaustivo, k=0/1/N/N+1, empates y ambas métricas.",
+    "dependencias": "Heap estable, SpatialMapping y owner/sesiones para consultas públicas.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.1.4",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Intersección de puntos con polígonos",
+    "criterios": [
+      "Filtro MBR",
+      "Predicado geométrico exacto",
+      "Límites y polígonos cóncavos"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "El índice filtra MBR y Polygon.contains aplica predicado exacto, con borde incluido y polígonos simples cóncavos.",
+    "evidencia": [
+      "engine/spatial/geometry.py:168 (class Polygon)",
+      "engine/spatial/rtree.py:191 (def polygon()",
+      "tests/spatial/test_e2_engine.py:1",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "Cumple intersección de puntos con polígonos. El PDF no exige polígonos con agujeros o geometrías arbitrarias.",
+    "problemas": "El dominio es local y la convención del borde debe conservarse al conectar SQL, mapa y GiST.",
+    "correccion": "Ninguna corrección obligatoria del algoritmo identificada; atender los límites señalados al integrarlo.",
+    "implementacion_recomendada": "Reutilizar Polygon y MBR; validar datos y revelar la convención de borde en la interfaz.",
+    "validacion": "Puntos interiores, exteriores dentro del MBR, vértices, aristas, concavidad, inversión de orientación y polígonos inválidos.",
+    "dependencias": "Heap estable, SpatialMapping y owner/sesiones para consultas públicas.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.1.5",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Distancia Euclidiana",
+    "criterios": [
+      "Métrica implementada",
+      "Unidades y proyección explícitas",
+      "Resultado verificado"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Distancia planar en metros mediante proyección local fija alrededor de Lima.",
+    "evidencia": [
+      "engine/spatial/geometry.py:63 (def local_xy()",
+      "engine/spatial/geometry.py:68 (def distance()",
+      "engine/spatial/metadata.py:23 (ORIGIN =)",
+      "tests/spatial/test_e2_engine.py:1",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "Implementa Euclidiana en un plano declarado, no sobre grados sin conversión. Las pruebas comprueban unidades y ranking diferente de Haversine.",
+    "problemas": "Solo se admiten coordenadas del dominio local fijado. El PDF no impone cobertura mundial; debe mostrarse ese límite.",
+    "correccion": "Ninguna corrección obligatoria del algoritmo identificada; atender los límites señalados al integrarlo.",
+    "implementacion_recomendada": "Mantener proyección y unidades; al ampliar dominio, introducir una convención/proyección explícita y una nueva versión compatible.",
+    "validacion": "Casos analíticos norte/este, identidad, simetría y comparación con cálculo planar independiente.",
+    "dependencias": "Heap estable, SpatialMapping y owner/sesiones para consultas públicas.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.1.6",
+    "parte": "2",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.2.1",
+    "requisito": "Distancia geodésica Haversine",
+    "criterios": [
+      "Fórmula implementada",
+      "Unidades explícitas",
+      "Resultado verificado"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "distance implementa Haversine esférica en metros con radio medio WGS84 declarado.",
+    "evidencia": [
+      "engine/spatial/geometry.py:68 (def distance()",
+      "engine/spatial/metadata.py:25 (EARTH_RADIUS_METRES =)",
+      "tests/spatial/test_e2_engine.py:1",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "La fórmula, unidad y uso en consultas son correctos en el dominio; el probe utiliza ángulo entre vectores unitarios como referencia distinta.",
+    "problemas": "El comparador PostgreSQL debe usar esfera, radio compatible y residual exacto; el modo spheroid por defecto no sería equivalente.",
+    "correccion": "Ninguna corrección obligatoria del algoritmo identificada; atender los límites señalados al integrarlo.",
+    "implementacion_recomendada": "Conservar Haversine y hacer explícito use_spheroid=false en futuras mediciones GiST.",
+    "validacion": "Distancia cero, norte/este, equivalencia con referencia esférica y orden en radio/k-NN.",
+    "dependencias": "Heap estable, SpatialMapping y owner/sesiones para consultas públicas.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.2.1",
+    "parte": "2",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.2.2",
+    "requisito": "Panel de mapa interactivo",
+    "criterios": [
+      "Mapa interactivo",
+      "Puntos almacenados visibles"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "La GUI actual contiene cuatro paneles relacionales; no hay componente ni dependencia de mapa.",
+    "evidencia": [
+      "frontend/src/App.tsx:1",
+      "frontend/package.json:1",
+      "docs/auditoria/evidencias/navegador.png"
+    ],
+    "evaluacion": "Los puntos almacenados no se pueden visualizar en un mapa interactivo.",
+    "problemas": "Existe preparación espacial en backend, pero no visualización espacial.",
+    "correccion": "Añadir un panel de mapa conectado a datos reales del motor.",
+    "implementacion_recomendada": "Usar una biblioteca de mapa como transporte visual, con latitud/longitud explícitas, navegación y carga acotada de puntos.",
+    "validacion": "Abrir una tabla espacial y ver sus posiciones reales; pan/zoom no deben alterar identidades ni invertir ejes.",
+    "dependencias": "2.3 y una ruta HTTP espacial.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.2.2",
+    "parte": "2",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.2.2",
+    "requisito": "Resultados espaciales resaltados en el mapa",
+    "criterios": [
+      "Consultas conectadas al mapa",
+      "Resultados resaltados"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay selección ni resaltado espacial en frontend.",
+    "evidencia": [
+      "frontend/src/App.tsx:1",
+      "docs/auditoria/evidencias/inventario_codigo.json"
+    ],
+    "evaluacion": "La salida espacial tipada existe, pero ningún flujo GUI la consume.",
+    "problemas": "No se demuestra rango, k-NN o polígono sobre mapa.",
+    "correccion": "Conectar resultados con marcadores resaltados y selección por ID.",
+    "implementacion_recomendada": "Mantener una capa de puntos base y una capa de resultados; mostrar centro/radio o polígono y lista de distancias concordante.",
+    "validacion": "IDs del mapa, tabla y respuesta del motor idénticos; limpiar resaltado anterior ante vacío/error y conservar orden k-NN.",
+    "dependencias": "2.2.1, 2.3 y serialización espacial.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.3.1",
+    "parte": "2",
+    "etapa": "3",
+    "pagina": 3,
+    "seccion": "2.2.3",
+    "requisito": "SQL espacial por distancia y POINT",
+    "criterios": [
+      "Sintaxis espacial",
+      "Binding de ubicación",
+      "Ejecución con resultados reales"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "SqlSession admite consultas relacionales; el parser rechaza distancia/POINT. El owner tiene spatial_radius programático.",
+    "evidencia": [
+      "engine/query/parser.py:50 (_AGGREGATE_FUNCTIONS)",
+      "api/database.py:569 (def spatial_radius()",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "Un método Python no satisface la extensión SQL requerida.",
+    "problemas": "Faltan nodos AST, binding de ubicación, planificación espacial y ejecución SQL; tampoco hay endpoint espacial público.",
+    "correccion": "Extender la cadena parser→AST→binder→planner→executor con consultas por distancia.",
+    "implementacion_recomendada": "Añadir POINT(lat,lon), expresión de distancia y un operador SpatialScan/SpatialIndexScan que reutilice SpatialIndex bajo los locks de sesión; conservar residual estricto <.",
+    "validacion": "Ejecutar el ejemplo del PDF sobre tiendas, comparar índice y scan, ambas métricas, borde, errores de ejes/unidades y plan observado.",
+    "dependencias": "2.1; integración del owner y metadatos espaciales con QueryEnvironment.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.3.2",
+    "parte": "2",
+    "etapa": "3",
+    "pagina": 3,
+    "seccion": "2.2.3",
+    "requisito": "SQL espacial k-NN por distancia y LIMIT",
+    "criterios": [
+      "Ordenamiento por distancia",
+      "Límite k",
+      "Integración con motor espacial"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "ORDER BY solo acepta expresiones del subconjunto relacional y LIMIT está explícitamente fuera de él.",
+    "evidencia": [
+      "engine/query/parser.py:66 (_UNSUPPORTED_TRAILING_KEYWORDS)",
+      "api/database.py:575 (def spatial_knn()",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "El ejemplo k-NN SQL no se puede ejecutar; el núcleo k-NN correcto no completa esta interfaz.",
+    "problemas": "Falta resolver mi_ubicacion o un centro literal, expresión de distancia y límite de resultados.",
+    "correccion": "Añadir LIMIT entero no negativo y reconocimiento de ORDER BY distancia para la ruta k-NN.",
+    "implementacion_recomendada": "Resolver centros mediante parámetros explícitos o POINT; seleccionar un operador TopK espacial y devolver distancia/IDs ordenados sin ordenar toda la tabla innecesariamente.",
+    "validacion": "Ejemplo funcional con k=10, límites 0/N/N+1, empates estables, métrica elegida y plan que identifique el acceso real.",
+    "dependencias": "2.3.1; AST/binding de funciones y contrato de resultados.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.4.1",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Comparador secuencial R-Tree propio y GiST PostgreSQL",
+    "criterios": [
+      "Secuencial medido",
+      "R-Tree medido",
+      "GiST medido",
+      "Consultas y datos equivalentes"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "Hay scan, R-Tree y SQL de preparación GiST, además de logs históricos de setup PostGIS.",
+    "evidencia": [
+      "benchmarks/spatial/postgres.py:21 (def setup_sql()",
+      "benchmarks/spatial/__main__.py:9 (def main()",
+      "benchmarks/results/spatial_e1_setup.json:1",
+      "docs/auditoria/evidencias/comparador_entorno_actual.json"
+    ],
+    "evaluacion": "No hay un harness que mida y compare las tres técnicas. EXPLAIN de preparación no equivale al experimento requerido.",
+    "problemas": "No existen mediciones comparativas completas ni validación cruzada de las 100 consultas. Docker CLI está instalado, pero docker ps falla porque no está disponible el daemon; el contenedor histórico no pudo consultarse. Disponibilidad actual de PostGIS: NO VERIFICADA.",
+    "correccion": "Implementar adapters de medición secuencial/R-Tree/GiST sobre los mismos CSV y centros.",
+    "implementacion_recomendada": "Reutilizar datasets y setup; registrar plans GiST y equivalencia exacta de IDs. Evitar que PostgreSQL participe como almacenamiento del motor propio.",
+    "validacion": "Cada combinación debe producir resultados equivalentes y filas de medición con técnica, tamaño, consulta, configuración y unidades.",
+    "dependencias": "2.1 y comparador PostgreSQL preparado; 2.3 no bloquea benchmarks directos.",
+    "criterios_implementados": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.4.2",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Experimentos espaciales con radios k y tamaños requeridos",
+    "criterios": [
+      "Radios 1 5 10 km",
+      "k 10 50 100",
+      "1000 10000 100000 puntos"
+    ],
+    "estado": "PARCIAL",
+    "estado_actual": "El generador exporta 1k/10k/100k y 100 centros; el manifiesto enumera radios y k requeridos.",
+    "evidencia": [
+      "benchmarks/spatial/datasets.py:63 (def export()",
+      "tests/spatial/test_e1_inputs.py:1"
+    ],
+    "evaluacion": "Se acredita preparación de los tres tamaños; no ejecución del experimento completo con las familias de radio y k.",
+    "problemas": "El probe de auditoría 100k es funcional, con tres centros; no reemplaza las 100 consultas ni la comparación de técnicas.",
+    "correccion": "Ejecutar la matriz radio=1000/5000/10000 m, k=10/50/100 y N=1000/10000/100000.",
+    "implementacion_recomendada": "Consumir los CSV/manifiesto compartidos y 100 centros por combinación; conservar hashes y separar warmup de medición.",
+    "validacion": "Cobertura automática de tamaños, familias y parámetros; archivos sin huecos, IDs correctos y semillas reproducibles.",
+    "dependencias": "2.4.1.",
+    "criterios_implementados": [
+      0,
+      0,
+      1
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.4.3",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Tiempos espaciales de construcción y consulta",
+    "criterios": [
+      "Tiempo construcción",
+      "Promedio de 100 consultas"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay tiempos completos de construcción y promedio de 100 consultas para las tres técnicas.",
+    "evidencia": [
+      "benchmarks/spatial/__main__.py:1",
+      "benchmarks/spatial/postgres.py:1"
+    ],
+    "evaluacion": "El setup y los smoke tests no satisfacen las mediciones solicitadas.",
+    "problemas": "Faltan crudos por consulta y agregación comparable.",
+    "correccion": "Medir construcción y consultas con límites temporales claros.",
+    "implementacion_recomendada": "Excluir generación/importación cuando se mida construcción del índice; explicitar el tratamiento de carga de datos para cada técnica y medir consultas equivalentes.",
+    "validacion": "Promedio calculable desde 100 tiempos crudos por caso, con resultados correctos y repeticiones/entorno declarados.",
+    "dependencias": "2.4.1–2.4.2.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.4.4",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Memoria y espacio en disco espaciales",
+    "criterios": [
+      "Memoria medida",
+      "Disco medido"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "Se conocen archivos del R-Tree/Heap, pero no existe una medición experimental de memoria y disco espacial.",
+    "evidencia": [
+      "engine/spatial/rtree.py:282 (def save()",
+      "engine/operators/context.py:58 (ROW_OVERHEAD_BYTES =)"
+    ],
+    "evaluacion": "Contadores de candidatos o memoria reservada relacional no son RSS ni espacio del comparador.",
+    "problemas": "El árbol es residente y JSON puede aumentar el pico durante guardado; PostgreSQL requiere métricas específicas de sus relaciones.",
+    "correccion": "Añadir memoria real y tamaños base/índice para cada técnica.",
+    "implementacion_recomendada": "Medir RSS pico por proceso/subproceso, bytes de archivos propios y pg_relation_size/pg_total_relation_size; declarar métricas no comparables directamente.",
+    "validacion": "Resultados con unidades y alcance, baseline de proceso y ausencia de ceros ficticios o estimaciones presentadas como mediciones.",
+    "dependencias": "2.4.1 y política experimental común.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "2.4.5",
+    "parte": "2",
+    "etapa": "4",
+    "pagina": 3,
+    "seccion": "2.2.4",
+    "requisito": "Presentación experimental espacial",
+    "criterios": [
+      "Gráficas comparativas",
+      "Tabla de cuándo usar cada técnica"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay gráficos ni tabla experimental espacial derivados de una matriz completa.",
+    "evidencia": [
+      "docs/spatial.md:1",
+      "benchmarks/report.py:1"
+    ],
+    "evaluacion": "La presentación relacional no satisface la comparación espacial.",
+    "problemas": "Faltan datos base, gráficos y recomendaciones espaciales medidos.",
+    "correccion": "Generar gráficos y tabla desde los nuevos crudos.",
+    "implementacion_recomendada": "Reutilizar el estilo del reporte relacional con series secuencial/R-Tree/GiST y notas sobre memoria, disco y equivalencia.",
+    "validacion": "Cada cifra trazable a mediciones; gráficas por tamaño/radio/k y tabla de cuándo usar cada técnica.",
+    "dependencias": "2.4.1–2.4.4.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.1.1",
+    "parte": "3",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.3.1",
+    "requisito": "Índice invertido con SPIMI",
+    "criterios": [
+      "Procesamiento de documentos",
+      "Bloques SPIMI",
+      "Postings y merge propios"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "Solo existe almacenamiento de VARCHAR relacional; no hay índice invertido ni SPIMI.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Un campo de texto y un B+ sobre cadenas no indexan términos ni postings; documentos largos pueden exceder una página.",
+    "correccion": "Añadir almacenamiento gestionado de documentos e índice SPIMI propio.",
+    "implementacion_recomendada": "Definir doc_id estable, tokenización reproducible y bloques acotados término→postings; persistir bloques y fusionarlos por término conservando tf y estadísticas.",
+    "validacion": "Oracle de postings en corpus pequeño, documentos repetidos/vacíos, Unicode, bloques externos forzados y reapertura.",
+    "dependencias": "IDs/catálogo, owner/auxiliares, almacenamiento de texto fuera de filas de una sola página.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.1.2",
+    "parte": "3",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.3.1",
+    "requisito": "Ranking TF-IDF con similitud coseno",
+    "criterios": [
+      "Pesos TF-IDF",
+      "Coseno",
+      "Ranking correcto"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "La presencia de VARCHAR no incluye TF-IDF ni vectores sparse de términos.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No hay estadísticas tf/df ni normalización de documentos/consulta.",
+    "correccion": "Implementar ranking TF-IDF + coseno.",
+    "implementacion_recomendada": "Obtener df y N del índice SPIMI, definir fórmula/normalización explícitas y acumular productos por postings; ordenar scores con tie-break por doc_id.",
+    "validacion": "Corpus con puntuaciones calculadas manualmente, consulta sin términos, términos repetidos y rankings estables tras reabrir.",
+    "dependencias": "3.1.1.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.1.3",
+    "parte": "3",
+    "etapa": "1",
+    "pagina": 3,
+    "seccion": "2.3.1",
+    "requisito": "Ranking BM25",
+    "criterios": [
+      "Fórmula y estadísticas",
+      "Ranking correcto"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No se encontró BM25 en engine ni en rutas API.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Faltan longitud de documentos, promedio y cálculo de score.",
+    "correccion": "Implementar BM25 sobre los mismos postings.",
+    "implementacion_recomendada": "Persistir document length y avgdl; definir k1/b configurables y reutilizar las estadísticas del corpus sin duplicar el índice.",
+    "validacion": "Scores de referencia, documentos de longitudes distintas, consulta vacía/OOV y orden descendente estable.",
+    "dependencias": "3.1.1.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.2.1",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Comparación TF-IDF Coseno BM25 y GIN PostgreSQL",
+    "criterios": [
+      "Tres técnicas medidas",
+      "Mismas consultas"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay harness TF-IDF/BM25/GIN.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "PostGIS espacial no es un comparador GIN textual.",
+    "correccion": "Construir adapters para las tres técnicas con el mismo corpus y consultas.",
+    "implementacion_recomendada": "Configurar explícitamente tokenización y ranking PostgreSQL; documentar diferencias en stemming/stopwords en vez de atribuirlas al índice.",
+    "validacion": "Mismos IDs/corpus, consultas registradas y tres resultados comparables por caso.",
+    "dependencias": "3.1.1–3.1.3; PostgreSQL como comparador.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.2.2",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Datasets y longitud de consulta textual",
+    "criterios": [
+      "1000 10000 100000 documentos",
+      "Consultas 1 3 y 5+ palabras"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No se encontró corpus textual ni consultas de 1, 3 y 5+ palabras.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No hay datos reproducibles para evaluar la Parte 3.",
+    "correccion": "Preparar corpus de 1k/10k/100k documentos y consultas estratificadas por longitud.",
+    "implementacion_recomendada": "Guardar origen, hashes, doc_ids y consultas compartidas; evitar que una partición de texto cuente como documentos independientes sin explicarlo.",
+    "validacion": "Conteos exactos, texto recuperable y consultas en las tres bandas de longitud.",
+    "dependencias": "Almacenamiento de documentos; elección de dominio.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.2.3",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Tiempos textuales de construcción y consulta",
+    "criterios": [
+      "Construcción medida",
+      "Consulta medida"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay tiempos de construcción/consulta textual.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Las métricas SQL relacionales no sustituyen ranking textual.",
+    "correccion": "Medir los dos costes para las tres técnicas y tamaños.",
+    "implementacion_recomendada": "Separar ingesta de construcción y consulta; guardar repeticiones y configuración del ranking.",
+    "validacion": "Crudos con técnica/tamaño/consulta y agregaciones regenerables.",
+    "dependencias": "3.2.1–3.2.2.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.2.4",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Relevancia Precision@10 y Recall@10",
+    "criterios": [
+      "Juicios de relevancia",
+      "Precision@10",
+      "Recall@10"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay juicios de relevancia ni Precision@10/Recall@10.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No se puede obtener relevancia solo de tiempos o scores propios.",
+    "correccion": "Definir queries con conjuntos de documentos relevantes y calcular ambas métricas.",
+    "implementacion_recomendada": "Mantener qrels independientes de TF-IDF/BM25; declarar convenciones para menos de diez resultados y consultas sin relevantes.",
+    "validacion": "Casos manuales perfectos/parciales/nulos y agregados idénticos a un cálculo independiente.",
+    "dependencias": "3.2.2 y rankings implementados.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.2.5",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Uso de memoria y disco textual",
+    "criterios": [
+      "Memoria medida",
+      "Disco medido"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay mediciones de memoria y espacio de índices textuales.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No existe evidencia de consumo del SPIMI o GIN.",
+    "correccion": "Medir RSS y disco base/índice durante construcción y búsqueda.",
+    "implementacion_recomendada": "Usar el contrato experimental común y métricas PostgreSQL explícitas.",
+    "validacion": "Unidades y fases definidas, valores reales por técnica y tamaño.",
+    "dependencias": "3.2.1–3.2.3.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.2.6",
+    "parte": "3",
+    "etapa": "2",
+    "pagina": 3,
+    "seccion": "2.3.2",
+    "requisito": "Presentación experimental textual",
+    "criterios": [
+      "Gráficas",
+      "Tabla de ventajas y desventajas"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay gráficos ni tabla textual.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Faltan experimentos a los que vincular ventajas/desventajas.",
+    "correccion": "Generar presentación experimental de Parte 3.",
+    "implementacion_recomendada": "Mostrar tiempo, memoria, disco y relevancia por técnica, tamaño y longitud de consulta.",
+    "validacion": "Gráficas regenerables y recomendaciones apoyadas por datos y límites de calidad.",
+    "dependencias": "3.2.1–3.2.5.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "3.3.1",
+    "parte": "3",
+    "etapa": "3",
+    "pagina": "3–4",
+    "seccion": "2.3.3",
+    "requisito": "SQL textual MATCH USING SCORE LIMIT",
+    "criterios": [
+      "MATCH",
+      "USING TF_IDF y BM25",
+      "SCORE y ordenamiento",
+      "LIMIT"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "El parser rechaza MATCH/USING/SCORE y LIMIT; no hay ejecución de búsqueda textual.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Reconocer palabras o guardar textos no satisface los ejemplos SQL.",
+    "correccion": "Extender AST, binder, planner y executor con búsqueda/ranking textual.",
+    "implementacion_recomendada": "Resolver MATCH contra un campo indexado, seleccionar TF_IDF/BM25, producir SCORE y reutilizar LIMIT/TopK; devolver planes de operadores reales.",
+    "validacion": "Ambos ejemplos del PDF, aliases de score, orden y límites; errores controlados por técnica/campo inválidos.",
+    "dependencias": "3.1.1–3.1.3 y extensión general de funciones/LIMIT de 2.3.",
+    "criterios_implementados": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.1.1",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "ExtractFeatures para imágenes mediante SIFT",
+    "criterios": [
+      "Función de extracción",
+      "Descriptores SIFT"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No existe ExtractFeatures de imágenes ni SIFT.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "El motor no carga ni transforma imágenes en descriptores.",
+    "correccion": "Añadir extracción de descriptores SIFT y manejo de objetos gestionados.",
+    "implementacion_recomendada": "Definir ExtractFeatures con tipo/versión de extractor, validar formatos y guardar vínculos objeto→descriptores. Aclarar si el docente permite bibliotecas auxiliares SIFT; el PDF no lo resuelve.",
+    "validacion": "Imagen válida, uniforme, corrupta y transformada; salida finita y reproducible con parámetros fijados.",
+    "dependencias": "Almacenamiento de objetos y metadatos.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.1.2",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "ExtractFeatures para audio mediante MFCC",
+    "criterios": [
+      "Función de extracción",
+      "Descriptores MFCC"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No existe extracción MFCC ni procesamiento de audio.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No hay política de muestreo, canales o ventanas.",
+    "correccion": "Añadir extracción MFCC con parámetros explícitos.",
+    "implementacion_recomendada": "Normalizar sample rate/canales, segmentar ventanas y devolver matriz de descriptores finitos; tratar silencio y formatos inválidos.",
+    "validacion": "Señal sintética, silencio, clips cortos y audio inválido; dimensión y versión del extractor consistentes.",
+    "dependencias": "Almacenamiento de audio; interfaz ExtractFeatures.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.1.3",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "Cuantización Bag of Visual Audio Words",
+    "criterios": [
+      "K-Means o Tree Quantization",
+      "Asignación de descriptores a K centroides"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay vocabulario de centroides ni asignación visual/auditiva.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Descriptores locales por sí solos no son el vector K requerido.",
+    "correccion": "Implementar K-Means o Tree Quantization para construir el vocabulario.",
+    "implementacion_recomendada": "Entrenar con muestra reproducible, persistir K/centroides/versión y asignar cada descriptor al mismo vocabulario en ingesta y consulta.",
+    "validacion": "Clusters conocidos, centroides vacíos, asignaciones reproducibles y reapertura del vocabulario.",
+    "dependencias": "4.1.1–4.1.2.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.1.4",
+    "parte": "4",
+    "etapa": "1",
+    "pagina": 4,
+    "seccion": "2.4.1",
+    "requisito": "Histogramas multimedia con TF-IDF de dimensión K",
+    "criterios": [
+      "Frecuencias por palabra",
+      "Pesos TF-IDF",
+      "Vector dimensión K"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay histogramas ni TF-IDF de palabras multimedia.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Los vectores de términos de Parte 3 tampoco existirían aún ni sustituyen descriptores multimedia.",
+    "correccion": "Construir histogramas K y aplicar TF-IDF del corpus multimedia.",
+    "implementacion_recomendada": "Compartir matemáticas cuando sean compatibles, pero mantener vocabularios y estadísticas por modalidad/versiones; persistir dimensión K.",
+    "validacion": "Histograma manual, suma de frecuencias, pesos y dimensión; objeto sin descriptores y consulta con misma transformación.",
+    "dependencias": "4.1.3.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.2.1",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Índice IVF",
+    "criterios": [
+      "Índice propio",
+      "Búsqueda vectorial"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay IVF; el Heap relacional no agrupa vectores por centroides.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No hay inverted lists ni selección de probes.",
+    "correccion": "Implementar IVF propio.",
+    "implementacion_recomendada": "Persistir centroids/listas con IDs estables, nprobe configurable y reranking exacto con la métrica elegida.",
+    "validacion": "Comparación con scan vectorial exacto, nprobe total como referencia, inserción/reapertura y Recall@10.",
+    "dependencias": "4.1.4; representación de vectores y métricas.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.2.2",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Índice HNSW",
+    "criterios": [
+      "Grafo jerárquico propio",
+      "Búsqueda vectorial"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay HNSW ni grafo de vecinos.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "El R-Tree 2D no equivale a HNSW para alta dimensionalidad.",
+    "correccion": "Implementar HNSW propio.",
+    "implementacion_recomendada": "Construir niveles, selección de vecinos y búsqueda ef acotada; persistir IDs, grafo, semilla y parámetros M/ef.",
+    "validacion": "Invariantes de niveles/aristas, vecino exacto en corpus pequeño, ef creciente, reapertura y Recall@10.",
+    "dependencias": "Vectores y métricas de 4.2.3–4.2.5.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.2.3",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Métrica vectorial Euclidiana",
+    "criterios": [
+      "Distancia alta dimensión",
+      "Integración con búsqueda"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay métrica Euclidiana vectorial ni interfaz sobre vectores K.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "La distancia espacial 2D no acredita una métrica vectorial multimedia ni su integración.",
+    "correccion": "Implementar Euclidiana sobre vectores de dimensión validada.",
+    "implementacion_recomendada": "Calcular sqrt de suma de diferencias al cuadrado; fijar orientación de ranking (distancia ascendente o similitud descendente) y rechazar dimensiones/valores inválidos.",
+    "validacion": "Vectores de cálculo manual, identidad, cero, dimensiones diferentes, valores no finitos y rankings coherentes en IVF/HNSW.",
+    "dependencias": "Representación de vectores finitos de dimensión K.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.2.4",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Métrica vectorial Producto Punto",
+    "criterios": [
+      "Producto punto",
+      "Integración con búsqueda"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay métrica Producto Punto vectorial ni interfaz sobre vectores K.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "La distancia espacial 2D no acredita una métrica vectorial multimedia ni su integración.",
+    "correccion": "Implementar Producto Punto sobre vectores de dimensión validada.",
+    "implementacion_recomendada": "Calcular suma de productos componente a componente; fijar orientación de ranking (distancia ascendente o similitud descendente) y rechazar dimensiones/valores inválidos.",
+    "validacion": "Vectores de cálculo manual, identidad, cero, dimensiones diferentes, valores no finitos y rankings coherentes en IVF/HNSW.",
+    "dependencias": "Representación de vectores finitos de dimensión K.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.2.5",
+    "parte": "4",
+    "etapa": "2",
+    "pagina": 4,
+    "seccion": "2.4.2",
+    "requisito": "Métrica vectorial Coseno",
+    "criterios": [
+      "Coseno alta dimensión",
+      "Integración con búsqueda"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay métrica Coseno vectorial ni interfaz sobre vectores K.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "La distancia espacial 2D no acredita una métrica vectorial multimedia ni su integración.",
+    "correccion": "Implementar Coseno sobre vectores de dimensión validada.",
+    "implementacion_recomendada": "Calcular producto punto dividido por normas, con política explícita para vector cero; fijar orientación de ranking (distancia ascendente o similitud descendente) y rechazar dimensiones/valores inválidos.",
+    "validacion": "Vectores de cálculo manual, identidad, cero, dimensiones diferentes, valores no finitos y rankings coherentes en IVF/HNSW.",
+    "dependencias": "Representación de vectores finitos de dimensión K.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.3.1",
+    "parte": "4",
+    "etapa": "3",
+    "pagina": 4,
+    "seccion": "2.4.3",
+    "requisito": "SQL multimedia SIMILAR_TO USING WITH METRIC",
+    "criterios": [
+      "SIMILAR_TO con k",
+      "Selección IVF HNSW",
+      "WITH METRIC",
+      "SIMILARITY_SCORE y ordenamiento"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "El parser rechaza SIMILAR_TO, score multimedia y WITH METRIC.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No se resuelve objeto de consulta ni índice/métrica.",
+    "correccion": "Añadir la extensión SQL multimedia completa.",
+    "implementacion_recomendada": "Extraer el vector de consulta con vocabulario/versiones del índice; resolver USING y WITH METRIC; producir SIMILARITY_SCORE con orden coherente y límites.",
+    "validacion": "Ejemplos imagen/audio del PDF, path inválido, índice/métrica inexistentes y resultados iguales al API vectorial.",
+    "dependencias": "4.1–4.2 y funciones/TopK del parser.",
+    "criterios_implementados": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.4.1",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Comparación multimedia IVF HNSW y métricas",
+    "criterios": [
+      "IVF frente a HNSW",
+      "Euclidiana frente a coseno"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay comparación IVF/HNSW ni Euclidiana/coseno.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No hay índices o vectores experimentales.",
+    "correccion": "Construir experimento cruzado de ambos índices y ambas métricas.",
+    "implementacion_recomendada": "Fijar dataset/vectores/consultas y reportar parámetros de aproximación; distinguir precisión de velocidad.",
+    "validacion": "Cada combinación con crudos y baseline exacto bajo su propia métrica.",
+    "dependencias": "4.1–4.2.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.4.2",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Datasets multimedia y k-NN requeridos",
+    "criterios": [
+      "1000 10000 100000 imágenes audios",
+      "k igual a 10"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No existen datasets de 1k/10k/100k objetos multimedia ni consultas k=10.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Contar descriptores como objetos inflaría el tamaño del dataset.",
+    "correccion": "Preparar objetos, manifiestos y consultas reproducibles.",
+    "implementacion_recomendada": "Guardar objeto_id, modalidad, origen, hash, versión de extracción y vocabulario; usar diez vecinos por objeto de consulta.",
+    "validacion": "Conteo de objetos exacto y transformación de consulta consistente en los tres tamaños.",
+    "dependencias": "4.1; selección de datasets.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.4.3",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Tiempos y memoria multimedia",
+    "criterios": [
+      "Tiempo construcción",
+      "Tiempo consulta",
+      "Memoria"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay tiempos o memoria multimedia.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No se separan extracción, entrenamiento, construcción y búsqueda.",
+    "correccion": "Medir construcción del índice, consulta y uso de memoria.",
+    "implementacion_recomendada": "Registrar también fases auxiliares por separado para no atribuir extracción o K-Means a IVF/HNSW.",
+    "validacion": "Métricas reales y agregadas desde crudos con parámetros y fases explícitos.",
+    "dependencias": "4.4.1–4.4.2.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.4.4",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Recall@10 multimedia",
+    "criterios": [
+      "Oracle de vecinos",
+      "Recall@10"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay Recall@10 multimedia ni oracle exacto.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Scores aproximados no permiten deducir recall.",
+    "correccion": "Calcular vecinos exactos para cada consulta y métrica y comparar el top diez.",
+    "implementacion_recomendada": "Fijar convención de auto-coincidencia y empates; usar conjuntos de IDs de referencia independientes de IVF/HNSW.",
+    "validacion": "Recall entre 0 y 1, casos manuales y curva frente a nprobe/ef; no usar relevancia textual como sustituto.",
+    "dependencias": "4.2 y 4.4.2.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "4.4.5",
+    "parte": "4",
+    "etapa": "4",
+    "pagina": 4,
+    "seccion": "2.4.4",
+    "requisito": "Presentación experimental multimedia",
+    "criterios": [
+      "Gráficas tiempo tamaño",
+      "Galería de éxito y error",
+      "Tabla de recomendaciones"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No hay galería multimedia ni gráficas/recomendaciones.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "La galería debe mostrar casos reales, no imágenes conceptuales de resultados.",
+    "correccion": "Generar gráficas, galería de éxito/error y tabla comparativa.",
+    "implementacion_recomendada": "Enlazar consultas con objetos recuperados y referencia; reproducir audio o visualizar imágenes sin inventar éxito.",
+    "validacion": "Cada caso trazable a su consulta, ranking y métrica; gráficas tiempo/tamaño y recomendaciones verificables.",
+    "dependencias": "4.4.1–4.4.4.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "5.1.1",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Aplicación real consume API REST o GraphQL del motor",
+    "criterios": [
+      "Aplicación de dominio real",
+      "Consumo del API propio"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "Existe API REST del motor y una consola administrativa, pero no una aplicación del Anexo A.",
+    "evidencia": [
+      "api/app.py:1",
+      "frontend/src/App.tsx:1"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "La consola SQL demuestra el motor; no constituye por sí sola una aplicación real de IA del dominio elegido.",
+    "correccion": "Elegir la aplicación y construir su flujo mediante el API propio.",
+    "implementacion_recomendada": "Crear un frontend/servicio de dominio que consuma endpoints del motor. Conservar FastAPI y las sesiones; evitar acceso directo a páginas/índices desde la interfaz.",
+    "validacion": "Flujo de dominio completo con llamadas HTTP observables al motor propio y resultados reales.",
+    "dependencias": "Elección 5.1.4 y modalidades requeridas por esa opción.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "5.1.2",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Aplicación integra al menos dos tipos de datos",
+    "criterios": [
+      "Primer tipo funcional",
+      "Segundo tipo funcional",
+      "Integración en una experiencia"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "El núcleo maneja filas y puntos por métodos distintos; ninguna aplicación pública integra dos tipos en una experiencia.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "Tener dos paquetes o tablas con coordenadas no demuestra integración multimodal de la aplicación.",
+    "correccion": "Integrar al menos dos modalidades en el flujo del dominio.",
+    "implementacion_recomendada": "Usar IDs y metadatos relacionales comunes y combinar búsquedas reales de las modalidades escogidas con reglas de fusión explícitas.",
+    "validacion": "Una acción del usuario utiliza ambos tipos y el resultado permite rastrear las contribuciones de cada uno.",
+    "dependencias": "5.1.4; partes funcionales de las modalidades escogidas.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "5.1.3",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Interfaz de aplicación demuestra capacidades",
+    "criterios": [
+      "Flujo de usuario del dominio",
+      "Resultados multimodales reales"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "La GUI es una consola relacional; no hay chatbot, recomendaciones, timeline de audio ni reconocimiento facial.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "No existe demostración interactiva de la aplicación final.",
+    "correccion": "Añadir la interfaz del dominio elegido.",
+    "implementacion_recomendada": "Reutilizar componentes de sesión/error/resultados compatibles; diseñar entrada, salida y estados vacíos/error propios de la aplicación.",
+    "validacion": "Usuario completa el caso principal del anexo sobre datos reales, con ambos tipos integrados.",
+    "dependencias": "5.1.1–5.1.2.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "5.1.4",
+    "parte": "5",
+    "etapa": "1",
+    "pagina": "4–7",
+    "seccion": "2.5 y Anexo A",
+    "requisito": "Una opción de aplicación del Anexo A",
+    "criterios": [
+      "Opción elegida",
+      "Componentes obligatorios de esa opción"
+    ],
+    "estado": "NO IMPLEMENTADO",
+    "estado_actual": "No se encontró una opción A/B/C/D elegida en los documentos o código de aplicación.",
+    "evidencia": [
+      "docs/auditoria/evidencias/inventario_codigo.json",
+      "docs/auditoria/evidencias/espacial_100k_real.json"
+    ],
+    "evaluacion": "No se encontró implementación que satisfaga este requisito en el snapshot auditado.",
+    "problemas": "La decisión pendiente impide fijar el backlog específico y comprobar sus componentes obligatorios.",
+    "correccion": "Registrar una sola opción y su contrato de aceptación.",
+    "implementacion_recomendada": "A: PDF/chunks/metadata→SPIMI→recuperación→LLM; B: catálogo, imágenes/ubicación y fusión de recomendaciones; C: MFCC y segmentos/timeline de coincidencias; D: embeddings, cámara y búsqueda con objetivo de eficiencia. No implementar las cuatro.",
+    "validacion": "Opción documentada y todos sus componentes demostrados; lo opcional del anexo debe seguir siendo opcional.",
+    "dependencias": "Decisión de producto y dominio; no requiere reescribir Parte 1.",
+    "criterios_implementados": [
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "T.1.1",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Código en repositorio GitHub o GitLab",
+    "criterios": [
+      "Código versionado",
+      "Remoto configurado",
+      "Publicación accesible verificada"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Repositorio Git local con origin GitHub y HEAD publicado en main.",
+    "evidencia": [
+      "docs/auditoria/evidencias/commit.txt",
+      "docs/auditoria/evidencias/remoto_verificado.txt"
+    ],
+    "evaluacion": "git ls-remote confirmó el mismo commit 841977a en HEAD/main remoto.",
+    "problemas": "El PDF y DOCX actuales son cambios locales del usuario sin commit; se preservan. El requisito de código publicado sí está satisfecho.",
+    "correccion": "Ninguna corrección del código publicado identificada.",
+    "implementacion_recomendada": "Mantener publicación incremental y no confundir disponibilidad remota del código con la del video o presentación.",
+    "validacion": "Comparar SHA local y remoto, y verificar los cambios autorizados antes de futuras publicaciones.",
+    "dependencias": "Git y acceso remoto.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "T.1.2",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "README con arquitectura y organización",
+    "criterios": [
+      "Arquitectura documentada",
+      "Organización documentada",
+      "Correspondencia con código actual"
+    ],
+    "estado": "PARCIAL",
+    "estado_actual": "README describe arquitectura/organización relacional; docs/spatial amplía decisiones espaciales.",
+    "evidencia": [
+      "README.md:527 (## Organización)",
+      "docs/informe/informe_parte_01.md:41 (PageManager)",
+      "PROJECT_CONTEXT.md:2616 (Stage 10 remains pending)"
+    ],
+    "evaluacion": "Dos criterios de tres satisfechos. Persisten rutas antiguas a PLAN.md/ETAPA_XX y una descripción del árbol que omite engine/database y engine/spatial.",
+    "problemas": "También se afirma que PageManager es el único dueño de disco, aunque temporales, undo, manifiestos y R-Tree tienen E/S propia. La coordinación mezcla cierres actuales con secciones obsoletas.",
+    "correccion": "Corregir rutas y estados vigentes; precisar que PageManager centraliza páginas relacionales, no toda E/S del sistema.",
+    "implementacion_recomendada": "Editar documentos de forma localizada y marcar historias como históricas. Actualizar diagrama con owner y ruta espacial; conservar decisiones válidas.",
+    "validacion": "Enlaces locales resuelven, diagrama coincide con imports y responsabilidades y no se declaran como completos requisitos pendientes.",
+    "dependencias": "Hallazgos de esta auditoría; no requiere cambio de arquitectura.",
+    "criterios_implementados": [
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "T.1.3",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Manual de instalación",
+    "criterios": [
+      "Instrucciones y dependencias",
+      "Arranque reproducible"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "README y demo.md explican entorno, instalación de extras, carga inicial, compilación y arranque.",
+    "evidencia": [
+      "README.md:217 (## Requisitos e instalación)",
+      "docs/demo.md:1",
+      "docs/auditoria/evidencias/preparacion_entorno.log"
+    ],
+    "evaluacion": "Instalación nueva, build y arranque reales se verificaron sobre una copia limpia. Las instrucciones de ejecutar desde raíz permiten importar api y scripts.",
+    "problemas": "El launcher no reinicia inmediatamente en POSIX y Ctrl+C sale anómalamente; son defectos de ejecución documentados aparte. Un wheel instala solo engine.",
+    "correccion": "Corregir el launcher de forma localizada. Si se ofrece distribución instalable completa, incluir api/benchmarks o mantener el requisito de clonar y ejecutar desde raíz.",
+    "implementacion_recomendada": "Conservar el procedimiento actual y fijar versiones del entorno de demostración para reproducibilidad.",
+    "validacion": "Clon limpio, Python >=3.11, extras, npm ci/build, prepare, health, GUI y cierre/reinicio después de corregir los fallos.",
+    "dependencias": "Dependencias auxiliares y datasets de demostración.",
+    "criterios_implementados": [
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0
+    ]
+  },
+  {
+    "id": "T.1.4",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Video demo de 5 a 10 minutos",
+    "criterios": [
+      "Video disponible",
+      "Duración requerida",
+      "Funcionalidades demostradas"
+    ],
+    "estado": "NO VERIFICADO",
+    "estado_actual": "Existe un guion de aproximadamente ocho minutos para Parte 1; no se encontró video ni enlace a una grabación.",
+    "evidencia": [
+      "docs/informe/guion_video.md:1",
+      "docs/ETAPA_10_AUDIT.md:52 (grabación a cargo del equipo)"
+    ],
+    "evaluacion": "El guion no demuestra existencia, duración ni funcionalidades de un video. Podría existir externamente; no hay evidencia disponible.",
+    "problemas": "No se puede acreditar este entregable ni el video final de todas las modalidades.",
+    "correccion": "Grabar y aportar archivo/enlace comprobable, o incorporar evidencia del video externo si ya existe.",
+    "implementacion_recomendada": "Adaptar el guion al avance y después a todas las funcionalidades finales; grabar ejecución real, con duración 5–10 minutos.",
+    "validacion": "Abrir la grabación, verificar duración y contrastar cada capacidad mostrada con el sistema.",
+    "dependencias": "Funcionalidades que se demuestran; cierre final de las cinco partes.",
+    "criterios_implementados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_verificados": [
+      0,
+      0,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "T.1.5",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Informe incremental técnico",
+    "criterios": [
+      "Diseño arquitectónico",
+      "Dominio de datos",
+      "Algoritmos",
+      "Sección experimental",
+      "Cobertura del avance multimodal"
+    ],
+    "estado": "COMPLETO",
+    "estado_actual": "Informe Parte 1 contiene arquitectura, dominio, algoritmos y experimentos; docs/spatial registra el incremento espacial y sus límites.",
+    "evidencia": [
+      "docs/informe/informe_parte_01.md:1",
+      "docs/EXPERIMENTOS.md:1",
+      "docs/spatial.md:1"
+    ],
+    "evaluacion": "Hay documentación incremental real del avance actual. No se exige que describa como terminadas partes futuras todavía ausentes.",
+    "problemas": "La evaluación de arquitectura del informe debe corregirse según T.1.2, y el apartado experimental debe reconocer la brecha de carga mixta.",
+    "correccion": "Mantener el informe incremental, corregir afirmaciones concretas e incorporar resultados nuevos conforme se implementen.",
+    "implementacion_recomendada": "Enlazar capítulos por parte con evidencia de algoritmo, dominio, método, datos y limitaciones; no usar esta auditoría como evidencia de una implementación futura.",
+    "validacion": "Cada incremento tiene explicación y resultados trazables; la entrega final cubre las cinco partes y sus experimentos reales.",
+    "dependencias": "Avances funcionales y experimentales; T.1.2.",
+    "criterios_implementados": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "id": "T.1.6",
+    "parte": "T",
+    "etapa": "1",
+    "pagina": 5,
+    "seccion": "3",
+    "requisito": "Presentación final de 15 minutos y 5 de preguntas",
+    "criterios": [
+      "Material de presentación",
+      "Duración prevista",
+      "Presentación final acreditada"
+    ],
+    "estado": "PARCIAL",
+    "estado_actual": "Hay un esquema textual de presentación de Parte 1, estimado en 12–15 minutos; no hay exposición final acreditada.",
+    "evidencia": [
+      "docs/informe/presentacion.md:1"
+    ],
+    "evaluacion": "Existe material y planificación temporal; la exposición final de cinco partes y 5 minutos de preguntas no está verificada.",
+    "problemas": "Un esquema preparatorio no prueba que la presentación final se haya realizado ni que cubra todo el proyecto.",
+    "correccion": "Completar material de las cinco partes, ensayar 15 minutos y reservar 5 para preguntas; aportar evidencia al llegar al hito.",
+    "implementacion_recomendada": "Reutilizar el esquema y cifras válidas; añadir modalidades/aplicación y explicar limitaciones de forma fiel.",
+    "validacion": "Ensayo cronometrado, recorrido de capacidades reales y evidencia de la exposición final según el curso.",
+    "dependencias": "Entrega final de las cinco partes.",
+    "criterios_implementados": [
+      1,
+      1,
+      0
+    ],
+    "criterios_verificados": [
+      1,
+      1,
+      0
+    ],
+    "criterios_pendientes": [
+      0,
+      0,
+      0
+    ]
+  }
+]

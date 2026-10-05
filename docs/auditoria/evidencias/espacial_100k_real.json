@@ -1,0 +1,717 @@
+{
+  "size": 100000,
+  "real_heap": true,
+  "structural": {
+    "height": 5,
+    "nodes": 9738,
+    "leaves": 8874,
+    "entries": 100000
+  },
+  "checks": [
+    {
+      "family": "radius",
+      "parameter": 1000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 85,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 735,
+        "candidates": 6792,
+        "base_records_read": 85
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 5000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 2605,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 2027,
+        "candidates": 20355,
+        "base_records_read": 2605
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 10000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 10451,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 3615,
+        "candidates": 36764,
+        "base_records_read": 10451
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 10,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 10,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 515,
+        "candidates": 4523,
+        "base_records_read": 10
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 50,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 50,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 652,
+        "candidates": 5893,
+        "base_records_read": 50
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 100,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 100,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 754,
+        "candidates": 7004,
+        "base_records_read": 100
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 1000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 85,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 47,
+        "candidates": 311,
+        "base_records_read": 85
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 5000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 2604,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 368,
+        "candidates": 3464,
+        "base_records_read": 2604
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 10000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 10444,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 1217,
+        "candidates": 12083,
+        "base_records_read": 10444
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 10,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 10,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 25,
+        "candidates": 97,
+        "base_records_read": 10
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 50,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 50,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 39,
+        "candidates": 219,
+        "base_records_read": 50
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 100,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.21269606,
+        "longitude": -76.87271396
+      },
+      "passed": true,
+      "returned": 100,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 51,
+        "candidates": 351,
+        "base_records_read": 100
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 1000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 125,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 667,
+        "candidates": 6154,
+        "base_records_read": 125
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 5000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 2631,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 2074,
+        "candidates": 20616,
+        "base_records_read": 2631
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 10000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 10410,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 3898,
+        "candidates": 39134,
+        "base_records_read": 10410
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 10,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 10,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 374,
+        "candidates": 3287,
+        "base_records_read": 10
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 50,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 50,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 520,
+        "candidates": 4654,
+        "base_records_read": 50
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 100,
+      "metric": "haversine",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 100,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 617,
+        "candidates": 5633,
+        "base_records_read": 100
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 1000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 125,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 57,
+        "candidates": 387,
+        "base_records_read": 125
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 5000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 2631,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 432,
+        "candidates": 3999,
+        "base_records_read": 2631
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 10000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 10409,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 1368,
+        "candidates": 13119,
+        "base_records_read": 10409
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 10,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 10,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 22,
+        "candidates": 70,
+        "base_records_read": 10
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 50,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 50,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 43,
+        "candidates": 256,
+        "base_records_read": 50
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 100,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -12.1035749,
+        "longitude": -76.9884254
+      },
+      "passed": true,
+      "returned": 100,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 49,
+        "candidates": 308,
+        "base_records_read": 100
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 1000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 105,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 619,
+        "candidates": 5726,
+        "base_records_read": 105
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 5000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 2575,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 2052,
+        "candidates": 20443,
+        "base_records_read": 2575
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 10000,
+      "metric": "haversine",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 10363,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 3648,
+        "candidates": 36955,
+        "base_records_read": 10363
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 10,
+      "metric": "haversine",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 10,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 384,
+        "candidates": 3368,
+        "base_records_read": 10
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 50,
+      "metric": "haversine",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 50,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 507,
+        "candidates": 4628,
+        "base_records_read": 50
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 100,
+      "metric": "haversine",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 100,
+      "stats": {
+        "access": "RTree",
+        "metric": "haversine",
+        "visited_nodes": 593,
+        "candidates": 5470,
+        "base_records_read": 100
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 1000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 105,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 56,
+        "candidates": 380,
+        "base_records_read": 105
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 5000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 2576,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 406,
+        "candidates": 3727,
+        "base_records_read": 2576
+      }
+    },
+    {
+      "family": "radius",
+      "parameter": 10000,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 10367,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 1274,
+        "candidates": 12482,
+        "base_records_read": 10367
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 10,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 10,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 26,
+        "candidates": 106,
+        "base_records_read": 10
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 50,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 50,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 44,
+        "candidates": 258,
+        "base_records_read": 50
+      }
+    },
+    {
+      "family": "knn",
+      "parameter": 100,
+      "metric": "euclidean",
+      "center": {
+        "latitude": -11.88606161,
+        "longitude": -76.89715693
+      },
+      "passed": true,
+      "returned": 100,
+      "stats": {
+        "access": "RTree",
+        "metric": "euclidean",
+        "visited_nodes": 54,
+        "candidates": 364,
+        "base_records_read": 100
+      }
+    },
+    {
+      "family": "polygon",
+      "passed": true,
+      "returned": 543,
+      "stats": {
+        "access": "RTree",
+        "metric": null,
+        "visited_nodes": 180,
+        "candidates": 1553,
+        "base_records_read": 543
+      }
+    },
+    {
+      "family": "fresh_owner_reopen",
+      "passed": true
+    }
+  ],
+  "passed": 38,
+  "total": 38,
+  "sql_examples": [
+    {
+      "sql": "SELECT * FROM tiendas WHERE distancia(ubicacion, POINT(-12.0464, -77.0428)) < 5000",
+      "supported": false,
+      "error": "SqlSyntaxError",
+      "message": "Expected a comparison operator, found '(' (at line 1, column 38; position 38; near 'SELECT * FROM tiendas WHERE distancia(ubicacion, POINT(-12.0464, -77.0428)) < 5000')"
+    },
+    {
+      "sql": "SELECT * FROM restaurantes ORDER BY distancia(ubicacion, mi_ubicacion) LIMIT 10",
+      "supported": false,
+      "error": "SqlSyntaxError",
+      "message": "Unexpected trailing input near '(' (at line 1, column 46; position 46; near 'SELECT * FROM restaurantes ORDER BY distancia(ubicacion, mi_ubicacion) LIMIT 10')"
+    },
+    {
+      "sql": "SELECT * FROM documentos WHERE MATCH(contenido, 'base de datos vectorial') USING TF_IDF LIMIT 10",
+      "supported": false,
+      "error": "SqlSyntaxError",
+      "message": "Expected a comparison operator, found '(' (at line 1, column 37; position 37; near \"SELECT * FROM documentos WHERE MATCH(contenido, 'base de datos vectorial') USING TF_IDF LIMIT 10\")"
+    },
+    {
+      "sql": "SELECT *, SCORE() as relevancia FROM articulos WHERE MATCH(texto, 'machine learning') USING BM25 ORDER BY relevancia DESC",
+      "supported": false,
+      "error": "SqlSyntaxError",
+      "message": "Expected keyword FROM, found ',' (at line 1, column 9; position 9; near \"SELECT *, SCORE() as relevancia FROM articulos WHERE MATCH(texto, 'machine learning') USING BM25 ORDER BY relevancia DES...\")"
+    },
+    {
+      "sql": "SELECT * FROM imagenes WHERE SIMILAR_TO('foto_consulta.jpg', k=10) USING HNSW WITH METRIC=cosine",
+      "supported": false,
+      "error": "SqlSyntaxError",
+      "message": "Expected a comparison operator, found '(' (at line 1, column 40; position 40; near \"SELECT * FROM imagenes WHERE SIMILAR_TO('foto_consulta.jpg', k=10) USING HNSW WITH METRIC=cosine\")"
+    },
+    {
+      "sql": "SELECT nombre, artista, SIMILARITY_SCORE() as score FROM canciones WHERE SIMILAR_TO('audio_query.mp3', k=5) USING IVF WITH METRIC=euclidean ORDER BY score DESC",
+      "supported": false,
+      "error": "SqlUnsupportedError",
+      "message": "Function 'SIMILARITY_SCORE' is not supported in Stage 7 (at line 1, column 25; position 25; near \"SELECT nombre, artista, SIMILARITY_SCORE() as score FROM canciones WHERE SIMILAR_TO('audio_query.mp3', k=5) USING IVF WI...\")"
+    }
+  ],
+  "purpose": "Functional validation, not the required 100-query experiment"
+}
