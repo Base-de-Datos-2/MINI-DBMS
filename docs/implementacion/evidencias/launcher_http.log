@@ -1,0 +1,26 @@
+[OK ] server starts on a fresh demo database — 0.4 s
+[OK ] health reports ready with writes enabled — serialized-writes
+[OK ] catalog lists the demo tables — courses, enrollments, enrollments_big, students, students_big
+[OK ] equality uses the hash index — [[3, 'Sol', 'CS', 24]]
+[OK ] disabling indexes changes the real plan, not the answer
+[OK ] join, group and sort run the external operators — 8 groups
+[OK ] syntax and semantic errors are reported and the server recovers — [['Ana'], ['Omar'], ['Sol']]
+[OK ] CSV import creates HEAP table it_heap — status 201, rows 500
+[OK ] CSV import creates SEQUENTIAL table it_seq — status 201, rows 500
+[OK ] it_heap: equality on the imported table uses its B+ index — [[10, 'Luis Huamán', 'CE', 22, 10]]
+[OK ] it_seq: equality on the imported table uses its B+ index — [[10, 'Luis Huamán', 'CE', 22, 10]]
+[OK ] it_heap: equality on a hash-indexed column — [[68]]
+[OK ] it_seq: ordered range on the sequential table — [[10], [11], [12], [13], [14]]
+[OK ] a second session waits for the writer's lock until END — blocked True, waited 1.5 s, count [[5]], session view: {"session_id": 3, "state": "ACTIVE", "transaction": {"id": 13, "state": "ACTIVE", "explicit": false, "tables": []}, "busy": true, "call_elapsed_ms": 1501.3, "ca
+[OK ] ROLLBACK discards the provisional insert — [[5]]
+[OK ] server stops cleanly (Ctrl+C) — shutdown complete: True; exit 0
+[OK ] server stops cleanly (Ctrl+C): exit status 0 without traceback — exit 0
+[OK ] port free for the launcher right after the stop — waited 0 s (TCP TIME_WAIT after client connections)
+[OK ] restart reopens the same files — 0.6 s
+[OK ] created tables and their indexes survive the restart — it_heap=500, it_seq=500
+[OK ] only the committed insert is durable — count [[5]], committed [['X']], rolled back []
+[OK ] indexed lookups work after the restart
+[OK ] server stops cleanly after the restart — shutdown complete: True; exit 0
+[OK ] server stops cleanly after the restart: exit status 0 without traceback — exit 0
+
+24/24 checks passed

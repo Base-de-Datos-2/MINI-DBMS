@@ -141,7 +141,7 @@ def rows(body: dict[str, Any]) -> list:
     return body.get("rows", [])
 
 
-def run(data_dir: Path, port: int, report: Path | None) -> int:
+def run(data_dir: Path, port: int, report: Path | None, *, include_frontend: bool = True) -> int:
     checks = Checks()
     if data_dir.exists():
         if not (data_dir / ".minidbms-demo").exists():
@@ -157,12 +157,13 @@ def run(data_dir: Path, port: int, report: Path | None) -> int:
         health = server.get("/api/health")
         checks.check("health reports ready with writes enabled",
                      health["status"] == "ready" and health["writes_enabled"], health["mode"])
-        status, page = server.raw("/")
-        assets = [part.split('"')[0] for part in page.split('src="')[1:]] if status == 200 else []
-        asset_status = server.raw(assets[0])[0] if assets else None
-        checks.check("compiled frontend is served with its assets",
-                     status == 200 and "<div id=\"root\"" in page and asset_status == 200,
-                     f"index {status}, {assets[:1]} {asset_status}")
+        if include_frontend:
+            status, page = server.raw("/")
+            assets = [part.split('"')[0] for part in page.split('src="')[1:]] if status == 200 else []
+            asset_status = server.raw(assets[0])[0] if assets else None
+            checks.check("compiled frontend is served with its assets",
+                         status == 200 and "<div id=\"root\"" in page and asset_status == 200,
+                         f"index {status}, {assets[:1]} {asset_status}")
         tables = {table["name"] for table in server.get("/api/tables")}
         checks.check("catalog lists the demo tables",
                      {"students", "enrollments", "students_big"} <= tables, ", ".join(sorted(tables)))
@@ -309,8 +310,10 @@ def main() -> int:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--report", type=Path, default=None,
                         help="optional JSON file with every check and its detail")
+    parser.add_argument("--backend-only", action="store_true",
+                        help="validate HTTP and persistence without compiled frontend assets")
     args = parser.parse_args()
-    return run(args.data_dir, args.port, args.report)
+    return run(args.data_dir, args.port, args.report, include_frontend=not args.backend_only)
 
 
 if __name__ == "__main__":
