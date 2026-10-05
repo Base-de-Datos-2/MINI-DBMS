@@ -116,6 +116,18 @@ Part 1 must provide:
 
 ## Part 2 E1/E2 coordinate and integration decisions
 
+### Application choice for the authorized completion phase
+
+Anexo A option B (hybrid e-commerce) is selected for implementation. It uses
+relational products/availability, descriptions indexed by the own text engine,
+product images indexed by the own multimedia engine, and geographic stores.
+The application backend must consume the engine's HTTP API instead of importing
+engine internals. Score fusion and per-channel contributions will be explicit.
+The frontend remains deferred. Domain, dependencies and acceptance are recorded
+in `docs/aplicacion.md`; this choice does not claim an implemented application.
+
+### Existing spatial conventions
+
 The selected owner is `api.database.Database`, which already serves the
 frontend and supports Heap/FLOAT and GUI-registry reopen. Physical points
 use two FLOAT columns and stable live Heap RIDs. `spatial_tables.json` v1
