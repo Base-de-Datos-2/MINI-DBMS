@@ -321,6 +321,7 @@ export interface SpatialTable {
   };
 }
 export interface SpatialPoint {
+  record?: Record<string, unknown>;
   id: number | string;
   latitude: number;
   longitude: number;

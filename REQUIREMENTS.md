@@ -480,6 +480,9 @@ Implementation choices and preparation status belong in the Part 2 plan/context.
 ## 15.2 Visualization and SQL
 
 An interactive map panel displays stored points and highlights spatial results.
+Instructor clarification reported by the user on 2026-10-13: Leaflet with
+OpenStreetMap is authorized to provide geographic context for a dataset of
+identified places in Lima. The own database engine still resolves the queries.
 The SQL parser must support the assignment's examples:
 
 ```sql

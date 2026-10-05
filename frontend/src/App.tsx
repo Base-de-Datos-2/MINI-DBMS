@@ -175,7 +175,7 @@ export default function App() {
         }
         const changedData =
           next.status === "success" &&
-          (next.body.kind === "command" ||
+          (next.body.kind === "command" || next.body.kind === "definition" ||
             (next.body.kind === "transaction" && next.body.statement !== "BEGIN"));
         const aborted =
           next.status === "error" && next.body.error.details?.group_aborted === true;

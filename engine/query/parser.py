@@ -786,6 +786,10 @@ class _Parser:
         if integer_type is not None:
             return TypeSpecification("INTEGER", span=integer_type.span)
 
+        scalar = self._match_keyword("FLOAT", "BOOLEAN")
+        if scalar is not None:
+            return TypeSpecification(scalar.value, span=scalar.span)
+
         varchar = self._match_keyword("VARCHAR")
         if varchar is not None:
             self._expect_punct("(")
@@ -813,7 +817,7 @@ class _Parser:
                 token=token,
                 error_type=SqlUnsupportedError,
             )
-        raise self._expected("INT, INTEGER, or VARCHAR(n)")
+        raise self._expected("INT, INTEGER, FLOAT, BOOLEAN, or VARCHAR(n)")
 
     def _parse_explain(self) -> ExplainStatement:
         start = self._expect_keyword("EXPLAIN")

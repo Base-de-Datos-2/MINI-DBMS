@@ -1,0 +1,10 @@
+{
+  "source": "OpenStreetMap API 0.6",
+  "retrieved_utc": "2026-10-13",
+  "query": "https://www.openstreetmap.org/api/0.6/map?bbox=-77.045,-12.048,-77.04,-12.043",
+  "license": "ODbL 1.0",
+  "attribution": "© OpenStreetMap contributors",
+  "license_url": "https://www.openstreetmap.org/copyright",
+  "selection": "Named nodes with amenity, tourism or historic tags inside bbox; coordinates copied directly from nodes. Not a complete inventory; current operation of places not independently verified.",
+  "count": 20
+}

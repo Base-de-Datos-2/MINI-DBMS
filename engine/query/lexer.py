@@ -44,6 +44,8 @@ KEYWORDS = frozenset(
         "ANALYZE",
         "INT",
         "INTEGER",
+        "FLOAT",
+        "BOOLEAN",
         "KEY",
         "PRIMARY",
         "TRUE",

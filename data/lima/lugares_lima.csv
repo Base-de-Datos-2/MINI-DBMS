@@ -1,0 +1,21 @@
+id,nombre,categoria,latitud,longitud,osm_url
+1,Estación 2 de Mayo,bus_station,-12.0456652,-77.0428116,https://www.openstreetmap.org/node/1418822748
+2,Ramón Castilla,bus_station,-12.04361,-77.0421035,https://www.openstreetmap.org/node/1418822756
+3,CETPRO Nueva América,college,-12.04687,-77.04239,https://www.openstreetmap.org/node/1907379832
+4,Museo Universitario UNFV,museum,-12.0474923,-77.0407621,https://www.openstreetmap.org/node/1932068272
+5,Dental PCP,dentist,-12.0432191,-77.0422249,https://www.openstreetmap.org/node/4331203050
+6,BCP,bank,-12.0452813,-77.0444615,https://www.openstreetmap.org/node/4387665379
+7,Rinconcito Ancashino,restaurant,-12.0444901,-77.0432272,https://www.openstreetmap.org/node/4387941762
+8,Galería Bueno Bonito y Barato,marketplace,-12.0438746,-77.0437816,https://www.openstreetmap.org/node/4387948113
+9,Institución Educativa 1149 Sagrado Corazon De Jesus,school,-12.0463816,-77.0449893,https://www.openstreetmap.org/node/5592843949
+10,Institución educativa inicial Angel De La Guarda,kindergarten,-12.0475816,-77.0422027,https://www.openstreetmap.org/node/5592843951
+11,Institución educativa inicial 1147 Andrés Rosales Valencia,kindergarten,-12.0464348,-77.040415,https://www.openstreetmap.org/node/5592847191
+12,Farmacia Universal,pharmacy,-12.0448184,-77.0403719,https://www.openstreetmap.org/node/6293371669
+13,Combate del Dos de Mayo,monument,-12.0463851,-77.0427655,https://www.openstreetmap.org/node/6338630732
+14,Mariscal Ramón Castilla,monument,-12.043382,-77.0428533,https://www.openstreetmap.org/node/7271080746
+15,Botica Bolognesi,pharmacy,-12.0445421,-77.0432187,https://www.openstreetmap.org/node/7298264579
+16,Farmacia Milagros,pharmacy,-12.04785,-77.0439687,https://www.openstreetmap.org/node/7300445424
+17,Farmacia Auxiliadora,pharmacy,-12.0479548,-77.0423189,https://www.openstreetmap.org/node/9268114428
+18,Instituto de Imágenes Médicas,clinic,-12.0472149,-77.0424307,https://www.openstreetmap.org/node/9268171962
+19,Instituto para el Desarrollo Infantil,social_facility,-12.0473129,-77.0410198,https://www.openstreetmap.org/node/9268326098
+20,Inkafarma,pharmacy,-12.046671,-77.0438905,https://www.openstreetmap.org/node/13071896235

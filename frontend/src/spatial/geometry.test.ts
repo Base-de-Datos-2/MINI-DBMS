@@ -38,7 +38,7 @@ describe("geographic map contracts", () => {
   });
   it("reads the registered columns without guessing their order and preserves int64 strings", () => {
     const response = { columns: [{ name: "longitud" }, { name: "id" }, { name: "latitud" }], rows: [[-77, "9007199254740993", -12]] } as QueryResponse;
-    expect(previewPoints(response, table)).toEqual([{ id: "9007199254740993", latitude: -12, longitude: -77 }]);
+    expect(previewPoints(response, table)).toEqual([{ id: "9007199254740993", latitude: -12, longitude: -77, record: { longitud: -77, id: "9007199254740993", latitud: -12 } }]);
     expect(() => previewPoints({ ...response, columns: [] }, table)).toThrow("mapeo");
   });
   it("uses typed mi_ubicacion instead of interpolated coordinates in SQL", () => {

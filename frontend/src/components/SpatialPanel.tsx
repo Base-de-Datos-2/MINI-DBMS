@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Coordinate, Outcome, PointParameters, QueryResponse, SpatialPoint, SpatialRequest, SpatialResponse, SpatialTable } from "../types";
-import { HEIGHT, WIDTH, inDomain, mergePoints, parsePolygon, previewPoints, project, radiusRing, spatialSql, unproject } from "../spatial/geometry";
+import LeafletMap from "./LeafletMap";
+import { inDomain, mergePoints, parsePolygon, previewPoints, radiusRing, spatialSql } from "../spatial/geometry";
 
 interface Props {
   tables: SpatialTable[];
@@ -24,8 +25,8 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
   const [name, setName] = useState("");
   const table = tables.find((candidate) => candidate.table === name) ?? tables[0];
   const [center, setCenter] = useState<Coordinate>([-12.0464, -77.0428]);
-  const [viewport, setViewport] = useState<Coordinate>([-12.0464, -77.0428]);
-  const [zoom, setZoom] = useState(10);
+  const [drawing, setDrawing] = useState(false);
+  const [draft, setDraft] = useState<Coordinate[]>([]);
   const [latitude, setLatitude] = useState("-12.0464");
   const [longitude, setLongitude] = useState("-77.0428");
   const [kind, setKind] = useState<SpatialRequest["kind"]>("radius");
@@ -44,7 +45,6 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
   const loadedSql = useRef<{ sql: string; request: SpatialRequest } | null>(null);
   const preview = useRef(onPreview);
   preview.current = onPreview;
-  const drag = useRef<{ x: number; y: number; viewport: Coordinate; moved: boolean } | null>(null);
 
   const chooseCenter = (point: Coordinate) => {
     if (table === undefined || !inDomain(point, table)) {
@@ -52,20 +52,19 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
       return;
     }
     setCenter(point);
-    setLatitude(point[0].toFixed(6));
-    setLongitude(point[1].toFixed(6));
+    setLatitude(String(point[0]));
+    setLongitude(String(point[1]));
     setError(null);
   };
 
   useEffect(() => {
     if (table === undefined) return;
-    setViewport(table.conventions.origin);
     setCenter(table.conventions.origin);
     setLatitude(String(table.conventions.origin[0]));
     setLongitude(String(table.conventions.origin[1]));
     setPolygon(defaultPolygon(table.conventions.origin));
     setMetric(table.conventions.default_metric);
-    setZoom(10);
+    setDrawing(false); setDraft([]);
   }, [table?.table]);
 
   useEffect(() => {
@@ -150,19 +149,17 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
   const matches = response?.matches ?? [];
   const points = mergePoints(base, matches);
   const hitIds = new Set(matches.map((point) => String(point.id)));
-  const toPath = (coordinates: Coordinate[]) => coordinates.map((point, index) => `${index === 0 ? "M" : "L"}${project(point, viewport, zoom).join(" ")}`).join(" ") + " Z";
   const overlay = snapshot?.kind === "polygon" ? snapshot.vertices ?? []
     : snapshot?.kind === "radius" && snapshot.center !== undefined && table !== undefined
       ? radiusRing(snapshot.center, snapshot.radius ?? 0, snapshot.metric, table.conventions.origin) : [];
-  const overlayCenter = center;
-  const [cx, cy] = project(overlayCenter, viewport, zoom);
-  const pixel = (event: { clientX: number; clientY: number; currentTarget: SVGSVGElement }): Coordinate => {
-    const point = event.currentTarget.createSVGPoint();
-    point.x = event.clientX; point.y = event.clientY;
-    const matrix = event.currentTarget.getScreenCTM();
-    if (matrix === null) return [WIDTH / 2, HEIGHT / 2];
-    const local = point.matrixTransform(matrix.inverse());
-    return [local.x, local.y];
+  const chooseOnMap = (point: Coordinate) => {
+    if (drawing && kind === "polygon") {
+      if (table === undefined || !inDomain(point, table)) { setError("Vértice fuera del dominio registrado."); return; }
+      const vertices = [...draft, point];
+      setDraft(vertices);
+      setPolygon(vertices.map((vertex) => vertex.map(String).join(", ")).join("\n"));
+      setError(null);
+    } else chooseCenter(point);
   };
 
   return <section className="panel spatial-panel" aria-labelledby="spatial-title">
@@ -187,8 +184,13 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
               {kind === "radius" && <label>Radio (metros)<input aria-label="Radio en metros" type="number" min="0" step="any" value={radius} onChange={(event) => setRadius(event.target.value)} /></label>}
               {kind === "knn" && <label>Vecinos (k)<input aria-label="Vecinos k" type="number" min="0" max="100000" value={k} onChange={(event) => setK(event.target.value)} /></label>}
             </div>
-            {kind === "polygon" && <label>Vértices: latitud, longitud<textarea aria-label="Vértices del polígono" rows={6} value={polygon} onChange={(event) => setPolygon(event.target.value)} />
+            {kind === "polygon" && <label>Vértices: latitud, longitud<textarea aria-label="Vértices del polígono" rows={6} value={polygon} onChange={(event) => { setPolygon(event.target.value); setDraft([]); setDrawing(false); }} />
               <span className="muted small">Un par por línea. El contorno incluye su frontera; el motor valida que sea simple.</span></label>}
+            {kind === "polygon" && <div className="polygon-drawing">
+              <label className="inline-field"><input type="checkbox" checked={drawing} onChange={(event) => { setDrawing(event.target.checked); if (event.target.checked) { setDraft([]); setPolygon(""); } }} />Dibujar vértices con clics en el mapa</label>
+              <button type="button" onClick={() => { setDraft([]); setPolygon(""); }}>Limpiar vértices</button>
+              <p className="muted small">Marca al menos tres vértices y pulsa Buscar en el mapa. El motor valida y cierra el contorno.</p>
+            </div>}
             <label className="inline-field"><input type="checkbox" checked={indexes} onChange={(event) => setIndexes(event.target.checked)} />Usar R-Tree</label>
             <button className="primary" type="submit">{busy ? "Consultando…" : "Buscar en el mapa"}</button>
             {kind !== "polygon" && <button type="button" onClick={loadSql}>Cargar consulta en SQL</button>}
@@ -196,50 +198,11 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
           <p className="muted small">Latitud [{table.conventions.latitude_bounds.join(", ")}]; longitud [{table.conventions.longitude_bounds.join(", ")}]. Distancias en metros. Euclidiana usa un plano local fijo.</p>
         </form>
         <div className="spatial-map">
-          <div className="map-toolbar"><button aria-label="Acercar mapa" type="button" onClick={() => setZoom((value) => Math.min(17, value + 1))}>+</button>
-            <button aria-label="Alejar mapa" type="button" onClick={() => setZoom((value) => Math.max(7, value - 1))}>−</button>
-            <button type="button" onClick={() => { setViewport(table.conventions.origin); setZoom(10); }}>Restablecer vista</button>
-            <button type="button" disabled={busy || loading} onClick={() => setReload((value) => value + 1)}>Actualizar puntos</button>
-            <span className="muted small">Zoom {zoom}</span></div>
-          <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMid meet" role="application" tabIndex={0} aria-label="Mapa geográfico interactivo. Arrastra para desplazar, usa más y menos para zoom, flechas para mover y Enter para seleccionar el centro visible."
-            onWheel={(event) => { setZoom((value) => Math.max(7, Math.min(17, value + (event.deltaY < 0 ? 1 : -1)))); }}
-            onKeyDown={(event) => {
-              if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "+", "=", "-", "Enter"].includes(event.key)) event.preventDefault();
-              if (event.key === "+" || event.key === "=") setZoom((value) => Math.min(17, value + 1));
-              if (event.key === "-") setZoom((value) => Math.max(7, value - 1));
-              if (event.key === "Enter" && !busy) chooseCenter(viewport);
-              const shifts: Record<string, Coordinate> = { ArrowLeft: [-80, 0], ArrowRight: [80, 0], ArrowUp: [0, -60], ArrowDown: [0, 60] };
-              const shift = shifts[event.key];
-              if (shift !== undefined) setViewport(unproject([WIDTH / 2 + shift[0], HEIGHT / 2 + shift[1]], viewport, zoom));
-            }}
-            onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); const [x, y] = pixel(event); drag.current = { x, y, viewport, moved: false }; }}
-            onPointerMove={(event) => {
-              if (drag.current === null) return;
-              const [x, y] = pixel(event), start = drag.current;
-              if (Math.hypot(x - start.x, y - start.y) > 4) start.moved = true;
-              if (start.moved) setViewport(unproject([WIDTH / 2 - (x - start.x), HEIGHT / 2 - (y - start.y)], start.viewport, zoom));
-            }}
-            onPointerUp={(event) => { if (drag.current !== null && !drag.current.moved && !busy) chooseCenter(unproject(pixel(event), viewport, zoom)); drag.current = null; }}
-            onPointerCancel={() => { drag.current = null; }}>
-            <title>Mapa de puntos persistidos con rejilla de latitud y longitud</title>
-            <rect width={WIDTH} height={HEIGHT} fill="#F7F6F3" />
-            {Array.from({ length: 11 }, (_, index) => {
-              const lat = table.conventions.latitude_bounds[0] + (table.conventions.latitude_bounds[1] - table.conventions.latitude_bounds[0]) * index / 10;
-              const lon = table.conventions.longitude_bounds[0] + (table.conventions.longitude_bounds[1] - table.conventions.longitude_bounds[0]) * index / 10;
-              const [, y] = project([lat, viewport[1]], viewport, zoom), [x] = project([viewport[0], lon], viewport, zoom);
-              return <g key={index} stroke="#d5d3cd" strokeWidth="1"><path d={`M0 ${y} H${WIDTH} M${x} 0 V${HEIGHT}`} />
-                <text x={6} y={y - 4} stroke="none" fill="#686762" fontSize={11}>{lat.toFixed(3)}° lat</text>
-                {index % 3 === 0 && <text x={x + 4} y={HEIGHT - 8} stroke="none" fill="#686762" fontSize={11}>{lon.toFixed(3)}° lon</text>}</g>;
-            })}
-            {overlay.length > 0 && <path d={toPath(overlay)} fill="#E1F3FE" fillOpacity=".6" stroke="#1F6C9F" strokeWidth="2" />}
-            {points.map((point) => { const [x, y] = project([point.latitude, point.longitude], viewport, zoom), hit = hitIds.has(String(point.id));
-              return <circle key={String(point.id)} data-point-id={String(point.id)} data-match={hit} cx={x} cy={y} r={hit ? 6 : 3.5} fill={hit ? "#346538" : "#787774"} stroke="#fff" strokeWidth={hit ? 2 : 1}>
-                <title>ID {point.id}: {point.latitude}, {point.longitude}{hit ? " · resultado" : ""}</title></circle>; })}
-            <path d={`M${cx - 8} ${cy} h16 M${cx} ${cy - 8} v16`} stroke="#9F2F2D" strokeWidth="3"><title>Centro de consulta: {overlayCenter.join(", ")}</title></path>
-            <text x={WIDTH - 24} y={22} fill="#2F3437" fontSize={14}>N</text>
-          </svg>
+          <div className="map-toolbar"><button type="button" disabled={busy || loading} onClick={() => setReload((value) => value + 1)}>Actualizar puntos</button></div>
+          <LeafletMap table={table} points={points} hitIds={hitIds} center={center} overlay={overlay}
+            draft={kind === "polygon" ? draft : []} busy={busy || loading} onChoose={chooseOnMap} />
           <div className="map-legend"><span>Puntos almacenados</span><span>Resultados en verde</span><span>Centro en rojo</span></div>
-          <p className="muted small">Mapa geográfico sin conexión · proyección Mercator. Arrastra o usa flechas para mover, clic o Enter para elegir centro, + / − para zoom.</p>
+          <p className="muted small">Leaflet + OpenStreetMap · calles y referencias reales. Clic o Enter para elegir el centro; arrastra y usa + / − para zoom. La cartografía requiere Internet. Los marcadores son registros de tu motor; pulsa uno para ver su nombre y coordenadas.</p>
           <p className="small" role="status">{loading ? "Cargando puntos almacenados…" : `Vista previa: ${base.length} de ${table.row_count} puntos almacenados (máximo 500), más resultados recibidos.`}</p>
         </div>
         <div className="spatial-results">

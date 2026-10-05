@@ -136,7 +136,7 @@ ELAPSED_SCOPE = (
 # knows how to serialize. A future engine statement stays refused until it has
 # an explicit policy and result-dispatch branch here.
 _READ_ONLY_STATEMENTS = frozenset({"SELECT", "EXPLAIN", "EXPLAIN_ANALYZE"})
-_WRITE_STATEMENTS = _READ_ONLY_STATEMENTS | {"INSERT", "DELETE"}
+_WRITE_STATEMENTS = _READ_ONLY_STATEMENTS | {"INSERT", "DELETE", "CREATE"}
 _CONTROL_STATEMENTS = frozenset({"BEGIN", "END", "ROLLBACK"})
 
 _FAMILIES = (
@@ -544,6 +544,8 @@ class EngineService:
         try:
             result = runner.execute(request.sql, **options)
             body = self._dispatch(result, request)
+            if family == "CREATE":
+                self._static_health["tables"] = list(self._database.table_names())
         except ServiceError:
             raise
         except _FailedWithPlan as failure:
@@ -616,8 +618,7 @@ class EngineService:
         if family == "CREATE":
             raise ServiceError(
                 "STATEMENT_DISABLED",
-                "CREATE TABLE en SQL requiere el owner manifest-backed; en esta demo las "
-                "tablas se crean desde el panel Archivos (Nueva tabla).",
+                "Crear tablas es una escritura: arranca el servidor con --allow-writes.",
                 statement=family,
             )
         plan = None
@@ -785,8 +786,6 @@ class EngineService:
         return body
 
     def _definition_body(self, result: DefinitionResult) -> dict[str, Any]:
-        # Unreachable under the current policy (SQL CREATE stays disabled in
-        # the legacy owner); serialized so dispatch stays exhaustive.
         plan = {"prepared": prepared_json(result.report.prepared), "runtime": None}
         body = self._empty_body("definition", "CREATE", plan, "prepared")
         body["definition"] = {

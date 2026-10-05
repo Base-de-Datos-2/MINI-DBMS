@@ -88,9 +88,15 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 The subsequent explicit frontend authorization covers Parts 1 and 2 only.
 The four relational panels and spatial map consume the existing HTTP API.
-The map uses an offline SVG geographic projection, registered coordinate
-mappings from GET /api/spatial/tables, and actual bounded SQL previews and
-typed spatial query results. It does not supply a cartographic street layer.
+The map uses Leaflet 1.9.4 with HTTPS OpenStreetMap raster tiles, registered
+coordinate mappings from GET /api/spatial/tables, bounded SQL previews and
+typed spatial query results. Street tiles require Internet and carry visible
+attribution. Leaflet is bundled locally; the own engine performs all searches.
+Preview points retain their records for safe DOM-text popups. Radius outlines
+use the same Haversine/local-Euclidean conventions as the backend; Leaflet
+never determines matches. A bundled 20-node OSM Lima extract supplies a small
+reproducible real-place demo via scripts/setup_lima.py, without overwriting
+existing database directories.
 IDs beyond JavaScript's exact integer range use the same decimal-string
 encoding in SQL and spatial responses. Parts 3–5 remain deferred.
 Current frontend usage and verification are documented in docs/frontend.md.
@@ -2748,3 +2754,18 @@ Avoid:
 - building features from future parts before Part 1 is stable.
 
 The engine should make database-internals concepts visible rather than obscure them.
+
+## Demo SQL y registro espacial dinámico (2026-10-13)
+
+La autorización actual conecta CREATE del SqlEngine con el owner de la demo
+a través de DdlService. Comparte gui_tables.json con la creación gráfica,
+persistiendo restricciones VARCHAR/PRIMARY KEY y construyendo el B+ único
+bajo el esquema bloqueado por SqlSession. FLOAT y BOOLEAN se aceptan en el
+parser/binder; el owner manifest-backed conserva su alcance anterior.
+Tablas Heap GUI/SQL con id INTEGER, latitud/longitud FLOAT y sin columna física
+ubicacion se registran automáticamente como espaciales, tanto al publicar
+como al reabrir. El registro GUI es el punto de publicación; el mapeo de
+estas tablas se deriva de su esquema y los snapshots espaciales se incluyen
+en los recursos de undo. Los mapeos explícitos preexistentes se conservan.
+El frontend recarga Archivos/metadatos espaciales tras CREATE SQL.
+Uso y límites: docs/DEMO_SQL_ESPACIAL.md.

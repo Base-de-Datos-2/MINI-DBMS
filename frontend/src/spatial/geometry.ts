@@ -36,7 +36,7 @@ export function previewPoints(response: QueryResponse, table: SpatialTable): Spa
       || typeof longitude !== "number" || !inDomain([latitude, longitude], table)) {
       throw new Error("El servidor devolvió una identidad o coordenada inválida.");
     }
-    return { id: identity, latitude, longitude };
+    return { id: identity, latitude, longitude, record: Object.fromEntries(response.columns.map((column, index) => [column.name, row[index]])) };
   });
 }
 

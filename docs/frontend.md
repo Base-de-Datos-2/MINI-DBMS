@@ -10,9 +10,12 @@ El espacio relacional conserva cuatro paneles: archivos, consulta, resultados
 y plan de ejecución. La exploración espacial añade el mapa y controles para
 consultar una tabla registrada mediante radio, k vecinos o polígono.
 
-El mapa usa proyección Mercator y una rejilla de coordenadas, sin descargas
-cartográficas externas. Permite desplazar, acercar, alejar y elegir centro.
-El formulario acepta vértices por línea y valida el dominio antes de enviar
+El mapa usa Leaflet 1.9.4 con cartografía OpenStreetMap por HTTPS, atribución
+visible y escala métrica. Permite desplazar, acercar, alejar, ajustar la vista
+a los puntos y elegir centro. Los marcadores muestran el nombre y el registro
+con texto DOM seguro. La cartografía requiere Internet; los datos y consultas
+siguen disponibles cuando falla la capa de calles.
+El formulario acepta vértices por línea o clics en el mapa y valida el dominio antes de enviar
 la consulta; el motor realiza la validación geométrica y la búsqueda.
 
 El botón **Cargar consulta en SQL** prepara radio o k-NN en el editor y vincula
@@ -128,12 +131,13 @@ Capturas de la interfaz verificada:
 [escritorio](figuras/frontend/escritorio.png) y
 [móvil](figuras/frontend/movil.png).
 
-El mapa es una visualización geográfica sin capa de calles. Los resultados y
+La versión SVG anterior no tenía calles. La versión actual integra Leaflet y
+OpenStreetMap; su validación está en [VERIFICACION_LEAFLET.md](VERIFICACION_LEAFLET.md). Los resultados y
 puntos se limitan a las filas recibidas: no representan necesariamente todos
 los registros. SQL conserva como desconocido un total que el motor no calculó.
 La consulta espacial tipada entrega su total conocido y limita su presentación.
 
-Las verificaciones actuales utilizan datos sintéticos de demostración; no
+Las verificaciones históricas del 4 de octubre utilizan datos sintéticos de demostración; no
 acreditan rendimiento de la interfaz sobre 100 000 puntos visibles a la vez.
 No quedan pendientes funcionales identificados en estos flujos. El siguiente
 punto de continuación es preparar la demostración con los conjuntos de entrega;

@@ -22,7 +22,7 @@ from pathlib import Path
 import re
 from uuid import uuid4
 
-from engine.catalog import DataType, IndexType
+from engine.catalog import Column, ColumnConstraint, DataType, IndexType, Schema, TableMetadata
 from engine.errors import ValidationError
 
 
@@ -71,6 +71,7 @@ class GuiTable:
     origin: str
     source_filename: str | None
     loaded_rows: int
+    constraints: tuple[ColumnConstraint, ...] = ()
 
     @property
     def filename(self) -> str:
@@ -111,6 +112,10 @@ def _encode(tables: tuple[GuiTable, ...]) -> bytes:
                         "clustered": index.clustered,
                     }
                     for index in table.indexes
+                ],
+                "constraints": [
+                    {"column_name": c.column_name, "varchar_length": c.varchar_length,
+                     "primary_key": c.primary_key} for c in table.constraints
                 ],
                 "origin": {
                     "kind": table.origin,
@@ -175,6 +180,11 @@ def _decode_table(document: object) -> GuiTable:
     source_filename = origin.get("filename")
     if source_filename is not None and type(source_filename) is not str:
         raise RegistryError(f"{label}: origin.filename inválido")
+    try:
+        constraints = tuple(ColumnConstraint(**item) for item in document.get("constraints", []))
+        TableMetadata(name, Schema([Column(n, t) for n, t in columns]), constraints)
+    except (TypeError, ValueError, ValidationError) as error:
+        raise RegistryError(f"{label}: restricciones inválidas: {error}") from error
     return GuiTable(
         name=name,
         identity=_identity(_field(document, "id", str, label), label),
@@ -188,6 +198,7 @@ def _decode_table(document: object) -> GuiTable:
         origin=_field(origin, "kind", str, label),
         source_filename=source_filename,
         loaded_rows=_field(origin, "rows", int, label),
+        constraints=constraints,
     )
 
 

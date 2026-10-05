@@ -249,3 +249,14 @@ estos artefactos y esperar instrucciones.
 Commit de datos y gráficos relacionales: 7c00da5. Se verificaron también los
 hashes de 49 artefactos experimentales directamente desde Git. Los enlaces
 de la documentación final resuelven (141 comprobados).
+
+
+## Actualización autorizada — Leaflet/OpenStreetMap, 13/10/2026
+
+El usuario informó autorización docente y pidió integrar cartografía real.
+La demo SQL se actualizó con Leaflet 1.9.4, cartografía OpenStreetMap, popups
+seguros, dibujo de polígonos y un extracto OSM de 20 lugares del centro de Lima.
+La autorización previa de pausa del mapa queda superada por esta indicación.
+Se conservó el motor propio y el subconjunto SQL. Resultados y límites actuales:
+[VERIFICACION_LEAFLET.md](../VERIFICACION_LEAFLET.md). Inicio:
+[GUIA_LEAFLET_LIMA.md](../../GUIA_LEAFLET_LIMA.md).

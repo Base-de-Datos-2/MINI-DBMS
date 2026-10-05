@@ -11,8 +11,8 @@ This is the explicit legacy, definition-driven open mode retained for the
 Stage 9 demo. Tables are declared in Python: :meth:`Database.create` builds and
 seeds them once, offline, while :meth:`Database.open` reopens only the declared
 files and refuses a missing or partial directory. It neither infers nor writes
-the Stage 7 database manifest, and its ``SqlEngine`` intentionally has no DDL
-service, so SQL CREATE is rejected. New manifest-backed databases use
+the Stage 7 database manifest. Its DDL service publishes SQL-created tables
+through the same durable GUI registry. New manifest-backed databases use
 ``engine.database.Database``.
 
 Tables created from the Files panel (:meth:`Database.create_gui_table`) are the
@@ -31,6 +31,7 @@ from pathlib import Path
 
 from engine.catalog import (
     Catalog,
+    ColumnConstraint,
     Column,
     DataType,
     IndexMetadata,
@@ -42,6 +43,7 @@ from engine.errors import DuplicateError, ValidationError
 from engine.indexes import build_catalog_index, open_catalog_index
 from engine.operators.context import DEFAULT_BUDGET_BYTES, DEFAULT_MAX_OPEN_HANDLES
 from engine.query import QueryEnvironment, SqlEngine
+from engine.query.ddl import CreatedTable
 from engine.storage import HeapFile, PagedSequentialFile, Record
 from engine.spatial.metadata import SpatialMapping, read_mappings
 from engine.spatial.geometry import Metric, Point, Polygon
@@ -101,6 +103,7 @@ class TableDefinition:
     key_column: str | None = None
     indexes: tuple[IndexDefinition, ...] = ()
     rows: Callable[[], Iterable[Sequence[object]]] | None = None
+    constraints: tuple[ColumnConstraint, ...] = ()
 
     def __post_init__(self) -> None:
         if self.organization not in _TABLE_SUFFIX:
@@ -169,6 +172,7 @@ class NewIndex:
     column: str
     index_type: IndexType
     unique: bool = False
+    name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,6 +184,7 @@ class NewTable:
     organization: str = HEAP
     key_column: str | None = None
     indexes: tuple[NewIndex, ...] = ()
+    constraints: tuple[ColumnConstraint, ...] = ()
 
 
 class Database:
@@ -316,6 +321,7 @@ class Database:
             schema=Schema([Column(name, data_type) for name, data_type in gui.columns]),
             organization=gui.organization,
             key_column=gui.key_column,
+            constraints=gui.constraints,
             indexes=tuple(
                 IndexDefinition(
                     index.name, index.column, index.index_type,
@@ -374,7 +380,12 @@ class Database:
                     {index.name: root / index.filename for index in gui.indexes},
                 )
                 database._gui_tables[gui.name] = gui
-            for mapping in read_mappings(root):
+            mappings = {mapping.table: mapping for mapping in read_mappings(root)}
+            for gui in database._gui_tables.values():
+                mapping = database._automatic_spatial_mapping(database._gui_definition(gui))
+                if mapping is not None:
+                    mappings.setdefault(mapping.table, mapping)
+            for mapping in mappings.values():
                 try:
                     mapping.validate_schema(database._catalog.get_table(mapping.table).schema)
                     if database._tables[mapping.table].organization != HEAP:
@@ -389,6 +400,7 @@ class Database:
             database._engine = SqlEngine(
                 database._environment,
                 mutation_service=SpatialMutationService(database._spatial_indexes),
+                ddl_service=database,
                 memory_budget_bytes=memory_budget_bytes,
                 max_open_handles=max_open_handles,
             )
@@ -401,6 +413,7 @@ class Database:
                 engine_factory=lambda: SqlEngine(
                     database._environment,
                     mutation_service=SpatialMutationService(database._spatial_indexes),
+                    ddl_service=database,
                     memory_budget_bytes=memory_budget_bytes,
                     max_open_handles=max_open_handles,
                 ),
@@ -437,7 +450,7 @@ class Database:
         path: Path,
         index_paths: dict[str, Path],
     ) -> None:
-        self._catalog.register_table(TableMetadata(table.name, table.schema))
+        self._catalog.register_table(TableMetadata(table.name, table.schema, table.constraints))
         created = create
         if table.organization == HEAP:
             storage = (
@@ -645,6 +658,38 @@ class Database:
                 source_filename=None if gui is None else gui.source_filename,
             )
 
+    @staticmethod
+    def _automatic_spatial_mapping(table: TableDefinition) -> SpatialMapping | None:
+        columns = {column.name: column.data_type for column in table.schema}
+        if (table.organization == HEAP and columns.get("id") is DataType.INTEGER
+                and columns.get("latitud") is DataType.FLOAT
+                and columns.get("longitud") is DataType.FLOAT
+                and "ubicacion" not in columns):
+            return SpatialMapping(table.name)
+        return None
+
+    def _sql_spec(self, table: TableMetadata) -> NewTable:
+        indexes = (() if table.primary_key is None else
+                   (NewIndex(table.primary_key, IndexType.BPLUS, unique=True,
+                             name=f"__pk__{table.name}"),))
+        return NewTable(table.name,
+                        tuple((c.name, c.data_type) for c in table.schema),
+                        indexes=indexes, constraints=table.constraints)
+
+    def validate_create(self, table: TableMetadata) -> None:
+        if self._closed or not self._available:
+            raise TransactionUnavailableError("Database is closed or quarantined")
+        self._validated_gui_table(self._sql_spec(table), 0, "empty", None)
+
+    def create_table(self, table: TableMetadata) -> CreatedTable:
+        if not self._coordinator.protected_schema_change_active():
+            return self._coordinator.default_session.run_schema_change(
+                lambda: self.create_table(table))
+        self.validate_create(table)
+        self._build_gui_table(self._sql_spec(table), (), None, "empty", None)
+        indexes = self._catalog.get_indexes(table.name)
+        return CreatedTable(table.name, next((i.name for i in indexes if i.unique), None))
+
     def create_gui_table(
         self,
         spec: NewTable,
@@ -729,7 +774,9 @@ class Database:
                     )
                 clustered = True
             suffix = "bplus" if index.index_type is IndexType.BPLUS else "hash"
-            base = f"{name}_{index.column}_{suffix}"
+            base = index.name or f"{name}_{index.column}_{suffix}"
+            if index.name is not None and index.name in taken:
+                raise DuplicateError(f"Ya existe un índice llamado {index.name!r}.")
             index_name, counter = base, 2
             while index_name in taken:
                 index_name, counter = f"{base}_{counter}", counter + 1
@@ -740,6 +787,7 @@ class Database:
                     unique=index.unique, clustered=clustered,
                 )
             )
+        TableMetadata(name, Schema([Column(n, t) for n, t in columns]), spec.constraints)
         return GuiTable(
             name=name,
             identity=new_identity(),
@@ -750,6 +798,7 @@ class Database:
             origin=origin,
             source_filename=source_filename,
             loaded_rows=loaded_rows,
+            constraints=spec.constraints,
         )
 
     def _build_gui_table(
@@ -762,10 +811,13 @@ class Database:
     ) -> None:
         gui = self._validated_gui_table(spec, len(rows), origin, source_filename)
         definition = self._gui_definition(gui)
+        mapping = self._automatic_spatial_mapping(definition)
         schema = definition.schema
         table_path = self._directory / gui.filename
         index_paths = {index.name: self._directory / index.filename for index in gui.indexes}
         created_files = [table_path, *index_paths.values()]
+        if mapping is not None:
+            created_files.append(self._directory / mapping.index_filename)
         if any(path.exists() for path in created_files):
             raise DatabaseSetupError("A fresh GUI file identity already exists on disk")
 
@@ -801,7 +853,7 @@ class Database:
             # Build every index against a private Catalog first, so the live
             # Catalog never holds a half-built table.
             staging = Catalog()
-            staging.register_table(TableMetadata(gui.name, schema))
+            staging.register_table(TableMetadata(gui.name, schema, gui.constraints))
             index_metadata = {}
             for index in definition.indexes:
                 metadata = IndexMetadata(
@@ -821,7 +873,7 @@ class Database:
             for runtime in runtimes.values():
                 runtime.flush()
 
-            self._catalog.register_table(TableMetadata(gui.name, schema))
+            self._catalog.register_table(TableMetadata(gui.name, schema, gui.constraints))
             published["catalog"] = True
             self._environment.register_storage(gui.name, storage)
             published["storage"] = True
@@ -836,6 +888,12 @@ class Database:
                 environment_indexes.append(index.name)
                 self._indexes[index.name] = runtimes[index.name]
                 self._paths[index.name] = index_paths[index.name]
+            if mapping is not None:
+                self._spatial_mappings[gui.name] = mapping
+                published["spatial"] = True
+                self._spatial_indexes[gui.name] = SpatialIndex.open_or_build(
+                    storage, mapping, self._directory / mapping.index_filename)
+                self._environment.register_spatial(gui.name, self._spatial_indexes[gui.name])
             self._coordinator.resources.register(self._table_files(definition))
             published["resource"] = True
             write_registry(self._directory, tuple(self._gui_tables.values()))
@@ -865,6 +923,12 @@ class Database:
             except BaseException as failure:  # noqa: BLE001 - reported by caller
                 failures.append(failure)
 
+        if published.get("spatial"):
+            attempt(lambda: self._environment.unregister_spatial(name))
+            spatial = self._spatial_indexes.pop(name, None)
+            self._spatial_mappings.pop(name, None)
+            if spatial is not None:
+                attempt(spatial.close)
         if published.get("resource"):
             attempt(lambda: self._coordinator.resources.unregister(name))
         for index_name in reversed(environment_indexes):
