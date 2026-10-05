@@ -1,0 +1,13 @@
+puntos: 100000 rows; ubicacion=(latitud, longitud)
+{
+  "size": 100000,
+  "real_heap": true,
+  "structural": {
+    "height": 5,
+    "nodes": 9738,
+    "leaves": 8874,
+    "entries": 100000
+  },
+  "passed": 38,
+  "total": 38
+}

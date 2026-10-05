@@ -1,0 +1,5 @@
+
+Algorithm : SHA256
+Hash      : 330953F4A81589DEAC9877BAA4E2AE23EC008B74F23A614BE7DAD8BC9EE4B952
+Path      : /workspace/mini-dbms\Proyecto_Final.pdf
+

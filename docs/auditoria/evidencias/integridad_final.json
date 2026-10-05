@@ -1,0 +1,12 @@
+{
+  "requirements": 77,
+  "criteria": 220,
+  "nine_fields_complete": true,
+  "matrix_matches_evaluation": true,
+  "percentages_recomputed": true,
+  "report_steps": 77,
+  "checked_file_line_references": 123,
+  "commit_unchanged": "841977a36c4e88e412f263bd1b83347ad0eb7e1b",
+  "initial_user_changes_preserved": true,
+  "pdf_unchanged_sha256": "330953f4a81589deac9877baa4e2ae23ec008b74f23a614be7dad8bc9ee4b952"
+}

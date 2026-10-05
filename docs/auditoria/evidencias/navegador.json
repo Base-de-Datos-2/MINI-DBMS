@@ -1,0 +1,73 @@
+{
+  "checks": [
+    {
+      "name": "four_panels",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "table_schema",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "indexed_results",
+      "passed": true,
+      "details": [
+        [
+          3,
+          "Sol",
+          "CS",
+          24
+        ]
+      ]
+    },
+    {
+      "name": "index_scan_same_results",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "controlled_error",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "recovery_and_sort",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "provisional_insert",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "concurrent_lock_visible",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "commit_unblocks_reader",
+      "passed": true,
+      "details": [
+        [
+          5
+        ]
+      ]
+    },
+    {
+      "name": "rollback_removes_row",
+      "passed": true,
+      "details": ""
+    },
+    {
+      "name": "no_browser_errors",
+      "passed": true,
+      "details": []
+    }
+  ],
+  "passed": 11,
+  "total": 11,
+  "server_exit": -2
+}

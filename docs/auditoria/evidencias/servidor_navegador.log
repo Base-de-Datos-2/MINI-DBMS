@@ -1,0 +1,84 @@
+Base de demo abierta en 0.0 s · modo serialized-writes
+INFO:     Started server process [652]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18768 (Press CTRL+C to quit)
+INFO:     127.0.0.1:44328 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44338 - "GET /assets/index-DMnaICSr.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /assets/index-DI-IAhm-.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44338 - "GET /api/presets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "POST /api/sessions HTTP/1.1" 201 Created
+INFO:     127.0.0.1:44334 - "GET /api/tables HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables/students HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44338 - "GET /api/presets HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "POST /api/sessions HTTP/1.1" 201 Created
+INFO:     127.0.0.1:44334 - "GET /api/tables HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables/students HTTP/1.1" 200 OK
+INFO minidbms.api: request 366e1da63616449c89eb210fad441509 SELECT rows=1 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO minidbms.api: request 751020c9977941b3b43c37c97483678f SELECT rows=1 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO minidbms.api: request 46d13e8715d544a9b291a03270eeda38 failed with SQL_ERROR
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 422 Unprocessable Entity
+INFO minidbms.api: request 561b361c6ba84d38aaa0ae614d021e15 SELECT rows=4 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO minidbms.api: request b91b703e7ec1413cadc4f23c0936cca8 BEGIN rows=0 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO minidbms.api: request 8d4629d475b54a1f82e079f678ee9ce9 INSERT rows=0 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables/students HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44338 - "GET /api/session HTTP/1.1" 200 OK
+INFO:     127.0.0.1:39408 - "GET /api/session HTTP/1.1" 200 OK
+INFO minidbms.api: request e22f2fcbb8f54828a709f3314e96b9f8 END rows=0 truncated=False
+INFO minidbms.api: request b5a9102b77674ba8845d6467d5b5e050 SELECT rows=1 truncated=False
+INFO:     127.0.0.1:44338 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables/students HTTP/1.1" 200 OK
+INFO minidbms.api: request af4aceb0016d4cb8876215fa10adafa0 BEGIN rows=0 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO minidbms.api: request fa56696d42d94732b91f5809bab71b84 INSERT rows=0 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables/students HTTP/1.1" 200 OK
+INFO minidbms.api: request 65fc3138ca5c40e2b6b972f9532c8bd8 ROLLBACK rows=0 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables HTTP/1.1" 200 OK
+INFO:     127.0.0.1:44334 - "GET /api/tables/students HTTP/1.1" 200 OK
+INFO minidbms.api: request d30fb0614d844bf38eae13b8d48a4c35 SELECT rows=0 truncated=False
+INFO:     127.0.0.1:44334 - "POST /api/query HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [652]
+Traceback (most recent call last):
+  File "/local-user/.cache/minidbms-audit-20261004/python/cpython-3.11.9-linux-x86_64-gnu/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local-user/.cache/minidbms-audit-20261004/python/cpython-3.11.9-linux-x86_64-gnu/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/local-user/.cache/minidbms-audit-20261004/source/api/__main__.py", line 139, in <module>
+    main()
+  File "/local-user/.cache/minidbms-audit-20261004/source/api/__main__.py", line 127, in main
+    _Server(config, service).run()
+  File "/local-user/.cache/minidbms-audit-20261004/env/lib/python3.11/site-packages/uvicorn/server.py", line 86, in run
+    return asyncio_run(self.serve(sockets=sockets), loop_factory=self.config.get_loop_factory())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/local-user/.cache/minidbms-audit-20261004/env/lib/python3.11/site-packages/uvicorn/_compat.py", line 30, in asyncio_run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/local-user/.cache/minidbms-audit-20261004/python/cpython-3.11.9-linux-x86_64-gnu/lib/python3.11/asyncio/runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt

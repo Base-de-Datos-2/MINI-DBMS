@@ -1,0 +1,438 @@
+{
+  "global_": {
+    "requisitos": 77,
+    "implementado_equivalentes": "38",
+    "implementado_porcentaje": 49.35064935064935,
+    "verificado_equivalentes": "112/3",
+    "verificado_porcentaje": 48.484848484848484,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 35,
+      "PARCIAL": 3,
+      "INCORRECTO": 1,
+      "NO IMPLEMENTADO": 37,
+      "NO VERIFICADO": 1
+    }
+  },
+  "funcional": {
+    "requisitos": 71,
+    "implementado_equivalentes": "100/3",
+    "implementado_porcentaje": 46.948356807511736,
+    "verificado_equivalentes": "33",
+    "verificado_porcentaje": 46.478873239436616,
+    "pendiente_equivalentes": "0",
+    "pendiente_porcentaje": 0.0,
+    "estados": {
+      "COMPLETO": 32,
+      "PARCIAL": 1,
+      "INCORRECTO": 1,
+      "NO IMPLEMENTADO": 37,
+      "NO VERIFICADO": 0
+    }
+  },
+  "partes": {
+    "1": {
+      "requisitos": 27,
+      "implementado_equivalentes": "27",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "80/3",
+      "verificado_porcentaje": 98.76543209876543,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 26,
+        "PARCIAL": 0,
+        "INCORRECTO": 1,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "2": {
+      "requisitos": 15,
+      "implementado_equivalentes": "19/3",
+      "implementado_porcentaje": 42.22222222222222,
+      "verificado_equivalentes": "19/3",
+      "verificado_porcentaje": 42.22222222222222,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 6,
+        "PARCIAL": 1,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 8,
+        "NO VERIFICADO": 0
+      }
+    },
+    "3": {
+      "requisitos": 10,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 10,
+        "NO VERIFICADO": 0
+      }
+    },
+    "4": {
+      "requisitos": 15,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 15,
+        "NO VERIFICADO": 0
+      }
+    },
+    "5": {
+      "requisitos": 4,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 4,
+        "NO VERIFICADO": 0
+      }
+    },
+    "T": {
+      "requisitos": 6,
+      "implementado_equivalentes": "14/3",
+      "implementado_porcentaje": 77.77777777777777,
+      "verificado_equivalentes": "13/3",
+      "verificado_porcentaje": 72.22222222222223,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 3,
+        "PARCIAL": 2,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 1
+      }
+    }
+  },
+  "etapas": {
+    "1.1": {
+      "requisitos": 6,
+      "implementado_equivalentes": "6",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "17/3",
+      "verificado_porcentaje": 94.44444444444444,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 5,
+        "PARCIAL": 0,
+        "INCORRECTO": 1,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "1.2": {
+      "requisitos": 6,
+      "implementado_equivalentes": "6",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "6",
+      "verificado_porcentaje": 100.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 6,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "1.3": {
+      "requisitos": 3,
+      "implementado_equivalentes": "3",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "3",
+      "verificado_porcentaje": 100.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 3,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "1.4": {
+      "requisitos": 3,
+      "implementado_equivalentes": "3",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "3",
+      "verificado_porcentaje": 100.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 3,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "1.5": {
+      "requisitos": 4,
+      "implementado_equivalentes": "4",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "4",
+      "verificado_porcentaje": 100.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 4,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "1.6": {
+      "requisitos": 5,
+      "implementado_equivalentes": "5",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "5",
+      "verificado_porcentaje": 100.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 5,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "2.1": {
+      "requisitos": 6,
+      "implementado_equivalentes": "6",
+      "implementado_porcentaje": 100.0,
+      "verificado_equivalentes": "6",
+      "verificado_porcentaje": 100.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 6,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 0
+      }
+    },
+    "2.2": {
+      "requisitos": 2,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 2,
+        "NO VERIFICADO": 0
+      }
+    },
+    "2.3": {
+      "requisitos": 2,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 2,
+        "NO VERIFICADO": 0
+      }
+    },
+    "2.4": {
+      "requisitos": 5,
+      "implementado_equivalentes": "1/3",
+      "implementado_porcentaje": 6.666666666666667,
+      "verificado_equivalentes": "1/3",
+      "verificado_porcentaje": 6.666666666666667,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 1,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 4,
+        "NO VERIFICADO": 0
+      }
+    },
+    "3.1": {
+      "requisitos": 3,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 3,
+        "NO VERIFICADO": 0
+      }
+    },
+    "3.2": {
+      "requisitos": 6,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 6,
+        "NO VERIFICADO": 0
+      }
+    },
+    "3.3": {
+      "requisitos": 1,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 1,
+        "NO VERIFICADO": 0
+      }
+    },
+    "4.1": {
+      "requisitos": 4,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 4,
+        "NO VERIFICADO": 0
+      }
+    },
+    "4.2": {
+      "requisitos": 5,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 5,
+        "NO VERIFICADO": 0
+      }
+    },
+    "4.3": {
+      "requisitos": 1,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 1,
+        "NO VERIFICADO": 0
+      }
+    },
+    "4.4": {
+      "requisitos": 5,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 5,
+        "NO VERIFICADO": 0
+      }
+    },
+    "5.1": {
+      "requisitos": 4,
+      "implementado_equivalentes": "0",
+      "implementado_porcentaje": 0.0,
+      "verificado_equivalentes": "0",
+      "verificado_porcentaje": 0.0,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 0,
+        "PARCIAL": 0,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 4,
+        "NO VERIFICADO": 0
+      }
+    },
+    "T.1": {
+      "requisitos": 6,
+      "implementado_equivalentes": "14/3",
+      "implementado_porcentaje": 77.77777777777777,
+      "verificado_equivalentes": "13/3",
+      "verificado_porcentaje": 72.22222222222223,
+      "pendiente_equivalentes": "0",
+      "pendiente_porcentaje": 0.0,
+      "estados": {
+        "COMPLETO": 3,
+        "PARCIAL": 2,
+        "INCORRECTO": 0,
+        "NO IMPLEMENTADO": 0,
+        "NO VERIFICADO": 1
+      }
+    }
+  }
+}

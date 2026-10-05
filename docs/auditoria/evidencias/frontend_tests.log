@@ -1,0 +1,17 @@
+
+> mini-dbms-frontend@0.9.0 test
+> vitest run
+
+
+ RUN  v3.2.7 /local-user/.cache/minidbms-audit-20261004/source/frontend
+
+ ✓ src/tableDraft.test.ts (6 tests) 4ms
+ ✓ src/session.test.ts (11 tests) 3ms
+ ✓ src/api.test.ts (5 tests) 22ms
+ ✓ src/format.test.ts (10 tests) 26ms
+
+ Test Files  4 passed (4)
+      Tests  32 passed (32)
+   Start at  16:52:32
+   Duration  294ms (transform 247ms, setup 0ms, collect 328ms, tests 55ms, environment 1ms, prepare 281ms)
+

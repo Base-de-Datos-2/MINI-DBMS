@@ -1,0 +1,4 @@
+
+> mini-dbms-frontend@0.9.0 typecheck
+> tsc --noEmit
+

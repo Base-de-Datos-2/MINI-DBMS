@@ -1,0 +1,7 @@
+{
+  "docker_cli": "C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.EXE",
+  "psql_cli": "C:\\Program Files\\PostgreSQL\\16\\bin\\psql.EXE",
+  "docker_exit": 1,
+  "running_containers": "",
+  "docker_error": "error during connect: this error may indicate that the docker daemon is not running: Get \"http://%2F%2F.%2Fpipe%2Fdocker_engine/v1.45/containers/json\": open //./pipe/docker_engine: El sistema no puede encontrar el archivo especificado.\n"
+}

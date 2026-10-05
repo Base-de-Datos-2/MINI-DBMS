@@ -1,0 +1,36 @@
+{
+  "input": [
+    1,
+    2,
+    3
+  ],
+  "payload_lengths": [
+    3200,
+    3200,
+    100
+  ],
+  "scan": [
+    1,
+    3,
+    2
+  ],
+  "reopened_scan": [
+    1,
+    3,
+    2
+  ],
+  "rids": [
+    {
+      "page_id": 1,
+      "slot_id": 0
+    },
+    {
+      "page_id": 2,
+      "slot_id": 0
+    },
+    {
+      "page_id": 1,
+      "slot_id": 1
+    }
+  ]
+}
