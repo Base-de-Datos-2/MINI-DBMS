@@ -37,6 +37,7 @@ execution admission.
 from __future__ import annotations
 
 from contextlib import contextmanager
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 import logging
 import threading
@@ -81,6 +82,7 @@ from engine.transactions.errors import (
 )
 from engine.transactions.locks import DEFAULT_LOCK_TIMEOUT_SECONDS
 from engine.spatial.geometry import Point, Polygon
+from engine.spatial.metadata import CONVENTIONS
 from engine.transactions.model import TransactionReport
 
 from .database import Database, NewIndex, NewTable
@@ -100,6 +102,7 @@ from .schemas import (
 from .serialization import (
     column_descriptors,
     encode_row,
+    encode_value,
     encoded_size,
     error_message,
     explanation_json,
@@ -310,6 +313,26 @@ class EngineService:
             table_summary_json(self._database.describe_table(name))
             for name in self._database.table_names()
         ]
+
+    def list_spatial_tables(self) -> list[dict[str, Any]]:
+        """Expose registered coordinate mappings and their actual conventions."""
+
+        self._require_ready()
+        tables = []
+        for name in self._database.table_names():
+            mapping = self._database.spatial_mapping_for(name)
+            if mapping is None:
+                continue
+            tables.append({
+                "table": name,
+                "location_column": mapping.location_name,
+                "id_column": mapping.identity_column,
+                "latitude_column": mapping.latitude_column,
+                "longitude_column": mapping.longitude_column,
+                "row_count": self._database.describe_table(name).row_count,
+                "conventions": deepcopy(CONVENTIONS),
+            })
+        return tables
 
     def describe_table(self, table_id: str) -> dict[str, Any]:
         """Describe one table by its Catalog identifier."""
@@ -566,14 +589,15 @@ class EngineService:
                 "request_id": request_id, "table": request.table, "kind": request.kind,
                 "total_rows": len(result.hits), "truncated": len(result.hits) > request.max_rows,
                 "returned_rows": min(len(result.hits), request.max_rows),
-                "matches": [{"id": hit.identity, "latitude": hit.point.latitude,
+                "matches": [{"id": encode_value(DataType.INTEGER, hit.identity), "latitude": hit.point.latitude,
                              "longitude": hit.point.longitude, "distance_metres": hit.distance_metres,
-                             "record": dict(zip((column.name for column in hit.record.schema), hit.record.values))}
+                             "record": {column.name: encode_value(column.data_type, value)
+                                        for column, value in zip(hit.record.schema, hit.record.values)}}
                             for hit in result.hits[:request.max_rows]],
                 "stats": asdict(result.stats), "backend_elapsed_ms": round((perf_counter() - started) * 1000, 3),
             }
-            if runner.client is not None:
-                body["session"] = self._sessions.status(runner.client)
+        if runner.client is not None:
+            body["session"] = self._sessions.status(runner.client)
         return self._fit(body)
 
     def _enforce_policy(self, family, request, runner, options) -> None:

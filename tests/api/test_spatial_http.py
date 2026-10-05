@@ -10,7 +10,7 @@ from api.engine_service import EngineService
 from api.schemas import MAX_RESPONSE_BYTES
 from api.serialization import encoded_size
 from benchmarks.spatial.datasets import FIXTURE_POLYGON
-from engine.spatial.metadata import ORIGIN
+from engine.spatial.metadata import CONVENTIONS, ORIGIN
 from scripts.setup_spatial import SPATIAL_DATABASE, prepare
 
 
@@ -30,6 +30,46 @@ def client(tmp_path):
 def query(client, sql, token=None, **options):
     headers = {} if token is None else {"X-Session-Token": token}
     return client.post("/api/query", json={"sql": sql, **options}, headers=headers)
+
+
+def test_spatial_metadata_matches_catalog_and_does_not_mutate_conventions(client):
+    http, service = client
+    response = http.get("/api/spatial/tables")
+    assert response.status_code == 200
+    tables = response.json()
+    assert {table["table"] for table in tables} == {"tiendas", "restaurantes"}
+    for table in tables:
+        assert table["row_count"] == service.describe_table(table["table"])["row_count"]
+        assert table["location_column"] == "ubicacion"
+        assert table["id_column"] == "id"
+        assert table["latitude_column"] == "latitud"
+        assert table["longitude_column"] == "longitud"
+        assert table["conventions"] == CONVENTIONS
+    service.list_spatial_tables()[0]["conventions"]["origin"][0] = 0
+    assert http.get("/api/spatial/tables").json()[0]["conventions"]["origin"] == list(ORIGIN)
+
+
+def test_spatial_large_identity_has_the_same_lossless_encoding_as_sql(client):
+    http, _ = client
+    identity = 9007199254740993
+    inserted = query(http, f"INSERT INTO tiendas VALUES ({identity}, 'Identidad grande', {ORIGIN[0]}, {ORIGIN[1]})")
+    assert inserted.status_code == 200
+    sql = query(http, f"SELECT id FROM tiendas WHERE id = {identity}").json()
+    response = http.post("/api/spatial/query", json={"table": "tiendas", "kind": "knn", "center": ORIGIN, "k": 20})
+    assert response.status_code == 200
+    match = next(hit for hit in response.json()["matches"] if hit["id"] == str(identity))
+    assert match["record"]["id"] == sql["rows"][0][0] == str(identity)
+
+
+def test_finished_spatial_request_returns_an_idle_session(client):
+    http, _ = client
+    token = http.post("/api/sessions").json()["token"]
+    response = http.post("/api/spatial/query", json={"table": "tiendas", "kind": "knn", "center": ORIGIN, "k": 2},
+                         headers={"X-Session-Token": token})
+    assert response.status_code == 200
+    assert response.json()["session"]["busy"] is False
+    assert response.json()["session"]["state"] == "IDLE"
+    assert response.json()["session"]["transaction"] is None
 
 
 def test_spatial_sql_parameters_and_measured_plans_use_existing_query_route(client):

@@ -236,6 +236,10 @@ def create_app(
         )
         return body
 
+    @app.get("/api/spatial/tables")
+    def spatial_tables() -> list[dict[str, Any]]:
+        return service.list_spatial_tables()
+
     @app.post("/api/spatial/query")
     def spatial_query(payload: SpatialQueryRequest, request: Request, token: SessionToken = None) -> dict[str, Any]:
         return service.spatial_query(payload, request.state.request_id, token)
