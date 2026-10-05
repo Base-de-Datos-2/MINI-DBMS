@@ -13,6 +13,12 @@ aplicación en esta fase. Sus contratos de backend sí corresponden.
 
 ## Orden derivado de la auditoría
 
+Cambio de alcance solicitado durante la etapa 6: cerrar y verificar Partes
+1 y 2 para la primera entrega, documentar el estado y detenerse. La Parte 3
+no se había iniciado; no se implementarán Partes 3, 4 ni 5. El frontend
+necesario para cerrar Parte 2 se hará al final de estas dos partes. La tabla
+siguiente conserva el plan previo; sus etapas 7–14 no están autorizadas ahora.
+
 | Etapa | Trabajo | Dependencias auditadas |
 |---|---|---|
 | 1 | Orden inicial del Heap y reutilización | H1; storage y consumidores de RIDs |

@@ -13,7 +13,7 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Audit-driven backend corrections and completion; frontend deferred**
+> **Finish and verify Parts 1 and 2 for the first delivery, then stop**
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -88,8 +88,10 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 Part 1 Stage 10 closed on 2026-10-04 (`docs/ETAPA_10_AUDIT.md`). The later
 independent audit identified follow-up corrections. The user authorized
-completion of all backend parts on 2026-10-04, ordered by that audit rather
-than folder numbering; frontend work is expressly deferred. Current progress
+completion of all backend parts on 2026-10-04, then narrowed that scope during
+implementation stage 6 to finishing Parts 1 and 2 and stopping. Part 3 had
+not started; Parts 3–5 must remain unimplemented. The Part 2 frontend will be
+finished last within the first-delivery scope. Current progress
 and verification are in `docs/implementacion/SEGUIMIENTO.md`. Earlier stage
 closures retain their historical meaning.
 On 2026-10-03 the user authorized Part 2 E1 and then E2, using `PART_02/PLAN_PARTE_02.md`. The spatial engine now supports
