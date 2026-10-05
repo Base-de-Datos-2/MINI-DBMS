@@ -384,6 +384,8 @@ class Database:
                 database._spatial_mappings[mapping.table] = mapping
                 database._spatial_indexes[mapping.table] = SpatialIndex.open_or_build(
                     database._storages[mapping.table], mapping, root / mapping.index_filename)
+                database._environment.register_spatial(
+                    mapping.table, database._spatial_indexes[mapping.table])
             database._engine = SqlEngine(
                 database._environment,
                 mutation_service=SpatialMutationService(database._spatial_indexes),

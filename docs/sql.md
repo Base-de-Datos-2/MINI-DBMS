@@ -418,7 +418,7 @@ The following remain outside the Stage 7 subset:
   subqueries, set operations, and more than one JOIN;
 - outer, cross, natural, and non-equality-only joins;
 - NULL, defaults, constraints other than the parsed inline PRIMARY KEY,
-  arithmetic expressions, positional ORDER BY, DISTINCT, HAVING, LIMIT/OFFSET,
+  arithmetic expressions, positional ORDER BY, DISTINCT, HAVING, OFFSET,
   and window functions;
 - COMMIT, savepoints and other transaction or concurrency commands. Owner
   sessions execute `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK`;

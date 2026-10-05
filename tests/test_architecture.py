@@ -58,7 +58,7 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         # a storage-layer concern the query engine consumes, so it sits beside
         # operators/indexes rather than inside engine.query.
         "maintenance": {"errors", "catalog", "storage", "indexes", "maintenance"},
-        "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions"},
+        "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions", "spatial"},
         # The Stage 8 coordinator wraps the existing query facade and AST;
         # query modules do not import the coordinator, keeping the module
         # dependency graph acyclic (checked below).

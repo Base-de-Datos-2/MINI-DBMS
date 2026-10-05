@@ -52,6 +52,8 @@ from engine.operators import (
 from engine.operators.aggregation import MINIMUM_GROUP_BUDGET_BYTES
 from engine.operators.join import MINIMUM_JOIN_BUDGET_BYTES
 from engine.operators.limit import Limit
+from engine.operators.compute import Compute
+from engine.spatial.operators import SpatialIndexScan, SpatialScan
 from engine.operators.partitioning import (
     DEFAULT_PARTITION_COUNT,
     MAX_PARTITION_LEVEL,
@@ -402,6 +404,79 @@ class IndexScanSpec(PhysicalPlanSpec):
             self.search,
             relation=self.relation.exposed_name,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class SpatialScanSpec(PhysicalPlanSpec):
+    environment: QueryEnvironment
+    relation: BoundRelation
+    access: object
+    use_index: bool
+
+    @property
+    def children(self):
+        return ()
+
+    @property
+    def output_schema(self):
+        return self.relation.metadata.schema
+
+    @property
+    def capabilities(self):
+        return PlanCapabilities(complete_candidate_set=self.access.kind == "radius")
+
+    @property
+    def operator_name(self):
+        return "SpatialIndexScan" if self.use_index else "SpatialScan"
+
+    @property
+    def details(self):
+        return (("table", self.relation.metadata.name),
+                ("access", "RTree" if self.use_index else "exhaustive"),
+                ("search", self.access.kind), ("value", str(self.access.value)),
+                ("metric", self.access.expression.metric.value), ("unit", "metres"))
+
+    def validate(self):
+        _validate_relation(self.environment, self.relation)
+        if self.environment.spatial_for(self.relation.metadata.name) is not self.access.index:
+            raise StalePlanError("Prepared spatial runtime association changed")
+
+    def instantiate(self):
+        self.validate()
+        access = self.access
+        operator = SpatialIndexScan if self.use_index else SpatialScan
+        return operator(access.index, self.relation.exposed_name, access.expression.center,
+                        access.kind, access.value, access.expression.metric, access.inclusive)
+
+
+@dataclass(frozen=True, slots=True)
+class ComputeSpec(PhysicalPlanSpec):
+    child: PhysicalPlanSpec
+    expressions: tuple
+    schema: Schema
+
+    @property
+    def children(self):
+        return (self.child,)
+
+    @property
+    def output_schema(self):
+        return self.schema
+
+    @property
+    def capabilities(self):
+        return self.child.capabilities
+
+    @property
+    def operator_name(self):
+        return "Compute"
+
+    @property
+    def details(self):
+        return tuple((name, repr(expr)) for name, expr in self.expressions)
+
+    def instantiate(self):
+        return Compute(self.child.instantiate(), self.expressions)
 
 
 @dataclass(frozen=True, slots=True)
@@ -811,6 +886,8 @@ class SelectPlanSpec:
                 _validate_index(self.environment, spec.registered)
             elif isinstance(spec, IndexNestedLoopJoinSpec):
                 _validate_index(self.environment, spec.registered)
+            elif isinstance(spec, SpatialScanSpec):
+                spec.validate()
             for child in spec.children:
                 visit(child)
 
@@ -1366,6 +1443,10 @@ def _relational_source_spec(
             use_indexes=use_indexes,
             options=options,
         )
+    if bound.spatial_access is not None:
+        root = SpatialScanSpec(environment, bound.relations[0], bound.spatial_access, use_indexes)
+    if bound.computed:
+        root = ComputeSpec(root, bound.computed, bound.source_layout.schema)
     if bound.where is not None:
         root = FilterSpec(root, bound.where)
     return root

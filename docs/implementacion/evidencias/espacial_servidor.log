@@ -1,0 +1,20 @@
+tiendas: 9 rows; ubicacion=(latitud, longitud)
+restaurantes: 9 rows; ubicacion=(latitud, longitud)
+[OK ] radio euclidean: SQL R-Tree y scan coinciden
+[OK ] radio haversine: SQL R-Tree y scan coinciden
+[OK ] k-NN con parámetro y empate por id
+[OK ] polígono HTTP: registros y estadísticas reales
+[OK ] parámetro ausente: error controlado
+[OK ] recuperación tras error
+[OK ] BEGIN e INSERT
+[OK ] lector espera en lock de tiendas
+[OK ] commit desbloquea otra sesión
+[OK ] lector observa fila confirmada
+[OK ] rollback restaura Heap y R-Tree
+[OK ] cierre espacial limpio — shutdown complete: True; exit 0
+[OK ] cierre espacial limpio: exit status 0 without traceback — exit 0
+[OK ] puerto libre para reapertura
+[OK ] fila confirmada persiste tras reabrir
+[OK ] restauración persiste tras reabrir
+[OK ] segundo cierre espacial limpio — shutdown complete: True; exit 0
+[OK ] segundo cierre espacial limpio: exit status 0 without traceback — exit 0

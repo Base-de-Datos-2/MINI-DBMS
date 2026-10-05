@@ -346,6 +346,7 @@ class SqlSession:
         *,
         use_indexes: bool = True,
         planning_options: PhysicalPlanningOptions | None = None,
+        parameters=None,
     ) -> PreparedQuery:
         """Prepare without starting, committing, or aborting a transaction."""
 
@@ -359,6 +360,7 @@ class SqlSession:
                 sql,
                 use_indexes=use_indexes,
                 planning_options=planning_options,
+                parameters=parameters,
             )
         finally:
             self._leave_call()
@@ -375,6 +377,7 @@ class SqlSession:
         *,
         use_indexes: bool | None = None,
         planning_options: PhysicalPlanningOptions | None = None,
+        parameters=None,
     ):
         if not self._call.acquire(blocking=False):
             raise SessionBusyError(
@@ -410,6 +413,7 @@ class SqlSession:
                     query,
                     use_indexes=use_indexes,
                     planning_options=planning_options,
+                    parameters=parameters,
                 )
             if isinstance(statement, BeginTransactionStatement):
                 if self.active_result is not None:
@@ -544,6 +548,7 @@ class SqlSession:
                             query._source,
                             use_indexes=query._use_indexes,
                             planning_options=query._planning_options,
+                            parameters=query._parameters,
                         )
                         local_use_indexes = None
                         local_planning_options = None
@@ -566,6 +571,7 @@ class SqlSession:
                                     executable,
                                     use_indexes=local_use_indexes,
                                     planning_options=local_planning_options,
+                                    parameters=parameters,
                                 )
                             finally:
                                 _PROTECTED_SCHEMA.reset(token)
@@ -574,6 +580,7 @@ class SqlSession:
                             executable,
                             use_indexes=local_use_indexes,
                             planning_options=local_planning_options,
+                            parameters=parameters,
                         )
                     self._raise_if_cancelled(transaction_id)
                 if isinstance(result, QueryResult):

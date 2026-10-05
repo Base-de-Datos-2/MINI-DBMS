@@ -93,8 +93,9 @@ than folder numbering; frontend work is expressly deferred. Current progress
 and verification are in `docs/implementacion/SEGUIMIENTO.md`. Earlier stage
 closures retain their historical meaning.
 On 2026-10-03 the user authorized Part 2 E1 and then E2, using `PART_02/PLAN_PARTE_02.md`. The spatial engine now supports
-typed radius/k-NN/polygon queries. E3–E5 remain planned, including spatial
-SQL/HTTP/map and the full experimental matrix.
+typed radius/k-NN/polygon queries. The audit-driven backend phase adds spatial
+SQL/HTTP in implementation stage 5. The map remains deferred; the full
+experimental matrix belongs to implementation stage 6.
 
 Part 1 must provide:
 
@@ -178,8 +179,21 @@ validates spatial identity/coordinates before mutation and maintains the tree.
 DELETE rebuilds it once per affected statement. The derived file is an
 auxiliary TableFiles resource included in existing physical undo. Rollback
 restores base/scalar/spatial files and reopens the current cached tree object.
-Existing multi-file crash-atomicity limits still apply. Spatial expressions
-are not yet accepted by the SQL parser; E3 provides the application workflow.
+Existing multi-file crash-atomicity limits still apply. The handwritten parser
+now accepts POINT, distancia/DISTANCE and nonnegative LIMIT. QueryEnvironment
+borrows each owner's live SpatialIndex; close/reopen unregisters/registers it
+and changes the table generation. Compute appends hidden FLOAT distances before
+filtering and external sorting, while star expansion retains only base columns.
+Native radius pushdown accepts direct/AND upper bounds and keeps the full
+residual predicate. Native k-NN is limited to an unfiltered single ascending
+distance ordering with LIMIT; filtered queries scan, filter and sort before
+limiting. Both routes break distance ties by physical identity column.
+Point parameters are immutable per prepared query and resolved into AST nodes;
+no SQL interpolation or shared mutable query parameter registry is used.
+Spatial expressions in joins/grouping are explicitly rejected in this limited
+subset. SELECT/EXPLAIN use the normal owner session, locks and cleanup.
+POST /api/spatial/query exposes typed radius/k-NN/polygon results under those
+same locks and returns bounded previews plus real search statistics.
 See `docs/spatial.md` for setup, typed examples and verification limits.
 
 ## Current recommended stack

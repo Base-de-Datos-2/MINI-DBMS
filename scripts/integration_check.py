@@ -38,8 +38,9 @@ from benchmarks.datasets import generate  # noqa: E402
 class Server:
     """One ``python -m api`` process owning ``data_dir``."""
 
-    def __init__(self, data_dir: Path, port: int) -> None:
+    def __init__(self, data_dir: Path, port: int, launch_options: tuple[str, ...] = ()) -> None:
         self.data_dir, self.port = data_dir, port
+        self.launch_options = launch_options
         self.base = f"http://127.0.0.1:{port}"
         self.process: subprocess.Popen | None = None
 
@@ -57,7 +58,7 @@ class Server:
         started = time.perf_counter()
         self.process = subprocess.Popen(
             [sys.executable, "-m", "api", "--allow-writes", "--data-dir", str(self.data_dir),
-             "--port", str(self.port)],
+             "--port", str(self.port), *self.launch_options],
             cwd=REPOSITORY, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
         )
         deadline = time.monotonic() + 120

@@ -22,6 +22,7 @@ from engine.errors import (
 )
 from engine.indexes import Index, OrderedIndex
 from engine.storage import Storage
+from engine.spatial.index import SpatialIndex
 
 
 def _registry_latched(method):
@@ -49,7 +50,7 @@ class QueryEnvironment:
     a storage/index object; the caller retains lifecycle ownership.
     """
 
-    __slots__ = ("_catalog", "_storages", "_indexes", "_generations", "_mutex")
+    __slots__ = ("_catalog", "_storages", "_indexes", "_spatial", "_generations", "_mutex")
 
     def __init__(self, catalog: Catalog) -> None:
         if not isinstance(catalog, Catalog):
@@ -58,6 +59,7 @@ class QueryEnvironment:
         self._mutex = RLock()
         self._storages: dict[str, Storage] = {}
         self._indexes: dict[str, Index] = {}
+        self._spatial: dict[str, SpatialIndex] = {}
         self._generations: dict[str, int] = {}
 
     @_registry_latched
@@ -69,6 +71,33 @@ class QueryEnvironment:
 
     def _bump_generation(self, table_name: str) -> None:
         self._generations[table_name] = self._generations.get(table_name, 0) + 1
+
+    @_registry_latched
+    def register_spatial(self, table_name: str, index: SpatialIndex) -> None:
+        table = self._catalog.get_table(table_name)
+        if not isinstance(index, SpatialIndex):
+            raise InvalidTypeError("Spatial registration requires SpatialIndex")
+        if table.name in self._spatial:
+            raise DuplicateError(f"Spatial index already registered for {table.name!r}")
+        if index.closed or index.mapping.table != table.name or index.storage is not self.storage_for(table.name):
+            raise ValidationError("Spatial association does not match live table storage")
+        index.mapping.validate_schema(table.schema)
+        self._spatial[table.name] = index
+        self._bump_generation(table.name)
+
+    @_registry_latched
+    def spatial_for(self, table_name: str) -> SpatialIndex | None:
+        table = self._catalog.get_table(table_name)
+        index = self._spatial.get(table.name)
+        if index is not None and (index.closed or index.storage is not self.storage_for(table.name)):
+            raise InvalidReferenceError("Spatial association is no longer live")
+        return index
+
+    @_registry_latched
+    def unregister_spatial(self, table_name: str) -> None:
+        table = self._catalog.get_table(table_name)
+        if self._spatial.pop(table.name, None) is not None:
+            self._bump_generation(table.name)
 
     @property
     def catalog(self) -> Catalog:

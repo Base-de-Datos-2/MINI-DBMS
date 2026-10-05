@@ -128,3 +128,35 @@ Estado: COMPLETADA como decisión de implementación.
 - Pendientes de esta etapa: ninguno; implementación corresponde a etapa 13.
 
 Siguiente: etapa 5, SQL y API espacial; mapa postergado.
+
+Commit de etapa 4: 1ca615d.
+
+## Etapa 5 — SQL y API espacial
+
+Estado: COMPLETADA para el backend autorizado.
+
+- LIMIT es un operador real después del pipeline relacional y admite cero;
+  el parser propio reconoce funciones espaciales y selecciones mixtas con *.
+- Binder y planner resuelven el mapeo registrado, calculan FLOAT ocultos,
+  mantienen completos los candidatos bajo filtros/OR/NOT y usan radio/k-NN
+  R-Tree cuando es seguro. Ambas métricas producen metros, con empates por id.
+- El registro espacial toma prestados objetos del propietario. El rollback
+  sustituye sus asociaciones y las consultas preparadas se enlazan de nuevo.
+- Los parámetros POINT son copias inmutables por consulta, sin interpolación
+  SQL. El API SQL existente recibe parámetros y muestra planes medidos.
+- POST /api/spatial/query expone radio, k-NN y polígonos con registros,
+  coordenadas, distancias, estadísticas y límites de filas/bytes. Comparte
+  sesiones, espera en locks, commit, rollback y cancelación del propietario.
+- Validación: 3.009 tests Python con advertencias como errores, 135,63 s;
+  18/18 comprobaciones con servidor TCP real, dos cierres con código cero,
+  reapertura inmediata y persistencia. Oráculos geométricos independientes,
+  parámetros aislados, límites, candidatos residuales y errores controlados.
+- Evidencias: regresion_espacial.log, espacial_servidor.json/.log;
+  scripts/espacial de validación reproducibles y pruebas del proyecto.
+- Commits: d20add0 (base SQL); segunda unidad integra motor/API y documentación.
+- Limitaciones declaradas: JOIN/GROUP BY con funciones espaciales no forman
+  parte del SQL limitado; radio/polígono materializan los hits en el núcleo
+  existente. El límite de respuesta no se presenta como límite de memoria.
+- Pendientes de frontend: mapa, controles y visualización de resultados.
+
+Siguiente: etapa 6, matriz experimental scan/R-Tree/GiST.

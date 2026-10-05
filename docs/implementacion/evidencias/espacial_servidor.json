@@ -1,0 +1,92 @@
+[
+  {
+    "check": "radio euclidean: SQL R-Tree y scan coinciden",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "radio haversine: SQL R-Tree y scan coinciden",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "k-NN con parámetro y empate por id",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "polígono HTTP: registros y estadísticas reales",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "parámetro ausente: error controlado",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "recuperación tras error",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "BEGIN e INSERT",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "lector espera en lock de tiendas",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "commit desbloquea otra sesión",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "lector observa fila confirmada",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "rollback restaura Heap y R-Tree",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "cierre espacial limpio",
+    "ok": true,
+    "detail": "shutdown complete: True; exit 0"
+  },
+  {
+    "check": "cierre espacial limpio: exit status 0 without traceback",
+    "ok": true,
+    "detail": "exit 0"
+  },
+  {
+    "check": "puerto libre para reapertura",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "fila confirmada persiste tras reabrir",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "restauración persiste tras reabrir",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "check": "segundo cierre espacial limpio",
+    "ok": true,
+    "detail": "shutdown complete: True; exit 0"
+  },
+  {
+    "check": "segundo cierre espacial limpio: exit status 0 without traceback",
+    "ok": true,
+    "detail": "exit 0"
+  }
+]
