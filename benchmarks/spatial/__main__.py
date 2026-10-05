@@ -2,11 +2,16 @@
 
 import argparse
 from pathlib import Path
+import sys
 
 from .datasets import REQUIRED_SIZES, SEED, export
 
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] == "run":
+        from .experiments import main as run
+        return run(argv[1:])
     parser = argparse.ArgumentParser(prog="python -m benchmarks.spatial")
     parser.add_argument("--output", type=Path, default=Path("data/generated/spatial_inputs"))
     parser.add_argument("--sizes", type=int, nargs="+", default=REQUIRED_SIZES)
