@@ -1111,16 +1111,25 @@ un navegador, y reunió los documentos de entrega listados al inicio. La suite
 estricta completa pasa **2968 pruebas** (incluye la Parte 2 E1/E2).
 
 
-## Parte 02 E1/E2 Motor espacial
+## Estado posterior a la auditoría y Parte 2
 
 La muestra se prepara con `python scripts/setup_spatial.py` y se abre con
 `python -m api --spatial`. E2 implementa R-Tree propio, búsqueda secuencial,
 radio, k-NN y polígonos, métricas Haversine/Euclidiana, persistencia y
 mantenimiento con INSERT/DELETE/rollback. Las consultas espaciales están
-disponibles mediante métodos Python del propietario `Database`.
+disponibles mediante métodos Python del propietario `Database`, el SQL propio
+y `POST /api/spatial/query`. SQL admite `POINT`, `DISTANCIA`/`DISTANCE`,
+parámetros de ubicación por consulta y `LIMIT`, con planes reales y sesiones.
 
 `python scripts/setup_spatial.py --size 1000` prepara una tabla experimental
 offline; acepta también 10000 y 100000 en directorios nuevos. El generador
 `python -m benchmarks.spatial` exporta las entradas para PostgreSQL/GiST.
-SQL espacial, API espacial y mapa corresponden a E3. Consulte los ejemplos,
-comandos y límites en [la guía](docs/spatial.md).
+La matriz secuencial/R-Tree/GiST terminó con 5.400 mediciones verificadas y
+los tamaños/radios/k exigidos. Los [gráficos, tablas y comandos](docs/EXPERIMENTOS_ESPACIALES.md)
+se regeneran desde datos reales conservados; no requieren repetir la matriz.
+
+El mapa y todo trabajo de frontend están **en pausa hasta nueva autorización**.
+Por ello, la Parte 2 completa todavía no se declara terminada. Parte 3 no se
+inició; Partes 4 y 5 no se implementan en esta fase. El informe académico lo
+prepara el equipo por separado. Estado y evidencias posteriores a la auditoría:
+[seguimiento](docs/implementacion/SEGUIMIENTO.md).

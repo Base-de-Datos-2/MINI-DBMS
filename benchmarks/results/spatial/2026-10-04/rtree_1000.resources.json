@@ -1,0 +1,13 @@
+{
+  "method": "rtree",
+  "size": 1000,
+  "build_seconds": 0.08391375300004711,
+  "build_includes": "Heap traversal, R-Tree construction, serialization and fsync",
+  "data_bytes": 49172,
+  "index_bytes": 45738,
+  "peak_rss_bytes": 30363648,
+  "memory_scope": "isolated Python worker lifetime peak RSS",
+  "memory_includes": "imports, oracle inputs/validation, result buffers and index construction",
+  "query_count_per_setting": 100,
+  "preflight": "all query centers before timing each setting; same order repeated once"
+}

@@ -12,6 +12,9 @@ def main(argv=None):
     if argv and argv[0] == "run":
         from .experiments import main as run
         return run(argv[1:])
+    if argv and argv[0] == "results":
+        from .results import main as results
+        return results(argv[1:])
     parser = argparse.ArgumentParser(prog="python -m benchmarks.spatial")
     parser.add_argument("--output", type=Path, default=Path("data/generated/spatial_inputs"))
     parser.add_argument("--sizes", type=int, nargs="+", default=REQUIRED_SIZES)

@@ -1,0 +1,10 @@
+size,method,build_seconds,build_server_seconds,data_bytes,index_bytes,primary_index_bytes,peak_rss_bytes,memory_scope,build_includes
+1000,scan,,,49172,0,,29302784,isolated Python worker lifetime peak RSS,
+1000,rtree,0.08391375300004711,,49172,45738,,30363648,isolated Python worker lifetime peak RSS,"Heap traversal, R-Tree construction, serialization and fsync"
+1000,gist,0.0024625830000104543,0.001069,139264,73728,40960,38227968,isolated PostgreSQL backend lifetime peak RSS; shared mappings included,CREATE INDEX persistence and client transport; input load excluded
+10000,scan,,,442388,0,,32833536,isolated Python worker lifetime peak RSS,
+10000,rtree,0.9377355640001497,,442388,468425,,43659264,isolated Python worker lifetime peak RSS,"Heap traversal, R-Tree construction, serialization and fsync"
+10000,gist,0.01657794599987028,0.014055,1409024,737280,245760,43884544,isolated PostgreSQL backend lifetime peak RSS; shared mappings included,CREATE INDEX persistence and client transport; input load excluded
+100000,scan,,,4448276,0,,75137024,isolated Python worker lifetime peak RSS,
+100000,rtree,10.817703424999763,,4448276,4888031,,133259264,isolated Python worker lifetime peak RSS,"Heap traversal, R-Tree construction, serialization and fsync"
+100000,gist,0.2590546119999999,0.251394,10330112,7315456,2260992,67334144,isolated PostgreSQL backend lifetime peak RSS; shared mappings included,CREATE INDEX persistence and client transport; input load excluded

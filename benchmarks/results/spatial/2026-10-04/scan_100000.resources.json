@@ -1,0 +1,13 @@
+{
+  "method": "scan",
+  "size": 100000,
+  "build_seconds": null,
+  "build_includes": null,
+  "data_bytes": 4448276,
+  "index_bytes": 0,
+  "peak_rss_bytes": 75137024,
+  "memory_scope": "isolated Python worker lifetime peak RSS",
+  "memory_includes": "imports, oracle inputs/validation, result buffers and index construction",
+  "query_count_per_setting": 100,
+  "preflight": "all query centers before timing each setting; same order repeated once"
+}

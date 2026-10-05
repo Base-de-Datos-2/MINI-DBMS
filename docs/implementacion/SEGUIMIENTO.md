@@ -170,3 +170,38 @@ Estado: COMPLETADA para el backend autorizado.
 - Pendientes de frontend: mapa, controles y visualización de resultados.
 
 Siguiente: etapa 6, matriz experimental scan/R-Tree/GiST.
+
+## Etapa 6 — Experimentos espaciales y gráficos
+
+Estado: COMPLETADA para algoritmos, mediciones y artefactos técnicos.
+
+- Matriz oficial: 1.000/10.000/100.000 puntos; radio 1/5/10 km y k=10/50/100;
+  secuencial sobre Heap, R-Tree propio y PostgreSQL GiST; 100 centros idénticos
+  por configuración. 54 configuraciones, 5.400 tiempos reales y 5.400
+  consultas previas verificadas contra un oráculo exhaustivo independiente.
+- 1.800 planes EXPLAIN ANALYZE acreditaron GiST; no se incluyeron en el reloj.
+  Se registraron también tiempo interno PostgreSQL, construcción persistente,
+  bytes de datos/índice y pico RSS de procesos aislados, con ámbitos explícitos.
+- Fuente medida: commit 14f94f0 y archivo source.tar.gz con hashes de todos
+  sus archivos. Datos originales en benchmarks/results/spatial/2026-10-04.
+- Generador reproducible de gráficos/CSV: rechaza muestras incompletas,
+  duplicadas, centros/resultados alterados, tiempos inválidos y planes sin
+  GiST. Comprueba la regeneración de CSV, los oráculos y el código archivado.
+- Cuatro figuras en PNG/SVG, tablas de consultas/recursos y hashes en
+  docs/figuras/spatial. Se inspeccionaron las imágenes: etiquetas legibles,
+  unidades explícitas, sin solapamientos; memoria con ámbitos separados.
+- Validación final: 3.027 tests Python aprobados con warnings como errores,
+  137,01 s; incluye 10 nuevas pruebas contra corrupción de resultados.
+  Evidencia: cierre_backend.log, espacial_graficos.log, verificacion.json.
+- Documentación: docs/EXPERIMENTOS_ESPACIALES.md, README y docs/spatial.md.
+  El informe académico se omite por petición del usuario; lo prepara el equipo.
+- Limitación demostrada: radio 10 km a 100.000 puntos tiene media R-Tree
+  1252,702 ms frente a 1079,312 ms secuencial. No se oculta ni se describe como
+  fallo de exactitud; el coste de resolver muchos RIDs y la poda conservadora
+  se mantienen como mejoras de rendimiento, no bloquean resultados correctos.
+- PostgreSQL se usó exclusivamente como comparador en un contenedor temporal
+  sin puertos/red. Sus schemas propios quedaron eliminados al terminar.
+- No se modificó frontend ni se implementaron Partes 3, 4 o 5.
+
+Siguiente autorizado: cerrar la trazabilidad pendiente de las mediciones
+relacionales y documentar el punto de parada. Mapa/frontend permanecen en pausa.

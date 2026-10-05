@@ -322,6 +322,20 @@ polígonos, errores, sesiones concurrentes, commit, rollback y reapertura.
 No abre ni valida frontend. Sus resultados actuales se guardan en
 `docs/implementacion/evidencias/espacial_servidor.json`.
 
+## Experimentos completos y frontend pendiente
+
+La comparación oficial ya incluye Heap secuencial, R-Tree propio y PostgreSQL
+GiST en 1.000/10.000/100.000 puntos, radios 1/5/10 km y k=10/50/100, con
+100 consultas por configuración. Hay 5.400 mediciones, promedios aritméticos,
+construcción, espacio y memoria; los resultados coinciden con el oráculo
+independiente y los planes del comparador acreditan GiST. Consulte
+[datos, gráficos y reproducción](EXPERIMENTOS_ESPACIALES.md).
+
+No se ha implementado ni comprobado el mapa. El usuario pausó todo frontend
+hasta una nueva autorización. El backend SQL/HTTP y las mediciones están
+disponibles, pero esto no equivale a cerrar la Parte 2 completa. El informe
+académico se realiza por separado; no se generó uno en esta fase.
+
 ## R-Tree y ciclo de vida E2
 
 - Árbol propio en memoria; capacidad 16, mínimo 8 entradas por nodo no raíz.
