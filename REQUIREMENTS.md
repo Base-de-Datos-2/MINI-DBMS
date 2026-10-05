@@ -54,9 +54,9 @@ Therefore the implementation should remain modular from the beginning.
 
 ## Part 1 — Relational Database (Tables and SQL)
 
-All five parts remain delivery obligations. The user authorized the complete
-backend correction/implementation phase on 2026-10-04; frontend implementation
-is deferred, without removing its academic requirements. Spatial requirements
+All five parts remain academic delivery obligations. Current implementation
+authorization is recorded in AGENTS.md and does not remove those requirements.
+Spatial requirements
 are in section 15; text, multimedia and application requirements follow below.
 The official source is the current `Proyecto_Final.pdf`.
 

@@ -154,8 +154,16 @@ When a design decision made during a stage becomes stable, promote that decision
 
 ## Current scope
 
-The user explicitly authorized all necessary backend work for Parts 1–5.
-Preserve existing correct implementations and follow the audit dependencies.
+The earlier backend authorization covered Parts 1–5. The latest scope narrows
+implementation to Parts 1 and 2, followed by documentation and a stop. Part 3
+has not started; Parts 3–5 remain deferred. All frontend work is paused until
+the user explicitly authorizes it. Preserve correct existing implementations
+and follow the audit dependencies within this scope.
+
+Before the eventual authorized frontend phase, read the user-requested local
+instructions in `skills/gpt-taste/SKILL.md` and `skills/minimalist-ui/SKILL.md`.
+Their complete generated outputs are preserved beside them. Their UI guidance
+does not authorize starting frontend now or replacing required academic panels.
 
 Part 1 includes:
 
@@ -342,7 +350,9 @@ Latest formally completed stage:
 
 Current implementation block:
 
-> **Part 1 complete.** Part 2 follows `PART_02/PLAN_PARTE_02.md` (E1/E2 done; E3–E5 planned).
+> **Part 1 implemented and backend revalidated.** Part 2 follows
+> `PART_02/PLAN_PARTE_02.md`: E1/E2 and SQL/HTTP are implemented, the full
+> experimental matrix is measured; map and final browser validation are paused.
 
 Stage 1 was formally closed on 2026-08-31 after its Definition of Done and full
 test suite passed. Evidence is recorded in `docs/ETAPA_01_AUDIT.md`.

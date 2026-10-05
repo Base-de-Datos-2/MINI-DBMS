@@ -1,0 +1,9 @@
+warning: in the working copy of 'benchmarks/spatial/results.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/EXPERIMENTOS_ESPACIALES.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/implementacion/evidencias/cierre_backend.log', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/implementacion/evidencias/conservar_experimento_espacial.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/implementacion/evidencias/espacial_graficos.log', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/implementacion/evidencias/heap.log', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'skills/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/benchmarks/test_spatial_results.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/storage/test_heap_arrival_order.py', LF will be replaced by CRLF the next time Git touches it

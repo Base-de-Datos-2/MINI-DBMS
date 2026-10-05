@@ -1,5 +1,16 @@
 # Comparación experimental — Parte 1
 
+Los valores de este documento corresponden a las corridas históricas de
+Etapa 10. No se reinterpretan como tiempos de la versión posterior a las
+correcciones de la auditoría. Se conservan su fuente y datos originales;
+las [nuevas corridas de 1.000/10.000](experimentos/README.md) se documentan por
+separado, sin mezclar versiones ni máquinas dentro de una curva actual. Sus
+[11 gráficos y tablas](experimentos/actualizados_1k_10k/resultados.md) tienen
+cinco repeticiones por tamaño y fuente archivada. La
+[verificación adicional](implementacion/evidencias/relacional_verificacion.json)
+comprobó 350 filas nuevas y 105 históricas de 100.000, incluyendo sus hashes,
+conteos y recuperación de código desde Git. Los originales se conservan.
+
 Esta sección responde a la comparación experimental del enunciado (§2.1.6):
 Heap File frente a Archivo Secuencial Paginado, e índice B+ agrupado frente a
 B+ no agrupado y Hash extensible, con 1 000, 10 000 y 100 000 registros. Todos

@@ -98,8 +98,11 @@ and verification are in `docs/implementacion/SEGUIMIENTO.md`. Earlier stage
 closures retain their historical meaning.
 On 2026-10-03 the user authorized Part 2 E1 and then E2, using `PART_02/PLAN_PARTE_02.md`. The spatial engine now supports
 typed radius/k-NN/polygon queries. The audit-driven backend phase adds spatial
-SQL/HTTP in implementation stage 5. The map remains deferred; the full
-experimental matrix belongs to implementation stage 6.
+SQL/HTTP in implementation stage 5. The map remains deferred. Implementation
+stage 6 measured the full sequential/R-Tree/GiST matrix: 5,400 timings across
+54 configurations, with independent result validation, actual GiST plans and
+source snapshots. Tables/figures and measurement limits are in
+`docs/EXPERIMENTOS_ESPACIALES.md`; no complete Part 2 UI closure is claimed.
 
 Part 1 must provide:
 

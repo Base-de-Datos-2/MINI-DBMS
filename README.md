@@ -1107,8 +1107,10 @@ del frontend porque este bloque no modificó archivos de `frontend/`.
 Las **Etapas 1–10 están completas y auditadas**: la Parte 1 está terminada.
 La Etapa 10 midió las estructuras con 1 000, 10 000 y 100 000 registros,
 confirmó los planes desde SQL, verificó la ruta completa con un servidor real y
-un navegador, y reunió los documentos de entrega listados al inicio. La suite
-estricta completa pasa **2968 pruebas** (incluye la Parte 2 E1/E2).
+un navegador, y reunió los documentos de entrega listados al inicio. En ese
+cierre la suite estricta completa pasó **2968 pruebas** (incluía Parte 2 E1/E2).
+La revalidación posterior a la auditoría pasó **3027 pruebas** de backend con
+advertencias como errores: [evidencia](docs/implementacion/evidencias/cierre_backend.log).
 
 
 ## Estado posterior a la auditoría y Parte 2
@@ -1132,4 +1134,5 @@ El mapa y todo trabajo de frontend están **en pausa hasta nueva autorización**
 Por ello, la Parte 2 completa todavía no se declara terminada. Parte 3 no se
 inició; Partes 4 y 5 no se implementan en esta fase. El informe académico lo
 prepara el equipo por separado. Estado y evidencias posteriores a la auditoría:
-[seguimiento](docs/implementacion/SEGUIMIENTO.md).
+[seguimiento](docs/implementacion/SEGUIMIENTO.md) y
+[estado de la primera entrega](docs/implementacion/ESTADO_PRIMERA_ENTREGA.md).

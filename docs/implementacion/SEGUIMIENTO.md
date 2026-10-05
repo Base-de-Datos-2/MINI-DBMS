@@ -205,3 +205,47 @@ Estado: COMPLETADA para algoritmos, mediciones y artefactos técnicos.
 
 Siguiente autorizado: cerrar la trazabilidad pendiente de las mediciones
 relacionales y documentar el punto de parada. Mapa/frontend permanecen en pausa.
+
+Commits de etapa 6: 14f94f0 (medición), d08cedf (gráficos),
+130773b y cc3c090 (bytes/hashes preservados al clonar).
+
+## Cierre relacional y punto de parada
+
+Estado: COMPLETADO para el backend y los artefactos autorizados. Frontend
+permanece EN PAUSA; Parte 2 completa todavía no está cerrada.
+
+- H7: se repitieron 1.000 y 10.000 con cinco repeticiones por tamaño usando el
+  harness existente, entradas reproducibles, archivos independientes y código
+  archivado antes de medir. 350 mediciones nuevas, 11 gráficos y tabla con
+  mediana, mínimo/máximo; la fuente medida es 130773b con snapshot exacto.
+- El verificador independiente de conteos confirmó búsquedas, rangos,
+  cardinalidades, borrado/reorganización, cargas mixtas, unidades, 35
+  configuraciones por repetición y ausencia de registros duplicados/omitidos.
+  Hashes de datos, código, driver y figuras coinciden.
+- Las 105 mediciones previas de 100.000 mantienen su carácter histórico.
+  Se recuperó el código 075eae desde Git y se comprobó su SHA-256 contra
+  las dos series. No se repitieron cargas costosas con fuente ya acreditada
+  ni se mezclaron sus tiempos con los nuevos en una curva actual.
+- El agrupado completó 51 operaciones a 1.000 y 5 a 10.000, incluyendo
+  inserciones y borrados; las otras estructuras completaron 200. El presupuesto
+  se revisa entre operaciones. El límite de 100.000 histórico (una inserción,
+  cero borrados) se conserva explícito; no se inventó el dato ausente.
+- Validación: relacional_verificacion.json, 11 PNG inspeccionados, tabla
+  regenerada desde JSONL reales; dependencia/compileall/diff aprobados.
+  La suite completa de 3.027 ya cubrió todo el código del motor y generador
+  espacial; no hubo cambios posteriores al motor que justifiquen repetirla.
+- Evidencias: relacional_repeticion.log, scripts reproducibles, nuevo directorio
+  benchmarks/results/relational/2026-10-04 y docs/experimentos/actualizados_1k_10k.
+- Informe académico omitido por instrucción del usuario; el equipo lo prepara
+  por separado. Skills solicitadas guardadas y leídas íntegramente, sin cambios
+  en dependencias de frontend ni Node global.
+
+Estado final y continuación: [ESTADO_PRIMERA_ENTREGA.md](ESTADO_PRIMERA_ENTREGA.md).
+Parte 1 implementada y backend revalidado. Parte 2 backend/experimentos listos;
+mapa y verificación de navegador pendientes de nueva autorización. Parte 3
+no se inició; no se implementaron Partes 4/5. Detenerse después de registrar
+estos artefactos y esperar instrucciones.
+
+Commit de datos y gráficos relacionales: 1775db0. Se verificaron también los
+hashes de 49 artefactos experimentales directamente desde Git. Los enlaces
+de la documentación final resuelven (141 comprobados).

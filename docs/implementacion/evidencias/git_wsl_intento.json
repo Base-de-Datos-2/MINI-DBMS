@@ -1,0 +1,9 @@
+{
+  "cause": "Git de WSL no heredó la configuración CRLF del checkout Windows; la comprobación definitiva se ejecutó con Git de Windows",
+  "compileall": "aprobado",
+  "sha256": "0938087f90fb3fb2829cac4b5e4dffc04dc6db8450407c96965bdaa2866784d4",
+  "bytes": 14509750,
+  "final_diff_check": "aprobado con Git de Windows",
+  "full_log": "/local-user\\AppData\\Local\\Temp\\minidbms-git-wsl-0e5cd37434c448618a111cabbfabe82a.log",
+  "dependencies": "uv pip check aprobado"
+}
