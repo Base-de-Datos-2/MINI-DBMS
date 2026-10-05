@@ -1,0 +1,32 @@
+files N=1000 repetition=1: 10.51s
+indexes N=1000 repetition=1: 75.36s
+files N=1000 repetition=2: 10.46s
+indexes N=1000 repetition=2: 75.22s
+files N=1000 repetition=3: 10.52s
+indexes N=1000 repetition=3: 75.43s
+files N=1000 repetition=4: 10.44s
+indexes N=1000 repetition=4: 76.08s
+files N=1000 repetition=5: 10.66s
+indexes N=1000 repetition=5: 75.17s
+files N=10000 repetition=1: 117.83s
+indexes N=10000 repetition=1: 218.77s
+files N=10000 repetition=2: 115.62s
+indexes N=10000 repetition=2: 218.12s
+files N=10000 repetition=3: 115.00s
+indexes N=10000 repetition=3: 217.06s
+files N=10000 repetition=4: 115.95s
+indexes N=10000 repetition=4: 217.09s
+files N=10000 repetition=5: 115.88s
+indexes N=10000 repetition=5: 217.15s
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/01_insercion.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/02_busqueda_pk.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/03_espacio_archivos.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/04_reorganizacion.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/05_construccion_indices.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/06_espacio_indices.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/07_igualdad.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/08_rango_1pct.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/09_rango_10pct.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/10_ordenamiento.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/11_carga_mixta.png
+Generated /workspace/mini-dbms/docs/experimentos/actualizados_1k_10k/resultados.md
