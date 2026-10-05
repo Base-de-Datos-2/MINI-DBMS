@@ -1,4 +1,5 @@
 docs/implementacion/evidencias/*.sh text eol=lf
+docs/auditoria/evidencias/*.sh text eol=lf
 benchmarks/results/spatial/** -text
 docs/figuras/spatial/** -text
 benchmarks/results/relational/** -text

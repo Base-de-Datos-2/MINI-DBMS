@@ -1,6 +1,6 @@
 # Stage 8 Task 8.1 — baseline inspection
 
-**Inspected checkout:** `main` at `bf381e3d98673509f928b4a95fe410658e5312c6` on 2026-09-21. The plan's `25fb7916d15e7dd4f43911b415ede00c09257a48` and the Stage 7 audit's `49b575470f612191cd1b8e7fe5fb8d6e89cbca02` are historical references, not the current checkout. The working tree was clean before this documentation work. **Environment:** Windows; the repository `.venv` runs Python 3.12.4 and pytest 8.4.2. The system `python` resolves to Python 2.7 and cannot run this project.
+**Inspected checkout:** `main` at `38115b5ff9db554345400fb8b8352a7d3ea13119` on 2026-09-21. The plan's `2ab51ccd8369f221d49f5e5d730bac73c8555b21` and the Stage 7 audit's `79e76cebbb44f000dbd3cc35f870f40726060940` are historical references, not the current checkout. The working tree was clean before this documentation work. **Environment:** Windows; the repository `.venv` runs Python 3.12.4 and pytest 8.4.2. The system `python` resolves to Python 2.7 and cannot run this project.
 
 ## Existing ownership and entry points
 
@@ -48,7 +48,7 @@ The historical Stage 7 extension audit reports 2,742 strict tests on an earlier 
 
 ## Baseline result
 
-From the repository root, with the checkout at `bf381e3d98673509f928b4a95fe410658e5312c6` and the documentation changes in progress:
+From the repository root, with the checkout at `38115b5ff9db554345400fb8b8352a7d3ea13119` and the documentation changes in progress:
 
 ```powershell
 .venv\Scripts\python.exe -m pytest tests/query tests/database tests/api -q -W error -p no:cacheprovider

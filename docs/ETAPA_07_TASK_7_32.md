@@ -1,7 +1,7 @@
 # Stage 7 Task 7.32 — AST, lexer, parser, spans, and diagnostics
 
 **Implemented:** 2026-09-19  
-**Starting commit:** `b0e7533` (`Tarea 7.31 completada`)  
+**Starting commit:** `90e4061` (`Tarea 7.31 completada`)  
 **Scope:** syntax and public pre-execution boundary only; Tasks 7.33–7.38 still
 own CREATE semantics and CREATE/EXPLAIN execution.
 

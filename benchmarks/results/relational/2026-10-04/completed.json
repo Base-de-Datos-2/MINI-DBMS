@@ -158,7 +158,7 @@
     "platform": "Linux-6.6.87.2-microsoft-standard-WSL2-x86_64-with-glibc2.35",
     "python": "3.11.9",
     "cpu_count": 24,
-    "git_commit": "130773b612b2c9fa7c0f63fa9dcb635fb740a8eb",
+    "git_commit": "5483f0c6d7679482d1b8f1ede20130c325826ad0",
     "git_dirty": false,
     "source_sha256": "964ab77dbe107637c7dcba3598660b75cb9e831b4e8f45d41d35d265c57201c3",
     "git_context": "copied committed sources without .git; exact archive preserved"
@@ -166,7 +166,7 @@
   "driver_sha256": "6a494f4d6f34e71eea61c913b8c1ad5ad86fedea0ec372bf8c7c546f604a5b3a",
   "reason": "repeat H7 ambiguous small-run provenance",
   "historical_100000_not_repeated": true,
-  "results_sha256": "2592a6814ce31d92041a35956a99c272e71213ee98b3f9fb642a35c67ac88b8e",
+  "results_sha256": "4821c62dd499399a1a9318db4b3f06fde1affff0204e2db530384e0207839731",
   "figure_sha256": {
     "01_insercion.png": "6510e3e0a3496df754bdc7e60ddcb17e263fa97fedae2a5da00f4bda1e5f9033",
     "02_busqueda_pk.png": "bf5df5e8b3064a9a334b911379867d830dc2b8d5cd32ad04a5b9cb4dd4f23d6d",

@@ -3,7 +3,7 @@
 **Stage:** 8 — Transactions and Concurrency  
 **Closed:** 2026-09-24  
 **Plan:** `ETAPA_08.md`, Tasks 8.1–8.30  
-**Audited source:** Git `HEAD` `cddb1e45191f0186d04c354bfec2918ad23b8bb9` plus the current Stage 8 worktree changes  
+**Audited source:** Git `HEAD` `2729b830dd7f692d64d9b7f8c6a9576d0b7381ab` plus the current Stage 8 worktree changes  
 **Environment:** Windows, Python 3.12.4, pytest 8.4.2
 
 The Stage 8 implementation and evidence are complete at the in-process database

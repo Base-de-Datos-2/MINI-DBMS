@@ -436,7 +436,7 @@ missing('5.1.4', 'No se encontró una opción A/B/C/D elegida en los documentos 
 
 mark('T.1.1', 'COMPLETO', 'Repositorio Git local con origin GitHub y HEAD publicado en main.',
      ['docs/auditoria/evidencias/commit.txt', 'docs/auditoria/evidencias/remoto_verificado.txt'],
-     'git ls-remote confirmó el mismo commit 841977a en HEAD/main remoto.',
+     'git ls-remote confirmó el mismo commit fabe4cc en HEAD/main remoto.',
      'El PDF y DOCX actuales son cambios locales del usuario sin commit; se preservan. El requisito de código publicado sí está satisfecho.',
      'Ninguna corrección del código publicado identificada.', 'Mantener publicación incremental y no confundir disponibilidad remota del código con la del video o presentación.',
      'Comparar SHA local y remoto, y verificar los cambios autorizados antes de futuras publicaciones.', 'Git y acceso remoto.')

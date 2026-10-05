@@ -4,7 +4,7 @@
 **Closed:** 2026-10-01, at the user's request ("if Stage 9 is complete, start Stage 10")  
 **Plan:** `PART_01/ETAPA_09.md`, Tasks 9.1–9.18, Section 11 checklists, and the
 Stage 8 handoff checklist in `docs/ETAPA_08_STAGE_9_HANDOFF.md`  
-**Audited source:** Git `HEAD` `c1d46d20cc3739f595d56efd15eb8690ccb722e7` (`main`, equal to `origin/main`, clean worktree)  
+**Audited source:** Git `HEAD` `1c9b0a409c831de842a531f3299768fb5cde97a1` (`main`, equal to `origin/main`, clean worktree)  
 **Environment:** Linux (WSL2), Python 3.11.9, pytest 8.4.2, FastAPI 0.141.1, Node 20.19.1
 
 Every item of the Stage 9 completion checklists is satisfied. The only open

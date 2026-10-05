@@ -9,9 +9,9 @@
 
 **Prerequisite:** Stage 7 Tasks 7.1–7.40 completed, including CREATE and EXPLAIN.  
 **Roadmap:** PLAN.md, Section 13.  
-**Repository inspected:** Base-de-Datos-2/MINI-DBMS, `main`, commit `25fb7916d15e7dd4f43911b415ede00c09257a48`.  
+**Repository inspected:** Base-de-Datos-2/MINI-DBMS, `main`, commit `2ab51ccd8369f221d49f5e5d730bac73c8555b21`.  
 
-- **Task 8.1 current checkout:** `main`, commit `bf381e3d98673509f928b4a95fe410658e5312c6`; inspection and 436 passing focused baseline tests in `docs/ETAPA_08_TASK_8_1_INSPECTION.md`.
+- **Task 8.1 current checkout:** `main`, commit `38115b5ff9db554345400fb8b8352a7d3ea13119`; inspection and 436 passing focused baseline tests in `docs/ETAPA_08_TASK_8_1_INSPECTION.md`.
 - **Task 8.2 adopted contract:** `docs/transactions.md` and `PROJECT_CONTEXT.md`; at that checkpoint this was a design decision, subsequently implemented by Tasks 8.3–8.22.
 - **Tasks 8.3–8.6 foundation:** `docs/ETAPA_08_TASK_8_3_8_6.md`; control-only empty groups and access intents exist.
 - **Tasks 8.7–8.10 concurrency primitives:** `docs/ETAPA_08_TASK_8_7_8_10.md`; S/X grants, waits, deadlock detection and short physical latches exist and now underpin the core SQL path.
@@ -48,11 +48,11 @@ The supplied lecture PDFs are conceptual references, not instructions to reprodu
 
 Repository references at the inspected revision:
 
-- [Requirements](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/25fb7916d15e7dd4f43911b415ede00c09257a48/REQUIREMENTS.md).
-- [Roadmap](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/25fb7916d15e7dd4f43911b415ede00c09257a48/PLAN.md).
-- [Stage 7 extension audit](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/25fb7916d15e7dd4f43911b415ede00c09257a48/docs/ETAPA_07_EXTENSION_AUDIT.md).
-- [SQL executor](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/25fb7916d15e7dd4f43911b415ede00c09257a48/engine/query/executor.py).
-- [Database owner](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/25fb7916d15e7dd4f43911b415ede00c09257a48/engine/database/owner.py).
+- [Requirements](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/2ab51ccd8369f221d49f5e5d730bac73c8555b21/REQUIREMENTS.md).
+- [Roadmap](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/2ab51ccd8369f221d49f5e5d730bac73c8555b21/PLAN.md).
+- [Stage 7 extension audit](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/2ab51ccd8369f221d49f5e5d730bac73c8555b21/docs/ETAPA_07_EXTENSION_AUDIT.md).
+- [SQL executor](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/2ab51ccd8369f221d49f5e5d730bac73c8555b21/engine/query/executor.py).
+- [Database owner](https://github.com/Base-de-Datos-2/MINI-DBMS/blob/2ab51ccd8369f221d49f5e5d730bac73c8555b21/engine/database/owner.py).
 
 ## 3. Starting point and consequences
 

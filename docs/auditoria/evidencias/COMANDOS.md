@@ -1,6 +1,6 @@
 # Comandos y reproducciones de la auditoría
 
-Base original: commit 841977a36c4e88e412f263bd1b83347ad0eb7e1b; ver commit.txt. Los scripts de esta carpeta son evidencias nuevas, no tests incorporados al proyecto. Ejecutar siempre sobre una copia y directorios de datos nuevos. No reutilizar la base demo del usuario.
+Base original: commit fabe4cca7e06afaeae06b731f35a0b8259600696; ver commit.txt. Los scripts de esta carpeta son evidencias nuevas, no tests incorporados al proyecto. Ejecutar siempre sobre una copia y directorios de datos nuevos. No reutilizar la base demo del usuario.
 
 ## Ejecución registrada
 
@@ -11,7 +11,7 @@ wsl bash 'docs/auditoria/evidencias/preparar_entorno.sh'
 wsl bash 'docs/auditoria/evidencias/verificar.sh'
 ~~~
 
-Los scripts registran rutas absolutas del entorno usado. Para repetir, copiar los scripts a un directorio temporal, cambiar audit_base por una ruta nueva y elegir otra carpeta de salida evidence. No sobrescribir las evidencias de esta auditoría. preparar_entorno.sh exporta HEAD con git archive e instala las dependencias dentro de esa copia. verificar.sh ejecuta:
+Las rutas locales de las evidencias fueron anonimizadas. Los scripts calculan la raíz del repositorio desde su ubicación y admiten MINIDBMS_REPOSITORY y MINIDBMS_AUDIT_DIR para elegir entornos independientes. No sobrescribir las evidencias de esta auditoría. preparar_entorno.sh exporta HEAD con git archive e instala las dependencias dentro de esa copia. verificar.sh ejecuta:
 
 ~~~bash
 python -m pytest -q -W error --basetemp "$audit_base/pytest-temp" -o cache_dir="$audit_base/pytest-cache" --junitxml="$evidence/pytest.xml"
@@ -32,8 +32,8 @@ Aquí python representa audit_base/env/bin/python; las variables y redirecciones
 Después de instalar Chromium y sus bibliotecas privadas, desde la copia aislada:
 
 ~~~bash
-audit_base='/local-user/.cache/minidbms-audit-20261004'
-evidence='/workspace/mini-dbms/docs/auditoria/evidencias'
+audit_base="${MINIDBMS_AUDIT_DIR:-${TMPDIR:-/tmp}/minidbms-audit-20261004}"
+evidence="$PWD/docs/auditoria/evidencias"
 cd "$audit_base/source"
 export PYTHONPATH="$PWD"
 export PLAYWRIGHT_BROWSERS_PATH="$audit_base/browsers"

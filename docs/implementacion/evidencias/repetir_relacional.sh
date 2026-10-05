@@ -1,6 +1,7 @@
 set -eu
-original='/workspace/mini-dbms'
-implementation='/local-user/.cache/minidbms-implementation-20261004'
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+original="${MINIDBMS_REPOSITORY:-$(CDPATH= cd -- "$script_dir/../../.." && pwd)}"
+implementation="${MINIDBMS_IMPLEMENTATION_DIR:-${TMPDIR:-/tmp}/minidbms-implementation-20261004}"
 python="$implementation/env/bin/python"
 cd "$implementation/source"
 export PYTHONPATH="$PWD"
@@ -16,4 +17,5 @@ test ! -e "$destination"
 mkdir -p "$destination"
 cp -a "$run_dir/results/." "$destination/"
 cp "$original/docs/implementacion/evidencias/repetir_relacional.py" "$destination/driver.py"
+"$python" "$original/scripts/sanitize_evidence.py" "$original/docs/implementacion/evidencias/relacional_repeticion.log" "$original/docs/experimentos/actualizados_1k_10k/resultados.md"
 tail -n 25 "$original/docs/implementacion/evidencias/relacional_repeticion.log"

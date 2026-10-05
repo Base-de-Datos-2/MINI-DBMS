@@ -1,6 +1,6 @@
 # Stage 8 Tasks 8.3–8.6 — transaction foundation
 
-**Checkout:** `main` at `bf381e3d98673509f928b4a95fe410658e5312c6`, with uncommitted Stage 8 Blocks 1–2 changes. **Status:** foundation implemented; S/X grants, undo and coordinated data execution remain Tasks 8.7 onward.
+**Checkout:** `main` at `38115b5ff9db554345400fb8b8352a7d3ea13119`, with uncommitted Stage 8 Blocks 1–2 changes. **Status:** foundation implemented; S/X grants, undo and coordinated data execution remain Tasks 8.7 onward.
 
 ## Implemented boundary
 

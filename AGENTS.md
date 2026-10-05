@@ -628,6 +628,11 @@ The exact names can differ, but the plan should describe real execution decision
 
 ## Documentation policy
 
+Do not publish local account names, user-profile paths or personal workspace
+directories in evidence. Sanitize logs before staging with
+`scripts/sanitize_evidence.py`, and inspect metadata in archives/documents.
+See `docs/EVIDENCIAS.md`. Keep technical results and original timestamps intact.
+
 When an architectural decision becomes stable, update `PROJECT_CONTEXT.md`.
 
 When an official assignment requirement is clarified by the instructor, update `REQUIREMENTS.md`.

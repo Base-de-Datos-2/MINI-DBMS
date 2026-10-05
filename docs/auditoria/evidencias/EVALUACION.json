@@ -2856,7 +2856,7 @@
       "docs/auditoria/evidencias/commit.txt",
       "docs/auditoria/evidencias/remoto_verificado.txt"
     ],
-    "evaluacion": "git ls-remote confirmó el mismo commit 841977a en HEAD/main remoto.",
+    "evaluacion": "git ls-remote confirmó el mismo commit fabe4cc en HEAD/main remoto.",
     "problemas": "El PDF y DOCX actuales son cambios locales del usuario sin commit; se preservan. El requisito de código publicado sí está satisfecho.",
     "correccion": "Ninguna corrección del código publicado identificada.",
     "implementacion_recomendada": "Mantener publicación incremental y no confundir disponibilidad remota del código con la del video o presentación.",

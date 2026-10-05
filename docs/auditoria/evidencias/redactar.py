@@ -35,7 +35,7 @@ def table_stats(groups, labels):
 
 INTRO = '''# Auditor\u00eda t\u00e9cnica independiente de MINI-DBSM
 
-Fecha: 2026-10-04. Fuente acad\u00e9mica: [Proyecto_Final.pdf](../../Proyecto_Final.pdf), siete p\u00e1ginas. Base inspeccionada: commit 841977a36c4e88e412f263bd1b83347ad0eb7e1b. Alcance: las cinco partes y los entregables, aunque la implementaci\u00f3n activa se concentre en las Partes 1 y 2.
+Fecha: 2026-10-04. Fuente acad\u00e9mica: [Proyecto_Final.pdf](../../Proyecto_Final.pdf), siete p\u00e1ginas. Base inspeccionada: commit fabe4cca7e06afaeae06b731f35a0b8259600696. Alcance: las cinco partes y los entregables, aunque la implementaci\u00f3n activa se concentre en las Partes 1 y 2.
 
 ## 1. Dictamen
 
@@ -119,7 +119,7 @@ Los conteos y tiempos publicados de auditor\u00edas anteriores son hist\u00f3ric
 
 La huella de c\u00f3digo registrada para 100k, 1697f753539b46be8e89bdf73f3b82ad4a209d84d13973d9c0f7ee5c52c28dab, coincide con los blobs engine/benchmarks del commit 075eae correspondiente, usando el mismo orden de hashing del harness. La huella del HEAD actual es d74b979ff2bc31415202f5246dfc34a878118bf5fa95cd0ae2cadcd819376378. Esto permite distinguir revisiones diferentes en vez de atribuir todos los ensayos al HEAD actual.
 
-Los ensayos 1k/10k registran commit d191e7c y \u00e1rbol dirty, con una huella propia. El commit solo no permite reconstruir ese \u00e1rbol no versionado; falta su snapshot exacto. Es una limitaci\u00f3n de procedencia/reproducibilidad, **no prueba de fabricaci\u00f3n**. Las medidas siguen siendo evidencia hist\u00f3rica registrada, con esa salvedad. Las afirmaciones causales sobre diferencias entre tama\u00f1os deben reconocer cambios de versi\u00f3n y de configuraci\u00f3n.
+Los ensayos 1k/10k registran commit 0deafe3 y \u00e1rbol dirty, con una huella propia. El commit solo no permite reconstruir ese \u00e1rbol no versionado; falta su snapshot exacto. Es una limitaci\u00f3n de procedencia/reproducibilidad, **no prueba de fabricaci\u00f3n**. Las medidas siguen siendo evidencia hist\u00f3rica registrada, con esa salvedad. Las afirmaciones causales sobre diferencias entre tama\u00f1os deben reconocer cambios de versi\u00f3n y de configuraci\u00f3n.
 
 En carga mixta, B+ agrupado hizo 35\u201337 operaciones por repetici\u00f3n a 1k y tres a 10k (dos inserciones/una eliminaci\u00f3n). A 100k realiz\u00f3 **una inserci\u00f3n y cero eliminaciones** por repetici\u00f3n, en 373\u2013432 s. Hash/no agrupado hicieron 200 operaciones (100/100). El presupuesto de 60 s se comprueba entre operaciones y no puede interrumpir una inserci\u00f3n larga. Por tanto, ops/s describe trabajo y mezcla diferentes: a 100k no es evidencia de eliminaci\u00f3n frecuente del agrupado. El m\u00ednimo de comparaci\u00f3n de \u00edndices existe en los tama\u00f1os menores; se clasifica la ampliaci\u00f3n como mejora experimental, sin inventar un requisito para los tres tama\u00f1os.
 

@@ -1,7 +1,7 @@
 # Etapa 10 — verificación de integración (Tarea 10.12)
 
 **Fecha:** 2026-10-04 · **Rama:** `feat/close-etapa-10`, sobre `main` en
-`6e09aba` (incluye la Parte 2 E1/E2) · **Máquina:** Linux (WSL2), Python 3.11.9,
+`adaf3d3` (incluye la Parte 2 E1/E2) · **Máquina:** Linux (WSL2), Python 3.11.9,
 Node 20.
 
 La verificación recorre la ruta completa de la Parte 1: frontend → API →

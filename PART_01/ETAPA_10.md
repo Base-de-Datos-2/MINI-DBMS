@@ -213,7 +213,7 @@ Implemented in `benchmarks/` (`python -m benchmarks run --help`); tested by
   executed during a measurement); recomputing the digest with that line
   restored gives `d864d634…` again. The 100,000-row runs
   (`official-100k-files`, `official-100k-indexes`) ran on clean commit
-  `075eae8` with `source_sha256` `1697f753…`. Afterwards only
+  `231ffc0` with `source_sha256` `1697f753…`. Afterwards only
   `benchmarks/report.py` changed again (direct labels pushed apart when two
   lines end at the same value); the report is never executed during a
   measurement.

@@ -1,6 +1,7 @@
 set -eu
-original='/workspace/mini-dbms'
-audit_base='/local-user/.cache/minidbms-audit-20261004'
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+original="${MINIDBMS_REPOSITORY:-$(CDPATH= cd -- "$script_dir/../../.." && pwd)}"
+audit_base="${MINIDBMS_AUDIT_DIR:-${TMPDIR:-/tmp}/minidbms-audit-20261004}"
 audit_source="$audit_base/source"
 audit_python="$audit_base/env/bin/python"
 evidence="$original/docs/auditoria/evidencias"
@@ -24,4 +25,5 @@ cd "$audit_source"
 printf 'integration_exit=%s\n' "$?" >> "$evidence/resultados_comandos.txt"
 "$audit_python" -m playwright install chromium > "$evidence/playwright_install.log" 2>&1
 printf 'browser_install_exit=%s\n' "$?" >> "$evidence/resultados_comandos.txt"
+"$audit_python" "$original/scripts/sanitize_evidence.py" "$evidence"/*.log "$evidence/pytest.xml"
 cat "$evidence/resultados_comandos.txt"

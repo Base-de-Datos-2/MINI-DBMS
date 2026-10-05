@@ -10,7 +10,7 @@ runs, so the Windows E1.5 runs are only supplementary.
 
 **E1 progress:**
 
-- [x] E1.1: inspected `d07dec3e412ae15ea86ccce8c0214108cf277fc1`;
+- [x] E1.1: inspected `e0ad051a2ed25b095e5d666bcc7e93dc6452430f`;
   selected `api.database.Database`; Stage 9 closed, Stage 10 remains open.
 - [x] E1.2: local domain, explicit coordinate mapping, identity, units,
   origin, polygon boundary and tie conventions recorded in `PROJECT_CONTEXT.md`.
@@ -85,7 +85,7 @@ Spatial SQL, HTTP and map remain E3 work.
 
 This revision replaces the previous eleven-phase implementation checklist with **five delivery blocks**. It keeps the academic requirements and the engineering needed for correct results, persistent data and a usable demonstration. It removes broad infrastructure work from the critical path.
 
-The earlier repository review was performed on September 30 at commit `14c2dc99b8ac5df09cfe713398420e89dcfd1df7`. At that snapshot, transactions were implemented, Stage 9 formal closure and Stage 10 remained pending, and spatial SQL was unsupported. **This revision does not claim a fresh review of current main.** At implementation start, inspect changes since that snapshot and reuse completed work rather than rebuilding it.
+The earlier repository review was performed on September 30 at commit `d2becbba8d50a56844c1c604009d2f33e5ef8645`. At that snapshot, transactions were implemented, Stage 9 formal closure and Stage 10 remained pending, and spatial SQL was unsupported. **This revision does not claim a fresh review of current main.** At implementation start, inspect changes since that snapshot and reuse completed work rather than rebuilding it.
 
 The original assignment remains authoritative for academic requirements. This file defines the reduced implementation approach. Architectural choices below are project decisions, not extra requirements attributed to the instructor. Preserve useful work already implemented under the earlier plan; simplification is not a reason to remove working features.
 

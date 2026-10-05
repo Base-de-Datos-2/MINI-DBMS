@@ -1,7 +1,7 @@
 # Stage 8 Tasks 8.23–8.26 — controlled evidence and demonstration
 
 **Date:** 2026-09-24  
-**Checkout base:** `cddb1e45191f0186d04c354bfec2918ad23b8bb9` plus the current uncommitted Stage 8 work  
+**Checkout base:** `2729b830dd7f692d64d9b7f8c6a9576d0b7381ab` plus the current uncommitted Stage 8 work  
 **Runtime:** Python 3.12.4, pytest 8.4.2
 
 ## Delivered scope

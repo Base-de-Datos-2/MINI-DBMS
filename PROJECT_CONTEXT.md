@@ -2386,7 +2386,7 @@ The report must include comparative charts, a summary table and conclusions abou
   filter and its sorting row the SQL engine's `ExternalSort`.
 - Official results: `benchmarks/results/part1_results.jsonl` (1k/10k),
   `part1_results_100k_files.jsonl`, `part1_results_100k_indexes.jsonl`
-  (clean commit `075eae8`) and `part1_sql_plans.jsonl`; analysis in
+  (clean commit `231ffc0`) and `part1_sql_plans.jsonl`; analysis in
   `docs/EXPERIMENTOS.md`.
 - Measured conclusions the design must keep in mind: B+ range access pays one
   record read per RID, so it wins up to ~1 % selectivity and loses to a scan at

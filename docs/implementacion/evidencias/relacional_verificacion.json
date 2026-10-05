@@ -3,12 +3,12 @@
   "historical_100000_rows": 105,
   "new_source_archive_verified": true,
   "new_analytic_counts_verified": true,
-  "historical_source_commit": "075eae87b0c8ad28c1c872364b19fe77dc1875e4",
+  "historical_source_commit": "231ffc0b5386d9caac160e6d2224ef8f5ff18ef7",
   "historical_source_digest_verified": "1697f753539b46be8e89bdf73f3b82ad4a209d84d13973d9c0f7ee5c52c28dab",
   "historical_times_not_claimed_current": true,
   "raw_sha256": {
-    "benchmarks/results/relational/2026-10-04/results.jsonl": "2592a6814ce31d92041a35956a99c272e71213ee98b3f9fb642a35c67ac88b8e",
-    "benchmarks/results/part1_results_100k_files.jsonl": "f3028a00545e52fe42e87c391fc039df2186add0caf6a3ba692e3e016db2e142",
-    "benchmarks/results/part1_results_100k_indexes.jsonl": "7467af03e299740b9fcb8b05e5421c22f5174a771db773981817b0d86a29fbf8"
+    "benchmarks/results/relational/2026-10-04/results.jsonl": "4821c62dd499399a1a9318db4b3f06fde1affff0204e2db530384e0207839731",
+    "benchmarks/results/part1_results_100k_files.jsonl": "cd360eaa991393196495daa4a175e34c228c76e9d317ea1f9fab01bb1e11be5a",
+    "benchmarks/results/part1_results_100k_indexes.jsonl": "260af80c016a2563543d8d57d16579b83a7a1860edaeba6cd767a44167fc4513"
   }
 }

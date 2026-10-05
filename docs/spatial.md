@@ -174,7 +174,7 @@ del plan, sin asumir que su orden coincide con el desempate por ID del motor.
 
 ## Parte 01 pendiente
 
-El commit de inicio es `d07dec3e412ae15ea86ccce8c0214108cf277fc1`.
+El commit de inicio es `e0ad051a2ed25b095e5d666bcc7e93dc6452430f`.
 **Actualización 2026-10-04:** la Etapa 10 y la Parte 01 están cerradas
 ([auditoría](ETAPA_10_AUDIT.md)). Los resultados oficiales de 100.000 filas son
 las corridas WSL de la Etapa 10, en la misma máquina que 1.000/10.000; las

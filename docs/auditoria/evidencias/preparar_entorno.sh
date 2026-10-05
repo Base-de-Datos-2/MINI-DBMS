@@ -1,6 +1,7 @@
 set -eu
-original='/workspace/mini-dbms'
-audit_base='/local-user/.cache/minidbms-audit-20261004'
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+original="${MINIDBMS_REPOSITORY:-$(CDPATH= cd -- "$script_dir/../../.." && pwd)}"
+audit_base="${MINIDBMS_AUDIT_DIR:-${TMPDIR:-/tmp}/minidbms-audit-20261004}"
 audit_source="$audit_base/source"
 audit_env="$audit_base/env"
 mkdir -p "$audit_base"

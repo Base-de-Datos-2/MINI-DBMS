@@ -1,7 +1,7 @@
 # Auditoría de cierre — Etapa 10 y Parte 1
 
 **Fecha:** 2026-10-04 · **Rama:** `feat/close-etapa-10` (desde `main` en
-`6e09aba`) · **Plan:** [PART_01/ETAPA_10.md](../PART_01/ETAPA_10.md)
+`adaf3d3`) · **Plan:** [PART_01/ETAPA_10.md](../PART_01/ETAPA_10.md)
 
 **Decisión: la Etapa 10 queda cerrada y, con ella, la Parte 1.** Las 14 tareas
 y los 10 criterios de la Definición de Terminado se cumplen, y todos los
@@ -31,7 +31,7 @@ pertenecen a un módulo cerrado (sección 6).
 |---|---|---|
 | Los datos de 1 000, 10 000 y 100 000 registros se reproducen desde su semilla | Cumple | `benchmarks/datasets.py` (`20 261 000 + N`); `test_datasets_are_reproducible_unique_and_in_random_key_order` |
 | Cada medición de `REQUIREMENTS` §9 existe para cada estructura y tamaño, de corridas reales | Cumple | 455 mediciones oficiales; tablas de `experimentos/resultados.md` sin celdas vacías |
-| Resultados crudos, configuración y entorno guardados y versionados | Cumple | cada fila JSONL lleva configuración, plataforma, Python, commit y SHA-256 del código; 100 000 sobre el commit limpio `075eae8` |
+| Resultados crudos, configuración y entorno guardados y versionados | Cumple | cada fila JSONL lleva configuración, plataforma, Python, commit y SHA-256 del código; 100 000 sobre el commit limpio `231ffc0` |
 | Gráficos y tablas regenerables con un comando | Cumple | `python -m benchmarks report --results ...` |
 | Las conclusiones dicen cuándo conviene cada estructura y salen de los datos | Cumple | `EXPERIMENTOS.md` §5–§6, cada afirmación con su cifra |
 | El código de experimentos está fuera de `engine/` y `api/` | Cumple | vive en `benchmarks/`; `test_benchmark_code_never_lives_in_or_is_imported_by_the_engine`; ningún archivo de `api/` ni `engine/` lo importa |

@@ -17,7 +17,7 @@ implementación.
 **Lo que sí cambia para el informe.** Los tiempos absolutos de todas las
 estructuras son menores que antes. Las corridas con el código anterior se
 conservan en `benchmarks/results/archive/part1_before_10_2d.jsonl` (5
-repeticiones de 1 000 y 10 000 registros, commit `d191e7c` con cambios sin
+repeticiones de 1 000 y 10 000 registros, commit `0deafe3` con cambios sin
 commit, `source_sha256` `c5686b16…`) como evidencia del efecto. Las corridas
 oficiales del informe son las posteriores a todos los cambios. No existe una
 corrida oficial anterior a 10.2–10.2c porque con ese código no terminaba en un

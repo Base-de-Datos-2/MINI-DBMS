@@ -1,7 +1,7 @@
 # Stage 7 Task 7.31 — extension contract and inspected baseline
 
 **Decision date:** 2026-09-19  
-**Inspected commit:** `87f442a` (`DOCS: Nueva versión de ETAPA_07.md`)  
+**Inspected commit:** `0044ba2` (`DOCS: Nueva versión de ETAPA_07.md`)  
 **Scope:** design and coordination only; Tasks 7.32–7.40 remain unimplemented
 
 > **Subsequent status:** Tasks 7.32–7.40 later implemented, verified, and closed

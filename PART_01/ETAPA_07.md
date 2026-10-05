@@ -15,7 +15,7 @@
 **Status:** Complete. The original Tasks 7.1–7.30 baseline remains preserved, and Tasks 7.31–7.40 are implemented and verified. CREATE, EXPLAIN, and EXPLAIN ANALYZE are supported at the engine boundary; Stage 8 remains unimplemented.
 
 Tasks 7.1–7.30 were closed on 2026-09-18 and Stage 8 remains unimplemented.
-Task 7.31 inspected commit `87f442a` and froze the extension decisions in
+Task 7.31 inspected commit `0044ba2` and froze the extension decisions in
 `docs/ETAPA_07_TASK_7_31_DECISIONS.md`. Task 7.32 implements the syntax boundary,
 Tasks 7.33–7.35 implement durable CREATE and shared constraints, and Tasks
 7.36–7.38 implement the explanation/result boundary. Tasks 7.39–7.40 verify

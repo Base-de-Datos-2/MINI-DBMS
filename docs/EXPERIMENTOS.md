@@ -294,9 +294,9 @@ con el cruce medido en la sección 3. `ORDER BY` siempre se resuelve con
 - **Planner por reglas.** Sin modelo de costos, el motor no puede evitar el B+
   en rangos amplios; es una decisión de alcance (el plan de la etapa excluye
   un optimizador por costos), no un error de medición.
-- **Procedencia y versiones.** Los ensayos 1k/10k registran el commit d191e7c
+- **Procedencia y versiones.** Los ensayos 1k/10k registran el commit 0deafe3
   con árbol dirty y huella de código; falta el snapshot exacto de ese árbol.
-  Los de 100k registran 075eae87 y su huella coincide con sus archivos Git.
+  Los de 100k registran 231ffc0b y su huella coincide con sus archivos Git.
   No atribuir todas las diferencias a N sin reconocer cambios de código.
 - **Correcciones posteriores.** Estas tablas son resultados históricos. El
   cambio de política del Heap y las siguientes correcciones no generan nuevos

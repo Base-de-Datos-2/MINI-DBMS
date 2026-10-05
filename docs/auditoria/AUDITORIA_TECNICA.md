@@ -1,6 +1,6 @@
 # Auditoría técnica independiente de MINI-DBSM
 
-Fecha: 2026-10-04. Fuente académica: [Proyecto_Final.pdf](../../Proyecto_Final.pdf), siete páginas. Base inspeccionada: commit 841977a36c4e88e412f263bd1b83347ad0eb7e1b. Alcance: las cinco partes y los entregables, aunque la implementación activa se concentre en las Partes 1 y 2.
+Fecha: 2026-10-04. Fuente académica: [Proyecto_Final.pdf](../../Proyecto_Final.pdf), siete páginas. Base inspeccionada: commit fabe4cca7e06afaeae06b731f35a0b8259600696. Alcance: las cinco partes y los entregables, aunque la implementación activa se concentre en las Partes 1 y 2.
 
 ## 1. Dictamen
 
@@ -84,7 +84,7 @@ Los conteos y tiempos publicados de auditorías anteriores son históricos. No s
 
 La huella de código registrada para 100k, 1697f753539b46be8e89bdf73f3b82ad4a209d84d13973d9c0f7ee5c52c28dab, coincide con los blobs engine/benchmarks del commit 075eae correspondiente, usando el mismo orden de hashing del harness. La huella del HEAD actual es d74b979ff2bc31415202f5246dfc34a878118bf5fa95cd0ae2cadcd819376378. Esto permite distinguir revisiones diferentes en vez de atribuir todos los ensayos al HEAD actual.
 
-Los ensayos 1k/10k registran commit d191e7c y árbol dirty, con una huella propia. El commit solo no permite reconstruir ese árbol no versionado; falta su snapshot exacto. Es una limitación de procedencia/reproducibilidad, **no prueba de fabricación**. Las medidas siguen siendo evidencia histórica registrada, con esa salvedad. Las afirmaciones causales sobre diferencias entre tamaños deben reconocer cambios de versión y de configuración.
+Los ensayos 1k/10k registran commit 0deafe3 y árbol dirty, con una huella propia. El commit solo no permite reconstruir ese árbol no versionado; falta su snapshot exacto. Es una limitación de procedencia/reproducibilidad, **no prueba de fabricación**. Las medidas siguen siendo evidencia histórica registrada, con esa salvedad. Las afirmaciones causales sobre diferencias entre tamaños deben reconocer cambios de versión y de configuración.
 
 En carga mixta, B+ agrupado hizo 35–37 operaciones por repetición a 1k y tres a 10k (dos inserciones/una eliminación). A 100k realizó **una inserción y cero eliminaciones** por repetición, en 373–432 s. Hash/no agrupado hicieron 200 operaciones (100/100). El presupuesto de 60 s se comprueba entre operaciones y no puede interrumpir una inserción larga. Por tanto, ops/s describe trabajo y mezcla diferentes: a 100k no es evidencia de eliminación frecuente del agrupado. El mínimo de comparación de índices existe en los tamaños menores; se clasifica la ampliación como mejora experimental, sin inventar un requisito para los tres tamaños.
 
@@ -3528,7 +3528,7 @@ Peso del paso: 1; 2 criterios iguales. Cobertura 0.00 %; cumplimiento 0.00 %; pe
 **Evidencia:** docs/auditoria/evidencias/commit.txt; docs/auditoria/evidencias/remoto_verificado.txt
 
 
-**Evaluación:** git ls-remote confirmó el mismo commit 841977a en HEAD/main remoto.
+**Evaluación:** git ls-remote confirmó el mismo commit fabe4cc en HEAD/main remoto.
 
 
 **Problemas:** El PDF y DOCX actuales son cambios locales del usuario sin commit; se preservan. El requisito de código publicado sí está satisfecho.

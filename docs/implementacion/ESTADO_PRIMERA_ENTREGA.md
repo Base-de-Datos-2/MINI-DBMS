@@ -114,9 +114,9 @@ La detención de esta fase responde a la instrucción del usuario.
 
 Los commits de corrección e integración son b40f6c0 (Heap), f961608 (HTTP),
 4097c72 (documentación), 1ca615d (decisión de aplicación), d20add0 y b2e60e8
-(SQL/API espacial), 14f94f0 (harness GiST), d08cedf (gráficos espaciales) y
-130773b/cc3c090 (preservación de bytes/hashes). Las habilidades y pausa de
-frontend están en 627e00e. Los commits posteriores registran los datos
+(SQL/API espacial), 14f94f0 (harness GiST), 83b93a9 (gráficos espaciales) y
+5483f0c/e3cc558 (preservación de bytes/hashes). Las habilidades y pausa de
+frontend están en e0cc7ef. Los commits posteriores registran los datos
 relacionales nuevos y este cierre; los cierres de etapas anteriores y los
 checkpoints del usuario se conservan sin reescribirlos. La repetición relacional
-y sus figuras quedaron en 1775db0.
+y sus figuras quedaron en 7c00da5.

@@ -1,6 +1,6 @@
 # Stage 8 Tasks 8.7–8.10 — concurrency primitives and physical safety
 
-**Checkout:** `main` at `cead24f998f5c323ef7ff2bdf786c47913b98e97` with uncommitted Block 3 changes. **Runtime:** Python 3.12.4 on Windows. **Status:** primitives and their focused evidence complete; coordinated SQL data execution, undo and final transaction lifecycle remain later Stage 8 tasks.
+**Checkout:** `main` at `8a5784803f3cbc07280bfa07db235d1210f80a96` with uncommitted Block 3 changes. **Runtime:** Python 3.12.4 on Windows. **Status:** primitives and their focused evidence complete; coordinated SQL data execution, undo and final transaction lifecycle remain later Stage 8 tasks.
 
 ## Implemented
 

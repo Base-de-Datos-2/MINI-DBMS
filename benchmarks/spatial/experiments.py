@@ -32,8 +32,17 @@ def snapshot(output):
     manifest = {path.relative_to(REPOSITORY).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in files}
     with tarfile.open(output / "source.tar.gz", "x:gz") as archive:
         for path in files:
-            archive.add(path, arcname=path.relative_to(REPOSITORY).as_posix())
+            archive.add(path, arcname=path.relative_to(REPOSITORY).as_posix(),
+                        filter=anonymous_tar_member)
     return {"files": manifest, "archive_sha256": hashlib.sha256((output / "source.tar.gz").read_bytes()).hexdigest()}
+
+
+def anonymous_tar_member(member):
+    member.uid = member.gid = 0
+    member.uname = member.gname = ""
+    for key in ("uid", "gid", "uname", "gname"):
+        member.pax_headers.pop(key, None)
+    return member
 
 
 def prepare_size(output, inputs, size, centers):

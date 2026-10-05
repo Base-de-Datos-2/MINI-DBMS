@@ -206,8 +206,8 @@ Estado: COMPLETADA para algoritmos, mediciones y artefactos técnicos.
 Siguiente autorizado: cerrar la trazabilidad pendiente de las mediciones
 relacionales y documentar el punto de parada. Mapa/frontend permanecen en pausa.
 
-Commits de etapa 6: 14f94f0 (medición), d08cedf (gráficos),
-130773b y cc3c090 (bytes/hashes preservados al clonar).
+Commits de etapa 6: 14f94f0 (medición), 83b93a9 (gráficos),
+5483f0c y e3cc558 (bytes/hashes preservados al clonar).
 
 ## Cierre relacional y punto de parada
 
@@ -217,7 +217,7 @@ permanece EN PAUSA; Parte 2 completa todavía no está cerrada.
 - H7: se repitieron 1.000 y 10.000 con cinco repeticiones por tamaño usando el
   harness existente, entradas reproducibles, archivos independientes y código
   archivado antes de medir. 350 mediciones nuevas, 11 gráficos y tabla con
-  mediana, mínimo/máximo; la fuente medida es 130773b con snapshot exacto.
+  mediana, mínimo/máximo; la fuente medida es 5483f0c con snapshot exacto.
 - El verificador independiente de conteos confirmó búsquedas, rangos,
   cardinalidades, borrado/reorganización, cargas mixtas, unidades, 35
   configuraciones por repetición y ausencia de registros duplicados/omitidos.
@@ -246,6 +246,6 @@ mapa y verificación de navegador pendientes de nueva autorización. Parte 3
 no se inició; no se implementaron Partes 4/5. Detenerse después de registrar
 estos artefactos y esperar instrucciones.
 
-Commit de datos y gráficos relacionales: 1775db0. Se verificaron también los
+Commit de datos y gráficos relacionales: 7c00da5. Se verificaron también los
 hashes de 49 artefactos experimentales directamente desde Git. Los enlaces
 de la documentación final resuelven (141 comprobados).

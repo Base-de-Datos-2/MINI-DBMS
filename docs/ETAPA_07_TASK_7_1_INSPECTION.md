@@ -24,7 +24,7 @@ python -m pytest -q
 ```
 
 Resultado: **2295 pruebas, 0 fallos, 0 errores** (rama `main`,
-commit `b087943` — "INDICACIONES DE LA ETAPA 07").
+commit `648c457` — "INDICACIONES DE LA ETAPA 07").
 
 Esto confirma lo que ya declaran `README.md`, `PROJECT_CONTEXT.md` y
 `PLAN.md`: **las Etapas 1–6 están cerradas y auditadas** (ver

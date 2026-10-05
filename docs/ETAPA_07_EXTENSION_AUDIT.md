@@ -4,7 +4,7 @@
 **Scope:** Tasks 7.31–7.40 of the separately authorized Stage 7 extension  
 **Preserved baseline:** Tasks 7.1–7.30 remain closed under
 `docs/ETAPA_07_AUDIT.md`  
-**Checked-out revision:** `49b575470f612191cd1b8e7fe5fb8d6e89cbca02`
+**Checked-out revision:** `79e76cebbb44f000dbd3cc35f870f40726060940`
 (`main`), plus the reviewed extension working-tree changes  
 **Environment:** Windows, Python 3.12.4, pytest 8.4.2
 
