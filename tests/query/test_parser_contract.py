@@ -205,7 +205,7 @@ def test_invalid_or_unsupported_aggregate_forms_are_rejected(sql):
     [
         "SELECT DISTINCT a FROM t",
         "SELECT * FROM a LEFT JOIN b ON a.id = b.id",
-        "SELECT * FROM t LIMIT 1",
+        "SELECT * FROM t OFFSET 1",
         "SELECT * FROM t WHERE a IN (1)",
         "SELECT * FROM t WHERE a IS NULL",
         "SELECT * FROM t WHERE a = 1 UNION SELECT * FROM u",

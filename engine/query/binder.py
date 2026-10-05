@@ -165,6 +165,7 @@ class BoundSelect:
     projection: tuple[BoundProjectionItem, ...]
     order_by: tuple[BoundOrderItem, ...]
     output_schema: Schema
+    limit: int | None = None
 
     @property
     def grouped(self) -> bool:
@@ -765,6 +766,7 @@ def bind_select(
         projection,
         order_by,
         output_schema,
+        statement.limit,
     )
 
 

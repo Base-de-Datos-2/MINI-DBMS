@@ -26,6 +26,7 @@ from .ast import (
     EndTransactionStatement,
     ExplainStatement,
     FloatLiteral,
+    FunctionCall,
     InsertStatement,
     IntegerLiteral,
     JoinClause,
@@ -70,7 +71,6 @@ _UNSUPPORTED_TRAILING_KEYWORDS = frozenset(
         "FULL",
         "HAVING",
         "LEFT",
-        "LIMIT",
         "NATURAL",
         "NULLS",
         "OFFSET",
@@ -316,6 +316,12 @@ class _Parser:
         where = self._parse_optional_where()
         group_by = self._parse_optional_group_by()
         order_by = self._parse_optional_order_by()
+        limit = None
+        if self._match_keyword("LIMIT") is not None:
+            literal = self._parse_literal()
+            if not isinstance(literal, IntegerLiteral) or literal.value < 0:
+                raise self._error("LIMIT requires a nonnegative integer")
+            limit = literal.value
         return SelectStatement(
             items=items,
             from_table=from_table,
@@ -323,14 +329,11 @@ class _Parser:
             where=where,
             group_by=group_by,
             order_by=order_by,
+            limit=limit,
             span=self._cover(start.span, self._previous.span),
         )
 
     def _parse_select_list(self) -> tuple[SelectItem, ...]:
-        star = self._match_punct("*")
-        if star is not None:
-            expr = Star(span=star.span)
-            return (SelectItem(expr, span=star.span),)
         return self._parse_comma_list(self._parse_select_item)
 
     def _parse_select_item(self) -> SelectItem:
@@ -350,19 +353,18 @@ class _Parser:
         return SelectItem(expr, alias, span=self._cover(expr.span, end_span))
 
     def _parse_select_expr(self) -> SqlExpr:
+        star = self._match_punct("*")
+        if star is not None:
+            return Star(span=star.span)
         token = self._current
         if (
             self._at_identifier()
             and self._peek(1).type is TokenType.PUNCTUATION
             and self._peek(1).value == "("
         ):
-            if token.value.upper() not in _AGGREGATE_FUNCTIONS:
-                raise self._error(
-                    f"Function {token.lexeme!r} is not supported in Stage 7",
-                    token=token,
-                    error_type=SqlUnsupportedError,
-                )
-            return self._parse_aggregate_call()
+            if token.value.upper() in _AGGREGATE_FUNCTIONS:
+                return self._parse_aggregate_call()
+            return self._parse_function_call(0)
         return self._parse_select_reference()
 
     def _parse_aggregate_call(self) -> AggregateCall:
@@ -638,10 +640,27 @@ class _Parser:
             )
         raise self._expected("a literal")
 
-    def _parse_value_expr(self) -> SqlExpr:
+    def _parse_function_call(self, nesting: int) -> FunctionCall:
+        token = self._expect_identifier()
+        self._check_nesting(nesting, token)
+        name = token.value.upper()
+        if name not in {"POINT", "DISTANCIA", "DISTANCE"}:
+            raise self._error(
+                f"Function {token.lexeme!r} is not supported",
+                token=token,
+                error_type=SqlUnsupportedError,
+            )
+        self._expect_punct("(")
+        arguments = self._parse_comma_list(lambda: self._parse_value_expr(nesting + 1))
+        close = self._expect_punct(")")
+        return FunctionCall(name, arguments, span=self._cover(token.span, close.span))
+
+    def _parse_value_expr(self, nesting: int = 0) -> SqlExpr:
         if self._at_literal_start():
             return self._parse_literal()
         if self._at_identifier():
+            if self._peek(1).value == "(":
+                return self._parse_function_call(nesting)
             return self._parse_column_ref()
         if self._at_punct("(") and self._peek(1).value == "SELECT":
             raise self._error(

@@ -51,6 +51,7 @@ from engine.operators import (
 )
 from engine.operators.aggregation import MINIMUM_GROUP_BUDGET_BYTES
 from engine.operators.join import MINIMUM_JOIN_BUDGET_BYTES
+from engine.operators.limit import Limit
 from engine.operators.partitioning import (
     DEFAULT_PARTITION_COUNT,
     MAX_PARTITION_LEVEL,
@@ -401,6 +402,35 @@ class IndexScanSpec(PhysicalPlanSpec):
             self.search,
             relation=self.relation.exposed_name,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class LimitSpec(PhysicalPlanSpec):
+    child: PhysicalPlanSpec
+    limit: int
+
+    @property
+    def children(self) -> tuple[PhysicalPlanSpec, ...]:
+        return (self.child,)
+
+    @property
+    def output_schema(self) -> Schema:
+        return self.child.output_schema
+
+    @property
+    def capabilities(self) -> PlanCapabilities:
+        return self.child.capabilities
+
+    @property
+    def operator_name(self) -> str:
+        return "Limit"
+
+    @property
+    def details(self) -> tuple[tuple[str, str], ...]:
+        return (("limit", str(self.limit)),)
+
+    def instantiate(self) -> ExecutionOperator:
+        return Limit(self.child.instantiate(), self.limit)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1404,6 +1434,8 @@ def prepare_select_plan(
         bound.output_schema,
         selectors,
     )
+    if bound.limit is not None:
+        root = LimitSpec(root, bound.limit)
     return SelectPlanSpec(environment, bound, root, use_indexes, options)
 
 
