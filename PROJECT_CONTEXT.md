@@ -786,7 +786,7 @@ format.
 ```text
 FILE_OWNERSHIP = one independent paged file per table organization
 ORGANIZATION_METADATA = canonical versioned JSON in page 0, slot 0
-HEAP_INSERTION_ORDER_POLICY = reuse lowest eligible page; append if none fits
+HEAP_INSERTION_ORDER_POLICY = reuse lowest eligible deleted slot; otherwise fill final page or append
 HEAP_FREE_SPACE_STRATEGY = in-memory page-capacity directory; Page verifies fit
 HEAP_FREE_SPACE_PERSISTENCE = rebuild once from data pages on open
 SEQUENTIAL_PHYSICAL_STRATEGY = direct ordered placement and page redistribution
@@ -840,14 +840,17 @@ the in-memory `Catalog` or its table/index registry.
 
 ### Heap policy
 
-- Heap inserts append a new data page only when no reusable page can fit the
-  serialized record. Otherwise, they reuse the eligible page with the lowest
-  physical page ID. Therefore physical scan order is deterministic by
-  `(page_id, slot_id)` but is not promised to remain strict chronological
-  arrival order after space or slots are reused.
+- Heap inserts reuse the lowest eligible page containing a deleted slot.
+  Otherwise they fill the final data page or append a new one. Unused gaps on
+  earlier pages without deleted slots are not insertion targets: an initial
+  load of variable-size records retains arrival order. Physical scan remains
+  deterministic by `(page_id, slot_id)`; reusing deleted slots can break
+  chronological order. The correction does not reorder existing files or
+  change their format/RIDs.
 - `HeapFreeSpaceTracker` is a rebuildable in-memory directory
   `page_id -> maximum insertable payload bytes after optional local compaction`.
-  It is not persisted. Opening reads each data page once, validates the
+  It also tracks which pages contain deleted slots, using the existing slot
+  metadata. It is not persisted. Opening reads each data page once, validates the
   metadata counters and reconstructs the directory; subsequent insertion
   selection consults this memory structure instead of scanning the file.
 - The tracker accounts for live payload bytes, existing directory entries and

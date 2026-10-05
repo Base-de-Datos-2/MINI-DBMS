@@ -33,6 +33,7 @@ class HeapFreeSpaceTracker:
 
     def __init__(self) -> None:
         self._capacities: dict[int, int] = {}
+        self._reusable_pages: set[int] = set()
 
     @staticmethod
     def insertable_payload_bytes(page: Page) -> int:
@@ -78,6 +79,10 @@ class HeapFreeSpaceTracker:
             raise InvalidTypeError("page must be a Page")
         self._validate_page_id(page.page_id)
         self._capacities[page.page_id] = self.insertable_payload_bytes(page)
+        if page.slot_count > page.active_record_count:
+            self._reusable_pages.add(page.page_id)
+        else:
+            self._reusable_pages.discard(page.page_id)
 
     update = register
 
@@ -86,6 +91,7 @@ class HeapFreeSpaceTracker:
 
         validated_id = self._validate_page_id(page_id)
         self._capacities.pop(validated_id, None)
+        self._reusable_pages.discard(validated_id)
 
     def find_candidate(self, payload_size: object) -> int | None:
         """Return the lowest eligible page ID without touching the file."""
@@ -98,12 +104,34 @@ class HeapFreeSpaceTracker:
         )
         return min(eligible_ids, default=None)
 
+    def find_insertion_candidate(self, payload_size: object, last_page_id: int) -> int | None:
+        """Reuse deleted slots, otherwise append within the final data page."""
+        required_bytes = self._validate_payload_size(payload_size)
+        if type(last_page_id) is not int:
+            raise InvalidTypeError("last_page_id must be an int")
+        if last_page_id < 0:
+            raise ValidationError("last_page_id must be non-negative")
+        for page_id in tuple(self._capacities):
+            if page_id > last_page_id:
+                self.remove(page_id)
+        reusable = (
+            page_id for page_id in self._reusable_pages
+            if self._capacities[page_id] >= required_bytes
+        )
+        candidate = min(reusable, default=None)
+        if candidate is not None:
+            return candidate
+        if self._capacities.get(last_page_id, -1) >= required_bytes:
+            return last_page_id
+        return None
+
     def rebuild(self, pages: Iterable[Page]) -> None:
         """Replace all entries from an externally supplied page traversal."""
 
         if not isinstance(pages, Iterable):
             raise InvalidTypeError("pages must be iterable")
         rebuilt: dict[int, int] = {}
+        reusable: set[int] = set()
         for page in pages:
             if not isinstance(page, Page):
                 raise InvalidTypeError("pages must contain only Page instances")
@@ -113,7 +141,10 @@ class HeapFreeSpaceTracker:
                     f"Duplicate page in free-space rebuild: {page.page_id}"
                 )
             rebuilt[page.page_id] = self.insertable_payload_bytes(page)
+            if page.slot_count > page.active_record_count:
+                reusable.add(page.page_id)
         self._capacities = rebuilt
+        self._reusable_pages = reusable
 
     @property
     def snapshot(self) -> tuple[tuple[int, int], ...]:
@@ -128,9 +159,9 @@ class HeapFreeSpaceTracker:
 class HeapFile(OrganizationFile, Storage):
     """Persistent Heap organization over ``PageManager`` and ``RecordCodec``.
 
-    New records use the lowest eligible data page and append a page only when
-    none fits. Scans follow physical ``(page_id, slot_id)`` order, which is not
-    guaranteed to remain chronological after deleted slots are reused.
+    New records fill the final data page before appending. Deleted slots on
+    earlier pages may be reused; only that reuse can break arrival order.
+    Existing pages and RIDs are never reordered when a file is opened.
     """
 
     def __init__(self, manager, metadata: OrganizationMetadata) -> None:
@@ -212,7 +243,8 @@ class HeapFile(OrganizationFile, Storage):
 
         allocated_new_page = False
         while True:
-            page_id = self._free_space.find_candidate(len(payload))
+            last_page_id = self._metadata.first_data_page_id + self._metadata.data_page_count - 1
+            page_id = self._free_space.find_insertion_candidate(len(payload), last_page_id)
             if page_id is None:
                 page_id = self._manager.allocate_page()
                 expected_page_id = (
