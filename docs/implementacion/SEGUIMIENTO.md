@@ -16,7 +16,11 @@ aplicación en esta fase. Sus contratos de backend sí corresponden.
 Cambio de alcance solicitado durante la etapa 6: cerrar y verificar Partes
 1 y 2 para la primera entrega, documentar el estado y detenerse. La Parte 3
 no se había iniciado; no se implementarán Partes 3, 4 ni 5. El frontend
-necesario para cerrar Parte 2 se hará al final de estas dos partes. La tabla
+necesario para cerrar Parte 2 se hará al final de estas dos partes. Una
+instrucción posterior lo deja expresamente en pausa hasta nueva autorización;
+se terminará el backend y los experimentos, se documentará el estado y se
+detendrá el trabajo. No se declarará Parte 2 totalmente cerrada sin su mapa.
+La tabla
 siguiente conserva el plan previo; sus etapas 7–14 no están autorizadas ahora.
 
 | Etapa | Trabajo | Dependencias auditadas |

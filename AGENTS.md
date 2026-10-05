@@ -18,7 +18,9 @@ without repeating the general audit. Current work is recorded in
 `docs/implementacion/SEGUIMIENTO.md`. The latest user instruction narrows the
 previous all-backend authorization: finish Parts 1 and 2, document their final
 state and stop. Part 3 had not started; do not implement Parts 3, 4 or 5.
-Finish the necessary Part 2 frontend last, then validate the complete delivery.
+The subsequent explicit user instruction pauses all frontend work until a new
+authorization. Finish the remaining Part 1/2 backend and experiments, document
+their state, then stop. Do not start the map or redesign the existing UI.
 Keep logical, validated commits according to `docs/commits.md`. Historical stage plans below remain references for
 existing implementations, not a replacement for the authorized audit order.
 
@@ -26,7 +28,7 @@ Part 2 **E1 and E2** were explicitly requested on 2026-10-03. Its active plan
 is `PART_02/PLAN_PARTE_02.md` (five delivery blocks); implementation and limits
 are documented in `docs/spatial.md`. E3–E5 were planned at that closure.
 Spatial SQL and HTTP are implemented; the map is the final remaining UI work
-for the now-authorized Part 2 delivery.
+for the Part 2 delivery, pending explicit frontend authorization.
 The Part 1 roadmap is `PART_01/PLAN_PARTE_01.md`; Part 1 is complete
 (Stage 10 closed 2026-10-04, `docs/ETAPA_10_AUDIT.md`).
 
