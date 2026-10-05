@@ -14,7 +14,7 @@ def sanitize(text: str, repository: Path | None = None) -> str:
     for value in sorted(roots, key=len, reverse=True):
         for variant in (value.replace('\\', '\\\\'), value):
             text = re.sub(re.escape(variant), '/workspace/mini-dbms', text, flags=re.I)
-    text = re.sub(r'(?i)/local-user/\s"\x27]+', '/local-user', text)
+    text = re.sub(r'(?i)/(?:home|Users)/[^/\s"\x27]+', '/local-user', text)
     text = re.sub(r'(?i)/mnt/[a-z]/users/[^/\s"\x27]+', '/local-user', text)
     text = re.sub(r'(?i)[a-z]:[\\/]+Users[\\/]+[^\\/\s"\x27]+', '/local-user', text)
     return text
