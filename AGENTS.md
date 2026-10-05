@@ -5,6 +5,11 @@
 
 ## Purpose
 
+The latest explicit user authorization starts the frontend for Parts 1 and 2,
+including the spatial map and final real-browser verification. Earlier pause
+instructions below are historical. Parts 3–5 remain deferred. Keep README
+focused on installation, architecture, usage and measured experiments.
+
 This repository implements the academic project **"Minigestor de Base de Datos Multimodal"** for the course **Base de Datos 2 (2026-2)**.
 
 Codex must treat this repository as an educational database-management-system implementation. The goal is to implement the required database structures and algorithms, not to hide them behind an existing DBMS or high-level library.

@@ -86,6 +86,15 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
+The subsequent explicit frontend authorization covers Parts 1 and 2 only.
+The four relational panels and spatial map consume the existing HTTP API.
+The map uses an offline SVG geographic projection, registered coordinate
+mappings from GET /api/spatial/tables, and actual bounded SQL previews and
+typed spatial query results. It does not supply a cartographic street layer.
+IDs beyond JavaScript's exact integer range use the same decimal-string
+encoding in SQL and spatial responses. Parts 3–5 remain deferred.
+Current frontend usage and verification are documented in docs/frontend.md.
+
 Part 1 Stage 10 closed on 2026-10-04 (`docs/ETAPA_10_AUDIT.md`). The later
 independent audit identified follow-up corrections. The user authorized
 completion of all backend parts on 2026-10-04, then narrowed that scope during
