@@ -1,9 +1,10 @@
-# Parte 02 E1/E2 Datos y motor espacial
+# Parte 02: datos, motor y backend espacial
 
 E1 prepara datos persistentes y reproducibles sobre `api.database.Database`.
 E2 implementa un R-Tree propio, su referencia secuencial sobre Heap, consultas
 de radio/k-NN/polígono y el ciclo de persistencia, mutación y rollback.
-SQL espacial, exposición HTTP y mapa quedan para E3.
+La etapa 5 posterior a la auditoría añade SQL y exposición HTTP.
+El mapa permanece postergado para la fase final de frontend.
 
 ## Convenciones fijadas
 
@@ -14,7 +15,7 @@ SQL espacial, exposición HTTP y mapa quedan para E3.
 - `spatial_tables.json` registra explícitamente `ubicacion` y las columnas que
   la forman. Es metadato de coordenadas; no declara un R-Tree listo.
   El propietario valida tabla, nombres y tipos al reabrir.
-- SQL POINT usará (latitud, longitud); GeoJSON/PostGIS usarán (longitud, latitud).
+- SQL POINT usa (latitud, longitud); GeoJSON/PostGIS usan (longitud, latitud).
 - Haversine en metros por defecto, radio terrestre 6371008.771415059 m.
   Euclidiana usará un plano local con origen (-12.0464, -77.0428), en metros.
   Ambas métricas están implementadas. La Euclidiana aproxima la distancia
@@ -252,7 +253,74 @@ coordenadas; polígonos válidos pequeños conservan su interior.
 Estos métodos admiten `session=sesion` de `db.open_session()`, usan los locks
 S existentes y responden a cancelación. Sin sesión explícita usan la sesión
 predeterminada. No acceda directamente al árbol cacheado desde el frontend.
-Las expresiones POINT/distancia/LIMIT aún no están implementadas en SQL.
+Las expresiones POINT/distancia y LIMIT también están disponibles en SELECT
+y EXPLAIN mediante el backend descrito a continuación.
+
+## SQL y API espacial
+
+```sql
+SELECT * FROM tiendas
+WHERE distancia(ubicacion, POINT(-12.0464, -77.0428)) < 5000;
+
+SELECT id, distancia(ubicacion, POINT(-12.0464, -77.0428), 'euclidean') AS metros
+FROM tiendas ORDER BY metros LIMIT 10;
+```
+
+Ambas distancias producen metros; la métrica por defecto es `haversine`.
+`DISTANCE` es un alias de `distancia`. Se aceptan ubicaciones calificadas por
+alias, límites cero, límites superiores al número de filas y radio inclusivo
+con `<=`. POINT requiere dos literales numéricos dentro del dominio local.
+`LIMIT` también funciona en consultas relacionales, después de filtro,
+agrupación, ordenamiento y proyección.
+
+Para el ejemplo parametrizado del PDF, `POST /api/query` acepta:
+
+```json
+{
+  "sql": "SELECT * FROM tiendas ORDER BY distancia(ubicacion, mi_ubicacion) LIMIT 10",
+  "parameters": {"mi_ubicacion": [-12.0464, -77.0428]},
+  "use_indexes": true
+}
+```
+
+En Python, use `engine.execute(sql, parameters={"mi_ubicacion": [-12.0464,
+-77.0428]})` o `session.prepare` con el mismo argumento. Cada consulta
+preparada conserva una copia inmutable; ninguna sesión hereda parámetros de
+otra. Un parámetro ausente genera un diagnóstico SQL controlado. Un error de
+ejecución dentro de un grupo aborta y restaura sus escrituras, como antes.
+
+El plan muestra `SpatialIndexScan` para radio y k-NN elegibles, y `SpatialScan`
+con `use_indexes=false`. Los nodos `Compute`, `Filter`, `ExternalSort`,
+`Projection` y `Limit` corresponden a operadores ejecutados. No se limita el
+vecindario antes de filtrar: con predicados adicionales, el orden por distancia
+usa candidatos completos y aplica LIMIT al final. OR/NOT no autorizan poda de
+radio; AND sí, conservando el filtro completo. Empates por distancia usan id.
+JOIN y GROUP BY con expresiones espaciales quedan fuera de este SQL limitado;
+sus variantes relacionales anteriores siguen disponibles.
+
+`POST /api/spatial/query` proporciona el contrato geométrico para el futuro
+mapa, con `X-Session-Token` opcional:
+
+```json
+{"table":"tiendas","kind":"radius","center":[-12.0464,-77.0428],"radius":5000,"metric":"haversine"}
+{"table":"tiendas","kind":"knn","center":[-12.0464,-77.0428],"k":10,"metric":"euclidean"}
+{"table":"tiendas","kind":"polygon","vertices":[[-12.05,-77.05],[-12.05,-77.03],[-12.03,-77.03],[-12.03,-77.05]]}
+```
+
+Las respuestas incluyen `matches` con id, coordenadas, distancia y registro;
+`total_rows`, `returned_rows`, `truncated` y estadísticas reales de búsqueda.
+`max_rows` limita la vista a 500 filas como máximo; el límite de bytes también
+se aplica sin recortar valores. `use_indexes=false` selecciona el recorrido
+exhaustivo. Los polígonos incluyen el borde y conservan la semántica E2.
+Las lecturas usan los locks existentes y esperan por escritores sin retener
+el guard global de solicitudes sin sesión. El núcleo E2 materializa los hits
+de radio/polígono; el límite HTTP acota la respuesta, no esa materialización.
+
+La comprobación reproducible `scripts/spatial_integration_check.py` usa un
+directorio nuevo, servidor TCP separado, ambas métricas, consultas SQL y
+polígonos, errores, sesiones concurrentes, commit, rollback y reapertura.
+No abre ni valida frontend. Sus resultados actuales se guardan en
+`docs/implementacion/evidencias/espacial_servidor.json`.
 
 ## R-Tree y ciclo de vida E2
 

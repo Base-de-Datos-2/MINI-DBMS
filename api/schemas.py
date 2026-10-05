@@ -101,6 +101,22 @@ class QueryRequest(BaseModel):
     max_rows: int = Field(default=DEFAULT_PREVIEW_ROWS, ge=0, le=MAX_PREVIEW_ROWS)
     use_indexes: bool = True
     join_strategy: Literal["AUTO", "GRACE_HASH", "NESTED_LOOP"] = "AUTO"
+    parameters: dict[str, tuple[float, float]] | None = Field(default=None, max_length=32)
+
+
+class SpatialQueryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    table: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z_][A-Za-z_0-9]*$")
+    kind: Literal["radius", "knn", "polygon"]
+    center: tuple[float, float] | None = None
+    radius: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    k: int = Field(default=10, ge=0, le=100000, strict=True)
+    vertices: list[tuple[float, float]] | None = Field(default=None, min_length=3, max_length=1000)
+    metric: Literal["haversine", "euclidean"] = "haversine"
+    inclusive: bool = False
+    use_indexes: bool = True
+    max_rows: int = Field(default=DEFAULT_PREVIEW_ROWS, ge=0, le=MAX_PREVIEW_ROWS)
 
 
 ColumnType = Literal["INTEGER", "FLOAT", "BOOLEAN", "VARCHAR"]

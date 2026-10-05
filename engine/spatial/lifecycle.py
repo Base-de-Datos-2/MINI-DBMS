@@ -51,6 +51,7 @@ class SpatialTableRuntime(TableRuntime):
     def close_table(self, files):
         index = self.spatial_indexes.pop(files.name, None)
         if index is not None:
+            self.environment.unregister_spatial(files.name)
             index.close()
         super().close_table(files)
 
@@ -64,6 +65,7 @@ class SpatialTableRuntime(TableRuntime):
             mapping = self.mappings[files.name]
             self.spatial_indexes[files.name] = SpatialIndex.open_or_build(
                 self.environment.storage_for(files.name), mapping, self.root / mapping.index_filename)
+            self.environment.register_spatial(files.name, self.spatial_indexes[files.name])
         self.validate(files)
 
     def validate(self, files):

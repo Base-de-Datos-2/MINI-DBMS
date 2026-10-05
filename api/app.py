@@ -39,6 +39,7 @@ from .schemas import (
     CreateTableRequest,
     CsvPreviewRequest,
     QueryRequest,
+    SpatialQueryRequest,
 )
 from .sessions import SessionSweeper
 from .table_import import MAX_CSV_BYTES, MAX_IMPORT_ROWS
@@ -234,6 +235,10 @@ def create_app(
             body.get("truncated"),
         )
         return body
+
+    @app.post("/api/spatial/query")
+    def spatial_query(payload: SpatialQueryRequest, request: Request, token: SessionToken = None) -> dict[str, Any]:
+        return service.spatial_query(payload, request.state.request_id, token)
 
     if frontend_dir is not None:
         directory = Path(frontend_dir)

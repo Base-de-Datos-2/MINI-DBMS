@@ -74,6 +74,7 @@ from .ast import (
     SyntaxNode,
     TableRef,
 )
+from .spatial_binding import SpatialAccess, bind_spatial_expressions
 from .environment import QueryEnvironment
 from .errors import (
     SqlBindingError,
@@ -166,6 +167,8 @@ class BoundSelect:
     order_by: tuple[BoundOrderItem, ...]
     output_schema: Schema
     limit: int | None = None
+    computed: tuple[tuple[str, Expression], ...] = ()
+    spatial_access: SpatialAccess | None = None
 
     @property
     def grouped(self) -> bool:
@@ -705,6 +708,8 @@ def bind_select(
         raise InvalidTypeError("bind_select requires a SelectStatement")
     if not statement.items:
         raise _binding_error(statement, "SELECT requires at least one output item")
+    if statement.limit is not None and (type(statement.limit) is not int or statement.limit < 0):
+        raise _binding_error(statement, "LIMIT requires a nonnegative integer")
 
     first = _bind_relation(environment, statement.from_table, 0)
     relations = [first]
@@ -737,6 +742,8 @@ def bind_select(
                 "INNER JOIN requires an equal-typed column equality across its inputs",
             )
 
+    statement, source_layout, computed, spatial_access = bind_spatial_expressions(
+        environment, tuple(relations), source_layout, statement)
     where = (
         _bind_predicate(statement.where, source_layout)
         if statement.where is not None
@@ -767,6 +774,8 @@ def bind_select(
         order_by,
         output_schema,
         statement.limit,
+        computed,
+        spatial_access,
     )
 
 

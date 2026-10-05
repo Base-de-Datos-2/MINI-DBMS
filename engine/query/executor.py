@@ -48,6 +48,7 @@ from .errors import (
     SqlUnsupportedError,
 )
 from .parser import parse_sql
+from .parameters import resolve_parameters, snapshot_parameters
 from .planner import (
     CreatePlanSpec,
     DeletePlanSpec,
@@ -232,7 +233,7 @@ class PreparedQuery:
 
     __slots__ = (
         "_engine", "_spec", "_kind", "_planning_seconds", "_statement", "_source",
-        "_use_indexes", "_planning_options",
+        "_use_indexes", "_planning_options", "_parameters",
     )
 
     def __init__(
@@ -245,6 +246,7 @@ class PreparedQuery:
         use_indexes: bool,
         planning_options: PhysicalPlanningOptions,
         planning_seconds: float = 0.0,
+        parameters=None,
     ) -> None:
         if not isinstance(engine, SqlEngine):
             raise InvalidTypeError("PreparedQuery requires a SqlEngine")
@@ -280,6 +282,7 @@ class PreparedQuery:
         self._use_indexes = use_indexes
         self._planning_options = planning_options
         self._planning_seconds = planning_seconds
+        self._parameters = snapshot_parameters(parameters)
         if isinstance(spec, SelectPlanSpec):
             self._kind = StatementKind.SELECT
         elif isinstance(spec, InsertPlanSpec):
@@ -1258,6 +1261,7 @@ class SqlEngine:
         *,
         use_indexes: bool = True,
         planning_options: PhysicalPlanningOptions | None = None,
+        parameters=None,
     ) -> PreparedQuery:
         """Parse, bind, and plan without opening cursors or applying mutations."""
 
@@ -1267,11 +1271,13 @@ class SqlEngine:
                 sql,
                 use_indexes=use_indexes,
                 planning_options=planning_options,
+                parameters=parameters,
             ))
         return self._prepare_local(
             sql,
             use_indexes=use_indexes,
             planning_options=planning_options,
+            parameters=parameters,
         )
 
     def _prepare_local(
@@ -1280,6 +1286,7 @@ class SqlEngine:
         *,
         use_indexes: bool = True,
         planning_options: PhysicalPlanningOptions | None = None,
+        parameters=None,
     ) -> PreparedQuery:
         """Prepare while the caller owns any required metadata read gate."""
 
@@ -1289,7 +1296,8 @@ class SqlEngine:
             raise InvalidTypeError(
                 "planning_options must be PhysicalPlanningOptions or None"
             )
-        statement = parse_sql(sql)
+        parameters = snapshot_parameters(parameters)
+        statement = resolve_parameters(parse_sql(sql), parameters)
         _reject_unavailable_extension(statement, sql, self._ddl_service)
         spec = prepare_plan(
             self._environment,
@@ -1306,6 +1314,7 @@ class SqlEngine:
             use_indexes=use_indexes,
             planning_options=options,
             planning_seconds=perf_counter() - started,
+            parameters=parameters,
         )
 
     @staticmethod
@@ -1386,6 +1395,7 @@ class SqlEngine:
         *,
         use_indexes: bool | None = None,
         planning_options: PhysicalPlanningOptions | None = None,
+        parameters=None,
     ) -> QueryResult | CommandResult | DefinitionResult | ExplanationResult:
         """Execute through the owning session when this engine is managed."""
 
@@ -1396,11 +1406,13 @@ class SqlEngine:
                 query,
                 use_indexes=use_indexes,
                 planning_options=planning_options,
+                **({"parameters": parameters} if parameters is not None else {}),
             )
         return self._execute_local(
             query,
             use_indexes=use_indexes,
             planning_options=planning_options,
+            parameters=parameters,
         )
 
     def _execute_local(
@@ -1409,6 +1421,7 @@ class SqlEngine:
         *,
         use_indexes: bool | None = None,
         planning_options: PhysicalPlanningOptions | None = None,
+        parameters=None,
     ) -> QueryResult | CommandResult | DefinitionResult | ExplanationResult:
         """Execute after any owner-level transaction policy has been applied."""
 
@@ -1429,7 +1442,8 @@ class SqlEngine:
                 if planning_options is None
                 else planning_options
             )
-            statement = parse_sql(query)
+            parameters = snapshot_parameters(parameters)
+            statement = resolve_parameters(parse_sql(query), parameters)
             _reject_unavailable_extension(statement, query, self._ddl_service)
             try:
                 spec = prepare_plan(
@@ -1460,8 +1474,11 @@ class SqlEngine:
                 use_indexes=indexes_enabled,
                 planning_options=options,
                 planning_seconds=perf_counter() - planning_started,
+                parameters=parameters,
             )
         elif isinstance(query, PreparedQuery):
+            if parameters is not None:
+                raise InvalidTypeError("Prepared queries already own their parameters")
             prepared = query
             if prepared._engine is not self:
                 raise ValidationError("PreparedQuery belongs to another SqlEngine")

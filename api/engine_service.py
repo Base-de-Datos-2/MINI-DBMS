@@ -37,7 +37,7 @@ execution admission.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 import logging
 import threading
 from time import monotonic, perf_counter
@@ -80,6 +80,7 @@ from engine.transactions.errors import (
     TransactionUnavailableError,
 )
 from engine.transactions.locks import DEFAULT_LOCK_TIMEOUT_SECONDS
+from engine.spatial.geometry import Point, Polygon
 from engine.transactions.model import TransactionReport
 
 from .database import Database, NewIndex, NewTable
@@ -504,6 +505,8 @@ class EngineService:
                 join_strategy=JoinPlanningStrategy[request.join_strategy]
             ),
         }
+        if request.parameters is not None:
+            options["parameters"] = request.parameters
         try:
             family = _family(parse_sql(request.sql))
         except SqlQueryError:
@@ -530,6 +533,48 @@ class EngineService:
             self._verify_idle(runner)
         body["statement"] = family or body.get("statement")
         return body
+
+    def spatial_query(self, request, request_id, session_token=None):
+        started = perf_counter()
+        with self._runner(session_token) as runner:
+            since = self._trace_mark(runner.session)
+            group_before = None if runner.client is None else runner.client.group_id
+            try:
+                options = {"session": runner.session, "use_index": request.use_indexes}
+                if request.kind == "polygon":
+                    if request.vertices is None:
+                        raise ValidationError("Polygon queries require vertices")
+                    geometry = Polygon(tuple(Point(*pair) for pair in request.vertices))
+                    result = self._database.spatial_polygon(request.table, geometry, **options)
+                else:
+                    if request.center is None:
+                        raise ValidationError("Radius and k-NN queries require a center")
+                    center = Point(*request.center)
+                    options["metric"] = request.metric
+                    if request.kind == "radius":
+                        if request.radius is None:
+                            raise ValidationError("Radius queries require radius in metres")
+                        result = self._database.spatial_radius(request.table, center, request.radius,
+                                                               inclusive=request.inclusive, **options)
+                    else:
+                        result = self._database.spatial_knn(request.table, center, request.k, **options)
+            except Exception as error:
+                raise self._failure(error, "SPATIAL", runner, since, group_before) from None
+            finally:
+                self._verify_idle(runner)
+            body = {
+                "request_id": request_id, "table": request.table, "kind": request.kind,
+                "total_rows": len(result.hits), "truncated": len(result.hits) > request.max_rows,
+                "returned_rows": min(len(result.hits), request.max_rows),
+                "matches": [{"id": hit.identity, "latitude": hit.point.latitude,
+                             "longitude": hit.point.longitude, "distance_metres": hit.distance_metres,
+                             "record": dict(zip((column.name for column in hit.record.schema), hit.record.values))}
+                            for hit in result.hits[:request.max_rows]],
+                "stats": asdict(result.stats), "backend_elapsed_ms": round((perf_counter() - started) * 1000, 3),
+            }
+            if runner.client is not None:
+                body["session"] = self._sessions.status(runner.client)
+        return self._fit(body)
 
     def _enforce_policy(self, family, request, runner, options) -> None:
         if family in _CONTROL_STATEMENTS:
@@ -820,6 +865,8 @@ class EngineService:
             return fail("SESSION_LIMIT")
         if isinstance(error, SqlQueryError):
             return fail("SQL_ERROR")
+        if family == "SPATIAL" and isinstance(error, UnknownTableError):
+            return fail("NOT_FOUND")
         if isinstance(error, MaintenanceError):
             causes = "; ".join(self._safe(error_message(cause)) for cause in error.failures)
             if causes:
@@ -862,7 +909,7 @@ class EngineService:
 
         if encoded_size(body) <= MAX_RESPONSE_BYTES:
             return body
-        rows = body["rows"]
+        rows = body["rows"] if "rows" in body else body["matches"]
         had_rows = bool(rows)
         while rows and encoded_size(body) > MAX_RESPONSE_BYTES:
             rows.pop()

@@ -98,6 +98,10 @@ class SpatialIndex:
         if self._closed:
             raise ValidationError("Spatial index is closed; retrieve the current owner object")
 
+    @property
+    def closed(self) -> bool:
+        return self._closed
+
     def validate_insert(self, record: Record):
         self._require_open()
         validate_coordinates(record[self.mapping.latitude_column], record[self.mapping.longitude_column])

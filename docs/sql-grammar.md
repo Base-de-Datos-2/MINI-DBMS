@@ -89,10 +89,10 @@ explain_stmt      = "EXPLAIN", ["ANALYZE"], select_stmt ;
 
 select_stmt     = "SELECT", select_list, "FROM", table_ref,
                   [join_clause], [where_clause],
-                  [group_by_clause], [order_by_clause] ;
-select_list     = "*" | select_item, {",", select_item} ;
+                  [group_by_clause], [order_by_clause], [limit_clause] ;
+select_list     = select_item, {",", select_item} ;
 select_item     = select_expr, [alias] ;
-select_expr     = aggregate_call | column_ref | qualified_star ;
+select_expr     = aggregate_call | column_ref | qualified_star | "*" | spatial_call ;
 alias           = ["AS"], identifier ;
 
 table_ref       = identifier, [alias] ;
@@ -101,6 +101,11 @@ where_clause    = "WHERE", bool_expr ;
 group_by_clause = "GROUP", "BY", column_ref, {",", column_ref} ;
 order_by_clause = "ORDER", "BY", order_item, {",", order_item} ;
 order_item      = value_expr, ["ASC" | "DESC"] ;
+limit_clause    = "LIMIT", nonnegative_integer ;
+spatial_call    = ("DISTANCIA" | "DISTANCE"), "(", column_ref, ",",
+                  (point_literal | point_parameter), [",", string], ")" ;
+point_literal   = "POINT", "(", signed_number, ",", signed_number, ")" ;
+point_parameter = identifier ;
 
 bool_expr       = or_expr ;
 or_expr         = and_expr, {"OR", and_expr} ;
@@ -108,7 +113,7 @@ and_expr        = not_expr, {"AND", not_expr} ;
 not_expr        = "NOT", not_expr | "(", bool_expr, ")" | comparison ;
 comparison      = value_expr, ("=" | "<>" | "!=" | "<" | "<=" | ">" | ">="),
                   value_expr ;
-value_expr      = signed_number | string | "TRUE" | "FALSE" | column_ref ;
+value_expr      = signed_number | string | "TRUE" | "FALSE" | column_ref | spatial_call ;
 signed_number   = ["+" | "-"], (integer | decimal) ;
 column_ref      = identifier, [".", identifier] ;
 qualified_star  = identifier, ".", "*" ;
@@ -205,7 +210,13 @@ canonicalized for index probes in the same way as the hash codec.
 ORDER BY resolves a bare exact output alias before a source field. Qualified
 ORDER BY references use source scope. Unselected source/group keys are retained
 as hidden dependencies for later planning. Positional ordering and general
-ORDER BY expressions are outside the subset.
+ORDER BY expressions other than the spatial distance extension are outside
+the subset. Spatial calls are syntactically bounded and semantically checked
+against a registered location. The backend extension on 2026-10-04 resolves
+immutable point parameters without SQL interpolation, appends hidden FLOAT
+distances and uses real spatial scans when safe. See [spatial.md](spatial.md)
+for the metric, candidate completeness and tie policies. LIMIT is nonnegative
+and applied after the complete relational pipeline.
 
 The grouped subset requires at least one aggregate. Global aggregation without
 GROUP BY is adopted when every selected item is an aggregate. COUNT(*),
