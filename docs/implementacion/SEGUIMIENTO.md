@@ -109,4 +109,22 @@ Estado: COMPLETADA para la documentación vigente del backend.
 - Pendientes finales: video, presentación y documentación de partes futuras
   permanecen explícitamente pendientes; no se consideran implementados.
 
-Siguiente: etapa 4, elegir una opción del Anexo A y fijar su dominio.
+Commit de etapa 3: 4097c72.
+
+## Etapa 4 — Aplicación y dominio
+
+Estado: COMPLETADA como decisión de implementación.
+
+- Se eligió Anexo A, opción B, e-commerce híbrido. No se implementarán las
+  otras opciones. Reutiliza metadatos y tiendas locales y las modalidades
+  textual/visual igualmente exigidas por el proyecto.
+- docs/aplicacion.md fija identificadores, asociaciones, consumo exclusivo
+  del API propio, fusión explicable, dependencias y aceptación del backend.
+- Esta decisión resuelve 5.1.4; no da por existentes una aplicación, sus
+  endpoints ni su frontend.
+- Validación: contraste de componentes con el PDF, páginas 4–6; coherencia
+  con payload de 4079 bytes, dominio espacial y dependencias de la auditoría.
+- Unidad de commit: `docs: definir aplicación híbrida de e-commerce`.
+- Pendientes de esta etapa: ninguno; implementación corresponde a etapa 13.
+
+Siguiente: etapa 5, SQL y API espacial; mapa postergado.
