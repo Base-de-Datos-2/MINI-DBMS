@@ -66,8 +66,9 @@ and tokenless documents do not match. No error is raised just because the
 query has no matches.
 
 Scores use the formulas in the Part 3 plan. TF-IDF counts repeated query terms;
-BM25 sums each distinct query term once. Exact worked scores/tolerances belong
-to 1A.5. Output score values are finite FLOATs for matching documents.
+BM25 sums each distinct query term once. Exact worked scores and assertion
+tolerances are frozen in [the 1A.5 ranking contract](text-ranking-contract.md).
+Output score values are finite FLOATs for matching documents.
 Projection does not change candidate membership or corpus statistics.
 
 Resolve ORDER BY aliases before selecting an access strategy. As in the

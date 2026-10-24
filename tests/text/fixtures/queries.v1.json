@@ -1,0 +1,25 @@
+{
+  "format_version": 1,
+  "cases": [
+    {"id": "assignment_tfidf", "collection": "documentos", "text": "base de datos vectorial", "tokens": ["base", "de", "datos", "vectorial"], "model": "TF_IDF", "order": "score_desc", "limit": 10, "sql": "SELECT * FROM documentos WHERE MATCH(contenido, 'base de datos vectorial') USING TF_IDF LIMIT 10;"},
+    {"id": "assignment_bm25", "collection": "articulos", "text": "machine learning", "tokens": ["machine", "learning"], "model": "BM25", "order": "score_desc", "limit": null, "sql": "SELECT *, SCORE() as relevancia FROM articulos WHERE MATCH(texto, 'machine learning') USING BM25 ORDER BY relevancia DESC;"},
+    {"id": "pair_tfidf", "collection": "documentos", "text": "base datos", "tokens": ["base", "datos"], "model": "TF_IDF", "order": "score_desc", "limit": null},
+    {"id": "repeat_tfidf", "collection": "documentos", "text": "base base datos", "tokens": ["base", "base", "datos"], "model": "TF_IDF", "order": "score_desc", "limit": null},
+    {"id": "pair_bm25", "collection": "documentos", "text": "base datos", "tokens": ["base", "datos"], "model": "BM25", "order": "score_desc", "limit": null},
+    {"id": "repeat_bm25", "collection": "documentos", "text": "base base datos", "tokens": ["base", "base", "datos"], "model": "BM25", "order": "score_desc", "limit": null},
+    {"id": "mixed_unknown_tfidf", "collection": "documentos", "text": "BASE datos desconocidozz", "tokens": ["base", "datos", "desconocidozz"], "model": "TF_IDF", "order": "score_desc", "limit": null},
+    {"id": "mixed_unknown_bm25", "collection": "documentos", "text": "BASE datos desconocidozz", "tokens": ["base", "datos", "desconocidozz"], "model": "BM25", "order": "score_desc", "limit": null},
+    {"id": "empty", "collection": "documentos", "text": "", "tokens": [], "model": "TF_IDF", "order": "score_desc", "limit": null},
+    {"id": "punctuation", "collection": "documentos", "text": "... ¿?!", "tokens": [], "model": "BM25", "order": "score_desc", "limit": 10},
+    {"id": "unknown", "collection": "documentos", "text": "desconocidozz", "tokens": ["desconocidozz"], "model": "BM25", "order": "score_desc", "limit": null},
+    {"id": "accent", "collection": "documentos", "text": "CAFÉ", "tokens": ["café"], "model": "TF_IDF", "order": "score_desc", "limit": null},
+    {"id": "limit_zero", "collection": "documentos", "text": "base datos", "tokens": ["base", "datos"], "model": "BM25", "order": "score_desc", "limit": 0},
+    {"id": "limit_large", "collection": "documentos", "text": "base datos", "tokens": ["base", "datos"], "model": "BM25", "order": "score_desc", "limit": 1000},
+    {"id": "lowest_score", "collection": "documentos", "text": "base datos", "tokens": ["base", "datos"], "model": "BM25", "order": "score_asc", "limit": 1},
+    {"id": "lowest_id", "collection": "documentos", "text": "base datos", "tokens": ["base", "datos"], "model": "BM25", "order": "id_asc", "limit": 1},
+    {"id": "highest_id", "collection": "documentos", "text": "base datos", "tokens": ["base", "datos"], "model": "BM25", "order": "id_desc", "limit": 1},
+    {"id": "single_term", "collection": "documentos", "text": "datos", "tokens": ["datos"], "model": "TF_IDF", "order": "score_desc", "limit": 10},
+    {"id": "long_query", "collection": "documentos", "text": "base de datos índice búsqueda textual", "tokens": ["base", "de", "datos", "índice", "búsqueda", "textual"], "model": "BM25", "order": "score_desc", "limit": 10},
+    {"id": "articles_cosine", "collection": "articulos", "text": "machine learning", "tokens": ["machine", "learning"], "model": "TF_IDF", "order": "score_desc", "limit": null}
+  ]
+}

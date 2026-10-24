@@ -1,0 +1,40 @@
+{
+  "format_version": 1,
+  "tokenizer": {"algorithm": "nfc-lower-nfc-alnum-v1", "unicode_version": "15.0.0"},
+  "collections": {
+    "documentos": {
+      "id_column": "id",
+      "text_column": "contenido",
+      "documents": [
+        {"id": 42, "text": "Base de datos vectorial", "tokens": ["base", "de", "datos", "vectorial"]},
+        {"id": 7, "text": "Índice invertido para búsqueda textual", "tokens": ["índice", "invertido", "para", "búsqueda", "textual"]},
+        {"id": 90, "text": "", "tokens": []},
+        {"id": 3, "text": "base datos", "tokens": ["base", "datos"]},
+        {"id": 61, "text": "Las transacciones protegen la base de datos", "tokens": ["las", "transacciones", "protegen", "la", "base", "de", "datos"]},
+        {"id": 18, "text": "búsqueda búsqueda textual", "tokens": ["búsqueda", "búsqueda", "textual"]},
+        {"id": 105, "text": "mapas y coordenadas geográficas", "tokens": ["mapas", "y", "coordenadas", "geográficas"]},
+        {"id": 45, "text": "base datos", "tokens": ["base", "datos"]},
+        {"id": 12, "text": "datos datos datos", "tokens": ["datos", "datos", "datos"]},
+        {"id": 76, "text": "Árbol índice y búsqueda", "tokens": ["árbol", "índice", "y", "búsqueda"]},
+        {"id": 2, "text": "cafe\u0301 y café", "tokens": ["café", "y", "café"]},
+        {"id": 88, "text": "¡¿...?!", "tokens": []},
+        {"id": 54, "text": "modelo vectorial y similitud del coseno", "tokens": ["modelo", "vectorial", "y", "similitud", "del", "coseno"]},
+        {"id": 31, "text": "ranking BM25 para documentos de texto", "tokens": ["ranking", "bm25", "para", "documentos", "de", "texto"]},
+        {"id": 67, "text": "índice invertido índice invertido búsqueda", "tokens": ["índice", "invertido", "índice", "invertido", "búsqueda"]},
+        {"id": 9, "text": "la base de datos utiliza un índice", "tokens": ["la", "base", "de", "datos", "utiliza", "un", "índice"]}
+      ]
+    },
+    "articulos": {
+      "id_column": "id",
+      "text_column": "texto",
+      "documents": [
+        {"id": 21, "text": "Introducción a machine learning y búsqueda textual", "tokens": ["introducción", "a", "machine", "learning", "y", "búsqueda", "textual"]},
+        {"id": 4, "text": "machine learning", "tokens": ["machine", "learning"]},
+        {"id": 33, "text": "machine machine learning aplicado a texto", "tokens": ["machine", "machine", "learning", "aplicado", "a", "texto"]},
+        {"id": 8, "text": "", "tokens": []},
+        {"id": 14, "text": "machine learning", "tokens": ["machine", "learning"]},
+        {"id": 17, "text": "Un artículo sobre bases de datos", "tokens": ["un", "artículo", "sobre", "bases", "de", "datos"]}
+      ]
+    }
+  }
+}

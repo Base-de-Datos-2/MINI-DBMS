@@ -1,0 +1,14 @@
+{
+  "format_version": 1,
+  "documents": [
+    {"id": 30, "text": "base base datos", "tokens": ["base", "base", "datos"]},
+    {"id": 7, "text": "base", "tokens": ["base"]},
+    {"id": 11, "text": "datos índice", "tokens": ["datos", "índice"]},
+    {"id": 90, "text": "", "tokens": []}
+  ],
+  "queries": [
+    {"id": "balanced", "tokens": ["base", "datos"]},
+    {"id": "repeated", "tokens": ["base", "base", "datos"]},
+    {"id": "projected", "tokens": ["base", "datos", "desconocidozz"]}
+  ]
+}

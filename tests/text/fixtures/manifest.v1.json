@@ -1,0 +1,19 @@
+{
+  "format_version": 1,
+  "fixture_version": "text-contract-v1",
+  "ranking": {
+    "tfidf": "log-tf-smoothed-idf-cosine-v1",
+    "bm25": "positive-idf-distinct-query-v1",
+    "k1": "1.2",
+    "b": "0.75",
+    "score_rel_tol": "1e-10",
+    "score_abs_tol": "1e-12"
+  },
+  "sha256": {
+    "collections.v1.json": "cb63b5dbf960722006afc3eeb9dafcaa3ea6de9a8c53a9541ec7d8ef5a6f812f",
+    "queries.v1.json": "28f1e845e4223b8cf4a1ab3aadc22c2b83323c1be6c8be577e26b933b42be07a",
+    "invalid_documents.v1.json": "0fda67eca1425335011924549665dec322c4327ee4b7f3b870592b10980b8539",
+    "worked_example.v1.json": "6e1947a6251675574ff61cce42b902e871eb4f4b53710bcab04a164634eb14bc",
+    "expected.v1.json": "67b020936ab7372f35cc85927335d29f534ebf1315830b0250fc47a0a3492c50"
+  }
+}

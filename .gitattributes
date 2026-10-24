@@ -4,3 +4,4 @@ benchmarks/results/spatial/** -text
 docs/figuras/spatial/** -text
 benchmarks/results/relational/** -text
 docs/experimentos/actualizados_1k_10k/** -text
+tests/text/fixtures/*.json text eol=lf
