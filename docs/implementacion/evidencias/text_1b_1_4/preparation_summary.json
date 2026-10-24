@@ -168,5 +168,7 @@
     "warnings_as_errors": true,
     "scope": "focused regression; not a full-project audit"
   },
-  "source_manifest_esci_sha256": "03784650116edbf54f09a2e0397f845e8e2f1b83af737bd0de5543509815ff5d"
+  "source_manifest_esci_sha256": "0696dbfbc6a19a97f31d58c1287bc3d76c624b564ec3ffe3b9eec789a967e5bb",
+  "source_manifest_original_bytes_sha256": "03784650116edbf54f09a2e0397f845e8e2f1b83af737bd0de5543509815ff5d",
+  "evidence_serialization": "Archived JSON uses LF; source manifest field values and original-byte SHA-256 are preserved"
 }

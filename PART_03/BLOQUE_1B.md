@@ -102,6 +102,7 @@ Versioned artifacts:
 
 Full local reports/exports are in the ignored relative directory documented
 in those artifacts. Evidence is sanitized with `scripts/sanitize_evidence.py`;
-JSON bytes are preserved in Git for hash traceability. No local account paths
+Archived JSON uses LF; the original source-manifest byte hash and all metadata
+values/timestamps are preserved, alongside the archive checksum. No local account paths
 or complete raw corpus are committed. This is preparation evidence and a
 focused regression, not a final corpus-acceptance report or benchmark result.
