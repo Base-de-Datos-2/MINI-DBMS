@@ -11,6 +11,8 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
+# Offline source decoding only; no required DBMS algorithm uses PyArrow.
+corpus = ["pyarrow>=16,<27"]
 # Starlette 1.6 still imports an alias that anyio 4.15 deprecates. The strict
 # suite runs with warnings as errors, so anyio stays below 4.15 until that is
 # fixed upstream; httpx2 is what Starlette's test client now expects.
