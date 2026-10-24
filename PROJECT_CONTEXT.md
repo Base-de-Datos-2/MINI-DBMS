@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.8** — preserves formal stage closures and records the
-> implemented Stage 9 HTTP/session contract and truthful rollback outcomes.
+> Context version: **4.9** — preserves formal stage closures and records
+> Part 3 tasks 1A.1–1A.4, their contracts and shared tokenization.
 
 ## Project identity
 
@@ -13,7 +13,10 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Finish and verify Parts 1 and 2 for the first delivery, then stop**
+> **Part 3 tasks 1A.1–1A.4 only**, explicitly authorized on 2026-10-24:
+> integration boundaries, document/collection contracts, tested tokenization
+> and the textual SQL specification. The prior Parts 1/2 stop is historical
+> for these four tasks. See `PART_03/BLOQUE_1A.md` for evidence and pending work.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -85,6 +88,34 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 ---
 
 ## Current development scope
+
+The 2026-10-24 request authorizes only Part 3 tasks 1A.1–1A.4. The later
+Part 3 phases and Parts 4–5 remain pending. Earlier scope statements below
+record the Parts 1/2 phase and do not override this limited authorization.
+
+### Part 3 contract decisions (1A.1–1A.4)
+
+- Text collection IDs use the existing signed 64-bit INTEGER codec, unique
+  within a collection; text remains unchanged in a Heap VARCHAR. The complete
+  encoded row must fit `MAX_RECORD_SIZE`, independently of declared character
+  length. The exact two-column format currently leaves 4,067 UTF-8 text bytes.
+- The planned ID/RID map includes tokenless documents and belongs to one
+  immutable collection generation. `N` counts all accepted documents;
+  document length counts normalized tokens with repetitions, and `avgdl`
+  includes zero-length documents (explicitly `0.0` for an empty corpus).
+  Collection-wide uniqueness, statistics and map persistence are later work.
+- Implemented `engine.text.tokenize` applies NFC → lower → NFC, then maximal
+  Unicode `str.isalnum()` runs, preserving accents, stopwords, token order and
+  repetitions. Nonalphanumeric characters delimit tokens, including residual
+  combining marks. No casefolding or compatibility normalization occurs.
+- `tokenizer_signature()` returns algorithm `nfc-lower-nfc-alnum-v1` and the
+  Unicode database version. Future persistent indexes must store and validate
+  both before reusing their statistics/postings with new query tokens.
+- `docs/text-sql-contract.md` freezes MATCH/USING/SCORE, aliases, orders,
+  LIMIT and diagnostic categories for phase 4B. Current text SQL execution,
+  SPIMI, production ranking and storage sealing are not implemented by 1A.
+  `api.database.Database` remains the selected owner for later text integration;
+  QueryEnvironment will borrow its permanent readers.
 
 The subsequent explicit frontend authorization covers Parts 1 and 2 only.
 The four relational panels and spatial map consume the existing HTTP API.
