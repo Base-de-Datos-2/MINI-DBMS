@@ -1,17 +1,19 @@
 # AGENTS.md
 
-> Context version: **6.1** — preserves formal closures and records the
-> limited Part 3 tasks 1A.1–1A.4 authorization.
+> Context version: **6.2** — preserves formal closures and records the
+> Part 3 Block 1A completion scope and pending corpus acceptance.
 
 ## Purpose
 
-The explicit request on 2026-10-24 authorizes Part 3 tasks **1A.1–1A.4**:
-integration inspection, document/collection contracts, the shared tested
-tokenizer, and the textual SQL specification. This supersedes the historical
-Part 3 deferral below for these four tasks only. The active task document is
+The explicit requests on 2026-10-24 authorize Part 3 tasks **1A.1–1A.7**:
+integration and document/SQL contracts, the tested shared tokenizer, ranking
+mathematics, deterministic fixtures and Block 1A validation/closure. This
+supersedes the historical Part 3 deferral below for Block 1A only.
+The active task document is
 `PART_03/BLOQUE_1A.md`; the roadmap is `PART_03/PLAN_PARTE_03.md`.
-Tasks 1A.5–1A.7 and subsequent Part 3 blocks remain pending; Parts 4–5 remain
-deferred. Do not implement textual parser/execution or UI changes in this block.
+Corpus acceptance (1B) and subsequent Part 3 blocks remain pending; Parts 4–5
+remain deferred. Test references and frozen scores do not constitute production
+ranking. Do not implement SPIMI, textual parser/execution or UI in this block.
 
 The earlier explicit user authorization started the frontend for Parts 1 and 2,
 including the spatial map and final real-browser verification. Earlier pause

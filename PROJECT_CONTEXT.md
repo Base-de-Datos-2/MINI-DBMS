@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.9** — preserves formal stage closures and records
-> Part 3 tasks 1A.1–1A.4, their contracts and shared tokenization.
+> Context version: **4.10** — preserves formal stage closures and records
+> Part 3 Block 1A contracts, ranking mathematics and deterministic fixtures.
 
 ## Project identity
 
@@ -13,10 +13,10 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 tasks 1A.1–1A.4 only**, explicitly authorized on 2026-10-24:
-> integration boundaries, document/collection contracts, tested tokenization
-> and the textual SQL specification. The prior Parts 1/2 stop is historical
-> for these four tasks. See `PART_03/BLOQUE_1A.md` for evidence and pending work.
+> **Part 3 Block 1A (tasks 1A.1–1A.7) only**, explicitly authorized on 2026-10-24:
+> contracts, tested tokenization, ranking mathematics, deterministic fixtures
+> and block validation/closure. The prior Parts 1/2 stop is historical for
+> this block. See `PART_03/BLOQUE_1A.md` for evidence and pending work.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -89,11 +89,11 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The 2026-10-24 request authorizes only Part 3 tasks 1A.1–1A.4. The later
-Part 3 phases and Parts 4–5 remain pending. Earlier scope statements below
-record the Parts 1/2 phase and do not override this limited authorization.
+The 2026-10-24 requests authorize only Part 3 Block 1A. Corpus acceptance in
+1B, later Part 3 phases and Parts 4–5 remain pending. Earlier scope statements
+below record the Parts 1/2 phase and do not override this authorization.
 
-### Part 3 contract decisions (1A.1–1A.4)
+### Part 3 contract decisions (Block 1A)
 
 - Text collection IDs use the existing signed 64-bit INTEGER codec, unique
   within a collection; text remains unchanged in a Heap VARCHAR. The complete
@@ -116,6 +116,21 @@ record the Parts 1/2 phase and do not override this limited authorization.
   SPIMI, production ranking and storage sealing are not implemented by 1A.
   `api.database.Database` remains the selected owner for later text integration;
   QueryEnvironment will borrow its permanent readers.
+- `docs/text-ranking-contract.md` freezes the selected TF-IDF/cosine and BM25
+  formulas (k1=1.2, b=0.75), known-vocabulary query projection, repeated query
+  terms and zero-norm behavior. Score assertions use relative tolerance 1e-10
+  and absolute tolerance 1e-12; ID/order assertions are exact. Tolerance is not
+  a tie-breaking rule; order uses unrounded scores then ID ascending.
+- Versioned fixtures under `tests/text/fixtures/` contain 16 Spanish documents,
+  six articles, 20 query cases, a four-document worked example, separate invalid
+  duplicate-ID inputs and frozen statistics/rankings. Independent Decimal,
+  dense-float and analytic calculations validate expected values; all 22
+  original texts survive a fresh-process Heap reopen. These are functional
+  references, not corpus acceptance, measured retrieval quality or a production
+  ranker. The existing engine text API still exposes only tokenization.
+- Block 1A closed on 2026-10-24 with 390 focused regression tests passing
+  (88 text tests). Evidence and command: `PART_03/BLOQUE_1A.md`. Corpus acceptance
+  remains PENDING in 1B; no subsequent block is started by this closure.
 
 The subsequent explicit frontend authorization covers Parts 1 and 2 only.
 The four relational panels and spatial map consume the existing HTTP API.

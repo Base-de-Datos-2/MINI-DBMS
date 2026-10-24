@@ -4,9 +4,13 @@ Date: 2026-10-24. Source: [Part 3 plan](PLAN_PARTE_03.md), §§2–5, and
 [REQUIREMENTS](../REQUIREMENTS.md), §16. These contracts are project decisions,
 not additional academic requirements.
 
-The current request authorizes tasks **1A.1–1A.4 only**. Tasks 1A.5–1A.7,
-corpus acceptance, SPIMI, production ranking, storage sealing, SQL execution,
-and API/frontend integration remain pending. Block 1A is not yet closed.
+The initial request authorized tasks 1A.1–1A.4; the follow-up explicitly
+authorizes **1A.5–1A.7 and closure of Block 1A**. Corpus acceptance, SPIMI,
+production ranking, storage sealing, SQL execution and API/frontend integration
+belong to subsequent blocks. Corpus acceptance remains **PENDING** in 1B.
+
+**Status: Block 1A CLOSED on 2026-10-24**, after all seven criteria and the
+390-test focused regression below passed. This closes contracts/fixtures only.
 
 | Task | Deliverable | Status |
 |---|---|---|
@@ -14,9 +18,9 @@ and API/frontend integration remain pending. Block 1A is not yet closed.
 | 1A.2 | Document/statistics contract and storage checks below | Complete |
 | 1A.3 | Shared versioned tokenizer and exact-output tests | Complete |
 | 1A.4 | [Textual SQL contract](../docs/text-sql-contract.md) | Complete as a specification; parser implementation belongs to 4B |
-| 1A.5 | Independent worked ranking examples and numerical tolerance | Pending |
-| 1A.6 | Full 10–20-document fixture, query cases and expected rankings | Pending |
-| 1A.7 | Final block validation and closure | Pending |
+| 1A.5 | [Ranking mathematics and worked examples](../docs/text-ranking-contract.md), Decimal/float/analytic checks | Complete |
+| 1A.6 | [Versioned fixtures](../tests/text/fixtures/README.md), 20 queries and frozen results; all 22 texts verified through a fresh-process Heap reopen | Complete |
+| 1A.7 | Final block validation and closure | Complete; 390 focused regression tests passed |
 
 ## 1A.1 — Integration map
 
@@ -192,7 +196,49 @@ The complete accepted/rejected query matrix and diagnostic categories are in
 phase 4B, not a claim that the current parser supports text search. Keep
 [the existing SQL grammar](../docs/sql-grammar.md) as the implemented baseline.
 
-## Validation of this increment
+## 1A.5 — Ranking mathematics
+
+[The ranking contract](../docs/text-ranking-contract.md) confirms log-TF,
+smoothed IDF and complete-vector cosine norms, and BM25 with k1=1.2/b=0.75.
+It freezes query repetition, vocabulary projection, zero-norm/avgdl behavior
+and exact score/ID ordering. Score assertions use relative tolerance 1e-10
+and absolute tolerance 1e-12; IDs and result order must match exactly.
+
+The four-document worked example records tf, df, lengths, N, avgdl, complete
+weights/norms and scores for balanced/repeated queries. An exhaustive 60-digit
+Decimal test reference supplies frozen snapshots; independently simplified
+cosine expressions and rational BM25 coefficients anchor it. A second dense
+float calculation checks every larger fixture query. Test helpers import no
+production text ranker/index; no production ranker is introduced here.
+
+## 1A.6 — Deterministic fixtures
+
+The [fixture directory](../tests/text/fixtures/README.md) contains 16 original
+Spanish documents and six `articulos` documents. IDs arrive shuffled; content
+includes different lengths, repeated terms, identical-document score ties,
+an empty string, tokenless punctuation and a decomposed accent preserved in
+storage. The article collection supports the literal `machine learning`
+assignment example. Both collections have unique IDs; duplicate-ID cases
+are separate invalid inputs, including cross-block/tokenless duplicates.
+
+Twenty query cases cover the assignment examples, 1/3/5+ token inputs,
+repetitions, unknown terms, accents, empty queries, all admitted resolved
+orders, LIMIT 0 and LIMIT above the match count. JSON files archive tokens,
+statistics, norms, ordered IDs and 17-significant-digit scores. A versioned
+manifest freezes parameters/tolerances and hashes the input/result files.
+Test runs read these expected values and never regenerate them automatically.
+
+`tests/text/test_fixtures.py` validates every original row with the real
+logical/physical codec checks, inserts it into Heap, closes the writer, and
+reopens in an isolated Python process. That process verifies exact text,
+UTF-8 hashes, counts, physical arrival order and every original RID; the parent
+then reopens again. Temporary RID snapshots are test evidence only, not the
+future production text registry. Duplicate inputs are checked by the reference;
+SPIMI block/publication rejection remains phase 2 work.
+
+## 1A.7 — Validation and closure
+
+### Historical validation of 1A.1–1A.4
 
 Run with the repository's configured Python environment from the repository
 root, with warnings treated as errors:
@@ -210,7 +256,43 @@ temporary directory and disables pytest's cache plugin; warning/error policies
 and test assertions are unchanged. Use a fresh temporary destination for an
 independent rerun. No existing cache or temporary directory was deleted.
 
-No textual SQL acceptance or ranking test is marked passing before its
-implementation exists. The only implemented text functionality in this
-increment is shared tokenization, with storage acceptance checked through the
-existing engine. Tasks 1A.5–1A.7 remain pending.
+That initial increment implemented shared tokenization and storage contract
+checks. Its tokenizer/contract commits are `fdbb8ef` and `cfeb4ee`; the later
+1A.5–1A.7 evidence below supersedes its previously pending block status.
+
+### Final closure checklist
+
+Final verification on 2026-10-24, Python 3.12.4 / Unicode 15.0.0 / pytest
+8.4.2 on Windows: **390 passed in 37.06 seconds**, with warnings treated as
+errors. This includes all **88 text tests** (45 added for 1A.5–1A.7), isolated
+imports/architecture checks and the existing owner, binder, parser, codec and
+Heap regressions. It is a focused regression, not a new full-project audit.
+
+Ranking/fixture source and frozen results are recorded in commit `8e30e62`.
+Thirty local documentation links, Python compilation, staged fixture hashes
+and `git diff --check` also pass. The evidence documents were checked with
+`scripts/sanitize_evidence.py`; no local account paths are published.
+
+Reproducible command from the repository root (use a fresh temporary directory):
+
+```text
+python -m pytest -W error -p no:cacheprovider --basetemp tmp/part03_1a_final_regression_20261024_a tests/text tests/test_architecture.py tests/storage/test_record_codec.py tests/storage/test_value_codec.py tests/storage/test_heap_file.py tests/storage/test_heap_persistence.py tests/query/test_parser_contract.py tests/query/test_binder.py tests/api/test_database.py
+```
+
+| Criterion | Evidence |
+|---|---|
+| Integration boundaries match existing code | 1A.1 map and regression of owner, binder, parser, codec, Heap and architecture |
+| Statistics and identity semantics are unambiguous | 1A.2 definitions, four contract samples and whole-fixture statistics |
+| Tokenization is shared, versioned and deterministic | 32 exact/signature/type/canonical-equivalence tests |
+| SQL scope and errors are frozen | 17 accepted and 26 rejection cases in the specification; execution remains 4B |
+| Ranking variants and edge cases are fixed | 1A.5 derivations; Decimal, dense-float and analytic anchor checks |
+| Fixtures and expected results are reproducible | Versioned JSON, SHA-256 manifest, fixed LF endings and 20 query cases |
+| Original documents survive real persistence | 22 rows checked through fresh-process Heap reopening and UTF-8 hashes |
+| Corpus acceptance is not claimed | 1B PENDING; no MS MARCO feasibility report or experimental measurement |
+
+The only production text implementation in Block 1A is the shared tokenizer.
+Reference rankings and frozen query results are functional test data, not
+engine execution or an experimental comparison. Remaining work is 1B corpus
+acceptance; phases 2/3 index and production ranking; 4A/4B seal/SQL integration;
+5 UI/API demo; 6 experiments; and 7 Part 3 closure. Completing 1A does not
+authorize those subsequent blocks or close Part 3.

@@ -6,7 +6,7 @@ Implementar en MINI-DBMS **recuperación textual persistente mediante vectores d
 
 El vocabulario V de la colección define el espacio vectorial: cada término distinto corresponde a una dimensión y cada documento tiene |V| componentes. La componente de frecuencia es `tf(t,d)`; los términos ausentes tienen valor cero. Persistir el léxico con una asignación estable `término → dimensión` y los postings `(doc_id, tf)` conserva únicamente las componentes no nulas, agrupadas por término. Por tanto, esos archivos representan de forma dispersa los vectores documentales sin guardar una matriz densa ni duplicar un vector por cada modelo. Las frecuencias persistidas, `df`, N y las normas permiten reconstruir los pesos TF-IDF; BM25 utiliza las mismas frecuencias más las longitudes y la longitud media. La consulta se proyecta al mismo vocabulario. BM25 es una función de ranking sobre esa representación, no una similitud del coseno adicional.
 
-Este documento es un plan, no evidencia por sí solo de funcionalidades implementadas. Revisión del 22 de octubre de 2026: se precisan representación vectorial, propietario de índices, ordenamiento, inmutabilidad y aceptación del corpus; la segunda revisión añade rechazo antes de capturar undo, lectura concurrente de postings, orden dentro de los bloques SPIMI y separación entre desarrollo con fixtures y aprobación del corpus. La solicitud del 24 de octubre autoriza únicamente implementar **1A.1–1A.4**, documentadas en [BLOQUE_1A.md](BLOQUE_1A.md); no autoriza cerrar 1A ni iniciar los bloques posteriores. Se basa en `Proyecto_Final.pdf`, sección 2.3 (páginas 3–4), y en el repositorio revisado en el commit `85db1bec94e0515dfff621dfa1ae8dece4c6ca08`. Las Partes 3–5 no se consideran completadas.
+Este documento es un plan, no evidencia por sí solo de funcionalidades implementadas. Revisión del 22 de octubre de 2026: se precisan representación vectorial, propietario de índices, ordenamiento, inmutabilidad y aceptación del corpus; la segunda revisión añade rechazo antes de capturar undo, lectura concurrente de postings, orden dentro de los bloques SPIMI y separación entre desarrollo con fixtures y aprobación del corpus. Las solicitudes del 24 de octubre autorizan **1A.1–1A.7 y el cierre del bloque 1A**, documentados en [BLOQUE_1A.md](BLOQUE_1A.md); no autorizan iniciar los bloques posteriores. Se basa en `Proyecto_Final.pdf`, sección 2.3 (páginas 3–4), y en el repositorio revisado en el commit `85db1bec94e0515dfff621dfa1ae8dece4c6ca08`. Las Partes 3–5 no se consideran completadas.
 
 El PDF no incluye una rúbrica numérica separada. Por ello, la matriz siguiente convierte sus requisitos explícitos en criterios verificables; no inventa puntajes ni obligaciones adicionales. El Avance 3 requiere **Partes 3 y 4**: completar este plan cubre solamente la Parte 3.
 
@@ -157,6 +157,12 @@ Aceptación: dos consultas con listas distintas y parcialmente compartidas se in
 
 Fijar una variante explícita, sin dejar fórmulas implícitas:
 
+El [contrato de ranking 1A.5](../docs/text-ranking-contract.md) conserva estas
+fórmulas y registra ejemplos resueltos, resultados congelados y tolerancias
+de aserción (relativa 1e-10, absoluta 1e-12). La tolerancia no agrupa scores
+en empates ni permite diferencias de IDs/orden. Los cálculos de referencia
+de 1A están en tests; el ranking de producción corresponde a la fase 3.
+
 ```text
 tf_weight(tf) = 1 + ln(tf), si tf > 0; 0 en otro caso
 idf(t) = ln((N + 1) / (df(t) + 1)) + 1
@@ -306,11 +312,11 @@ Añadir una tabla de ventajas, desventajas y cuándo usar cada opción. Las reco
 
 ## 7. Secuencia de implementación y condiciones de salida
 
-La autorización actual cubre únicamente 1A.1–1A.4; sus entregables y los pendientes 1A.5–1A.7 están en [BLOQUE_1A.md](BLOQUE_1A.md). Los bloques restantes se ejecutarán cuando se autoricen. Separar dos dependencias: los contratos y la fixture habilitan el desarrollo del núcleo y su integración; el PASS del corpus habilita su adopción y los experimentos finales. La validación del corpus puede continuar mientras se desarrollan los componentes con fixtures, sin declarar completada la aceptación de datos ni la Parte 3.
+La autorización actual cubre 1A.1–1A.7 y su cierre; contratos, fixtures y evidencia están en [BLOQUE_1A.md](BLOQUE_1A.md). El corpus de 1B permanece PENDIENTE. Los bloques restantes se ejecutarán cuando se autoricen. Separar dos dependencias: los contratos y la fixture habilitan el desarrollo del núcleo y su integración; el PASS del corpus habilita su adopción y los experimentos finales. La validación del corpus puede continuar mientras se desarrollan los componentes con fixtures, sin declarar completada la aceptación de datos ni la Parte 3.
 
 | Fase | Trabajo concreto | Condición para continuar |
 |---|---|---|
-| 1A. Contratos y fixture | Fijar semántica, tokenización, fórmulas y fixture con respuestas verificables | Contratos y fixture definidos; permite comenzar fases 2–5 sin adoptar todavía un corpus experimental |
+| 1A. Contratos y fixture — COMPLETADA 2026-10-24 | Semántica, tokenización, fórmulas y fixtures con respuestas verificables; evidencia en BLOQUE_1A.md | 390 tests focalizados aprobados; núcleo y ranking de producción siguen pendientes; 1B continúa PENDIENTE |
 | 1B. Aceptación de datos | Ejecutar la puerta §3.1.1 sobre el corpus candidato; puede continuar junto al desarrollo con fixtures | `corpus_feasibility.json` en PASS: 100 000 filas validadas en Heap, 30 consultas originales evaluables y tres manifiestos anidados; requisito para congelar el corpus y comenzar fase 6 |
 | 2. Núcleo SPIMI | Construcción por bloques con postings ordenados, mezcla, persistencia, léxico, estadísticas y lectura concurrente por offset | Igualdad con índice de referencia; IDs desordenados y duplicados; varios bloques/pasadas, reapertura y lectores intercalados |
 | 3. Ranking | TF-IDF/coseno, BM25, órdenes de §3.3 y top-k condicionado al orden | Scores y filas correctos para DESC, ASC e ID; igualdad índice/scan y desempates |
