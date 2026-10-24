@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "dataset": "Amazon Shopping Queries Dataset (ESCI)",
+  "version": "large_version",
+  "revision": "7916cdf6ab75a462e77f20ab40428a10923998d5",
+  "split": "test",
+  "locale": "us",
+  "documentation": "https://github.com/amazon-science/esci-data",
+  "files": [
+    {
+      "role": "examples",
+      "filename": "shopping_queries_dataset_examples.parquet",
+      "url": "https://media.githubusercontent.com/media/amazon-science/esci-data/7916cdf6ab75a462e77f20ab40428a10923998d5/shopping_queries_dataset/shopping_queries_dataset_examples.parquet",
+      "http_status": 200,
+      "published_size_label": "not specified",
+      "content_length": 51286808,
+      "etag": "\"4a735b693b4a424a6fc67f5be6e4c811495c488bbf66d02a602d308b2744263a\"",
+      "last_modified": "Sat, 24 Oct 2026 20:58:08 GMT",
+      "verified_at_utc": "2026-10-24T20:58:08.452866+00:00",
+      "sha256": "4a735b693b4a424a6fc67f5be6e4c811495c488bbf66d02a602d308b2744263a",
+      "downloaded_bytes": 51286808
+    },
+    {
+      "role": "products",
+      "filename": "shopping_queries_dataset_products.parquet",
+      "url": "https://media.githubusercontent.com/media/amazon-science/esci-data/7916cdf6ab75a462e77f20ab40428a10923998d5/shopping_queries_dataset/shopping_queries_dataset_products.parquet",
+      "http_status": 200,
+      "published_size_label": "not specified",
+      "content_length": 1108857465,
+      "etag": "\"25124442d064d64b26f74082d6fa09438d679efc0c183cf28d19064a2b65a265\"",
+      "last_modified": "Sat, 24 Oct 2026 20:58:08 GMT",
+      "verified_at_utc": "2026-10-24T20:58:08.400813+00:00",
+      "sha256": "25124442d064d64b26f74082d6fa09438d679efc0c183cf28d19064a2b65a265",
+      "downloaded_bytes": 1108857465
+    }
+  ],
+  "terms": {
+    "url": "https://github.com/amazon-science/esci-data/blob/7916cdf6ab75a462e77f20ab40428a10923998d5/LICENSE",
+    "license": "Apache-2.0",
+    "citation": "Reddy et al. (2022), Shopping Queries Dataset, arXiv:2206.06588"
+  },
+  "indexed_field": "product_title (entire original field, unchanged)",
+  "id_mapping": "fixed-width uppercase 10-character ASIN interpreted as base36 integer; source_id retained",
+  "relevance_mapping": {
+    "I": 0,
+    "C": 1,
+    "S": 2,
+    "E": 3
+  },
+  "positive_rule": "all supplied labels with grade > 0 (C,S,E)",
+  "compatibility": "same pinned repository revision; join products by (product_locale, product_id)",
+  "candidate_approved": false,
+  "corpus_acceptance": "PENDING"
+}

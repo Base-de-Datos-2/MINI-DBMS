@@ -1,19 +1,18 @@
 # AGENTS.md
 
-> Context version: **6.2** — preserves formal closures and records the
-> Part 3 Block 1A completion scope and pending corpus acceptance.
+> Context version: **6.3** — records closed Block 1A and the limited
+> Part 3 tasks 1B.1–1B.4 authorization; corpus approval remains pending.
 
 ## Purpose
 
-The explicit requests on 2026-10-24 authorize Part 3 tasks **1A.1–1A.7**:
-integration and document/SQL contracts, the tested shared tokenizer, ranking
-mathematics, deterministic fixtures and Block 1A validation/closure. This
-supersedes the historical Part 3 deferral below for Block 1A only.
-The active task document is
-`PART_03/BLOQUE_1A.md`; the roadmap is `PART_03/PLAN_PARTE_03.md`.
-Corpus acceptance (1B) and subsequent Part 3 blocks remain pending; Parts 4–5
-remain deferred. Test references and frozen scores do not constitute production
-ranking. Do not implement SPIMI, textual parser/execution or UI in this block.
+Block 1A is closed. The latest request on 2026-10-24 authorizes **1B.1–1B.4**:
+verify real corpus sources, check original query/judgment feasibility, implement
+streaming document validation and select thirty queries with all their known
+positives. Use `PART_03/BLOQUE_1B.md` and `PART_03/PLAN_PARTE_03.md`.
+This supersedes the historical Part 3 deferral below for these tasks only.
+Tasks 1B.5–1B.8 and later Part 3 blocks remain pending; Parts 4–5 remain
+deferred. Codec-valid preparation is not final corpus approval or real Heap
+acceptance. Do not build SPIMI, production ranking, textual SQL or UI here.
 
 The earlier explicit user authorization started the frontend for Parts 1 and 2,
 including the spatial map and final real-browser verification. Earlier pause

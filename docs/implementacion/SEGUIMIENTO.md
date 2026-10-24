@@ -1,5 +1,17 @@
 # Corrección e implementación del backend
 
+## Actualización 2026-10-24 — Parte 3, tareas 1B.1–1B.4
+
+El bloque 1A está cerrado. La autorización posterior cubre únicamente
+1B.1–1B.4: fuentes, preflight, validación de documentos y selección reproducible.
+MS MARCO v1 falla el mínimo de diez consultas de una palabra en dev/train;
+la alternativa ESCI cumple las comprobaciones parciales con un pool real de
+100 000 títulos válidos y 30 consultas cuyos positivos conocidos suman 439
+documentos. Pasan 448 tests focalizados con warnings como errores. Evidencia,
+comandos y límites: [BLOQUE_1B.md](../../PART_03/BLOQUE_1B.md).
+1B.5–1B.8 y la aceptación global permanecen PENDIENTES. Las autorizaciones
+anteriores y la auditoría que siguen se conservan como historia.
+
 Inicio: 2026-10-04. Base: auditoría independiente en
 [AUDITORIA_TECNICA.md](../auditoria/AUDITORIA_TECNICA.md), sus 77 requisitos,
 hallazgos H1–H8 y plan de trabajo. La auditoría permanece como fotografía

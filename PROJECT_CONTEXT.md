@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.10** — preserves formal stage closures and records
-> Part 3 Block 1A contracts, ranking mathematics and deterministic fixtures.
+> Context version: **4.11** — preserves formal closures and records
+> Part 3 tasks 1B.1–1B.4 and the corpus-preparation decisions.
 
 ## Project identity
 
@@ -13,10 +13,10 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 Block 1A (tasks 1A.1–1A.7) only**, explicitly authorized on 2026-10-24:
-> contracts, tested tokenization, ranking mathematics, deterministic fixtures
-> and block validation/closure. The prior Parts 1/2 stop is historical for
-> this block. See `PART_03/BLOQUE_1A.md` for evidence and pending work.
+> **Part 3 tasks 1B.1–1B.4 only**, explicitly authorized on 2026-10-24:
+> real-source verification, query/judgment preflight, streaming row validation
+> and deterministic selection. Block 1A is closed; 1B.5–1B.8 and later blocks
+> remain pending. See `PART_03/BLOQUE_1B.md` for evidence and remaining work.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -89,9 +89,9 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The 2026-10-24 requests authorize only Part 3 Block 1A. Corpus acceptance in
-1B, later Part 3 phases and Parts 4–5 remain pending. Earlier scope statements
-below record the Parts 1/2 phase and do not override this authorization.
+The latest request authorizes Part 3 tasks 1B.1–1B.4 after Block 1A closure.
+Final corpus acceptance, later Part 3 phases and Parts 4–5 remain pending.
+Earlier scope statements below do not override this limited authorization.
 
 ### Part 3 contract decisions (Block 1A)
 
@@ -131,6 +131,34 @@ below record the Parts 1/2 phase and do not override this authorization.
 - Block 1A closed on 2026-10-24 with 390 focused regression tests passing
   (88 text tests). Evidence and command: `PART_03/BLOQUE_1A.md`. Corpus acceptance
   remains PENDING in 1B; no subsequent block is started by this closure.
+
+### Real corpus preparation (1B.1–1B.4)
+
+- `benchmarks/text/` and `scripts/prepare_text_corpus.py` own offline source
+  download, preflight, validation and query selection. The engine retains no
+  network or Parquet dependency. Optional `corpus` dependencies use PyArrow
+  only as a streaming input decoder, never for required DBMS algorithms.
+- MS MARCO v1 dev/train fail the ten-one-token-query gate (2/4 eligible
+  originals with positives). The replacement candidate is Amazon ESCI's pinned
+  revision `7916cdf6ab75a462e77f20ab40428a10923998d5`, large_version/test/us.
+  Source roles, locale and revision are bound by hashes; no query shortening
+  or fabricated labels is permitted.
+- Documents are entire unmodified product titles. Ten-character uppercase
+  base36 ASINs map bijectively to the existing INTEGER type; original IDs stay
+  in preparation exports. Source labels I/C/S/E map to 0/1/2/3; grades >0 are
+  the known-positive rule, frozen before model experiments. These are project
+  dataset decisions, not additional official academic requirements.
+- Query lengths use the shared tokenizer. Candidate counts and selection
+  distinguish normalized query sequences; original texts remain intact. Select
+  ten per length group in numeric query-ID order, rejecting candidates with
+  any unusable positive or a positive union above 1,000. No ranker is consulted.
+- Stream the first 100k valid rows plus all candidate positives through actual
+  engine row checks; scan all locale IDs for duplicates. Texts stream to disk,
+  while the seen-ID set and query/judgment metadata grow with input size.
+  Unselected distractor text is not claimed as codec-validated.
+- Full source SHA-256 identities, stage bindings and complete-positive checks
+  precede task PASS reports. Overall corpus approval remains PENDING until
+  nested subsets and real Heap insertion/reopening (1B.5–1B.8) are verified.
 
 The subsequent explicit frontend authorization covers Parts 1 and 2 only.
 The four relational panels and spatial map consume the existing HTTP API.

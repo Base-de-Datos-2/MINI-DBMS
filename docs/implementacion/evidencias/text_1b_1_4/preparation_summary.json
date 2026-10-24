@@ -1,0 +1,172 @@
+{
+  "format_version": 1,
+  "scope": "1B.1-1B.4 only",
+  "recorded_at_utc": "2026-10-24T21:16:17.391994+00:00",
+  "implementation_commit": "801ff72d200165a85743baad8f802559c408fac6",
+  "runtime": {
+    "python": "3.12.4",
+    "platform": "Windows",
+    "unicode": "15.0.0",
+    "pyarrow": "26.0.0"
+  },
+  "task_status": {
+    "1B.1": "PASS",
+    "1B.2": "PASS",
+    "1B.3": "PASS",
+    "1B.4": "PASS"
+  },
+  "corpus_acceptance": "PENDING",
+  "candidate_approved": false,
+  "pending": [
+    "1B.5 nested subsets",
+    "1B.6 real Heap insertion/reopen",
+    "1B.7 complete feasibility manifest",
+    "1B.8 block closure"
+  ],
+  "preflight": {
+    "dataset": {
+      "dataset": "Amazon Shopping Queries Dataset (ESCI)",
+      "version": "large_version",
+      "revision": "7916cdf6ab75a462e77f20ab40428a10923998d5",
+      "split": "test",
+      "locale": "us"
+    },
+    "query_count": 22458,
+    "judgment_count": 425762,
+    "eligible_counts": {
+      "1": 1036,
+      "3": 6174,
+      "5plus": 5454
+    },
+    "eligible_query_id_counts": {
+      "1": 1036,
+      "3": 6177,
+      "5plus": 5455
+    },
+    "required_per_group": 10,
+    "tokenizer": {
+      "algorithm": "nfc-lower-nfc-alnum-v1",
+      "unicode_version": "15.0.0"
+    },
+    "selection_rule": "group order 1,3,5plus; canonical numeric query ID ascending; no ranking-based selection",
+    "source_sha256": {
+      "examples": "4a735b693b4a424a6fc67f5be6e4c811495c488bbf66d02a602d308b2744263a"
+    }
+  },
+  "validation": {
+    "status": "PASS",
+    "scope": "first valid pool plus every candidate positive; full-stream ID uniqueness check",
+    "scanned_rows": 1215854,
+    "unique_ids_seen": 1215854,
+    "codec_validated_rows": 285225,
+    "accepted_validated_rows": 285225,
+    "accepted_pool_rows": 100000,
+    "unselected_rows_not_codec_validated": 930629,
+    "minimum_documents": 100000,
+    "rejections": {},
+    "encoded_record_bytes": {
+      "min": 13,
+      "max": 412,
+      "mean": 120.30571303356999,
+      "histogram_upper_bounds": {
+        "512": 285225
+      }
+    },
+    "max_record_size": 4079,
+    "declared_text_characters": 4067,
+    "seen_id_set_entries": 1215854,
+    "preflight_sha256": "b3fe23cb29df2e318056b26c1a3b227d676c71780f1f6192b627b75af1e5054d",
+    "source_sha256": {
+      "examples": "4a735b693b4a424a6fc67f5be6e4c811495c488bbf66d02a602d308b2744263a",
+      "products": "25124442d064d64b26f74082d6fa09438d679efc0c183cf28d19064a2b65a265"
+    },
+    "outputs": {
+      "accepted_pool.jsonl": {
+        "sha256": "4482c6ad0507a4b8e93a5ab564b1b2134c44382d232d1082ad086ff1bfc2a348",
+        "bytes": 16844012
+      },
+      "candidate_positives.jsonl": {
+        "sha256": "c915a7e5d15dd78a26a377f7520dcaf84e66a4ec638a800d6e198188a51c0607",
+        "bytes": 34422595
+      }
+    }
+  },
+  "candidate_positive_counts": {
+    "accepted": 197500,
+    "missing": 0,
+    "rejected": 0
+  },
+  "selection": {
+    "status": "PASS",
+    "selection_rule": "group order 1,3,5plus; canonical numeric query ID ascending; no ranking-based selection",
+    "selected_counts": {
+      "1": 10,
+      "3": 10,
+      "5plus": 10
+    },
+    "query_count": 30,
+    "positive_union_count": 439,
+    "positive_cap": 1000,
+    "exclusions_examined": {},
+    "selected_positives_sha256": "f1a49b50012fba9e8283d97eb225231f422414c517de7f03804629a054e6dc01"
+  },
+  "selected_query_ids": {
+    "1": [
+      2144,
+      2838,
+      2966,
+      3207,
+      3299,
+      4295,
+      4321,
+      4398,
+      4420,
+      5574
+    ],
+    "3": [
+      36,
+      52,
+      109,
+      194,
+      247,
+      353,
+      457,
+      539,
+      605,
+      606
+    ],
+    "5plus": [
+      12,
+      13,
+      18,
+      19,
+      37,
+      42,
+      60,
+      67,
+      72,
+      99
+    ]
+  },
+  "selected_positive_judgment_pairs": 443,
+  "local_reports_root": "data/generated/text_corpus/esci_us_test/preparation_final",
+  "local_report_sha256": {
+    "query_preflight.json": "b3fe23cb29df2e318056b26c1a3b227d676c71780f1f6192b627b75af1e5054d",
+    "document_validation.json": "bf74f0d83151789ae1690bee599f166b98f831a2c0ab8205ec0bf7cd731d8006",
+    "selected_queries.json": "87595ad4b5280f552970af010fd41f9ff6f28d46dc768a9a3677cb8d63526309"
+  },
+  "independent_rerun": {
+    "identical_query_ids_and_original_texts": true,
+    "identical_positive_ids": true,
+    "identical_positive_export_sha256": true
+  },
+  "tests": {
+    "passed": 448,
+    "seconds": 41.32,
+    "new_preparation_tests": 58,
+    "text_tests": 146,
+    "warnings_as_errors": true,
+    "scope": "focused regression; not a full-project audit"
+  },
+  "source_manifest_esci_sha256": "03784650116edbf54f09a2e0397f845e8e2f1b83af737bd0de5543509815ff5d"
+}
