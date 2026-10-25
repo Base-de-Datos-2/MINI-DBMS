@@ -1,0 +1,100 @@
+{
+  "format_version": 1,
+  "status": "PASS",
+  "seed": 20261024,
+  "sizes": [
+    1000,
+    10000,
+    100000
+  ],
+  "selection_algorithm": "nested-v1: positives by numeric ID, then SHA256(nested-v1:seed:id) ascending",
+  "tokenizer": {
+    "algorithm": "nfc-lower-nfc-alnum-v1",
+    "unicode_version": "15.0.0"
+  },
+  "dataset": {
+    "dataset": "Amazon Shopping Queries Dataset (ESCI)",
+    "version": "large_version",
+    "revision": "7916cdf6ab75a462e77f20ab40428a10923998d5",
+    "split": "test",
+    "locale": "us"
+  },
+  "preparation_sha256": {
+    "query_preflight.json": "b3fe23cb29df2e318056b26c1a3b227d676c71780f1f6192b627b75af1e5054d",
+    "document_validation.json": "bf74f0d83151789ae1690bee599f166b98f831a2c0ab8205ec0bf7cd731d8006",
+    "selected_queries.json": "87595ad4b5280f552970af010fd41f9ff6f28d46dc768a9a3677cb8d63526309",
+    "accepted_pool.jsonl": "4482c6ad0507a4b8e93a5ab564b1b2134c44382d232d1082ad086ff1bfc2a348",
+    "selected_positives.jsonl": "f1a49b50012fba9e8283d97eb225231f422414c517de7f03804629a054e6dc01"
+  },
+  "positive_union_count": 439,
+  "subsets": {
+    "1000": {
+      "document_count": 1000,
+      "query_count": 30,
+      "positive_union_count": 439,
+      "judgment_count": 449,
+      "positive_judgment_count": 443,
+      "files": {
+        "documents.jsonl": {
+          "sha256": "e941efa679907a6f9590ac4376278daf8d679410cb3b1b1bbc0ce308f225427e",
+          "bytes": 167724
+        },
+        "queries.json": {
+          "sha256": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5",
+          "bytes": 39684
+        },
+        "qrels.tsv": {
+          "sha256": "9334beb2e9818be0568b0937eeccf39e79b4c1a0156a5cafdc55bc8d6bcd468c",
+          "bytes": 11168
+        }
+      }
+    },
+    "10000": {
+      "document_count": 10000,
+      "query_count": 30,
+      "positive_union_count": 439,
+      "judgment_count": 450,
+      "positive_judgment_count": 443,
+      "files": {
+        "documents.jsonl": {
+          "sha256": "329047b2701a5272e6adaf7764b338fdeaae3da821ad957389d605708ab544e9",
+          "bytes": 1641487
+        },
+        "queries.json": {
+          "sha256": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5",
+          "bytes": 39684
+        },
+        "qrels.tsv": {
+          "sha256": "ca6c9ca2e81bb7d1b9f246f56da900019afb185dcee5aa16d1c7570130bdfc73",
+          "bytes": 11192
+        }
+      }
+    },
+    "100000": {
+      "document_count": 100000,
+      "query_count": 30,
+      "positive_union_count": 439,
+      "judgment_count": 500,
+      "positive_judgment_count": 443,
+      "files": {
+        "documents.jsonl": {
+          "sha256": "edf56cae3257cd7390b8fe5669df01b2bb8bb65631d88e854da878a5e1586de5",
+          "bytes": 16348997
+        },
+        "queries.json": {
+          "sha256": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5",
+          "bytes": 39684
+        },
+        "qrels.tsv": {
+          "sha256": "8a84177da6ed025ce694dff3b8dfa076d034f1e367b61b16d1a44b37c6b74ee0",
+          "bytes": 12416
+        }
+      }
+    }
+  },
+  "subset_manifest_sha256": {
+    "1000": "e69849f612a514e0bb44430c2c39eb536cc42ffb974687d4fd22c6e33d6825dc",
+    "10000": "06d5f09900ba340877d1df2a766c8cbfb13303c20f560c79b3e835b091748d1d",
+    "100000": "bca03019000b5be24deb3f99c2cb849aeae8343736b69d8397bc4a7c40703312"
+  }
+}

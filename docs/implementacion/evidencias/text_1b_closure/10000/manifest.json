@@ -1,0 +1,27 @@
+{
+  "format_version": 1,
+  "seed": 20261024,
+  "tokenizer": {
+    "algorithm": "nfc-lower-nfc-alnum-v1",
+    "unicode_version": "15.0.0"
+  },
+  "document_count": 10000,
+  "query_count": 30,
+  "positive_union_count": 439,
+  "judgment_count": 450,
+  "positive_judgment_count": 443,
+  "files": {
+    "documents.jsonl": {
+      "sha256": "329047b2701a5272e6adaf7764b338fdeaae3da821ad957389d605708ab544e9",
+      "bytes": 1641487
+    },
+    "queries.json": {
+      "sha256": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5",
+      "bytes": 39684
+    },
+    "qrels.tsv": {
+      "sha256": "ca6c9ca2e81bb7d1b9f246f56da900019afb185dcee5aa16d1c7570130bdfc73",
+      "bytes": 11192
+    }
+  }
+}

@@ -1,5 +1,20 @@
 # Corrección e implementación del backend
 
+## Actualización 2026-10-24 — cierre de Parte 3, bloque 1B
+
+La solicitud posterior autorizó 1B.5–1B.8. El corpus ESCI large_version/test/us
+queda aceptado con `corpus_feasibility.json` en **PASS**: 1 000 ⊂ 10 000 ⊂
+100 000 documentos exactos, semilla 20261024, 30 consultas originales
+(10 por grupo 1/3/5+) y los 439 documentos positivos presentes desde 1k.
+Dos construcciones independientes reproducen los 13 artefactos byte por byte.
+Las 100 000 filas finales sobreviven a inserción/cierre de Heap y reapertura
+en otro proceso con todos los IDs, hashes del texto y RID verificados.
+Pasan 476 tests focalizados; la comprobación final específica pasa 28 tests
+incluidos en ese total. Implementación: `c65e38e`. Evidencia, límites y comandos:
+[BLOQUE_1B.md](../../PART_03/BLOQUE_1B.md). El bloque 1B está cerrado;
+SPIMI, ranking de producción, SQL textual y los bloques posteriores siguen
+pendientes de autorización. Las entradas inferiores conservan su estado histórico.
+
 ## Actualización 2026-10-24 — Parte 3, tareas 1B.1–1B.4
 
 El bloque 1A está cerrado. La autorización posterior cubre únicamente

@@ -2,8 +2,9 @@
 
 Date: 2026-10-24. Sources: [Part 3 plan](PLAN_PARTE_03.md), §3.1.1,
 [Block 1A contracts](BLOQUE_1A.md), and [REQUIREMENTS §16](../REQUIREMENTS.md).
-The current request authorizes **1B.1–1B.4 only**. Block 1A remains closed;
-Block 1B and overall corpus acceptance remain **PENDING** until 1B.5–1B.8.
+The latest request authorizes **1B.5–1B.8**, completing the earlier preparation.
+Blocks 1A and 1B are **CLOSED**; the real corpus acceptance report is **PASS**.
+Later Part 3 implementation blocks remain pending.
 
 | Task | Deliverable | State |
 |---|---|---|
@@ -11,10 +12,10 @@ Block 1B and overall corpus acceptance remain **PENDING** until 1B.5–1B.8.
 | 1B.2 | Original-query token lengths, independent judgments, deterministic shortlist and early failure | PASS for ESCI US/test; FAIL for MS MARCO v1 dev/train |
 | 1B.3 | Streaming validation using actual engine types, UTF-8, declared and complete-record size checks | PASS: 100,000 valid pool documents plus all candidate positives |
 | 1B.4 | Thirty original queries and all their positives, deterministic replacement/cap rules | PASS: 10 per group, union of 439 known positive documents |
-| 1B.5 | Exact seeded nested 1k/10k/100k subsets | Pending; not authorized by this request |
-| 1B.6 | All final selected rows inserted into Heap and verified after fresh-process reopening | Pending; codec validation does not substitute for this |
-| 1B.7 | Complete corpus acceptance manifest with measured PASS/FAIL for every criterion | Pending |
-| 1B.8 | Full block tests, documentation and closure | Pending |
+| 1B.5 | Exact seeded nested 1k/10k/100k subsets | PASS: all 439 positives in each; independent builds reproduce all 13 artifacts byte for byte |
+| 1B.6 | All final selected rows inserted into Heap and verified after fresh-process reopening | PASS: 100,000 rows, unique IDs, original text hashes and RID mappings checked |
+| 1B.7 | Complete corpus acceptance manifest with measured PASS/FAIL for every criterion | PASS: all six gates have measured evidence |
+| 1B.8 | Full block tests, documentation and closure | PASS: 476 focused tests plus final 28-test acceptance rerun; reproduction documented |
 
 ## Implementation and methodology
 
@@ -75,8 +76,9 @@ tokenizer as 1A; every accepted row uses the existing engine validation.
 Full original sources/exports remain under ignored generated data. Versioned
 sanitized evidence summaries identify the source hashes, counts and selected
 IDs without publishing local profile paths or copying the complete corpus.
-This work does not generate a corpus-approval PASS, SPIMI, production ranking,
-seeded experimental subsets or the required real Heap acceptance run.
+The final acceptance below supersedes the earlier provisional preparation
+state. SPIMI, production ranking, textual SQL and final retrieval experiments
+remain outside this block.
 
 ## Recorded evidence and validation
 
@@ -104,5 +106,74 @@ Full local reports/exports are in the ignored relative directory documented
 in those artifacts. Evidence is sanitized with `scripts/sanitize_evidence.py`;
 Archived JSON uses LF; the original source-manifest byte hash and all metadata
 values/timestamps are preserved, alongside the archive checksum. No local account paths
-or complete raw corpus are committed. This is preparation evidence and a
-focused regression, not a final corpus-acceptance report or benchmark result.
+or complete raw corpus are committed. Those artifacts preserve the historical
+1B.1–1B.4 preparation state. The final acceptance evidence follows; no retrieval
+benchmark is claimed by this block.
+
+## Final acceptance and closure — 1B.5–1B.8
+
+Implementation commit: `c65e38e`. The real run used the same pinned source and
+`preparation_final` outputs above. Seed **20261024**, algorithm `nested-v1`,
+places all positive IDs first, then distractors ordered by a specified SHA-256
+priority. Of the 439 selected positives, 341 lie outside the original pool;
+they displace distractors to keep the final count exactly 100,000.
+
+| Export | Documents | Queries: 1 / 3 / 5+ | Positive documents / pairs | All supplied filtered judgments |
+|---|---:|---|---|---:|
+| 1k | 1,000 | 10 / 10 / 10 | 439 / 443 | 449 |
+| 10k | 10,000 | 10 / 10 / 10 | 439 / 443 | 450 |
+| 100k | 100,000 | 10 / 10 / 10 | 439 / 443 | 500 |
+
+The document exports are exact byte prefixes, preserving IDs, original titles
+and source IDs across overlaps. Queries are byte-identical at all sizes.
+Filtered judgments retain grade zero where the corresponding document is
+selected, without inventing labels for unjudged distractors. There are no
+missing positive references. Two independently executed builds reproduce
+all three document/query/qrels/local-manifest exports and the global manifest
+byte for byte: **13 identical artifacts**.
+
+The real Heap writer inserted and closed **100,000** final rows using the
+final `documentos` schema. The distinct child process reopened the saved
+schema and checked all **100,000 unique IDs, original text hashes and RID
+mappings**. The before/after content digest is
+`6f43e79a383b7f0cd6585ece57d6d205a31af03e41c9e7ffc4691ba2978cf7d4`.
+Encoded final records range from **13 to 412 bytes**, mean **116.40246**;
+99,946 rows are at most 256 bytes and 54 are 257–512 bytes. The actual limit
+is 4,079 bytes. No truncation, encoding, capacity or persistence failure was
+observed. The Heap is **12,398,612 bytes**. Insertion/close took **121.10 s**;
+the complete writer/child verification took **127.82 s**, while the focused
+regression and independent export rebuild ran concurrently. These are
+preparation timings, not controlled ranking/index performance measurements.
+
+The final report records PASS for compatible verified sources, streaming
+source capacity, original queries/positives, nested subsets/references,
+seeded original content/judgments and actual fresh-process Heap persistence.
+This approves the selected ESCI title corpus under the documented finite
+product-judgment and positive-enriched-sampling limits.
+
+The warnings-as-errors focused regression passed **476 tests in 60.30 s**,
+including all **174 text tests**. The final acceptance-specific rerun passed
+**28 tests in 10.21 s**, overlapping that regression rather than adding 28
+distinct tests. Negative cases include duplicate IDs, UTF-8 physical overflow,
+missing positives or judgments, insufficient query groups, broken nesting,
+altered overlapping text, changed hashes, missing Heap input, child failure or
+timeout, forged RID hashes and changed Heap content with an unchanged count.
+Small fixtures cannot satisfy the formal 100k/30-query gate.
+
+Use the regression command above with a fresh base directory, such as
+`tmp/part03_1b_closure_regression_20261024_b`. Complete source-to-acceptance CLI
+commands and rerun rules are in [preparation instructions](../docs/text-corpus-preparation.md).
+The local run is under ignored `data/generated/text_corpus/esci_us_test/accepted_v1`;
+the independent build is `accepted_repro_v1`. Raw data and Heap files stay local.
+
+Versioned final evidence:
+
+- [corpus_feasibility.json](../docs/implementacion/evidencias/text_1b_closure/corpus_feasibility.json): final PASS and measured evidence for every gate.
+- [subsets_manifest.json](../docs/implementacion/evidencias/text_1b_closure/subsets_manifest.json): seed, source/preparation bindings and per-export sizes/hashes, alongside the three local manifests.
+- [heap_verification.json](../docs/implementacion/evidencias/text_1b_closure/heap_verification.json): actual counts, process identities, schema restoration, before/after hashes and complete Heap/RID receipts.
+- [reproducibility.json](../docs/implementacion/evidencias/text_1b_closure/reproducibility.json): all 13 independently reproduced byte hashes.
+- [closure_summary.json](../docs/implementacion/evidencias/text_1b_closure/closure_summary.json): implementation revision, runtime, test commands, source attribution and evidence inventory.
+
+**Block 1B is closed.** Later blocks require separate authorization. Clean
+Heap persistence is verified; collection sealing, production search, crash
+recovery and retrieval-quality experiments are not part of this closure.

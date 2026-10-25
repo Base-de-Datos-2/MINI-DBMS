@@ -1,18 +1,19 @@
 # AGENTS.md
 
-> Context version: **6.3** — records closed Block 1A and the limited
-> Part 3 tasks 1B.1–1B.4 authorization; corpus approval remains pending.
+> Context version: **6.4** — records closed Blocks 1A/1B and measured
+> Part 3 corpus acceptance; later implementation blocks remain deferred.
 
 ## Purpose
 
-Block 1A is closed. The latest request on 2026-10-24 authorizes **1B.1–1B.4**:
-verify real corpus sources, check original query/judgment feasibility, implement
-streaming document validation and select thirty queries with all their known
-positives. Use `PART_03/BLOQUE_1B.md` and `PART_03/PLAN_PARTE_03.md`.
+Blocks 1A and 1B are closed. The latest request on 2026-10-24 authorizes
+**1B.5–1B.8**: reproducible nested subsets, actual 100k Heap insertion and
+fresh-process reopening, measured corpus acceptance and tested closure.
+The real ESCI corpus gate is PASS. Use `PART_03/BLOQUE_1B.md` and
+`PART_03/PLAN_PARTE_03.md` for evidence and reproducibility instructions.
 This supersedes the historical Part 3 deferral below for these tasks only.
-Tasks 1B.5–1B.8 and later Part 3 blocks remain pending; Parts 4–5 remain
-deferred. Codec-valid preparation is not final corpus approval or real Heap
-acceptance. Do not build SPIMI, production ranking, textual SQL or UI here.
+Later Part 3 blocks and Parts 4–5 remain deferred. Corpus approval is not
+completion of the text engine. Do not build SPIMI, production ranking,
+textual SQL or UI here.
 
 The earlier explicit user authorization started the frontend for Parts 1 and 2,
 including the spatial map and final real-browser verification. Earlier pause

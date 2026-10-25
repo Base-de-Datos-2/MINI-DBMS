@@ -1,8 +1,9 @@
-# Text corpus preparation — tasks 1B.1–1B.4
+# Text corpus preparation and acceptance — Block 1B
 
 This is offline preparation for [Part 3](../PART_03/PLAN_PARTE_03.md), using
-the existing engine's row validation and shared tokenizer. It does not build
-SPIMI, rank queries, create the final nested subsets or perform Heap acceptance.
+the existing engine's row validation, shared tokenizer and persistent Heap.
+It builds the final nested subsets and measures their storage acceptance.
+SPIMI and production ranking belong to later blocks.
 The engine has no network/Parquet dependency. The CLI and source adapters live
 in `scripts/prepare_text_corpus.py` and `benchmarks/text/`.
 
@@ -94,10 +95,10 @@ relative to these supplied judgments, not exhaustive semantic truth.
    exact preflight file. Check the positive spool hash, then verify every
    selected original exists before publishing a selection PASS report.
 
-The selected positive union can overlap the first 100k pool. Block 1B.5 will
-form exact nested 1k/10k/100k sets, including all selected positives, from this
-pool plus the separately validated positive originals. No nested sets are
-created by the current tasks.
+The selected positive union can overlap the first 100k pool. Block 1B.5 forms
+exact nested 1k/10k/100k sets from this pool plus separately validated positive
+originals. It checks duplicate IDs within each input and requires identical
+original text/source identity wherever the two inputs overlap.
 
 ## Commands
 
@@ -151,8 +152,84 @@ partials are preserved rather than silently adopted or overwritten.
 | `selected_queries.json` | Thirty original queries, complete positive associations, label grades, exclusions and PASS/FAIL |
 | `selected_positives.jsonl` | Every selected positive original, checked against the positive spool |
 
-PASS in one of these reports applies only to its task. All reports keep
+PASS in one of these preparation reports applies only to its task. They keep
 `corpus_acceptance = PENDING`; source/selection manifests also keep
-`candidate_approved = false`. The formal `corpus_feasibility.json`, exact nested
-subsets and real Heap insertion/reopening are reserved for tasks 1B.5–1B.8.
-No build/query speed or relevance measurements are claimed here.
+`candidate_approved = false` as a historical preparation snapshot. The final
+`corpus_feasibility.json` is the authoritative approval gate. No indexing/query
+speed or relevance measurements are claimed by corpus acceptance.
+
+## Nested exports and deterministic selection (1B.5)
+
+The frozen seed is **20261024**. Algorithm `nested-v1` places all selected
+positive IDs first, in numeric order, then orders the remaining validated pool
+IDs by `SHA256(ASCII("nested-v1:" + seed + ":" + id))`, breaking any hash tie
+by numeric ID. It takes prefixes of exactly 1,000, 10,000 and 100,000 IDs.
+This specifies the seed's meaning without relying on Python RNG versions or
+source arrival order. Required positives outside the original pool displace
+the last distractors; the largest export still has exactly 100,000 documents.
+
+Every row is canonical UTF-8 JSONL with LF, sorted keys, compact separators,
+original `text`, numeric `id` and retained `source_id`. No title normalization,
+truncation or chunking occurs. Text is streamed through file offsets; memory
+holds IDs, offsets and digests, rather than the entire corpus text.
+The three document files are byte-identical prefixes as well as nested sets.
+
+Each size directory exports `documents.jsonl`, identical `queries.json`,
+`qrels.tsv` and `manifest.json`. Qrels use `query_id 0 document_id grade`, with
+tabs, and retain **all** supplied judgments for selected queries/documents,
+including grade zero. Every known positive is included in every size; an
+unjudged distractor is not assigned grade zero. The top-level
+`subsets_manifest.json` records seed, algorithm, tokenizer, exact preparation
+input hashes and each export's byte size/hash. Outputs require a fresh directory.
+
+## Actual Heap verification and final gate (1B.6–1B.7)
+
+The final schema is `documentos(id INTEGER PRIMARY KEY, contenido VARCHAR)`;
+the declared text-character limit is 4,067 and the complete encoded-row limit
+is 4,079 bytes, imported from the existing engine contract. Each of the
+100,000 exported rows is validated again and inserted into `HeapFile`.
+The writer records `id → RID` and a SHA-256 digest of canonical UTF-8 JSON
+`{"id":id,"text":original_text}` followed by LF, then closes every handle.
+
+A separate Python interpreter, launched with `-I -B`, opens the saved Heap
+without a supplied schema. It checks the restored schema, record count,
+unique ID set, every text digest and every RID association. Heap scans may
+return a different order from insertion; aggregate content digests therefore
+concatenate the binary row digests in numeric ID order. Writer and reader
+process IDs, counts, before/after digests, encoded-size statistics, Heap/RID
+file hashes and elapsed preparation time are saved in `heap_verification.json`.
+Exceptions and nonzero child exits produce a FAIL receipt. This verifies a
+clean close/reopen, not crash recovery or concurrent mutation.
+
+The `accept` command rehashes both complete pinned sources; verifies the
+preparation bindings; rereads every subset and its original validated spool;
+recalculates the seeded order; rereads original selected query/judgment rows;
+and checks all filtered qrels, positives and persistence artifacts. Six gates
+receive measured PASS/FAIL evidence in `corpus_feasibility.json`. Missing
+evidence fails the gate. Official acceptance always requires 100k rows and
+ten original queries in each length group; small test fixtures cannot pass it.
+
+Continue after the five preparation commands above, with the repository's
+Python 3 virtual environment active (on Windows, `.venv/Scripts/python.exe`):
+
+```text
+python scripts/prepare_text_corpus.py subsets --source-dir data/generated/text_corpus/esci_us_test/sources --preparation-dir data/generated/text_corpus/esci_us_test/preparation_final --output-dir data/generated/text_corpus/esci_us_test/accepted_v1 --seed 20261024
+python scripts/prepare_text_corpus.py verify-heap --output-dir data/generated/text_corpus/esci_us_test/accepted_v1
+python scripts/prepare_text_corpus.py accept --source-dir data/generated/text_corpus/esci_us_test/sources --preparation-dir data/generated/text_corpus/esci_us_test/preparation_final --output-dir data/generated/text_corpus/esci_us_test/accepted_v1
+```
+
+To reproduce, reuse hash-verified pinned sources and run into fresh
+preparation/export directories. Repeat `subsets` into a second destination
+with the same seed and compare all 13 files: top-level subset manifest plus
+the four files under each size. Bytes must match. Repeat Heap verification
+against the new destination; timestamps, process IDs and elapsed times are
+run-specific, while ID/text digests and document/query/qrels hashes must match.
+The original source/preparation reports are preserved, not rewritten as final
+approval. Full datasets and Heap artifacts remain under ignored generated data.
+The versioned closure evidence and measured result are linked from
+[Block 1B](../PART_03/BLOQUE_1B.md).
+
+The corpus remains a selected English-US product-title collection, with a
+positive-enriched smallest subset and finite product-level judgments. It is
+not the complete official ESCI benchmark. Metrics in later blocks must use
+these frozen exports and acknowledge incomplete relevance judgments.

@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "status": "PASS",
+  "expected_rows": 100000,
+  "inserted_rows": 100000,
+  "documents_sha256": "edf56cae3257cd7390b8fe5669df01b2bb8bb65631d88e854da878a5e1586de5",
+  "tokenizer": {
+    "algorithm": "nfc-lower-nfc-alnum-v1",
+    "unicode_version": "15.0.0"
+  },
+  "writer_process_id": 28816,
+  "fresh_process": true,
+  "errors": [],
+  "insert_and_close_seconds": 121.09603730001254,
+  "child": {
+    "status": "PASS",
+    "rows": 100000,
+    "unique_ids": 100000,
+    "verified_rid_mappings": 100000,
+    "content_before_sha256": "6f43e79a383b7f0cd6585ece57d6d205a31af03e41c9e7ffc4691ba2978cf7d4",
+    "content_after_sha256": "6f43e79a383b7f0cd6585ece57d6d205a31af03e41c9e7ffc4691ba2978cf7d4",
+    "process_id": 27152,
+    "schema_restored_from_disk": true
+  },
+  "encoded_record_bytes": {
+    "min": 13,
+    "max": 412,
+    "mean": 116.40246
+  },
+  "heap": {
+    "sha256": "8db38bc66ea4010718bfbb25c40c14379dd25d242c7cd7375f712be98ee84c5a",
+    "bytes": 12398612
+  },
+  "rids": {
+    "sha256": "805594734c98e59b22609086e456ca9e80914716bc301671c14798eb14182d0f",
+    "bytes": 11528151
+  },
+  "elapsed_seconds": 127.82195630000206
+}

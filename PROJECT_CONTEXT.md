@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.11** — preserves formal closures and records
-> Part 3 tasks 1B.1–1B.4 and the corpus-preparation decisions.
+> Context version: **4.12** — preserves formal closures and records
+> Part 3 Block 1B acceptance, deterministic exports and Heap verification.
 
 ## Project identity
 
@@ -13,10 +13,10 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 tasks 1B.1–1B.4 only**, explicitly authorized on 2026-10-24:
-> real-source verification, query/judgment preflight, streaming row validation
-> and deterministic selection. Block 1A is closed; 1B.5–1B.8 and later blocks
-> remain pending. See `PART_03/BLOQUE_1B.md` for evidence and remaining work.
+> **Part 3 Block 1B closed**, following explicit authorization of 1B.5–1B.8
+> on 2026-10-24. The real corpus gate is PASS: exact nested exports and all
+> 100,000 rows verified through Heap reopening in a fresh process. Block 1A
+> remains closed; later blocks remain pending. See `PART_03/BLOQUE_1B.md`.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -89,8 +89,8 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorizes Part 3 tasks 1B.1–1B.4 after Block 1A closure.
-Final corpus acceptance, later Part 3 phases and Parts 4–5 remain pending.
+The latest request authorizes Part 3 tasks 1B.5–1B.8 after preparation 1B.1–1B.4.
+Final corpus acceptance is PASS; later Part 3 phases and Parts 4–5 remain pending.
 Earlier scope statements below do not override this limited authorization.
 
 ### Part 3 contract decisions (Block 1A)
@@ -129,8 +129,8 @@ Earlier scope statements below do not override this limited authorization.
   references, not corpus acceptance, measured retrieval quality or a production
   ranker. The existing engine text API still exposes only tokenization.
 - Block 1A closed on 2026-10-24 with 390 focused regression tests passing
-  (88 text tests). Evidence and command: `PART_03/BLOQUE_1A.md`. Corpus acceptance
-  remains PENDING in 1B; no subsequent block is started by this closure.
+  (88 text tests). Evidence and command: `PART_03/BLOQUE_1A.md`. At that closure
+  corpus acceptance was pending in 1B; its completed acceptance is recorded below.
 
 ### Real corpus preparation (1B.1–1B.4)
 
@@ -157,8 +157,38 @@ Earlier scope statements below do not override this limited authorization.
   while the seen-ID set and query/judgment metadata grow with input size.
   Unselected distractor text is not claimed as codec-validated.
 - Full source SHA-256 identities, stage bindings and complete-positive checks
-  precede task PASS reports. Overall corpus approval remains PENDING until
-  nested subsets and real Heap insertion/reopening (1B.5–1B.8) are verified.
+  precede task PASS reports. Preparation reports retain their historical
+  PENDING approval; the final `corpus_feasibility.json` supersedes that snapshot.
+
+### Accepted corpus and persistence (1B.5–1B.8)
+
+- ESCI large_version/test/us is frozen for title retrieval at revision
+  `7916cdf6ab75a462e77f20ab40428a10923998d5`. Thirty original queries have
+  ten distinct normalized queries per group 1/3/5+, 443 positive query/document
+  associations and a union of 439 positive documents. Product-level finite
+  judgments and positive-enriched sampling remain explicit experimental limits.
+- Seed **20261024**, algorithm `nested-v1`: place positives by numeric ID,
+  then other pool IDs by SHA256 of ASCII `nested-v1:seed:id`, with numeric ID
+  as tie-breaker. Take exact 1k/10k/100k prefixes. The 341 positives outside
+  the original pool displace distractors; all subsets preserve original IDs,
+  titles and source IDs, and share identical queries. Filtered qrels preserve
+  supplied zero grades as well as all positives; unjudged rows remain unjudged.
+- Export canonical UTF-8 JSONL with LF, sorted keys and compact separators.
+  Versioned manifests bind source/preparation hashes, tokenizer and all output
+  sizes/hashes. Text streams through file offsets; ID/hash/offset sets are
+  retained in memory. Output directories are fresh and immutable.
+- The final schema reuses `SCHEMA`/`TABLE` from `benchmarks/text/corpus.py`:
+  `documentos(id INTEGER PRIMARY KEY, contenido VARCHAR)`, declared text length
+  4,067 characters and actual encoded-row limit 4,079 bytes. All 100k rows
+  use engine validation and Heap insertion. A separate isolated Python process
+  reopens the closed Heap, restores the schema, and checks every ID, original
+  UTF-8 text digest and RID mapping. Aggregate row hashes use numeric ID order.
+  This proves clean close/reopen persistence, not crash recovery or sealing.
+- Six independently recorded acceptance gates are PASS. Every export is
+  rechecked against validated originals and original selected judgments; the
+  independent seeded rebuild reproduces all 13 artifacts byte for byte.
+  Evidence, measured counts, tests and reproduction: `PART_03/BLOQUE_1B.md`.
+  The corpus is approved; no production text index, ranking or SQL is implied.
 
 The subsequent explicit frontend authorization covers Parts 1 and 2 only.
 The four relational panels and spatial map consume the existing HTTP API.

@@ -1,0 +1,137 @@
+{
+  "format_version": 1,
+  "scope": "Part 3 tasks 1B.5-1B.8; full Block 1B closure",
+  "closure_local_date": "2026-10-24",
+  "acceptance_recorded_utc": "2026-10-25T00:57:31.255369+00:00",
+  "implementation_commit": "c65e38edf286ee2584cdeaabe6a76ac9974d1b58",
+  "task_status": {
+    "1B.5": "PASS",
+    "1B.6": "PASS",
+    "1B.7": "PASS",
+    "1B.8": "PASS"
+  },
+  "corpus_acceptance": "PASS",
+  "block_1b": "CLOSED",
+  "later_blocks": "PENDING; no further implementation authorized",
+  "runtime": {
+    "python": "3.12.4",
+    "platform": "Windows",
+    "unicode": "15.0.0",
+    "pyarrow": "26.0.0",
+    "pytest": "8.4.2"
+  },
+  "local_preparation_root": "data/generated/text_corpus/esci_us_test/preparation_final",
+  "local_output_root": "data/generated/text_corpus/esci_us_test/accepted_v1",
+  "local_independent_rebuild_root": "data/generated/text_corpus/esci_us_test/accepted_repro_v1",
+  "seed": 20261024,
+  "selected_positive_documents": 439,
+  "positive_documents_outside_initial_pool": 341,
+  "positive_judgment_pairs": 443,
+  "queries_per_group": {
+    "1": 10,
+    "3": 10,
+    "5plus": 10
+  },
+  "subset_sizes": [
+    1000,
+    10000,
+    100000
+  ],
+  "filtered_judgment_counts": {
+    "1000": 449,
+    "10000": 450,
+    "100000": 500
+  },
+  "reproducibility": {
+    "independent_builds": 2,
+    "byte_identical_artifacts": 13,
+    "receipt": "reproducibility.json"
+  },
+  "tests": [
+    {
+      "kind": "focused regression",
+      "passed": 476,
+      "text_tests_included": 174,
+      "elapsed_seconds": 60.3,
+      "command": "python -m pytest -W error -p no:cacheprovider --basetemp tmp/part03_1b_closure_regression_20261024_b tests/text tests/test_architecture.py tests/storage/test_record_codec.py tests/storage/test_value_codec.py tests/storage/test_heap_file.py tests/storage/test_heap_persistence.py tests/query/test_parser_contract.py tests/query/test_binder.py tests/api/test_database.py"
+    },
+    {
+      "kind": "final acceptance-specific rerun after final byte-distribution reporting",
+      "passed": 28,
+      "elapsed_seconds": 10.21,
+      "overlaps_regression": true,
+      "command": "python -m pytest -W error -p no:cacheprovider --basetemp tmp/part03_1b_closure_final_20261024_b tests/text/test_corpus_acceptance.py"
+    }
+  ],
+  "timing_context": "Heap preparation ran concurrently with the focused regression and an independent export rebuild; not an indexing/query benchmark",
+  "source_attribution": {
+    "dataset": "Amazon Shopping Queries Dataset (ESCI)",
+    "repository": "https://github.com/amazon-science/esci-data",
+    "revision": "7916cdf6ab75a462e77f20ab40428a10923998d5",
+    "version": "large_version",
+    "split": "test",
+    "locale": "us",
+    "license": "Apache-2.0",
+    "citation": "Reddy et al. (2022), Shopping Queries Dataset, arXiv:2206.06588",
+    "indexed_field": "entire original product_title",
+    "historical_source_manifest_approval": "PENDING snapshot; superseded only by corpus_feasibility.json"
+  },
+  "limits": [
+    "selected English-US title corpus, not complete official ESCI benchmark",
+    "finite supplied product-level judgments; unjudged does not mean irrelevant",
+    "positive-enriched nested subsets",
+    "clean close/reopen persistence; no crash-recovery or sealing claim",
+    "no production ranking, text SQL, UI or retrieval-quality experiment"
+  ],
+  "evidence_serialization": "UTF-8 LF; exact JSON artifacts copied without changing original measurements or timestamps",
+  "artifacts": {
+    "1000/manifest.json": {
+      "sha256": "e69849f612a514e0bb44430c2c39eb536cc42ffb974687d4fd22c6e33d6825dc",
+      "bytes": 700
+    },
+    "1000/qrels.tsv": {
+      "sha256": "9334beb2e9818be0568b0937eeccf39e79b4c1a0156a5cafdc55bc8d6bcd468c",
+      "bytes": 11168
+    },
+    "10000/manifest.json": {
+      "sha256": "06d5f09900ba340877d1df2a766c8cbfb13303c20f560c79b3e835b091748d1d",
+      "bytes": 702
+    },
+    "10000/qrels.tsv": {
+      "sha256": "ca6c9ca2e81bb7d1b9f246f56da900019afb185dcee5aa16d1c7570130bdfc73",
+      "bytes": 11192
+    },
+    "100000/manifest.json": {
+      "sha256": "bca03019000b5be24deb3f99c2cb849aeae8343736b69d8397bc4a7c40703312",
+      "bytes": 704
+    },
+    "100000/qrels.tsv": {
+      "sha256": "8a84177da6ed025ce694dff3b8dfa076d034f1e367b61b16d1a44b37c6b74ee0",
+      "bytes": 12416
+    },
+    "corpus_feasibility.json": {
+      "sha256": "70112bee4d8388f71dba709117f83d202e58d8fdd1f9fc05f0e76b015b273b33",
+      "bytes": 57733
+    },
+    "heap_verification.json": {
+      "sha256": "2c29b2bb0886a80a79a7aa5ed770d02cfa4d6d702b0aa1c610336e0fd0d4e588",
+      "bytes": 1156
+    },
+    "queries.json": {
+      "sha256": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5",
+      "bytes": 39684
+    },
+    "reproducibility.json": {
+      "sha256": "784cd2668e69913199c00252f86adf6ad001b71d4fc20c8e87be90dd7e68a5dd",
+      "bytes": 1975
+    },
+    "source_manifest_esci.json": {
+      "sha256": "0696dbfbc6a19a97f31d58c1287bc3d76c624b564ec3ffe3b9eec789a967e5bb",
+      "bytes": 2466
+    },
+    "subsets_manifest.json": {
+      "sha256": "288abfc077d8133f0efb9ddc0a899c178811f4bcead1caf5237b7aa888cbbd70",
+      "bytes": 3340
+    }
+  }
+}
