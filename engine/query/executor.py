@@ -33,6 +33,9 @@ from engine.storage import Record
 from .ast import (
     BeginTransactionStatement,
     CreateTableStatement,
+    CreateIndexStatement,
+    DropStatement,
+    UpdateStatement,
     DeleteStatement,
     EndTransactionStatement,
     InsertStatement,
@@ -84,7 +87,10 @@ def _reject_unavailable_extension(
             source=source,
             offending=source[statement.span.start:statement.span.end],
         )
-    if isinstance(statement, CreateTableStatement) and ddl_service is None:
+    if isinstance(statement, (CreateIndexStatement, DropStatement, UpdateStatement)):
+        feature = "CREATE INDEX / UPDATE / DROP execution"
+        offending = source[statement.span.start:statement.span.end] if statement.span is not None else source
+    elif isinstance(statement, CreateTableStatement) and ddl_service is None:
         feature = "CREATE TABLE execution"
         offending = "CREATE"
     else:

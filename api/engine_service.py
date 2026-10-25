@@ -56,6 +56,9 @@ from engine.query import (
 from engine.query.ast import (
     BeginTransactionStatement,
     CreateTableStatement,
+    CreateIndexStatement,
+    DropStatement,
+    UpdateStatement,
     DeleteStatement,
     EndTransactionStatement,
     ExplainStatement,
@@ -136,7 +139,7 @@ ELAPSED_SCOPE = (
 # knows how to serialize. A future engine statement stays refused until it has
 # an explicit policy and result-dispatch branch here.
 _READ_ONLY_STATEMENTS = frozenset({"SELECT", "EXPLAIN", "EXPLAIN_ANALYZE"})
-_WRITE_STATEMENTS = _READ_ONLY_STATEMENTS | {"INSERT", "DELETE", "CREATE"}
+_WRITE_STATEMENTS = _READ_ONLY_STATEMENTS | {"INSERT", "DELETE", "CREATE", "CREATE_INDEX", "UPDATE", "DROP_TABLE", "DROP_INDEX"}
 _CONTROL_STATEMENTS = frozenset({"BEGIN", "END", "ROLLBACK"})
 
 _FAMILIES = (
@@ -144,9 +147,12 @@ _FAMILIES = (
     (InsertStatement, "INSERT"),
     (DeleteStatement, "DELETE"),
     (CreateTableStatement, "CREATE"),
+    (CreateIndexStatement, "CREATE_INDEX"),
+    (UpdateStatement, "UPDATE"),
     (BeginTransactionStatement, "BEGIN"),
     (EndTransactionStatement, "END"),
     (RollbackStatement, "ROLLBACK"),
+    (DropStatement, "DROP_TABLE"),
 )
 
 _UNAVAILABLE_MESSAGE = "El motor no está disponible; reinicia el servidor de la demo."
@@ -158,6 +164,8 @@ def _family(statement: object) -> str | None:
 
     if isinstance(statement, ExplainStatement):
         return "EXPLAIN_ANALYZE" if statement.analyze else "EXPLAIN"
+    if isinstance(statement, DropStatement):
+        return "DROP_TABLE" if statement.object_type == "TABLE" else "DROP_INDEX"
     for syntax, family in _FAMILIES:
         if isinstance(statement, syntax):
             return family
@@ -531,8 +539,10 @@ class EngineService:
         if request.parameters is not None:
             options["parameters"] = request.parameters
         try:
-            family = _family(parse_sql(request.sql))
+            parsed_statement = parse_sql(request.sql)
+            family = _family(parsed_statement)
         except SqlQueryError:
+            parsed_statement = None
             # Let the engine report it: inside an explicit group, its contract
             # is that malformed SQL submitted to execute aborts the group.
             family = None
@@ -542,8 +552,44 @@ class EngineService:
         since = self._trace_mark(runner.session)
         group_before = None if runner.client is None else runner.client.group_id
         try:
-            result = runner.execute(request.sql, **options)
-            body = self._dispatch(result, request)
+            if isinstance(parsed_statement, (CreateIndexStatement, UpdateStatement, DropStatement)):
+                if runner.session.active_transaction is not None:
+                    raise ServiceError(
+                        "TRANSACTION_PROTOCOL",
+                        "CREATE INDEX, UPDATE y DROP se ejecutan como operaciones independientes; termina primero la transacción explícita.",
+                        statement=family,
+                    )
+                if isinstance(parsed_statement, CreateIndexStatement):
+                    result_data = runner.session.run_schema_change(lambda: self._database.create_sql_index(
+                        parsed_statement.name, parsed_statement.table, parsed_statement.column,
+                        unique=parsed_statement.unique))
+                    affected = 0
+                elif isinstance(parsed_statement, UpdateStatement):
+                    result_data = runner.session.run_schema_change(lambda: self._database.update_sql_table(parsed_statement))
+                    affected = result_data["affected_rows"]
+                elif parsed_statement.object_type == "TABLE":
+                    result_data = runner.session.run_schema_change(lambda: self._database.drop_sql_table(parsed_statement.name))
+                    affected = 0
+                    self._static_health["tables"] = list(self._database.table_names())
+                else:
+                    result_data = runner.session.run_schema_change(lambda: self._database.drop_sql_index(parsed_statement.name))
+                    affected = 0
+                body = {
+                    "kind": "command", "statement": family, "columns": [], "rows": [],
+                    "returned_rows": 0, "truncated": False, "truncation_reason": None,
+                    "result_complete": True, "total_rows": None, "affected_rows": affected,
+                    "execution_plan": {"prepared": {"root": {"name": family, "output_columns": [],
+                        "details": [{"key": "details", "value": str(result_data)}],
+                        "ordered_by": None, "children": []}, "truncated": False}, "runtime": None},
+                    "plan_status": "execution-observed",
+                    "metrics": {"scope": ELAPSED_SCOPE, "partial": False, "engine": None,
+                                 "maintenance": {"indexes_maintained": [], "index_association_updates": 0,
+                                                  "indexes_rebuilt": [], "targets_spooled": 0, "spool_bytes": 0}},
+                    "message": f"{family} ejecutado correctamente.",
+                }
+            else:
+                result = runner.execute(request.sql, **options)
+                body = self._dispatch(result, request)
             if family == "CREATE":
                 self._static_health["tables"] = list(self._database.table_names())
         except ServiceError:
@@ -615,10 +661,10 @@ class EngineService:
             return
         if family in self._allowed():
             return
-        if family == "CREATE":
+        if family in {"CREATE", "CREATE_INDEX", "UPDATE", "DROP_TABLE", "DROP_INDEX"}:
             raise ServiceError(
                 "STATEMENT_DISABLED",
-                "Crear tablas es una escritura: arranca el servidor con --allow-writes.",
+                "Esta sentencia modifica la base de datos: arranca el servidor con --allow-writes.",
                 statement=family,
             )
         plan = None

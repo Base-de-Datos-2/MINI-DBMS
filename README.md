@@ -140,16 +140,19 @@ python -m api --spatial --data-dir data/generated/spatial_nueva
 
 ### Crear tablas y consultar datos espaciales desde SQL
 
-Con `--allow-writes`, la demo acepta `CREATE TABLE` en el editor. Tablas Heap
-con `id INTEGER`, `latitud FLOAT` y `longitud FLOAT` (sin columna física
-`ubicacion`) aparecen automáticamente en el mapa. Consulta la
+Con `--allow-writes`, la demo acepta `CREATE TABLE`, `CREATE INDEX`, `UPDATE`,
+`DROP INDEX` y `DROP TABLE` (estos últimos comandos con las restricciones
+indicadas en la [guía de extensiones SQL](docs/SQL_DDL_DML_EXTENSIONS.md)).
+Tablas Heap con `id INTEGER`, `latitud FLOAT` y `longitud FLOAT` (sin columna
+física `ubicacion`) aparecen automáticamente en el mapa. Consulta la
 [demostración completa](docs/DEMO_SQL_ESPACIAL.md) para crear una tabla nueva,
 insertar puntos, consultar radio/k-NN/polígono y comprobar rollback/reapertura.
 
 ### Escrituras y desarrollo
 
 El servidor inicia en modo **solo lectura**. Para permitir inserciones,
-borrados y creación/importación de tablas desde la interfaz:
+borrados, creación de tablas e índices, actualizaciones y eliminación de tablas
+SQL dinámicas desde la interfaz:
 
 ```bash
 python -m api --allow-writes

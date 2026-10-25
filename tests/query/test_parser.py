@@ -140,9 +140,9 @@ def test_empty_input_is_rejected():
         parse_sql("")
 
 
-def test_unknown_statement_keyword_is_rejected():
-    with pytest.raises(SqlSyntaxError):
-        parse_sql("UPDATE students SET x = 1")
+def test_update_statement_is_parsed():
+    from engine.query.ast import UpdateStatement
+    assert isinstance(parse_sql("UPDATE students SET x = 1"), UpdateStatement)
 
 
 def test_star_disallowed_outside_select_list_position():

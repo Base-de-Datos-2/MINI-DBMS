@@ -274,7 +274,6 @@ def test_submission_requires_exactly_one_statement_and_at_most_one_semicolon(sql
     "sql",
     [
         "COMMIT",
-        "UPDATE t SET a = 1",
     ],
 )
 def test_unsupported_statement_families_have_a_distinct_error(sql):

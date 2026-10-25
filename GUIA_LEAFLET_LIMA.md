@@ -135,3 +135,49 @@ herramientas de desarrollo en frontend, ejecuta `npx playwright install chromium
 y `npm run test:browser`. El script utiliza una base temporal nueva; no modifica
 tu directorio de datos. Consulta docs/VERIFICACION_LEAFLET.md para resultados
 y límites de la comprobación cartográfica en el entorno de pruebas.
+
+
+## 11. Comandos SQL adicionales (versión extendida)
+
+La API de la demo permite ejecutar estas sentencias en el editor SQL con el servidor iniciado mediante `--allow-writes`. Ejecuta una sentencia por envío. Se aplican a tablas creadas mediante SQL o el panel Archivos cuando así se indica.
+
+### Crear un índice B+ no agrupado
+
+```sql
+CREATE INDEX idx_lugares_categoria ON lugares_lima (categoria);
+```
+
+Para exigir valores únicos en la columna, usa `CREATE UNIQUE INDEX`. La construcción se valida con los datos existentes y el índice se guarda en el registro persistente de la tabla.
+
+### Actualizar filas
+
+```sql
+UPDATE lugares_lima
+SET categoria = 'Museo actualizado'
+WHERE id = 2;
+```
+
+También se aceptan varias asignaciones separadas por comas, valores literales o referencias a columnas, y los predicados soportados por el subconjunto SQL actual. Los índices ordinarios y el R-Tree se reconstruyen después de la actualización para mantener sus asociaciones. Se rechazan cambios que violen un índice único o la validación espacial.
+
+### Eliminar un índice
+
+```sql
+DROP INDEX idx_lugares_categoria;
+```
+
+No se permite eliminar por SQL el índice que garantiza una clave primaria.
+
+### Eliminar una tabla creada por SQL
+
+```sql
+DROP TABLE locales_demo;
+```
+
+El comando elimina la definición registrada, sus índices y los archivos que pertenecen a esa tabla. Por seguridad, `DROP TABLE` por SQL está limitado a tablas creadas dinámicamente; las tablas declaradas por el código de la demo no se eliminan.
+
+### Límites importantes
+
+- Estas operaciones se ejecutan como operaciones independientes y no se admiten dentro de una transacción explícita `BEGIN TRANSACTION` / `END TRANSACTION`.
+- `CREATE INDEX` crea índices B+ no agrupados; no se ha añadido la cláusula `USING` para elegir otro tipo.
+- `UPDATE` no admite expresiones aritméticas (`columna = columna + 1`) ni `NULL`.
+- Estas extensiones se exponen mediante la API HTTP usada por el frontend. La API serializa las operaciones y persiste las definiciones; el `SqlEngine` de bajo nivel sigue rechazando estas familias si se invoca directamente fuera de ese adaptador.
