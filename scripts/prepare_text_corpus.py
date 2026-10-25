@@ -11,6 +11,7 @@ from benchmarks.text.sources import acquire  # noqa: E402
 from benchmarks.text.corpus import (member_stream, prepare_preflight, select_queries, validate_documents, validate_source_binding)  # noqa: E402
 from benchmarks.text.sources import file_hash, write_json  # noqa: E402
 from benchmarks.text.esci import acquire_esci, esci_preflight, esci_documents, parquet_rows  # noqa: E402
+from benchmarks.text.acceptance import build_subsets, source_judgments, verify_heap, acceptance_report, SEED  # noqa: E402
 
 
 def main():
@@ -27,8 +28,27 @@ def main():
         action = subparsers.add_parser(command)
         action.add_argument("--source-dir", type=Path, required=True)
         action.add_argument("--output-dir", type=Path, required=True)
+    for command in ("subsets", "accept"):
+        action = subparsers.add_parser(command)
+        action.add_argument("--source-dir", type=Path, required=True)
+        action.add_argument("--preparation-dir", type=Path, required=True)
+        action.add_argument("--output-dir", type=Path, required=True)
+        if command == "subsets":
+            action.add_argument("--seed", type=int, default=SEED)
+    heap = subparsers.add_parser("verify-heap")
+    heap.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    if args.command in {"download", "download-esci"}:
+    if args.command == "subsets":
+        _, judgments = source_judgments(args.source_dir, args.preparation_dir)
+        report = build_subsets(args.preparation_dir, args.output_dir, judgments, seed=args.seed)
+        print(json.dumps({key: report[key] for key in ("status", "sizes", "seed", "positive_union_count")}))
+        return 0
+    elif args.command in {"verify-heap", "accept"}:
+        report = (verify_heap(args.output_dir) if args.command == "verify-heap"
+                  else acceptance_report(args.source_dir, args.preparation_dir, args.output_dir))
+        print(json.dumps({key: report[key] for key in ("status", "errors")}))
+        return 0 if report["status"] == "PASS" else 1
+    elif args.command in {"download", "download-esci"}:
         manifest = (acquire(args.source_dir, args.split, not args.metadata_only) if args.command == "download"
                     else acquire_esci(args.source_dir, args.metadata_only))
         print(json.dumps({"files": [{"name": item["filename"], "bytes": item["downloaded_bytes"]}
