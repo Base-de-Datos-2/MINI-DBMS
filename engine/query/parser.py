@@ -22,6 +22,10 @@ from .ast import (
     ColumnDefinition,
     Comparison,
     CreateTableStatement,
+    CreateIndexStatement,
+    DropStatement,
+    UpdateAssignment,
+    UpdateStatement,
     DeleteStatement,
     EndTransactionStatement,
     ExplainStatement,
@@ -59,8 +63,6 @@ _UNSUPPORTED_STATEMENTS = frozenset(
         "ALTER",
         "ANALYZE",
         "COMMIT",
-        "DROP",
-        "UPDATE",
         "WITH",
     }
 )
@@ -228,6 +230,10 @@ class _Parser:
             statement = self._parse_insert()
         elif self._at_keyword("DELETE"):
             statement = self._parse_delete()
+        elif self._at_keyword("UPDATE"):
+            statement = self._parse_update()
+        elif self._at_keyword("DROP"):
+            statement = self._parse_drop()
         elif self._at_keyword("CREATE"):
             statement = self._parse_create_table()
         elif self._at_keyword("EXPLAIN"):
@@ -246,7 +252,7 @@ class _Parser:
             )
         else:
             raise self._expected(
-                "SELECT, INSERT, DELETE, CREATE, EXPLAIN, BEGIN TRANSACTION, "
+                "SELECT, INSERT, DELETE, UPDATE, CREATE, DROP, EXPLAIN, BEGIN TRANSACTION, "
                 "END TRANSACTION, or ROLLBACK"
             )
 
@@ -266,7 +272,7 @@ class _Parser:
         if self._at_punct(";"):
             return self._error("Only one optional final semicolon is allowed")
         if word in {
-            "SELECT", "INSERT", "DELETE", "CREATE", "EXPLAIN",
+            "SELECT", "INSERT", "DELETE", "UPDATE", "DROP", "CREATE", "EXPLAIN",
             "BEGIN", "END", "ROLLBACK",
         }:
             return self._error("Only one SQL statement may be submitted at a time")
@@ -725,17 +731,64 @@ class _Parser:
             span=self._cover(start.span, self._previous.span),
         )
 
+    def _parse_update(self) -> UpdateStatement:
+        start = self._expect_keyword("UPDATE")
+        table = self._expect_identifier()
+        self._expect_keyword("SET")
+        def assignment():
+            column = self._expect_identifier()
+            if self._current.type is not TokenType.COMPARISON_OPERATOR or self._current.value != "=":
+                raise self._expected("=")
+            self._advance()
+            value = self._parse_value_expr()
+            return UpdateAssignment(column=column.value, value=value,
+                                    span=self._cover(column.span, value.span))
+        assignments = self._parse_comma_list(assignment)
+        if len({a.column for a in assignments}) != len(assignments):
+            raise self._error("UPDATE cannot assign the same column more than once")
+        where = self._parse_optional_where()
+        return UpdateStatement(table=table.value, assignments=assignments, where=where,
+                               span=self._cover(start.span, self._previous.span))
+
+    def _parse_drop(self) -> DropStatement:
+        start = self._expect_keyword("DROP")
+        if self._match_keyword("TABLE") is not None:
+            object_type = "TABLE"
+        elif self._match_keyword("INDEX") is not None:
+            object_type = "INDEX"
+        else:
+            raise self._expected("TABLE or INDEX")
+        name = self._expect_identifier()
+        return DropStatement(object_type=object_type, name=name.value,
+                             span=self._cover(start.span, name.span))
+
     # -- CREATE TABLE / EXPLAIN ------------------------------------------ #
 
-    def _parse_create_table(self) -> CreateTableStatement:
+    def _parse_create_table(self):
         start = self._expect_keyword("CREATE")
+        unique = self._match_keyword("UNIQUE") is not None
+        if self._match_keyword("INDEX") is not None:
+            if unique:
+                pass
+            name = self._expect_identifier()
+            self._expect_keyword("ON")
+            table = self._expect_identifier()
+            self._expect_punct("(")
+            column = self._expect_identifier()
+            close = self._expect_punct(")")
+            return CreateIndexStatement(
+                name=name.value, table=table.value, column=column.value,
+                unique=unique, span=self._cover(start.span, close.span),
+            )
+        if unique:
+            raise self._error("UNIQUE is only supported with CREATE INDEX", error_type=SqlUnsupportedError)
         if not self._at_keyword("TABLE"):
             if not self._at_end:
                 raise self._error(
-                    "Only CREATE TABLE is supported by the adopted SQL subset",
+                    "Supported forms are CREATE TABLE and CREATE [UNIQUE] INDEX",
                     error_type=SqlUnsupportedError,
                 )
-            raise self._expected("keyword TABLE")
+            raise self._expected("keyword TABLE or INDEX")
         self._advance()
         table = self._expect_identifier()
         self._expect_punct("(")
@@ -786,6 +839,10 @@ class _Parser:
         if integer_type is not None:
             return TypeSpecification("INTEGER", span=integer_type.span)
 
+        scalar = self._match_keyword("FLOAT", "BOOLEAN")
+        if scalar is not None:
+            return TypeSpecification(scalar.value, span=scalar.span)
+
         varchar = self._match_keyword("VARCHAR")
         if varchar is not None:
             self._expect_punct("(")
@@ -813,7 +870,7 @@ class _Parser:
                 token=token,
                 error_type=SqlUnsupportedError,
             )
-        raise self._expected("INT, INTEGER, or VARCHAR(n)")
+        raise self._expected("INT, INTEGER, FLOAT, BOOLEAN, or VARCHAR(n)")
 
     def _parse_explain(self) -> ExplainStatement:
         start = self._expect_keyword("EXPLAIN")

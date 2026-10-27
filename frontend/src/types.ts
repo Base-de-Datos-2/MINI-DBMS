@@ -237,7 +237,11 @@ export type StatementName =
   | "BEGIN"
   | "END"
   | "ROLLBACK"
-  | "CREATE";
+  | "CREATE"
+  | "CREATE_INDEX"
+  | "UPDATE"
+  | "DROP_TABLE"
+  | "DROP_INDEX";
 
 export interface QueryResponse {
   request_id: string;
@@ -321,6 +325,7 @@ export interface SpatialTable {
   };
 }
 export interface SpatialPoint {
+  record?: Record<string, unknown>;
   id: number | string;
   latitude: number;
   longitude: number;

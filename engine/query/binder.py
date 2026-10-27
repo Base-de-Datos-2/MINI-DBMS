@@ -970,6 +970,9 @@ def bind_create(
             if definition.data_type.name == "INTEGER":
                 data_type = DataType.INTEGER
                 varchar_length = None
+            elif definition.data_type.name in {"FLOAT", "BOOLEAN"}:
+                data_type = DataType(definition.data_type.name)
+                varchar_length = None
             elif definition.data_type.name == "VARCHAR":
                 data_type = DataType.VARCHAR
                 varchar_length = definition.data_type.length

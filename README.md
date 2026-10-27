@@ -138,10 +138,21 @@ python scripts/setup_spatial.py --data-dir data/generated/spatial_nueva
 python -m api --spatial --data-dir data/generated/spatial_nueva
 ```
 
+### Crear tablas y consultar datos espaciales desde SQL
+
+Con `--allow-writes`, la demo acepta `CREATE TABLE`, `CREATE INDEX`, `UPDATE`,
+`DROP INDEX` y `DROP TABLE` (estos últimos comandos con las restricciones
+indicadas en la [guía de extensiones SQL](docs/SQL_DDL_DML_EXTENSIONS.md)).
+Tablas Heap con `id INTEGER`, `latitud FLOAT` y `longitud FLOAT` (sin columna
+física `ubicacion`) aparecen automáticamente en el mapa. Consulta la
+[demostración completa](docs/DEMO_SQL_ESPACIAL.md) para crear una tabla nueva,
+insertar puntos, consultar radio/k-NN/polígono y comprobar rollback/reapertura.
+
 ### Escrituras y desarrollo
 
 El servidor inicia en modo **solo lectura**. Para permitir inserciones,
-borrados y creación/importación de tablas desde la interfaz:
+borrados, creación de tablas e índices, actualizaciones y eliminación de tablas
+SQL dinámicas desde la interfaz:
 
 ```bash
 python -m api --allow-writes
@@ -176,12 +187,26 @@ versión servida por el puerto 8000.
 5. En la base espacial, selecciona una tabla y consulta por radio, vecinos
    cercanos o polígono. El mapa resalta los resultados devueltos por el motor.
 
-El **Explorador espacial** utiliza un mapa geográfico sin conexión, con
-proyección Mercator y rejilla de coordenadas. Arrastra para desplazarlo, usa
-`+`/`−` para cambiar el zoom y haz clic para elegir el centro de búsqueda.
-Con el mapa enfocado, las flechas desplazan y `Enter` selecciona el centro
-visible. Para un polígono, introduce un par `latitud, longitud` por línea.
-**Actualizar puntos** renueva la vista desde la base.
+El **Explorador espacial** utiliza Leaflet 1.9.4 con calles de OpenStreetMap
+por HTTPS. Arrastra para desplazar, usa `+`/`−` para cambiar el zoom y haz clic
+para elegir el centro. Con el mapa enfocado, las flechas desplazan y `Enter`
+selecciona el centro visible. Los marcadores muestran nombre, ID y coordenadas;
+los resultados del motor se resaltan en verde. Para un polígono, introduce un
+par `latitud, longitud` por línea o activa el dibujo y marca sus vértices.
+**Actualizar puntos** renueva la vista desde la base. **Ver puntos** ajusta
+la vista a los registros recibidos. La cartografía requiere Internet; Leaflet
+está incluido en la compilación y no requiere una clave de Google Maps.
+
+Para una demo nueva con 20 lugares identificados del centro de Lima:
+
+```bash
+python scripts/setup_lima.py --data-dir data/generated/demo_lima
+python -m api --spatial --allow-writes --data-dir data/generated/demo_lima
+```
+
+Ejecuta el preparador una sola vez, con el servidor detenido y en un directorio
+nuevo. El CSV y su procedencia están en `data/lima/`. Consulta
+[GUIA_LEAFLET_LIMA.md](GUIA_LEAFLET_LIMA.md) para instalación Windows y pruebas.
 
 **Cargar consulta en SQL** envía al editor la búsqueda de radio o vecinos,
 junto con `mi_ubicacion`. El parámetro se muestra debajo de los paneles y se

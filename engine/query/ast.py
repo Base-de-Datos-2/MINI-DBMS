@@ -184,6 +184,33 @@ class ColumnDefinition(SyntaxNode):
 
 
 @dataclass(frozen=True, slots=True)
+class UpdateAssignment(SyntaxNode):
+    column: str
+    value: SqlExpr
+
+
+@dataclass(frozen=True, slots=True)
+class UpdateStatement(SyntaxNode):
+    table: str
+    assignments: tuple[UpdateAssignment, ...]
+    where: SqlExpr | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class CreateIndexStatement(SyntaxNode):
+    name: str
+    table: str
+    column: str
+    unique: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class DropStatement(SyntaxNode):
+    object_type: str  # TABLE or INDEX
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
 class CreateTableStatement(SyntaxNode):
     """Pure syntax for the limited single-table CREATE form."""
 
@@ -218,6 +245,9 @@ Statement = (
     SelectStatement
     | InsertStatement
     | DeleteStatement
+    | UpdateStatement
+    | CreateIndexStatement
+    | DropStatement
     | CreateTableStatement
     | ExplainStatement
     | BeginTransactionStatement

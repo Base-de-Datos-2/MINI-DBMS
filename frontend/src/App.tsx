@@ -175,13 +175,19 @@ export default function App() {
         }
         const changedData =
           next.status === "success" &&
-          (next.body.kind === "command" ||
+          (next.body.kind === "command" || next.body.kind === "definition" ||
             (next.body.kind === "transaction" && next.body.statement !== "BEGIN"));
         const aborted =
           next.status === "error" && next.body.error.details?.group_aborted === true;
         if (changedData || aborted) {
-          await loadTables();
-          if (selected !== null) await selectTable(selected.id);
+          const refreshedTables = await loadTables();
+          if (selected !== null) {
+            if (refreshedTables.some((table) => table.id === selected.id)) await selectTable(selected.id);
+            else {
+              setSelected(null);
+              setFilesMessage("La tabla seleccionada ya no existe.");
+            }
+          }
           setSpatialRevision((value) => value + 1);
         }
       } finally {

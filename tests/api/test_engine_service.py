@@ -84,7 +84,7 @@ def test_statement_allowlists_fail_closed_for_future_engine_kinds(
     writable = open_service(writable_directory, allow_writes=True)
     try:
         assert writable._allowed() == frozenset(
-            {"SELECT", "EXPLAIN", "EXPLAIN_ANALYZE", "INSERT", "DELETE"}
+            {"SELECT", "EXPLAIN", "EXPLAIN_ANALYZE", "INSERT", "DELETE", "CREATE", "CREATE_INDEX", "UPDATE", "DROP_TABLE", "DROP_INDEX"}
         )
     finally:
         writable.close()

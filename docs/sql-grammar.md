@@ -23,6 +23,18 @@ Every valid query environment supports SELECT-only explanation. See the
 evidence is in the [extension closure audit](ETAPA_07_EXTENSION_AUDIT.md).
 Multiple statements and automatic script splitting remain unsupported.
 
+**Current demo API extension (2026-10-25):** the SQL editor/API now additionally
+routes `CREATE [UNIQUE] INDEX`, `UPDATE`, `DROP INDEX`, and `DROP TABLE` through
+the database owner. These commands are serialized as standalone schema changes;
+they are intentionally rejected inside an explicit transaction. The extension
+is scoped to the HTTP demo adapter rather than the lower-level standalone
+`SqlEngine` planner. `CREATE INDEX` and `DROP INDEX` persist for dynamically
+created (SQL/Files-panel) tables; `DROP TABLE` is limited to those tables so
+Python-declared demo fixtures cannot silently reappear on restart. `UPDATE`
+accepts literal or column-reference assignments and the existing comparison /
+AND / OR / NOT predicate subset; arithmetic assignment expressions and SQL NULL
+remain unsupported. See `SQL_DDL_DML_EXTENSIONS.md` for the operational contract.
+
 **Stage 8 closure (Tasks 8.1–8.30, 2026-09-24):** The same handwritten parser
 recognizes `BEGIN TRANSACTION`, `END TRANSACTION`, and `ROLLBACK` as complete
 single statements. They are dispatched only by an owner-created session.
@@ -71,9 +83,9 @@ The notation is EBNF. Brackets mean optional content, braces mean repetition,
 and keyword spelling is case-insensitive.
 
 ```ebnf
-statement       = (select_stmt | insert_stmt | delete_stmt
-                  | create_table_stmt | explain_stmt | transaction_control),
-                  [";"], EOF ;
+statement       = (select_stmt | insert_stmt | delete_stmt | update_stmt
+                  | create_table_stmt | create_index_stmt | drop_stmt
+                  | explain_stmt | transaction_control), [";"], EOF ;
 
 transaction_control = "BEGIN", "TRANSACTION"
                     | "END", "TRANSACTION"
@@ -81,6 +93,12 @@ transaction_control = "BEGIN", "TRANSACTION"
 
 create_table_stmt = "CREATE", "TABLE", identifier, "(",
                     column_definition, {",", column_definition}, ")" ;
+create_index_stmt = "CREATE", ["UNIQUE"], "INDEX", identifier, "ON",
+                    identifier, "(", identifier, ")" ;
+drop_stmt         = "DROP", ("TABLE" | "INDEX"), identifier ;
+update_stmt       = "UPDATE", identifier, "SET", assignment,
+                    {",", assignment}, [where_clause] ;
+assignment        = identifier, "=", value_expr ;
 column_definition = identifier, type_spec, ["PRIMARY", "KEY"] ;
 type_spec         = ("INT" | "INTEGER")
                   | "VARCHAR", "(", positive_integer, ")" ;
@@ -146,14 +164,14 @@ numeric literal, and rejects arbitrary unary arithmetic.
 | Comments | `--` through LF, CRLF, CR, or EOF is accepted; block comments are rejected |
 | CREATE TABLE | Ordered non-empty columns, INT/INTEGER, VARCHAR(1..4075), optional inline PRIMARY KEY; executable only with the manifest DDL service |
 | EXPLAIN | SELECT child only; optional ANALYZE; no nested wrapper; plain form describes without row execution and ANALYZE drains one execution |
-| Extension execution | CREATE implemented in Tasks 7.33–7.35; EXPLAIN and EXPLAIN ANALYZE implemented in Tasks 7.36–7.38 |
+| Extension execution | CREATE TABLE and EXPLAIN implemented in Stage 7; demo API also supports CREATE INDEX, UPDATE, DROP INDEX and DROP TABLE under the limits documented above |
 | DELETE | Whole-table `DELETE FROM table` is adopted; the executor must use the same validation and index-maintenance path as filtered DELETE |
 | INSERT | One row only; an optional column list is adopted |
 | JOIN | At most one explicit inner `JOIN`; its executable baseline is an equality key plus any supported residual predicate |
 | Aggregates | `COUNT(*)`, `COUNT(column)`, `SUM`, `AVG`, `MIN`, and `MAX`, subject to Stage 6 type rules |
 | NULL | No SQL `NULL` literal or three-valued logic is adopted because the current row model does not support it |
 | Transaction controls | BEGIN TRANSACTION, END TRANSACTION, and ROLLBACK parse as one complete statement; owner-created sessions group supported data statements and ordinary standalone statements use implicit transactions |
-| Unsupported | UPDATE, DDL other than the limited CREATE TABLE syntax, COMMIT alias, savepoints, subqueries, expressions, multi-row VALUES, quoted identifiers, and multiple statements |
+| Unsupported | General arithmetic expressions, SQL NULL, COMMIT alias, savepoints, subqueries, multi-row VALUES, quoted identifiers, and multiple statements |
 
 `DELETE` without `WHERE`, implicit aliases, qualified stars, line comments,
 multiple ORDER/GROUP keys, and the optional INSERT column list are explicit

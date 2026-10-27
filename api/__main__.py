@@ -87,7 +87,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--allow-writes",
         action="store_true",
-        help="habilita INSERT/DELETE (solo sobre la base de demo desechable)",
+        help="habilita INSERT, DELETE, CREATE INDEX, UPDATE y DROP en la demo (base desechable)",
     )
     args = parser.parse_args(argv)
     if args.data_dir is None:

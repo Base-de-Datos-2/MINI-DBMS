@@ -16,6 +16,9 @@ from engine.errors import InvalidTypeError, ValidationError
 from engine.query.ast import (
     BeginTransactionStatement,
     CreateTableStatement,
+    CreateIndexStatement,
+    DropStatement,
+    UpdateStatement,
     DeleteStatement,
     EndTransactionStatement,
     ExplainStatement,
@@ -194,7 +197,7 @@ class ResourceCatalog:
                 (BeginTransactionStatement, EndTransactionStatement, RollbackStatement),
             ):
                 return AccessPlan(SchemaMode.NONE, (), self._schema_generation)
-            if isinstance(statement, CreateTableStatement):
+            if isinstance(statement, (CreateTableStatement, CreateIndexStatement, DropStatement)):
                 return AccessPlan(SchemaMode.X, (), self._schema_generation)
             if isinstance(statement, ExplainStatement) and not statement.analyze:
                 return AccessPlan(SchemaMode.S, (), self._schema_generation)
@@ -211,7 +214,7 @@ class ResourceCatalog:
                 if select.join is not None:
                     names.add(select.join.table.name)
                 mode = LockMode.S
-            elif isinstance(statement, (InsertStatement, DeleteStatement)):
+            elif isinstance(statement, (InsertStatement, DeleteStatement, UpdateStatement)):
                 names = {statement.table}
                 mode = LockMode.X
             else:

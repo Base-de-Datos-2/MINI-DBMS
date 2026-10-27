@@ -11,8 +11,8 @@ This is the explicit legacy, definition-driven open mode retained for the
 Stage 9 demo. Tables are declared in Python: :meth:`Database.create` builds and
 seeds them once, offline, while :meth:`Database.open` reopens only the declared
 files and refuses a missing or partial directory. It neither infers nor writes
-the Stage 7 database manifest, and its ``SqlEngine`` intentionally has no DDL
-service, so SQL CREATE is rejected. New manifest-backed databases use
+the Stage 7 database manifest. Its DDL service publishes SQL-created tables
+through the same durable GUI registry. New manifest-backed databases use
 ``engine.database.Database``.
 
 Tables created from the Files panel (:meth:`Database.create_gui_table`) are the
@@ -26,11 +26,12 @@ client session is supplied).
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from engine.catalog import (
     Catalog,
+    ColumnConstraint,
     Column,
     DataType,
     IndexMetadata,
@@ -42,6 +43,12 @@ from engine.errors import DuplicateError, ValidationError
 from engine.indexes import build_catalog_index, open_catalog_index
 from engine.operators.context import DEFAULT_BUDGET_BYTES, DEFAULT_MAX_OPEN_HANDLES
 from engine.query import QueryEnvironment, SqlEngine
+from engine.query.ast import (
+    BoolAnd, BoolNot, BoolOr, BooleanLiteral, ColumnRef, Comparison,
+    FloatLiteral, IntegerLiteral, StringLiteral,
+)
+from engine.maintenance.validation import validate_record
+from engine.query.ddl import CreatedTable
 from engine.storage import HeapFile, PagedSequentialFile, Record
 from engine.spatial.metadata import SpatialMapping, read_mappings
 from engine.spatial.geometry import Metric, Point, Polygon
@@ -101,6 +108,7 @@ class TableDefinition:
     key_column: str | None = None
     indexes: tuple[IndexDefinition, ...] = ()
     rows: Callable[[], Iterable[Sequence[object]]] | None = None
+    constraints: tuple[ColumnConstraint, ...] = ()
 
     def __post_init__(self) -> None:
         if self.organization not in _TABLE_SUFFIX:
@@ -169,6 +177,7 @@ class NewIndex:
     column: str
     index_type: IndexType
     unique: bool = False
+    name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,6 +189,7 @@ class NewTable:
     organization: str = HEAP
     key_column: str | None = None
     indexes: tuple[NewIndex, ...] = ()
+    constraints: tuple[ColumnConstraint, ...] = ()
 
 
 class Database:
@@ -316,6 +326,7 @@ class Database:
             schema=Schema([Column(name, data_type) for name, data_type in gui.columns]),
             organization=gui.organization,
             key_column=gui.key_column,
+            constraints=gui.constraints,
             indexes=tuple(
                 IndexDefinition(
                     index.name, index.column, index.index_type,
@@ -374,7 +385,12 @@ class Database:
                     {index.name: root / index.filename for index in gui.indexes},
                 )
                 database._gui_tables[gui.name] = gui
-            for mapping in read_mappings(root):
+            mappings = {mapping.table: mapping for mapping in read_mappings(root)}
+            for gui in database._gui_tables.values():
+                mapping = database._automatic_spatial_mapping(database._gui_definition(gui))
+                if mapping is not None:
+                    mappings.setdefault(mapping.table, mapping)
+            for mapping in mappings.values():
                 try:
                     mapping.validate_schema(database._catalog.get_table(mapping.table).schema)
                     if database._tables[mapping.table].organization != HEAP:
@@ -389,6 +405,7 @@ class Database:
             database._engine = SqlEngine(
                 database._environment,
                 mutation_service=SpatialMutationService(database._spatial_indexes),
+                ddl_service=database,
                 memory_budget_bytes=memory_budget_bytes,
                 max_open_handles=max_open_handles,
             )
@@ -401,6 +418,7 @@ class Database:
                 engine_factory=lambda: SqlEngine(
                     database._environment,
                     mutation_service=SpatialMutationService(database._spatial_indexes),
+                    ddl_service=database,
                     memory_budget_bytes=memory_budget_bytes,
                     max_open_handles=max_open_handles,
                 ),
@@ -437,7 +455,7 @@ class Database:
         path: Path,
         index_paths: dict[str, Path],
     ) -> None:
-        self._catalog.register_table(TableMetadata(table.name, table.schema))
+        self._catalog.register_table(TableMetadata(table.name, table.schema, table.constraints))
         created = create
         if table.organization == HEAP:
             storage = (
@@ -645,6 +663,275 @@ class Database:
                 source_filename=None if gui is None else gui.source_filename,
             )
 
+    @staticmethod
+    def _automatic_spatial_mapping(table: TableDefinition) -> SpatialMapping | None:
+        columns = {column.name: column.data_type for column in table.schema}
+        if (table.organization == HEAP and columns.get("id") is DataType.INTEGER
+                and columns.get("latitud") is DataType.FLOAT
+                and columns.get("longitud") is DataType.FLOAT
+                and "ubicacion" not in columns):
+            return SpatialMapping(table.name)
+        return None
+
+    def _sql_spec(self, table: TableMetadata) -> NewTable:
+        indexes = (() if table.primary_key is None else
+                   (NewIndex(table.primary_key, IndexType.BPLUS, unique=True,
+                             name=f"__pk__{table.name}"),))
+        return NewTable(table.name,
+                        tuple((c.name, c.data_type) for c in table.schema),
+                        indexes=indexes, constraints=table.constraints)
+
+    def validate_create(self, table: TableMetadata) -> None:
+        if self._closed or not self._available:
+            raise TransactionUnavailableError("Database is closed or quarantined")
+        self._validated_gui_table(self._sql_spec(table), 0, "empty", None)
+
+    def create_table(self, table: TableMetadata) -> CreatedTable:
+        if not self._coordinator.protected_schema_change_active():
+            return self._coordinator.default_session.run_schema_change(
+                lambda: self.create_table(table))
+        self.validate_create(table)
+        self._build_gui_table(self._sql_spec(table), (), None, "empty", None)
+        indexes = self._catalog.get_indexes(table.name)
+        return CreatedTable(table.name, next((i.name for i in indexes if i.unique), None))
+
+    def create_sql_index(self, name: str, table_name: str, column_name: str, *, unique: bool = False):
+        """Create and persist a non-clustered B+ index on a GUI-created table."""
+        if not self._coordinator.protected_schema_change_active():
+            return self._coordinator.default_session.run_schema_change(
+                lambda: self.create_sql_index(name, table_name, column_name, unique=unique))
+        if table_name not in self._gui_tables:
+            raise ValidationError("CREATE INDEX por SQL solo está habilitado para tablas creadas por SQL o el panel Archivos")
+        name = check_identifier(name, "el índice")
+        column_name = check_identifier(column_name, "la columna")
+        if type(unique) is not bool:
+            raise ValidationError("UNIQUE debe ser booleano")
+        if self._catalog.has_index(name):
+            raise DuplicateError(f"Ya existe un índice llamado {name!r}.")
+        table = self._catalog.get_table(table_name)
+        table.schema.column(column_name)
+        gui = self._gui_tables[table_name]
+        identity = new_identity()
+        path = self._directory / f"g_{identity}.bpt"
+        metadata = IndexMetadata(name, table_name, column_name, IndexType.BPLUS,
+                                 clustered=False, unique=unique, file_path=str(path))
+        runtime = None
+        registered_catalog = False
+        try:
+            self._catalog.register_index(metadata)
+            registered_catalog = True
+            runtime = build_catalog_index(self._catalog, name, self._storages[table_name])
+            runtime.flush()
+            self._environment.register_index(name, runtime)
+            self._indexes[name] = runtime
+            self._paths[name] = path
+            updated_index = GuiIndex(name, identity, column_name, IndexType.BPLUS, unique, False)
+            updated_gui = replace(gui, indexes=(*gui.indexes, updated_index))
+            self._gui_tables[table_name] = updated_gui
+            self._tables[table_name] = self._gui_definition(updated_gui)
+            write_registry(self._directory, tuple(self._gui_tables.values()))
+            self._coordinator.resources.unregister(table_name)
+            self._coordinator.resources.register(self._table_files(self._tables[table_name]))
+            return {"index": name, "table": table_name, "column": column_name, "unique": unique}
+        except BaseException:
+            self._gui_tables[table_name] = gui
+            self._tables[table_name] = self._gui_definition(gui)
+            if self._environment.catalog.has_index(name):
+                try:
+                    self._environment.unregister_index(name)
+                except Exception:
+                    pass
+            self._indexes.pop(name, None)
+            self._paths.pop(name, None)
+            if runtime is not None:
+                try: runtime.close()
+                except Exception: pass
+            if registered_catalog and self._catalog.has_index(name):
+                try: self._catalog.unregister_index(name)
+                except Exception: pass
+            path.unlink(missing_ok=True)
+            raise
+
+    def drop_sql_index(self, name: str):
+        """Drop a GUI-created index while preserving the table and its rows."""
+        if not self._coordinator.protected_schema_change_active():
+            return self._coordinator.default_session.run_schema_change(
+                lambda: self.drop_sql_index(name))
+        if not self._catalog.has_index(name):
+            raise ValidationError(f"No existe el índice {name!r}.")
+        metadata = self._catalog.get_index(name)
+        gui = self._gui_tables.get(metadata.table_name)
+        if gui is None or not any(index.name == name for index in gui.indexes):
+            raise ValidationError("DROP INDEX por SQL solo puede eliminar índices creados dinámicamente")
+        if metadata.unique and metadata.column_name == self._catalog.get_table(metadata.table_name).primary_key:
+            raise ValidationError("No se puede eliminar el índice que garantiza la clave primaria")
+        path = self._paths[name]
+        runtime = self._indexes[name]
+        updated_gui = replace(gui, indexes=tuple(item for item in gui.indexes if item.name != name))
+        # Publish the registry change first. A crash before in-memory cleanup
+        # leaves only an orphan physical file, never a registry pointing at a
+        # missing index.
+        old_tables = self._gui_tables[gui.name]
+        self._gui_tables[gui.name] = updated_gui
+        try:
+            write_registry(self._directory, tuple(self._gui_tables.values()))
+        except BaseException:
+            self._gui_tables[gui.name] = old_tables
+            raise
+        self._tables[gui.name] = self._gui_definition(updated_gui)
+        self._environment.unregister_index(name)
+        runtime.close()
+        self._catalog.unregister_index(name)
+        self._indexes.pop(name, None)
+        self._paths.pop(name, None)
+        self._coordinator.resources.unregister(gui.name)
+        self._coordinator.resources.register(self._table_files(self._tables[gui.name]))
+        path.unlink(missing_ok=True)
+        return {"index": name, "table": gui.name}
+
+    def drop_sql_table(self, name: str):
+        """Drop a dynamically-created table and all its owned physical files."""
+        if not self._coordinator.protected_schema_change_active():
+            return self._coordinator.default_session.run_schema_change(
+                lambda: self.drop_sql_table(name))
+        gui = self._gui_tables.get(name)
+        if gui is None:
+            raise ValidationError("DROP TABLE por SQL solo está habilitado para tablas creadas por SQL o el panel Archivos")
+        files = self._table_files(self._tables[name])
+        # Registry publication is the durable DROP point; cleanup after this
+        # point may leave harmless orphan files if the process stops abruptly.
+        old_gui_tables = tuple(self._gui_tables.values())
+        self._gui_tables.pop(name)
+        try:
+            write_registry(self._directory, tuple(self._gui_tables.values()))
+        except BaseException:
+            self._gui_tables[name] = gui
+            # Restore original order if registry publication failed.
+            self._gui_tables = {item.name: item for item in old_gui_tables}
+            raise
+        self._coordinator.resources.unregister(name)
+        spatial = self._spatial_indexes.pop(name, None)
+        if spatial is not None:
+            self._environment.unregister_spatial(name)
+            spatial.close()
+        self._spatial_mappings.pop(name, None)
+        for index in tuple(self._catalog.get_indexes(name)):
+            runtime = self._indexes.pop(index.name, None)
+            if runtime is not None:
+                self._environment.unregister_index(index.name)
+                runtime.close()
+            self._catalog.unregister_index(index.name)
+            self._paths.pop(index.name, None)
+        storage = self._storages.pop(name)
+        self._environment.unregister_storage(name)
+        storage.close()
+        self._catalog.unregister_table(name)
+        self._tables.pop(name, None)
+        self._gui_tables.pop(name, None)
+        self._paths.pop(name, None)
+        for path in files.physical_files:
+            path.unlink(missing_ok=True)
+        for _, path in files.auxiliary:
+            path.unlink(missing_ok=True)
+        return {"table": name}
+
+    @staticmethod
+    def _sql_value(expression, record):
+        if isinstance(expression, (IntegerLiteral, FloatLiteral, StringLiteral, BooleanLiteral)):
+            return expression.value
+        if isinstance(expression, ColumnRef):
+            return record[expression.name]
+        raise ValidationError("UPDATE solo admite valores literales o referencias a columnas")
+
+    @classmethod
+    def _sql_predicate(cls, expression, record):
+        if expression is None:
+            return True
+        if isinstance(expression, BoolAnd):
+            return bool(cls._sql_predicate(expression.left, record) and cls._sql_predicate(expression.right, record))
+        if isinstance(expression, BoolOr):
+            return bool(cls._sql_predicate(expression.left, record) or cls._sql_predicate(expression.right, record))
+        if isinstance(expression, BoolNot):
+            return not cls._sql_predicate(expression.term, record)
+        if isinstance(expression, Comparison):
+            left, right = cls._sql_value(expression.left, record), cls._sql_value(expression.right, record)
+            try:
+                return {"=": lambda: left == right, "<>": lambda: left != right,
+                        "<": lambda: left < right, "<=": lambda: left <= right,
+                        ">": lambda: left > right, ">=": lambda: left >= right}[expression.operator]()
+            except (TypeError, KeyError):
+                raise ValidationError("Comparación incompatible en UPDATE") from None
+        raise ValidationError("Condición WHERE no admitida para UPDATE")
+
+    def update_sql_table(self, statement):
+        """Apply a validated UPDATE and rebuild all affected row-ID associations."""
+        if not self._coordinator.protected_schema_change_active():
+            return self._coordinator.default_session.run_schema_change(
+                lambda: self.update_sql_table(statement))
+        table_name = statement.table
+        table_meta = self._catalog.get_table(table_name)
+        storage = self._storages[table_name]
+        old_rows = list(storage.scan())
+        if not old_rows:
+            return {"table": table_name, "affected_rows": 0}
+        column_positions = {column.name: i for i, column in enumerate(table_meta.schema)}
+        assignments = []
+        for assignment in statement.assignments:
+            if assignment.column not in column_positions:
+                raise ValidationError(f"Columna desconocida {assignment.column!r}")
+            assignments.append((column_positions[assignment.column], assignment.column, assignment.value))
+        new_records = []
+        affected = 0
+        for _, record in old_rows:
+            values = list(record.values)
+            if self._sql_predicate(statement.where, record):
+                affected += 1
+                for position, _, expression in assignments:
+                    values[position] = self._sql_value(expression, record)
+            new_record = Record(table_meta.schema, values)
+            validate_record(table_meta, new_record)
+            new_records.append(new_record)
+        if affected == 0:
+            return {"table": table_name, "affected_rows": 0}
+        # Check every declared unique index against the complete post-update image.
+        for index in self._catalog.get_indexes(table_name):
+            if index.unique:
+                seen = set()
+                for record in new_records:
+                    key = record[index.column_name]
+                    if key in seen:
+                        raise DuplicateError(f"UPDATE violaría la unicidad del índice {index.name!r}")
+                    seen.add(key)
+        original_records = [record for _, record in old_rows]
+        try:
+            for rid, _ in old_rows:
+                storage.delete(rid)
+            for record in new_records:
+                storage.insert(record)
+            for index in self._catalog.get_indexes(table_name):
+                self._indexes[index.name].rebuild()
+                self._indexes[index.name].flush()
+            if table_name in self._spatial_indexes:
+                self._spatial_indexes[table_name].rebuild()
+            storage.flush()
+        except BaseException as operation_error:
+            try:
+                for rid, _ in list(storage.scan()):
+                    storage.delete(rid)
+                for record in original_records:
+                    storage.insert(record)
+                for index in self._catalog.get_indexes(table_name):
+                    self._indexes[index.name].rebuild()
+                    self._indexes[index.name].flush()
+                if table_name in self._spatial_indexes:
+                    self._spatial_indexes[table_name].rebuild()
+                storage.flush()
+            except BaseException as restore_error:
+                self._available = False
+                operation_error.add_note(f"Restauración de UPDATE incompleta: {restore_error}")
+            raise
+        return {"table": table_name, "affected_rows": affected}
+
     def create_gui_table(
         self,
         spec: NewTable,
@@ -729,7 +1016,9 @@ class Database:
                     )
                 clustered = True
             suffix = "bplus" if index.index_type is IndexType.BPLUS else "hash"
-            base = f"{name}_{index.column}_{suffix}"
+            base = index.name or f"{name}_{index.column}_{suffix}"
+            if index.name is not None and index.name in taken:
+                raise DuplicateError(f"Ya existe un índice llamado {index.name!r}.")
             index_name, counter = base, 2
             while index_name in taken:
                 index_name, counter = f"{base}_{counter}", counter + 1
@@ -740,6 +1029,7 @@ class Database:
                     unique=index.unique, clustered=clustered,
                 )
             )
+        TableMetadata(name, Schema([Column(n, t) for n, t in columns]), spec.constraints)
         return GuiTable(
             name=name,
             identity=new_identity(),
@@ -750,6 +1040,7 @@ class Database:
             origin=origin,
             source_filename=source_filename,
             loaded_rows=loaded_rows,
+            constraints=spec.constraints,
         )
 
     def _build_gui_table(
@@ -762,10 +1053,13 @@ class Database:
     ) -> None:
         gui = self._validated_gui_table(spec, len(rows), origin, source_filename)
         definition = self._gui_definition(gui)
+        mapping = self._automatic_spatial_mapping(definition)
         schema = definition.schema
         table_path = self._directory / gui.filename
         index_paths = {index.name: self._directory / index.filename for index in gui.indexes}
         created_files = [table_path, *index_paths.values()]
+        if mapping is not None:
+            created_files.append(self._directory / mapping.index_filename)
         if any(path.exists() for path in created_files):
             raise DatabaseSetupError("A fresh GUI file identity already exists on disk")
 
@@ -801,7 +1095,7 @@ class Database:
             # Build every index against a private Catalog first, so the live
             # Catalog never holds a half-built table.
             staging = Catalog()
-            staging.register_table(TableMetadata(gui.name, schema))
+            staging.register_table(TableMetadata(gui.name, schema, gui.constraints))
             index_metadata = {}
             for index in definition.indexes:
                 metadata = IndexMetadata(
@@ -821,7 +1115,7 @@ class Database:
             for runtime in runtimes.values():
                 runtime.flush()
 
-            self._catalog.register_table(TableMetadata(gui.name, schema))
+            self._catalog.register_table(TableMetadata(gui.name, schema, gui.constraints))
             published["catalog"] = True
             self._environment.register_storage(gui.name, storage)
             published["storage"] = True
@@ -836,6 +1130,12 @@ class Database:
                 environment_indexes.append(index.name)
                 self._indexes[index.name] = runtimes[index.name]
                 self._paths[index.name] = index_paths[index.name]
+            if mapping is not None:
+                self._spatial_mappings[gui.name] = mapping
+                published["spatial"] = True
+                self._spatial_indexes[gui.name] = SpatialIndex.open_or_build(
+                    storage, mapping, self._directory / mapping.index_filename)
+                self._environment.register_spatial(gui.name, self._spatial_indexes[gui.name])
             self._coordinator.resources.register(self._table_files(definition))
             published["resource"] = True
             write_registry(self._directory, tuple(self._gui_tables.values()))
@@ -865,6 +1165,12 @@ class Database:
             except BaseException as failure:  # noqa: BLE001 - reported by caller
                 failures.append(failure)
 
+        if published.get("spatial"):
+            attempt(lambda: self._environment.unregister_spatial(name))
+            spatial = self._spatial_indexes.pop(name, None)
+            self._spatial_mappings.pop(name, None)
+            if spatial is not None:
+                attempt(spatial.close)
         if published.get("resource"):
             attempt(lambda: self._coordinator.resources.unregister(name))
         for index_name in reversed(environment_indexes):

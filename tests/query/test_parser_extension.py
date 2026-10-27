@@ -221,7 +221,6 @@ def test_malformed_create_forms_have_controlled_located_syntax_errors(sql):
 @pytest.mark.parametrize(
     "sql",
     [
-        "CREATE INDEX idx ON t (id)",
         "CREATE TABLE t (id TEXT)",
         "CREATE TABLE t (id INT, PRIMARY KEY (id))",
         "EXPLAIN INSERT INTO t VALUES (1)",
