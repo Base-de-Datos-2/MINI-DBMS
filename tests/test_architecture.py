@@ -53,8 +53,9 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         # The E2 core consumes stored points and the cancellation helper.
         # Only its lifecycle adapter composes maintenance and transactions.
         "spatial": {"errors", "catalog", "storage", "operators", "spatial"},
-        # Part 3 begins with a pure tokenizer and shared domain errors only.
-        "text": {"errors", "text"},
+        # Block 2 consumes schema/Heap contracts for SPIMI and RID association;
+        # text still has no SQL, transaction, API or benchmark dependencies.
+        "text": {"errors", "catalog", "storage", "text"},
         "operators": {"errors", "catalog", "storage", "indexes", "operators"},
         # Maintenance is the Stage 7 write path (INSERT/DELETE + index upkeep):
         # a storage-layer concern the query engine consumes, so it sits beside
