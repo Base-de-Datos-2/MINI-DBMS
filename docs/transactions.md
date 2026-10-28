@@ -30,6 +30,13 @@
 
 ## Before-image undo, commit, and failure
 
+- Part 3 Block 4A adds a persistent write-policy gate under schema/table grants,
+  before runtime flush, undo capture or touched-table registration. A sealed
+  Heap rejects SQL and programmatic writes without capturing/restoring its
+  files. Earlier successful writes to mutable tables still roll back. Direct
+  UndoStore capture/restore also preflights physical seal markers. Publication
+  is offline-only and excluded for the complete owner/coordinator lifetime,
+  including internal handle close/reopen. See [Block 4A](../PART_03/BLOQUE_4A.md).
 - After target X and before the first permanent mutation of a table, including validity-marker writes, capture one consistent image of its **complete physical file set**: base file, every associated index, headers/free lists, and permanent validity state. Record original lengths and paths. Reuse the original snapshot for later writes to that table in the same group. No read-only snapshot and no whole-database or global manifest snapshot. Separate table snapshots preserve another transaction's commit to an independent table.
 - Flush the pre-write set, copy files in bounded chunks to a transaction-owned undo directory, and publish a complete descriptor before any mutation. A failed or over-budget capture cleans partial copies and aborts without writing base/index state. Adopt initial configurable owner limits of **64 live sessions, 32 active transactions, 1 GiB undo per transaction, and 2 GiB total undo**, with **1 MiB copy chunks**, at most **two concurrent captures** and two extra copy handles per capture. Reserve owner quota atomically across concurrent captures and require at least the exact remaining capture bytes plus a **64 MiB free-space reserve** before copying. These are policy defaults to implement and test in 8.3/8.11; changing them requires documented evidence, not an implicit unbounded path. Existing operator memory/handle budgets remain separate.
 - Abort retains X and schema protection while it closes cursors/spools, restores exact bytes and lengths of every changed table/index, removes only transaction-owned replacement artifacts, reopens canonical handles, refreshes caches/headers/free-space and borrowed adapters, bumps generations, and validates base/index agreement. Ordinary Stage 7 maintenance repair may run during an operation, but transaction abort must restore the group's original state, including earlier successful statements. A failed restore or validation makes the owner unavailable **before** waiters can access it. Cancel waits, keep diagnostics and undo artifacts, and report `ABORT_FAILED`; closing a bad handle is not repair.

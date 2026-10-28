@@ -24,8 +24,9 @@ los experimentos.
 | Experimentos | Comparaciones de estructuras relacionales y de búsqueda secuencial/R-Tree/GiST con 1 000, 10 000 y 100 000 registros |
 | Núcleo textual | Tokenizador Unicode, SPIMI externo, postings/estadísticas persistentes, mapa ID/RID, lectores concurrentes y ranking Python TF-IDF/coseno y BM25; integración SQL textual pendiente |
 
-La Parte 3 tiene preparados los datos, SPIMI y el ranking Python; su sellado,
-SQL e integración con la interfaz quedan pendientes. Uso y límites actuales
+La Parte 3 tiene preparados los datos, SPIMI, el ranking Python y el sellado
+persistente de las colecciones. SQL textual e integración con la interfaz
+quedan pendientes. Uso y límites actuales
 en [docs/text.md](docs/text.md). Las Partes 4 y 5 —multimedia y aplicación
 multimodal— quedan para las siguientes entregas.
 

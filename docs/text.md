@@ -2,9 +2,9 @@
 
 La Parte 3 implementa recuperación léxica con vectores dispersos de términos.
 El tokenizador Unicode y los contratos/fixtures de 1A están cerrados; el corpus
-real de 1B tiene aceptación PASS. Los **bloques 2 (SPIMI) y 3 (ranking Python)
-están implementados y verificados**. El sellado persistente, SQL textual y su
-integración en el owner/HTTP/UI siguen pendientes.
+real de 1B tiene aceptación PASS. Los **bloques 2 (SPIMI), 3 (ranking Python)
+y 4A (sellado persistente) están implementados y verificados**. SQL textual,
+registro textual e integración en el owner/HTTP/UI siguen pendientes.
 
 `engine.text.build_spimi` construye un índice persistente desde un Heap
 prestado, con presupuesto de bloques y mezcla externa por fan-in limitado.
@@ -37,9 +37,25 @@ otras rutas usan ExternalSort antes de limitar. El acumulador de candidatos
 continúa siendo O(C). Uso, pruebas y límites: [bloque 3](../PART_03/BLOQUE_3.md).
 
 El constructor requiere un directorio nuevo y una fuente sin escritores.
-El Heap aún no está sellado: mantenerlo sin mutaciones es responsabilidad del
-llamador hasta la fase 4A. `TextIndex.verify_storage` detecta asociaciones o
-contenido distintos; no reemplaza esa futura protección persistente.
+Durante construcción, mantener el Heap sin mutaciones es responsabilidad del
+llamador. Después de validar, cerrar todos los owners/coordinators y publicar
+el sello del motor sobre los handles de preparación abiertos offline:
+
+```python
+from engine.text import seal_text_collection
+
+# Enumerar TODOS los B+/hash secundarios declarados de esta colección.
+seal_text_collection(heap, index, secondary_indexes=secondary_indexes)
+assert heap.read_only
+```
+
+El sello v2 conserva filas/RIDs y asocia colección/generación del índice.
+Las escrituras se rechazan incluso por handles directos y antes de capturar
+undo en sesiones. Las tablas v1 continúan mutables. Reabrir conserva la política;
+no existe operación de desellado. La publicación requiere una fuente exclusiva,
+no es atómica ante caídas y un fallo parcial exige reconstruir en otro directorio.
+El registro y script de preparación del owner corresponden al bloque 4B.
+Matriz de rutas, compatibilidad y pruebas: [bloque 4A](../PART_03/BLOQUE_4A.md).
 
 Referencias:
 

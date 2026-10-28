@@ -341,3 +341,38 @@ No se ejecutó el benchmark 100k/GIN ni se implementaron sellado, owner/SQL
 textual, HTTP/UI o integración de sesiones. Uso y límites:
 [BLOQUE_3.md](../../PART_03/BLOQUE_3.md). Bloques 1A, 1B, 2 y 3 cerrados;
 el siguiente pendiente es **4A: política persistente de escritura**.
+
+## Actualización autorizada — Parte 3, bloque 4A, 28/10/2026
+
+El usuario autorizó el bloque 4A. Se implementó la política persistente:
+v1 continúa mutable sin migraciones; el Heap sellado usa header/metadatos v2
+y un descriptor colección/generación. Todos sus secundarios B+/hash enumerados
+también se sellan. El lector anterior rechaza esos archivos por versión.
+
+Heap, PageManager, mantenimiento, cores/adaptadores B+/hash, SqlEngine y rutas
+de mutación del owner comprueban la política antes de efectos. Las sesiones
+SQL/programáticas la consultan bajo grants antes de flush, captura de undo y
+registro touched. UndoStore no captura ni restaura archivos sellados. Una
+transacción que escribió otra tabla mutable conserva su rollback normal.
+La reapertura interna y otro proceso mantienen el sello y los resultados.
+
+La publicación exige cerrar todos los owners/coordinators. Una exclusión de
+admisión cubre la validación y la secuencia completa de sellado, sin bloquear
+las consultas ordinarias. Se probó la carrera con la apertura de un owner.
+La enumeración completa de secundarios es responsabilidad del llamador hasta
+la integración de 4B. No hay desellado, WAL ni publicación atómica ante caídas;
+una preparación parcial incompatible exige reconstrucción en otro directorio.
+
+La verificación focalizada final aprobó **96 pruebas en 85.75 segundos**,
+incluyendo 57 casos nuevos, HTTP con escrituras habilitadas, fallos inyectados,
+hashes intactos, rollback, proceso aislado y arquitectura. La regresión completa
+terminó con **3474 aprobadas, 4 omitidas y 1 fallo en 1391.61 segundos**,
+sin fallos atribuibles a 4A. Su fallo previo de sanitización
+de separadores Windows se reprodujo usando el script original de `039a063`;
+el script y la prueba no se modificaron ni se declara suite completa verde.
+
+Evidencia y comandos: [BLOQUE_4A.md](../../PART_03/BLOQUE_4A.md),
+[recibo](evidencias/text_block4a_closure.json). AGENTS y PROJECT_CONTEXT
+registran las decisiones estables y el alcance. No se implementaron registro
+textual del owner, parser/SQL textual, EXPLAIN, UI ni experimentos GIN/100k.
+Bloques 1A, 1B, 2, 3 y 4A cerrados; siguiente pendiente: **4B**.

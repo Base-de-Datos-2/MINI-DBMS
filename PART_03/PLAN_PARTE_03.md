@@ -14,7 +14,9 @@ Actualización del 28 de octubre de 2026: el usuario autorizó los **bloques 2 y
 3**, ahora cerrados con SPIMI persistente, lectores concurrentes, ranking
 TF-IDF/coseno y BM25, equivalencia índice/scan y ordenamiento anterior a LIMIT. Evidencia
 y límites en [BLOQUE_2.md](BLOQUE_2.md) y [BLOQUE_3.md](BLOQUE_3.md).
-Los bloques 4A y posteriores siguen pendientes. Esta actualización amplía
+El bloque **4A**, autorizado después, también está cerrado: sello persistente,
+compatibilidad v1/v2, publicación offline y rechazo previo a undo; evidencia en
+[BLOQUE_4A.md](BLOQUE_4A.md). Los bloques 4B y posteriores siguen pendientes. Esta actualización amplía
 únicamente la autorización histórica; no completa toda la Parte 3.
 
 ### Requisitos y evidencia de cumplimiento
@@ -319,10 +321,11 @@ Añadir una tabla de ventajas, desventajas y cuándo usar cada opción. Las reco
 
 ## 7. Secuencia de implementación y condiciones de salida
 
-Los bloques 1A, 1B, 2 y 3 están cerrados. La autorización del 28 de octubre cubre
-SPIMI y ranking: [BLOQUE_2.md](BLOQUE_2.md), [BLOQUE_3.md](BLOQUE_3.md). El corpus real
+Los bloques 1A, 1B, 2, 3 y 4A están cerrados. Las autorizaciones del 28 de octubre cubren
+SPIMI, ranking y sello persistente: [BLOQUE_2.md](BLOQUE_2.md),
+[BLOQUE_3.md](BLOQUE_3.md), [BLOQUE_4A.md](BLOQUE_4A.md). El corpus real
 conserva el PASS, la validación de Heap y la reproducción de
-[BLOQUE_1B.md](BLOQUE_1B.md). Los bloques 4A y posteriores se ejecutarán cuando
+[BLOQUE_1B.md](BLOQUE_1B.md). Los bloques 4B y posteriores se ejecutarán cuando
 se autoricen. Los contratos/fixture habilitan el núcleo y su integración; el
 PASS del corpus habilita su adopción y los experimentos finales.
 
@@ -332,7 +335,7 @@ PASS del corpus habilita su adopción y los experimentos finales.
 | 1B. Aceptación de datos — COMPLETADA 2026-10-24 | 1B.1–1B.8: fuentes verificadas, 30 consultas con 439 positivos, conjuntos anidados exactos y reproducción independiente | `corpus_feasibility.json` en PASS; 100 000 filas, IDs, textos y RID verificados tras reapertura real de Heap; 476 tests focalizados aprobados |
 | 2. Núcleo SPIMI — COMPLETADA 2026-10-28 | Construcción por bloques con postings ordenados, mezcla, persistencia, léxico, estadísticas, normas e ID/RID; lectores por offset | Oráculo independiente, IDs desordenados/duplicados, varias pasadas, proceso aislado, lectores intercalados y dos threads; 551 tests focalizados; evidencia en BLOQUE_2.md |
 | 3. Ranking — COMPLETADA 2026-10-28 | TF-IDF/coseno, BM25, órdenes de §3.3, top-k condicionado y ExternalSort real | Scores/IDs correctos para DESC, ASC e ID, igualdad índice/scan, reapertura y concurrencia; 757 tests focalizados; evidencia en BLOQUE_3.md |
-| 4A. Política persistente de escritura | Sello y compatibilidad de formato; guards en almacenamiento/mantenimiento y rechazo antes de undo | Incremento validado por separado: archivos anteriores siguen funcionando, tablas selladas rechazan escrituras sin captura/restauración y el rollback de otras tablas se conserva |
+| 4A. Política persistente de escritura — COMPLETADA 2026-10-28 | Sello y compatibilidad v1/v2; publicación offline y guards en almacenamiento/mantenimiento previos a undo | 96 pruebas focalizadas: archivos anteriores mutables, rechazo sin captura/restauración, rollback de otras tablas, reapertura aislada y exclusión durante publicación; evidencia y límites en BLOQUE_4A.md |
 | 4B. Integración textual | Owner `api.database.Database`, registro textual, parser/binder, operador y EXPLAIN; depende de 4A | Los dos SQL del PDF funcionan; reapertura real; matriz de escritura y dos sesiones lectoras verificadas |
 | 5. API y demo | Consultas de ejemplo y uso de los paneles existentes | Búsqueda completa por UI; score/modelo/plan visibles; reapertura conserva resultados |
 | 6. Comparación | Con fase 1B en PASS y motor integrado, preparar PostgreSQL, comprobar semántica, ejecutar la matriz y generar figuras | Resultados de tres métodos, tres tamaños y tres longitudes; métricas completas |

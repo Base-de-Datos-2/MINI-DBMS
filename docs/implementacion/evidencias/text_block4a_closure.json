@@ -1,0 +1,138 @@
+{
+  "format_version": 1,
+  "scope": "Part 3 Block 4A only",
+  "status": "CLOSED",
+  "recorded_utc": "2026-10-28T23:23:07.246331+00:00",
+  "implementation_commit": "075e8bcc6f65737897e4ca50b0040bb4119a82d2",
+  "runtime": {
+    "python": "3.12.6",
+    "platform": "Windows"
+  },
+  "validation": {
+    "focused_final": {
+      "passed": 96,
+      "new_sealing_cases": 57,
+      "elapsed_seconds": 85.75,
+      "warnings_as_errors": true,
+      "command": "python -m pytest -q -W error -p no:cacheprovider --tb=short --basetemp tmp/part03_4a_final_target tests/text/test_sealing.py tests/transactions/test_undo_completion.py tests/test_architecture.py"
+    },
+    "full_regression": {
+      "passed": 3474,
+      "skipped": 4,
+      "failed": 1,
+      "collected": 3479,
+      "elapsed_seconds": 1391.61,
+      "exit_code": 1,
+      "warnings_as_errors": true,
+      "command": "python -m pytest -q -W error -p no:cacheprovider --tb=short --basetemp tmp/part03_4a_regression",
+      "completed_utc": "2026-10-28T23:40:04.567925+00:00",
+      "failure": "tests/benchmarks/test_evidence_privacy.py::test_sanitize_preserves_json_values_and_removes_local_paths",
+      "attributable_block4a_failures": 0,
+      "focused_tests_included": true,
+      "summary": "1 failed, 3474 passed, 4 skipped in 1391.61s"
+    },
+    "temporary_directory_policy": "process TEMP/TMP set to repository tmp",
+    "http_method": "FastAPI TestClient, allow_writes=True; no real TCP/browser acceptance claimed"
+  },
+  "legacy_reader": {
+    "baseline": "039a063",
+    "method": "isolated Python process loading baseline errors.py, binary.py and file_header.py; actual mutable/sealed Heap prefixes",
+    "v1_accepted": true,
+    "v2_rejected": true,
+    "error": "ValidationError: Unsupported file format version: 2"
+  },
+  "preexisting_failure": {
+    "baseline": "039a063",
+    "test": "tests/benchmarks/test_evidence_privacy.py::test_sanitize_preserves_json_values_and_removes_local_paths",
+    "baseline_sanitizer_reproduced": true,
+    "expected": "/workspace/mini-dbms/output.json",
+    "actual": "/workspace/mini-dbms\\output.json",
+    "affected_source_and_test_unchanged": true,
+    "unchanged_git_blobs": {
+      "scripts/sanitize_evidence.py": "723b725a84a5fea8b5d433131478e1dfc7653976",
+      "tests/benchmarks/test_evidence_privacy.py": "d6adaa7b17576a1b47f127a666e4f073b9bbb73b"
+    }
+  },
+  "sample": {
+    "seal": {
+      "collection_id": "seal-test",
+      "generation": "bc02645c1d10483db2ad894271688c2a"
+    },
+    "rejected": [
+      "heap.insert",
+      "heap.delete",
+      "bplus.tree.delete",
+      "hash.index.delete"
+    ],
+    "rows_rids_unchanged": true,
+    "file_sha256_before_rejection": {
+      "documents.heap": "709bc2d56ed7ab2e5b0fdb410dee32cacf18b25dbdad8dac7f10349d0085c36b",
+      "id.bpt": "9ad77487b791c24cb3c4e59c9cf697ea49e839176253107c2bc0a448ab673122",
+      "id.hsh": "9a6ccc875ad1a62d2119647ed281a62172b7d5127cdc0db72d95088598c0c36c",
+      "text_index/documents.jsonl": "d80504d1ad0435bc9f3f56c6df919ae5005cb258e4a50415e14f51c45176cd84",
+      "text_index/lexicon.jsonl": "8f5c9fb8c408f817d2222a67d24b3308242200477b327bee82c34bbdd0b48998",
+      "text_index/manifest.json": "20c2f7dacbb3822cd99daa205adc1c3a69a6d3e1efa7ad0cd3d7dae3bca9a3fa",
+      "text_index/postings.bin": "63b6e9c36314de380927025c0314a8440aadff60af807ff5111e7eccb739c02a"
+    },
+    "file_sha256_after_rejection": {
+      "documents.heap": "709bc2d56ed7ab2e5b0fdb410dee32cacf18b25dbdad8dac7f10349d0085c36b",
+      "id.bpt": "9ad77487b791c24cb3c4e59c9cf697ea49e839176253107c2bc0a448ab673122",
+      "id.hsh": "9a6ccc875ad1a62d2119647ed281a62172b7d5127cdc0db72d95088598c0c36c",
+      "text_index/documents.jsonl": "d80504d1ad0435bc9f3f56c6df919ae5005cb258e4a50415e14f51c45176cd84",
+      "text_index/lexicon.jsonl": "8f5c9fb8c408f817d2222a67d24b3308242200477b327bee82c34bbdd0b48998",
+      "text_index/manifest.json": "20c2f7dacbb3822cd99daa205adc1c3a69a6d3e1efa7ad0cd3d7dae3bca9a3fa",
+      "text_index/postings.bin": "63b6e9c36314de380927025c0314a8440aadff60af807ff5111e7eccb739c02a"
+    },
+    "search": {
+      "TF_IDF": {
+        "index_scan_equal": true,
+        "hits": [
+          {
+            "doc_id": 30,
+            "score": 0.9684388219443362,
+            "rid": {
+              "page_id": 1,
+              "slot_id": 0
+            }
+          },
+          {
+            "doc_id": 7,
+            "score": 0.7071067811865476,
+            "rid": {
+              "page_id": 1,
+              "slot_id": 1
+            }
+          }
+        ]
+      },
+      "BM25": {
+        "index_scan_equal": true,
+        "hits": [
+          {
+            "doc_id": 30,
+            "score": 1.235776169275245,
+            "rid": {
+              "page_id": 1,
+              "slot_id": 0
+            }
+          },
+          {
+            "doc_id": 7,
+            "score": 0.8025914722273051,
+            "rid": {
+              "page_id": 1,
+              "slot_id": 1
+            }
+          }
+        ]
+      }
+    }
+  },
+  "limits": [
+    "No text owner registry/parser/SQL/UI (Block 4B pending)",
+    "Complete secondary-index enumeration is caller responsibility",
+    "Offline publication; no cross-process concurrent writer support",
+    "No unseal, WAL, automatic crash recovery or multi-file crash atomicity",
+    "ESCI 100k and PostgreSQL experiments not rerun"
+  ]
+}

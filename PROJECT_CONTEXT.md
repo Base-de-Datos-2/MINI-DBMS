@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.14** — preserves formal closures and records
-> Part 3 Block 3 ranking, actual scan and order-before-LIMIT.
+> Context version: **4.15** — preserves formal closures and records
+> Part 3 Block 4A persistent sealing and rejection before undo.
 
 ## Project identity
 
@@ -13,11 +13,11 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 Block 3 closed**, following explicit authorization on 2026-10-28.
-> TF-IDF/cosine and BM25, index/scan equivalence and order-before-LIMIT are
-> verified by 757 focused strict tests. Blocks 1A/1B/2 remain closed and the
-> real corpus gate remains PASS. Sealing and owner/SQL/API/UI integration
-> remain pending. See `PART_03/BLOQUE_3.md`.
+> **Part 3 Block 4A closed**, following explicit authorization on 2026-10-28.
+> Persistent sealing, rejection before undo and offline publication are
+> verified by 96 focused strict tests. Blocks 1A/1B/2/3 remain closed and the
+> real corpus gate remains PASS. Text registry, owner/SQL/API/UI integration
+> remain pending. See `PART_03/BLOQUE_4A.md` for evidence and regression limits.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -90,10 +90,46 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorizes Part 3 Block 3 after the closed Blocks 1A/1B/2.
-It is implemented and verified; 4A sealing, 4B owner/SQL integration and
+The latest request authorizes Part 3 Block 4A after the closed Blocks 1A/1B/2/3.
+It is implemented and verified; 4B owner/SQL integration and
 subsequent phases/Parts 4–5 remain pending. Corpus acceptance is PASS.
 Earlier scope statements below do not override this authorization.
+
+### Part 3 persistent write policy (Block 4A)
+
+- Mutable files retain the exact v1 metadata/header encoding. Explicit sealing
+  uses common file-header version 2 and Heap organization metadata version 2,
+  carrying an immutable `StorageSeal(collection_id, generation)`. Old readers
+  reject version 2. Reopen rejects inconsistent header/descriptor combinations.
+  No page layout, RID, row, ranking formula or existing database is migrated.
+- `seal_text_collection` validates the TextIndex, exact Heap contents/schema,
+  metadata capacity and enumerated secondary indexes before mutation. It seals
+  ordinary Heap B+/hash indexes first and the Heap last. The caller must supply
+  the complete declared secondary set; Block 4B will own that enumeration and
+  final registry publication. A partial publication fails closed and requires
+  reconstruction in a new directory. There is no unseal or crash-atomic commit.
+- Publication requires every in-process owner and coordinator of the directory
+  to be closed. A reentrant publication admission latch excludes new claims
+  across validation and the complete multi-file sequence. Ordinary queries and
+  writes do not acquire this latch. This does not add cross-process locking.
+- PageManager enforces the one-way policy on allocate/write/replacement, also
+  protecting exposed raw index handles. A canonical-path cache informs existing
+  in-process aliases; new handles/processes read the persistent header. No disk
+  header read is added to every ordinary mutation. External file manipulation
+  and concurrent cross-process writers are outside the supported contract.
+- Heap, MutationService, direct SqlEngine, index maintenance and owner mutation
+  routes guard before effects. Under schema/table grants, CompletionService
+  checks runtime writability before flush, undo capture and touched-table
+  registration. Physical UndoStore also rejects sealed paths before capture or
+  restoration. Earlier writes to other mutable tables still roll back normally.
+- Runtime reopening restores the same policy. The manifest-backed alternate
+  owner rejects sealed Heaps. Both owners reject the reserved text registry
+  until 4B can validate and own its resources. The demo owner can currently read
+  sealed GUI Heaps with consistently sealed ordinary indexes, without textual
+  binding. Text/spatial co-publication is unsupported and rejected.
+- `TextIndex.require_compatible_storage` checks collection/generation whenever
+  sealed storage is supplied to verification or search. Calls without storage
+  still require the caller to bind the correct index; automatic binding is 4B.
 
 ### Part 3 ranking decisions (Block 3)
 
