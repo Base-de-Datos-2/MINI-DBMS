@@ -1,21 +1,22 @@
 # AGENTS.md
 
-> Context version: **6.5** — records closed Blocks 1A/1B/2 and measured
-> Part 3 corpus acceptance; ranking and later integration remain deferred.
+> Context version: **6.6** — records closed Blocks 1A/1B/2/3 and measured
+> Part 3 corpus acceptance; storage sealing and later integration are deferred.
 
 ## Purpose
 
-Blocks 1A, 1B and 2 are closed. The latest request on 2026-10-28 authorizes
-**Part 3 Block 2**: own SPIMI construction, bounded external merging,
-persistent postings/lexicon/statistics/ID-RID mapping, document norms and
-concurrent offset readers. Evidence and reproduction: `PART_03/BLOQUE_2.md`;
-the focused strict regression passes 551 tests. The earlier real ESCI corpus
-gate remains PASS; its 100k experiment was not rerun by Block 2.
+Blocks 1A, 1B, 2 and 3 are closed. The latest request on 2026-10-28 authorizes
+**Part 3 Block 3**: own TF-IDF/cosine and BM25 ranking, correct order-before-
+LIMIT, conditional top-k, actual ExternalSort reuse and index/scan equivalence.
+Evidence and reproduction: `PART_03/BLOQUE_3.md`; the focused strict regression
+passes 757 tests. Block 2 SPIMI evidence remains in `PART_03/BLOQUE_2.md`.
+The earlier real ESCI corpus gate remains PASS; its 100k experiment was not
+rerun by Blocks 2/3.
 Use `PART_03/BLOQUE_1B.md` and `PART_03/PLAN_PARTE_03.md` for corpus evidence.
-This supersedes historical Part 3 deferrals below for Block 2 only.
-Block 3 ranking, 4A storage sealing, 4B owner/SQL integration, subsequent
-API/UI/experiments and Parts 4–5 remain deferred. Do not implement production
-query ranking, textual SQL, storage sealing or UI without new authorization.
+This supersedes historical Part 3 deferrals below for Blocks 2/3 only.
+Block 4A storage sealing, 4B owner/SQL integration, subsequent API/UI/experiments
+and Parts 4–5 remain deferred. Do not implement textual SQL, storage sealing,
+owner integration or UI without new authorization.
 
 The earlier explicit user authorization started the frontend for Parts 1 and 2,
 including the spatial map and final real-browser verification. Earlier pause

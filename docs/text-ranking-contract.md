@@ -2,9 +2,10 @@
 
 Frozen on 2026-10-24. This contract confirms the variants selected in
 [the Part 3 plan](../PART_03/PLAN_PARTE_03.md), §§4.2–4.3. It defines expected
-behavior for the future phase 3 production rankers. The current calculations
-are independent, exhaustive **test references**, not an implemented indexed
-search service. Statistics/tokenization are defined in
+behavior for the phase 3 production rankers. Since 2026-10-28 the standalone
+rankers are implemented in `engine/text/ranking.py`; evidence and limits are
+in [Block 3](../PART_03/BLOQUE_3.md). The calculations in this contract remain
+independent, exhaustive **test references**. Statistics/tokenization are defined in
 [Block 1A](../PART_03/BLOQUE_1A.md).
 
 ## 1. Exact formulas
@@ -122,7 +123,7 @@ term to the balanced query preserves every score in both models.
 
 ## 3. Numerical assertions and deterministic order
 
-Production scores will use float64-compatible arithmetic. Freeze assertion
+Production scores use float64-compatible arithmetic. Freeze assertion
 tolerances to **relative `1e-10` and absolute `1e-12`**:
 
 ```text
@@ -142,7 +143,8 @@ The two identical documents with IDs 3 and 45 in the Spanish fixture must
 always return 3 before 45 on a score tie; `articulos` similarly uses 4 and 14.
 LIMIT applies after the resolved total order in
 [the textual SQL contract](text-sql-contract.md). Those cases are evaluated
-as reference inputs now; production top-k/ExternalSort/SQL tests come later.
+as reference inputs; production top-k/ExternalSort tests are now in Block 3,
+while SQL acceptance belongs to 4B.
 
 ## 4. Independence and reproducibility
 

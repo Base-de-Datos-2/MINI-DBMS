@@ -312,3 +312,32 @@ integración del índice textual en el owner/SQL/API/UI.
 Uso, evidencia y límites: [BLOQUE_2.md](../../PART_03/BLOQUE_2.md) y
 [text.md](../text.md). Bloques 1A, 1B y 2 cerrados. El siguiente pendiente es
 el bloque 3 (TF-IDF/coseno y BM25); requiere nueva autorización.
+
+## Actualización autorizada — Parte 3, bloque 3, 28/10/2026
+
+El usuario autorizó continuar con el bloque 3. Se implementó
+`engine.text.search_text`: TF-IDF/coseno y BM25 sobre el mismo índice SPIMI,
+repeticiones/proyección al vocabulario y semántica OR del contrato. Un scan
+real del Heap usa las mismas estadísticas/fórmulas y comprueba identidad,
+RIDs, textos y conteos sin consultar postings para descubrir candidatos.
+
+El orden se resuelve antes de LIMIT: heap exclusivamente para score DESC/id
+ASC con límite; el resto reutiliza el ExternalSort de etapa 6. Se conservan
+IDs para ordenación y desempates, usando scores finitos sin redondeo ni
+agrupación por tolerancia. El reporte separa acumulador, selección/resultados,
+buffers y presupuesto de sort; un heap pequeño no limita toda la memoria.
+
+La verificación inicial del ranking/arquitectura aprobó 154 pruebas; la
+regresión ampliada aprobó **757 en 164.49 segundos**, con advertencias como
+errores. Incluye las anteriores, codecs/Heap, parser/binder, apertura de bases
+y operadores de sort/contextos/ciclo/temporales. Se verificaron referencias
+congeladas y Decimal, índice/scan, reapertura aislada, varias pasadas,
+cancelación, fallos de escritura y consultas concurrentes sobre un lector.
+El TEMP de validación se dirigió al `tmp/` escribible del repositorio ante
+permisos insuficientes en el predeterminado del sandbox.
+
+Se conservan sin cambios las fixtures y la aceptación real ESCI de 1B.
+No se ejecutó el benchmark 100k/GIN ni se implementaron sellado, owner/SQL
+textual, HTTP/UI o integración de sesiones. Uso y límites:
+[BLOQUE_3.md](../../PART_03/BLOQUE_3.md). Bloques 1A, 1B, 2 y 3 cerrados;
+el siguiente pendiente es **4A: política persistente de escritura**.

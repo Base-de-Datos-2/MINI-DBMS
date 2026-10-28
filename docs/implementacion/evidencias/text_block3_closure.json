@@ -1,0 +1,307 @@
+{
+  "format_version": 1,
+  "scope": "Part 3 Block 3 only",
+  "status": "CLOSED",
+  "recorded_utc": "2026-10-28T22:08:02.851247+00:00",
+  "implementation_commit": "d9bcf9428fe710a8414952a11df3c7d894a2d971",
+  "runtime": {
+    "python": "3.12.6",
+    "platform": "Windows",
+    "unicode": "15.0.0"
+  },
+  "validation": {
+    "initial": {
+      "passed": 154,
+      "elapsed_seconds": 89.17,
+      "included_in_regression": true
+    },
+    "focused_regression": {
+      "passed": 757,
+      "elapsed_seconds": 164.49,
+      "warnings_as_errors": true,
+      "command": "python -m pytest -q -W error -p no:cacheprovider --tb=short --basetemp tmp/part03_block3_regression tests/text tests/test_architecture.py tests/storage/test_record_codec.py tests/storage/test_value_codec.py tests/storage/test_heap_file.py tests/storage/test_heap_persistence.py tests/query/test_parser_contract.py tests/query/test_binder.py tests/api/test_database.py tests/operators/test_sorting.py tests/operators/test_context.py tests/operators/test_lifecycle.py tests/operators/test_temp_files.py",
+      "temporary_directory_policy": "process TEMP/TMP set to repository tmp; default sandbox TEMP denied ownership.registry creation"
+    }
+  },
+  "fixture": "tests/text/fixtures/worked_example.v1.json",
+  "fixture_receipt": {
+    "bytes": 497,
+    "sha256": "6e1947a6251675574ff61cce42b902e871eb4f4b53710bcab04a164634eb14bc"
+  },
+  "samples": [
+    {
+      "query": "base datos",
+      "hits": [
+        {
+          "doc_id": 30,
+          "score": 0.9684388219443362,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 0
+          }
+        },
+        {
+          "doc_id": 7,
+          "score": 0.7071067811865476,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 1
+          }
+        }
+      ],
+      "report": {
+        "model": "TF_IDF",
+        "access": "TextIndexScan",
+        "order": "score_desc",
+        "limit": 2,
+        "known_terms": [
+          "base",
+          "datos"
+        ],
+        "query_token_count": 2,
+        "query_norm": 2.1366300875106554,
+        "bm25_k1": null,
+        "bm25_b": null,
+        "postings_read": 4,
+        "documents_examined": 0,
+        "candidates_scored": 3,
+        "rows_returned": 2,
+        "selection": "TopKHeap",
+        "peak_heap_entries": 2,
+        "accumulator_estimated_bytes": 380,
+        "query_estimated_bytes": 1025,
+        "scan_identity_estimated_bytes": 0,
+        "peak_scan_document_estimated_bytes": 0,
+        "posting_buffer_bytes": 16,
+        "selection_estimated_bytes": 744,
+        "result_estimated_bytes": 216,
+        "sort_budget_bytes": 0,
+        "sort_initial_runs": 0,
+        "sort_merge_passes": 0,
+        "sort_rows_spilled": 0,
+        "sort_bytes_spilled": 0,
+        "sort_max_fan_in": 0,
+        "elapsed_seconds": 0.0006912999670021236
+      }
+    },
+    {
+      "query": "base datos",
+      "hits": [
+        {
+          "doc_id": 30,
+          "score": 0.9684388219443362,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 0
+          }
+        },
+        {
+          "doc_id": 7,
+          "score": 0.7071067811865476,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 1
+          }
+        }
+      ],
+      "report": {
+        "model": "TF_IDF",
+        "access": "TextScan",
+        "order": "score_desc",
+        "limit": 2,
+        "known_terms": [
+          "base",
+          "datos"
+        ],
+        "query_token_count": 2,
+        "query_norm": 2.1366300875106554,
+        "bm25_k1": null,
+        "bm25_b": null,
+        "postings_read": 0,
+        "documents_examined": 4,
+        "candidates_scored": 3,
+        "rows_returned": 2,
+        "selection": "TopKHeap",
+        "peak_heap_entries": 2,
+        "accumulator_estimated_bytes": 380,
+        "query_estimated_bytes": 1025,
+        "scan_identity_estimated_bytes": 328,
+        "peak_scan_document_estimated_bytes": 607,
+        "posting_buffer_bytes": 0,
+        "selection_estimated_bytes": 744,
+        "result_estimated_bytes": 216,
+        "sort_budget_bytes": 0,
+        "sort_initial_runs": 0,
+        "sort_merge_passes": 0,
+        "sort_rows_spilled": 0,
+        "sort_bytes_spilled": 0,
+        "sort_max_fan_in": 0,
+        "elapsed_seconds": 0.0007651000050827861
+      }
+    },
+    {
+      "query": "base datos",
+      "hits": [
+        {
+          "doc_id": 30,
+          "score": 1.235776169275245,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 0
+          }
+        },
+        {
+          "doc_id": 7,
+          "score": 0.8025914722273051,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 1
+          }
+        }
+      ],
+      "report": {
+        "model": "BM25",
+        "access": "TextIndexScan",
+        "order": "score_desc",
+        "limit": 2,
+        "known_terms": [
+          "base",
+          "datos"
+        ],
+        "query_token_count": 2,
+        "query_norm": null,
+        "bm25_k1": 1.2,
+        "bm25_b": 0.75,
+        "postings_read": 4,
+        "documents_examined": 0,
+        "candidates_scored": 3,
+        "rows_returned": 2,
+        "selection": "TopKHeap",
+        "peak_heap_entries": 2,
+        "accumulator_estimated_bytes": 380,
+        "query_estimated_bytes": 1025,
+        "scan_identity_estimated_bytes": 0,
+        "peak_scan_document_estimated_bytes": 0,
+        "posting_buffer_bytes": 16,
+        "selection_estimated_bytes": 744,
+        "result_estimated_bytes": 216,
+        "sort_budget_bytes": 0,
+        "sort_initial_runs": 0,
+        "sort_merge_passes": 0,
+        "sort_rows_spilled": 0,
+        "sort_bytes_spilled": 0,
+        "sort_max_fan_in": 0,
+        "elapsed_seconds": 0.00018959998851642013
+      }
+    },
+    {
+      "query": "base datos",
+      "hits": [
+        {
+          "doc_id": 30,
+          "score": 1.235776169275245,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 0
+          }
+        },
+        {
+          "doc_id": 7,
+          "score": 0.8025914722273051,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 1
+          }
+        }
+      ],
+      "report": {
+        "model": "BM25",
+        "access": "TextScan",
+        "order": "score_desc",
+        "limit": 2,
+        "known_terms": [
+          "base",
+          "datos"
+        ],
+        "query_token_count": 2,
+        "query_norm": null,
+        "bm25_k1": 1.2,
+        "bm25_b": 0.75,
+        "postings_read": 0,
+        "documents_examined": 4,
+        "candidates_scored": 3,
+        "rows_returned": 2,
+        "selection": "TopKHeap",
+        "peak_heap_entries": 2,
+        "accumulator_estimated_bytes": 380,
+        "query_estimated_bytes": 1025,
+        "scan_identity_estimated_bytes": 328,
+        "peak_scan_document_estimated_bytes": 607,
+        "posting_buffer_bytes": 0,
+        "selection_estimated_bytes": 744,
+        "result_estimated_bytes": 216,
+        "sort_budget_bytes": 0,
+        "sort_initial_runs": 0,
+        "sort_merge_passes": 0,
+        "sort_rows_spilled": 0,
+        "sort_bytes_spilled": 0,
+        "sort_max_fan_in": 0,
+        "elapsed_seconds": 0.0006235000328160822
+      }
+    },
+    {
+      "query": "base datos",
+      "hits": [
+        {
+          "doc_id": 11,
+          "score": 0.6099695188927519,
+          "rid": {
+            "page_id": 1,
+            "slot_id": 2
+          }
+        }
+      ],
+      "report": {
+        "model": "BM25",
+        "access": "TextIndexScan",
+        "order": "score_asc",
+        "limit": 1,
+        "known_terms": [
+          "base",
+          "datos"
+        ],
+        "query_token_count": 2,
+        "query_norm": null,
+        "bm25_k1": 1.2,
+        "bm25_b": 0.75,
+        "postings_read": 4,
+        "documents_examined": 0,
+        "candidates_scored": 3,
+        "rows_returned": 1,
+        "selection": "ExternalSort",
+        "peak_heap_entries": 0,
+        "accumulator_estimated_bytes": 380,
+        "query_estimated_bytes": 1025,
+        "scan_identity_estimated_bytes": 0,
+        "peak_scan_document_estimated_bytes": 0,
+        "posting_buffer_bytes": 4096,
+        "selection_estimated_bytes": 196,
+        "result_estimated_bytes": 128,
+        "sort_budget_bytes": 32768,
+        "sort_initial_runs": 1,
+        "sort_merge_passes": 1,
+        "sort_rows_spilled": 3,
+        "sort_bytes_spilled": 60,
+        "sort_max_fan_in": 1,
+        "elapsed_seconds": 0.20406439999351278
+      }
+    }
+  ],
+  "limits": [
+    "focused regression, not the full project suite or text SQL/HTTP acceptance",
+    "scores are functional anchors, elapsed samples are not controlled retrieval benchmarks",
+    "memory values are estimates; sort grant and top-k do not bound total query memory or RSS",
+    "source must remain unchanged; storage sealing and owner/SQL/API/UI integration are deferred",
+    "no ESCI 100k/GIN ranking-quality experiment rerun"
+  ]
+}

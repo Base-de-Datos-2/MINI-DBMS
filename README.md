@@ -22,10 +22,10 @@ los experimentos.
 | Datos espaciales | R-Tree propio para puntos 2D, consultas por radio, k-NN y polígonos; distancias Haversine y Euclidiana |
 | Interfaz | Tablas y esquemas, editor SQL, resultados tabulares, planes reales y exploración espacial |
 | Experimentos | Comparaciones de estructuras relacionales y de búsqueda secuencial/R-Tree/GiST con 1 000, 10 000 y 100 000 registros |
-| Núcleo textual | Tokenizador Unicode, SPIMI externo, postings y estadísticas persistentes, mapa ID/RID y lectores concurrentes; ranking e integración SQL textual pendientes |
+| Núcleo textual | Tokenizador Unicode, SPIMI externo, postings/estadísticas persistentes, mapa ID/RID, lectores concurrentes y ranking Python TF-IDF/coseno y BM25; integración SQL textual pendiente |
 
-La Parte 3 tiene preparados los datos y el núcleo SPIMI; su ranking, SQL e
-integración con la interfaz quedan pendientes. Uso Python y límites actuales
+La Parte 3 tiene preparados los datos, SPIMI y el ranking Python; su sellado,
+SQL e integración con la interfaz quedan pendientes. Uso y límites actuales
 en [docs/text.md](docs/text.md). Las Partes 4 y 5 —multimedia y aplicación
 multimodal— quedan para las siguientes entregas.
 

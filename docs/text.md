@@ -2,9 +2,9 @@
 
 La Parte 3 implementa recuperación léxica con vectores dispersos de términos.
 El tokenizador Unicode y los contratos/fixtures de 1A están cerrados; el corpus
-real de 1B tiene aceptación PASS. El **bloque 2, núcleo SPIMI, está implementado
-y verificado**. Ranking de consultas, SQL textual y su integración HTTP/UI
-siguen pendientes.
+real de 1B tiene aceptación PASS. Los **bloques 2 (SPIMI) y 3 (ranking Python)
+están implementados y verificados**. El sellado persistente, SQL textual y su
+integración en el owner/HTTP/UI siguen pendientes.
 
 `engine.text.build_spimi` construye un índice persistente desde un Heap
 prestado, con presupuesto de bloques y mezcla externa por fan-in limitado.
@@ -16,6 +16,25 @@ tokens. No usa una base vectorial externa ni implementa embeddings.
 
 Uso Python, formato, contrato de memoria, comandos de prueba y límites:
 [cierre del bloque 2](../PART_03/BLOQUE_2.md).
+
+`engine.text.search_text` calcula TF-IDF/coseno o BM25 sobre ese mismo índice.
+Con `use_indexes=False` recorre el Heap real y conserva las mismas estadísticas
+y fórmulas. Devuelve hits inmutables con ID, score y RID, más contadores de
+trabajo y estimados de memoria separados del presupuesto de sort.
+
+```python
+from engine.text import search_text
+
+result = search_text(index, "base de datos", model="BM25", limit=10)
+# index es un TextIndex abierto y la colección debe permanecer sin cambios.
+for hit in result.hits:
+    print(hit.doc_id, hit.score, hit.rid)
+```
+
+Los órdenes admitidos son `score_desc` (predeterminado), `score_asc`, `id_asc`
+e `id_desc`. Solo score descendente con LIMIT usa un heap de tamaño k; las
+otras rutas usan ExternalSort antes de limitar. El acumulador de candidatos
+continúa siendo O(C). Uso, pruebas y límites: [bloque 3](../PART_03/BLOQUE_3.md).
 
 El constructor requiere un directorio nuevo y una fuente sin escritores.
 El Heap aún no está sellado: mantenerlo sin mutaciones es responsabilidad del

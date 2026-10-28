@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.13** — preserves formal closures and records
-> Part 3 Block 2 SPIMI persistence and concurrent readers.
+> Context version: **4.14** — preserves formal closures and records
+> Part 3 Block 3 ranking, actual scan and order-before-LIMIT.
 
 ## Project identity
 
@@ -13,11 +13,11 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 Block 2 closed**, following explicit authorization on 2026-10-28.
-> SPIMI, persistent statistics/mappings and concurrent readers are verified
-> by 551 focused strict tests. Blocks 1A/1B remain closed and the real corpus
-> gate remains PASS. Ranking and later integration remain pending. See
-> `PART_03/BLOQUE_2.md` and `PART_03/BLOQUE_1B.md`.
+> **Part 3 Block 3 closed**, following explicit authorization on 2026-10-28.
+> TF-IDF/cosine and BM25, index/scan equivalence and order-before-LIMIT are
+> verified by 757 focused strict tests. Blocks 1A/1B/2 remain closed and the
+> real corpus gate remains PASS. Sealing and owner/SQL/API/UI integration
+> remain pending. See `PART_03/BLOQUE_3.md`.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -90,10 +90,43 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorizes Part 3 Block 2 after the closed Blocks 1A/1B.
-It is implemented and verified; Block 3 ranking, 4A sealing, 4B owner/SQL
-integration and subsequent phases/Parts 4–5 remain pending. Corpus acceptance
-is PASS. Earlier scope statements below do not override this authorization.
+The latest request authorizes Part 3 Block 3 after the closed Blocks 1A/1B/2.
+It is implemented and verified; 4A sealing, 4B owner/SQL integration and
+subsequent phases/Parts 4–5 remain pending. Corpus acceptance is PASS.
+Earlier scope statements below do not override this authorization.
+
+### Part 3 ranking decisions (Block 3)
+
+- `engine.text.search_text` ranks OR matches with required model `TF_IDF` or
+  `BM25`, using Block 2 statistics and full document norms. Query terms are
+  tokenized identically, projected to the known vocabulary and accumulated in
+  stable vocabulary order. Repetitions affect TF-IDF; BM25 uses distinct terms
+  and fixed k1=1.2/b=0.75. Empty/tokenless/unknown inputs yield no false matches.
+- Orders are `score_desc` (default, ID ASC tie break), `score_asc` (ID ASC tie
+  break), `id_asc` and `id_desc`. Sorting uses unrounded finite float scores,
+  never tolerance buckets. LIMIT is applied after the resolved order. Only
+  score_desc with LIMIT uses a size-k heap; all other nonempty routes use the
+  existing Stage 6 ExternalSort over every candidate before limiting.
+- `use_indexes=False` requires the original borrowed Storage and performs a
+  real sequential scan with per-row identity/RID/hash/length and count checks.
+  It uses the same persisted statistics and scoring formulas without reading
+  postings for candidate discovery. Indexed and scan results agree exactly
+  on tested float operations; independent Decimal/frozen references anchor
+  scores with the 1A tolerances and exact ID/order assertions.
+- Results are an eager tuple of immutable ID/score/RID hits plus a measured
+  work report. Original text is not materialized. Accumulator O(C), result/
+  selection sizes, query/scan estimates, posting buffers and sort grant are
+  distinguished; neither top-k nor the sort grant limits total process RSS.
+  This standalone API does not change the existing streaming SQL QueryResult.
+- ExternalSort borrows an optional ExecutionContext and returns reservations,
+  handles and temporaries on success, early limit, cancellation or failure.
+  Cancellation reuses operator cancellation_scope safe points. Index/storage
+  handles remain borrowed. Two concurrent queries over one reader reproduce
+  serial scores/IDs with interleaved small-buffer posting reads.
+- No storage-format change, seal, text owner registry, SQL syntax, endpoints
+  or frontend integration was added. The source still must remain unchanged;
+  4A/4B provide the future persistent protection and session/SQL lifecycle.
+  Evidence, commands and limits: `PART_03/BLOQUE_3.md`.
 
 ### Part 3 SPIMI decisions (Block 2)
 
@@ -114,7 +147,8 @@ is PASS. Earlier scope statements below do not override this authorization.
 - N/total_tokens/avgdl include tokenless documents. Complete-vector TF-IDF
   norms are derived from final N/df. The document map includes every ID/RID,
   length/norm and a SHA-256 of its full original RecordCodec payload. These
-  norms prepare Block 3; query scoring/ranking is not implemented here.
+  norms prepared Block 3; query scoring was not part of Block 2 and is now
+  implemented by the separate ranker described above.
 - `TextIndex.open` loads only lexicon/document metadata, hashes components
   by bounded chunks and validates their basic consistency. `validate()`
   streams all postings to recheck lengths/norms; `verify_storage` checks all
