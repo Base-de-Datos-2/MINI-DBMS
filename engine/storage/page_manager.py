@@ -10,14 +10,37 @@ from threading import RLock
 from time import perf_counter
 from uuid import uuid4
 
-from engine.errors import InvalidReferenceError, InvalidTypeError, ValidationError
-from engine.storage.binary import FILE_HEADER_SIZE, PAGE_SIZE, UINT32_MAX
+from engine.errors import InvalidReferenceError, InvalidTypeError, ReadOnlyError, ValidationError
+from engine.storage.binary import FILE_HEADER_SIZE, FILE_MAGIC, PAGE_SIZE, SEALED_FORMAT_VERSION, UINT32_MAX
 from engine.storage.file_header import FileHeader
 from engine.storage.page import Page
 
 
 _LATCH_OBSERVER = ContextVar("minidb_physical_latch_observer", default=None)
 _PAGE_IO_OBSERVER = ContextVar("minidb_page_io_observer", default=None)
+
+# In-process publication exclusion follows owner/coordinator lifetimes, not
+# individual handles: an undo close/reopen must not permit sealing in between.
+_publication_mutex = RLock()
+_managed_roots: dict[Path, int] = {}
+_policy_mutex = RLock()
+_sealed_paths: set[Path] = set()
+
+
+def register_managed_root(path):
+    root = Path(path).resolve()
+    with _publication_mutex:
+        _managed_roots[root] = _managed_roots.get(root, 0) + 1
+    return root
+
+
+def unregister_managed_root(root):
+    with _publication_mutex:
+        count = _managed_roots.get(root, 0)
+        if count <= 1:
+            _managed_roots.pop(root, None)
+        else:
+            _managed_roots[root] = count - 1
 
 
 @contextmanager
@@ -94,9 +117,11 @@ class PageManager:
             raise InvalidTypeError("create must be a bool")
         self._mutex = RLock()
         self._path = Path(path).absolute()
+        self._policy_path = self._path.resolve()
         self._pages_read = 0
         self._pages_written = 0
         self._pages_allocated = 0
+        self._write_guard = None
         self._file = self._path.open("x+b" if create else "r+b", buffering=0)
         try:
             if create:
@@ -104,6 +129,11 @@ class PageManager:
                 self._write_at(0, self._header.serialize())
             else:
                 self._header = FileHeader.deserialize(self._read_exact(FILE_HEADER_SIZE))
+            with _policy_mutex:
+                if create:
+                    _sealed_paths.discard(self._policy_path)
+                elif self._header.version == SEALED_FORMAT_VERSION:
+                    _sealed_paths.add(self._policy_path)
             self._check_file_size()
         except BaseException:
             self._file.close()
@@ -118,6 +148,96 @@ class PageManager:
     def open(cls, path: str | os.PathLike[str]) -> "PageManager":
         """Validate an existing file's header/length; pages validate when read."""
         return cls(path)
+
+    @property
+    @_latched
+    def read_only(self) -> bool:
+        self._require_open()
+        # A one-way policy needs no header read on every ordinary write. New
+        # opens read disk; publication informs preexisting in-process aliases.
+        # Concurrent cross-process writers remain outside the engine contract.
+        with _policy_mutex:
+            return self._header.version == SEALED_FORMAT_VERSION or self._policy_path in _sealed_paths
+
+    @_latched
+    def require_writable(self) -> None:
+        if self.read_only:
+            raise ReadOnlyError("Storage/index is sealed read-only")
+        if self._write_guard is not None:
+            self._write_guard()
+
+    @staticmethod
+    def require_mutable_path(path) -> None:
+        """Reject physical undo of a sealed file, even with no live handle.
+
+        Undo also owns non-page auxiliary files and repairs damaged mutable
+        files. Only the recognized v2 seal marker is rejected here.
+        """
+        candidate = Path(path)
+        with _policy_mutex:
+            if candidate.resolve() in _sealed_paths:
+                raise ReadOnlyError("Physical undo cannot capture or restore a sealed file")
+        if not candidate.exists():
+            return
+        with candidate.open("rb") as stream:
+            prefix = stream.read(FILE_HEADER_SIZE)
+        if (prefix[:8] == FILE_MAGIC and len(prefix) >= 12
+                and int.from_bytes(prefix[8:12], "little") == SEALED_FORMAT_VERSION):
+            raise ReadOnlyError("Physical undo cannot capture or restore a sealed file")
+
+    @_latched
+    def bind_write_guard(self, guard) -> None:
+        """Bind a borrowed base policy once; callers cannot remove/replace it."""
+        if not callable(guard):
+            raise InvalidTypeError("write guard must be callable")
+        if self._write_guard is not None and self._write_guard != guard:
+            raise ValidationError("A physical write guard cannot be replaced")
+        self._write_guard = guard
+
+    def require_offline_publication(self) -> None:
+        with _publication_mutex:
+            self.require_writable()
+            if any(self._path.resolve().is_relative_to(root) for root in _managed_roots):
+                raise ValidationError("Seal publication is offline-only; close the database owner/coordinator first")
+
+    @contextmanager
+    def offline_publication(self):
+        """Exclude new owner/coordinator claims across the entire seal sequence.
+
+        Queries and ordinary I/O do not take this admission latch. Always take
+        it before a handle latch, including low-level single-file sealing.
+        """
+        with _publication_mutex:
+            self.require_offline_publication()
+            yield
+
+    def seal(self, final_metadata_page: Page | None = None) -> None:
+        """Freeze this file at v2, optionally finalizing organized page zero.
+
+        No public unseal operation. Failure closes the handle; mixed metadata/
+        header states fail closed on organized reopen. This is not crash undo.
+        """
+        with self.offline_publication(), self._mutex:
+            if final_metadata_page is not None:
+                if not isinstance(final_metadata_page, Page) or final_metadata_page.page_id != 0:
+                    raise ValidationError("Final seal metadata must be page zero")
+                self._require_allocated(0)
+                payload = final_metadata_page.serialize()
+            try:
+                # Mark before the first publication write. Failure is closed
+                # for every existing alias; mixed disk states must be rebuilt.
+                with _policy_mutex:
+                    _sealed_paths.add(self._policy_path)
+                if final_metadata_page is not None:
+                    self._write_at(self._physical_offset(0), payload)
+                    self._pages_written += 1
+                    _record_page_io(self, "write")
+                self._header = replace(self._header, version=SEALED_FORMAT_VERSION)
+                self._write_at(0, self._header.serialize())
+                self.flush()
+            except BaseException:
+                self._file.close()
+                raise
 
     @property
     @_latched
@@ -227,7 +347,7 @@ class PageManager:
         A successful commit also reopens this manager as a new I/O session.
         """
 
-        self._require_open()
+        self.require_writable()
         candidate = self._validate_replacement_path(path)
         destination = self._path
         try:
@@ -300,7 +420,7 @@ class PageManager:
         No search for free space, page recycling or implicit record insertion.
         A full uint32 page count raises ValidationError without allocating.
         """
-        self._require_open()
+        self.require_writable()
         page_id = self.allocated_page_count
         if page_id == UINT32_MAX:
             raise ValidationError("Allocated page count has reached the uint32 limit")
@@ -334,7 +454,7 @@ class PageManager:
     @_latched
     def write_page(self, page: Page) -> None:
         """Rewrite one allocated page; reject invalid data before touching disk."""
-        self._require_open()
+        self.require_writable()
         if not isinstance(page, Page):
             raise InvalidTypeError("page must be a Page")
         page_id = page.page_id

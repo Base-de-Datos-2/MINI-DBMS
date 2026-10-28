@@ -210,7 +210,7 @@ def test_invalid_page_metadata_is_rejected_without_overwriting_disk(tmp_path):
     "payload",
     [b"", bytes(19), bytes(20),
      FILE_HEADER_STRUCT.pack(b"WRONG!!!", 1, PAGE_SIZE, 0),
-     FILE_HEADER_STRUCT.pack(FILE_MAGIC, 2, PAGE_SIZE, 0),
+        FILE_HEADER_STRUCT.pack(FILE_MAGIC, 3, PAGE_SIZE, 0),
      FILE_HEADER_STRUCT.pack(FILE_MAGIC, 1, 8192, 0),
      FileHeader(allocated_page_count=1).serialize(),
      FileHeader(allocated_page_count=1).serialize() + bytes(PAGE_SIZE - 1),

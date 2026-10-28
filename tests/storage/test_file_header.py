@@ -64,7 +64,7 @@ def test_fields_require_exact_int(field, value):
         FileHeader(**{field: value})
 
 
-@pytest.mark.parametrize("version", [0, 2, UINT32_MAX])
+@pytest.mark.parametrize("version", [0, 3, UINT32_MAX])
 def test_unsupported_version_is_rejected(version):
     with pytest.raises(ValidationError, match="version"):
         FileHeader(version=version)
@@ -90,7 +90,7 @@ def test_deserialization_requires_immutable_bytes(payload):
 
 @pytest.mark.parametrize(
     "fields", [(b"WRONG!!!", 1, 4096, 0), (FILE_MAGIC, 0, 4096, 0),
-               (FILE_MAGIC, 2, 4096, 0), (FILE_MAGIC, 1, 8192, 0)],
+               (FILE_MAGIC, 3, 4096, 0), (FILE_MAGIC, 1, 8192, 0)],
 )
 def test_deserialization_validates_decoded_fields(fields):
     with pytest.raises(ValidationError):

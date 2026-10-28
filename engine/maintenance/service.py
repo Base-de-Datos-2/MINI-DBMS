@@ -411,6 +411,7 @@ class MutationService:
         requires_storage_unique_check: bool = False,
     ) -> MutationReport:
         indexes = self._validate_common(table_name, storage, indexes)
+        storage.require_writable()
         if not isinstance(record, Record):
             raise InvalidTypeError("INSERT maintenance requires a Record")
         if table_metadata is not None:
@@ -520,6 +521,7 @@ class MutationService:
         spool_bytes: int,
     ) -> MutationReport:
         indexes = self._validate_common(table_name, storage, indexes)
+        storage.require_writable()
         if not isinstance(targets, Generator):
             raise InvalidTypeError("DELETE targets must be a closable generator")
         for label, value in (("target_count", target_count), ("spool_bytes", spool_bytes)):

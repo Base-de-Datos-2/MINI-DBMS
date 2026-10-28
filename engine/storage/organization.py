@@ -10,16 +10,17 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from typing import Any, Callable, ClassVar
 
 from engine.catalog import Column, DataType, Schema
 from engine.errors import InvalidTypeError, SchemaError, ValidationError
 
-from .binary import MAX_RECORD_SIZE, MAX_SLOTS, UINT32_MAX, require_bytes
+from .binary import MAX_RECORD_SIZE, MAX_SLOTS, SEALED_FORMAT_VERSION, UINT32_MAX, require_bytes
 from .page import Page
 from .page_manager import PageManager
+from .seal import StorageSeal
 
 
 class OrganizationType(str, Enum):
@@ -46,12 +47,16 @@ class OrganizationMetadata:
     key_column: str | None = None
     allow_duplicate_keys: bool | None = None
     reorganization_threshold: float | None = None
+    seal: StorageSeal | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.organization_type, OrganizationType):
             raise InvalidTypeError("organization_type must be an OrganizationType")
         if not isinstance(self.schema, Schema):
             raise InvalidTypeError("schema must be a Schema")
+        if self.seal is not None:
+            if not isinstance(self.seal, StorageSeal) or self.organization_type is not OrganizationType.HEAP:
+                raise ValidationError("Only a Heap may carry a text collection seal")
 
         self._validate_nonnegative_int("active_record_count", self.active_record_count)
         self._validate_nonnegative_int("deleted_record_count", self.deleted_record_count)
@@ -141,6 +146,9 @@ class OrganizationMetadata:
             ],
             "version": self.VERSION,
         }
+        if self.seal is not None:
+            document["version"] = 2
+            document["seal"] = {"collection_id": self.seal.collection_id, "generation": self.seal.generation}
         payload = json.dumps(
             document,
             allow_nan=False,
@@ -199,6 +207,8 @@ class OrganizationMetadata:
             "version",
         }
         actual_fields = set(document)
+        if type(document.get("version")) is int and document["version"] == 2:
+            expected_fields.add("seal")
         if actual_fields != expected_fields:
             missing = sorted(expected_fields - actual_fields)
             extra = sorted(actual_fields - expected_fields)
@@ -207,7 +217,7 @@ class OrganizationMetadata:
             )
         if document["magic"] != cls.MAGIC:
             raise ValidationError("Invalid organization metadata signature")
-        if type(document["version"]) is not int or document["version"] != cls.VERSION:
+        if type(document["version"]) is not int or document["version"] not in (cls.VERSION, 2):
             raise ValidationError("Unsupported organization metadata version")
         if type(document["organization_type"]) is not str:
             raise InvalidTypeError("organization_type must be encoded as a string")
@@ -217,6 +227,12 @@ class OrganizationMetadata:
             raise ValidationError("Unknown storage organization type") from exc
 
         schema = cls._decode_schema(document["schema"])
+        seal = None
+        if document["version"] == 2:
+            descriptor = document["seal"]
+            if type(descriptor) is not dict or set(descriptor) != {"collection_id", "generation"}:
+                raise ValidationError("Invalid storage seal descriptor")
+            seal = StorageSeal(descriptor["collection_id"], descriptor["generation"])
         return cls(
             organization_type=organization_type,
             schema=schema,
@@ -227,6 +243,7 @@ class OrganizationMetadata:
             key_column=document["key_column"],
             allow_duplicate_keys=document["allow_duplicate_keys"],
             reorganization_threshold=document["reorganization_threshold"],
+            seal=seal,
         )
 
     @staticmethod
@@ -317,6 +334,9 @@ class OrganizationFile:
             metadata = OrganizationMetadata.deserialize(
                 metadata_page.read(cls._METADATA_SLOT_ID)
             )
+            physical_sealed = manager.header.version == SEALED_FORMAT_VERSION
+            if physical_sealed != (metadata.seal is not None) or manager.read_only != physical_sealed:
+                raise ValidationError("Inconsistent file header and persistent storage seal")
             if metadata.organization_type is not expected_type:
                 raise ValidationError(
                     f"Expected {expected_type.value!r} organization, found "
@@ -339,6 +359,39 @@ class OrganizationFile:
     def _require_open(self) -> None:
         if self.closed:
             raise RuntimeError("Storage file is closed")
+
+    @property
+    def read_only(self) -> bool:
+        return self._manager.read_only
+
+    @property
+    def seal_descriptor(self) -> StorageSeal | None:
+        self._require_open()
+        if self.read_only and self._metadata.seal is None:
+            metadata = OrganizationMetadata.deserialize(self._manager.read_page(0).read(0))
+            if metadata.seal is None:
+                raise ValidationError("Sealed header is missing its collection descriptor")
+            self._metadata = metadata
+        return self._metadata.seal
+
+    def require_writable(self) -> None:
+        self._manager.require_writable()
+
+    def require_offline_publication(self) -> None:
+        self._manager.require_offline_publication()
+
+    def offline_publication(self):
+        return self._manager.offline_publication()
+
+    def seal(self, *, collection_id: str, generation: str) -> None:
+        """Persist a one-way Heap seal offline, preserving every live RID."""
+        self.require_offline_publication()
+        descriptor = StorageSeal(collection_id, generation)
+        metadata = replace(self._metadata, seal=descriptor)
+        page = Page(0)
+        page.insert(metadata.serialize())  # validate capacity before any write
+        self._manager.seal(page)
+        self._metadata = metadata
 
     def _visit_and_validate_data_pages(self, visitor: Callable[[Page], None]) -> None:
         self._require_open()
@@ -369,7 +422,7 @@ class OrganizationFile:
         the underlying PageManager according to its existing policy.
         """
 
-        self._require_open()
+        self.require_writable()
         if not isinstance(metadata, OrganizationMetadata):
             raise InvalidTypeError("metadata must be OrganizationMetadata")
         if metadata.organization_type is not self._metadata.organization_type:

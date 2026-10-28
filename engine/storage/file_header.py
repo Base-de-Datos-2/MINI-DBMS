@@ -16,7 +16,7 @@ from engine.storage.binary import (
 
 @dataclass(frozen=True, slots=True)
 class FileHeader:
-    """Version-1 signature, version, page size and allocated data-page count.
+    """Mutable v1 or sealed v2 signature, page size and allocated page count.
 
     Data pages are numbered from zero, excluding this prefix. A representable
     count is metadata only; PageManager checks the actual file length.

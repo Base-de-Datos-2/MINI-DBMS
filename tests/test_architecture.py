@@ -55,7 +55,7 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         "spatial": {"errors", "catalog", "storage", "operators", "spatial"},
         # Text consumes schema/Heap contracts plus Stage 6 ExternalSort and
         # cancellation for ranking. No SQL, transaction, API or benchmarks.
-        "text": {"errors", "catalog", "storage", "operators", "text"},
+        "text": {"errors", "catalog", "storage", "indexes", "operators", "text"},
         "operators": {"errors", "catalog", "storage", "indexes", "operators"},
         # Maintenance is the Stage 7 write path (INSERT/DELETE + index upkeep):
         # a storage-layer concern the query engine consumes, so it sits beside

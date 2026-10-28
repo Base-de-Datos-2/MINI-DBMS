@@ -195,6 +195,7 @@ class TextIndex:
         quiescent; this check is not persistent sealing or crash recovery.
         """
         self._require_open()
+        self.require_compatible_storage(storage)
         seen = set()
         with closing(storage.scan()) as rows:
             for rid, record in rows:
@@ -209,6 +210,15 @@ class TextIndex:
                 seen.add(doc_id)
         if len(seen) != self.statistics.document_count:
             raise ValidationError("Storage document count differs from the index")
+
+    def require_compatible_storage(self, storage):
+        """A sealed Heap belongs only to the collection generation it froze."""
+        self._require_open()
+        if storage.read_only:
+            descriptor = getattr(storage, "seal_descriptor", None)
+            if (descriptor is None or descriptor.collection_id != self.collection_id
+                    or descriptor.generation != self.generation):
+                raise ValidationError("Sealed Heap belongs to a different text collection generation")
 
     def close(self):
         with self._mutex:

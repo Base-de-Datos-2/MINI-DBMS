@@ -351,6 +351,8 @@ class Database:
         if not isinstance(definition, DatabaseDefinition):
             raise TypeError("definition must be a DatabaseDefinition")
         database = object.__new__(cls)
+        if (root / "text_tables.json").exists():
+            raise DatabaseSetupError("Published text registry requires the Block 4B owner integration")
         database._definition = definition
         database._directory = root
         database._catalog = Catalog()
@@ -392,6 +394,8 @@ class Database:
                     mappings.setdefault(mapping.table, mapping)
             for mapping in mappings.values():
                 try:
+                    if database._storages[mapping.table].read_only:
+                        raise ValidationError("A sealed text Heap cannot register spatial maintenance")
                     mapping.validate_schema(database._catalog.get_table(mapping.table).schema)
                     if database._tables[mapping.table].organization != HEAP:
                         raise ValidationError("Spatial mappings require stable-RID Heap storage")
@@ -702,6 +706,7 @@ class Database:
                 lambda: self.create_sql_index(name, table_name, column_name, unique=unique))
         if table_name not in self._gui_tables:
             raise ValidationError("CREATE INDEX por SQL solo está habilitado para tablas creadas por SQL o el panel Archivos")
+        self._storages[table_name].require_writable()
         name = check_identifier(name, "el índice")
         column_name = check_identifier(column_name, "la columna")
         if type(unique) is not bool:
@@ -760,6 +765,7 @@ class Database:
         if not self._catalog.has_index(name):
             raise ValidationError(f"No existe el índice {name!r}.")
         metadata = self._catalog.get_index(name)
+        self._storages[metadata.table_name].require_writable()
         gui = self._gui_tables.get(metadata.table_name)
         if gui is None or not any(index.name == name for index in gui.indexes):
             raise ValidationError("DROP INDEX por SQL solo puede eliminar índices creados dinámicamente")
@@ -797,6 +803,7 @@ class Database:
         gui = self._gui_tables.get(name)
         if gui is None:
             raise ValidationError("DROP TABLE por SQL solo está habilitado para tablas creadas por SQL o el panel Archivos")
+        self._storages[name].require_writable()
         files = self._table_files(self._tables[name])
         # Registry publication is the durable DROP point; cleanup after this
         # point may leave harmless orphan files if the process stops abruptly.
@@ -871,6 +878,7 @@ class Database:
         table_name = statement.table
         table_meta = self._catalog.get_table(table_name)
         storage = self._storages[table_name]
+        storage.require_writable()
         old_rows = list(storage.scan())
         if not old_rows:
             return {"table": table_name, "affected_rows": 0}
@@ -968,6 +976,8 @@ class Database:
         self, spec: NewTable, loaded_rows: int, origin: str, source_filename: str | None,
     ) -> GuiTable:
         name = check_identifier(spec.name, "la tabla")
+        if name in self._storages:
+            self._storages[name].require_writable()
         if self._catalog.has_table(name):
             raise DuplicateError(f"Ya existe una tabla llamada {name!r}.")
         if not spec.columns:

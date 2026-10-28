@@ -1516,6 +1516,7 @@ class SqlEngine:
             if isinstance(spec, InsertPlanSpec):
                 bound = spec.bound
                 spec.validate()
+                bound.storage.require_writable()
                 maintenance = service.insert(
                     table_name=bound.table.name,
                     table_metadata=bound.table,
@@ -1530,6 +1531,7 @@ class SqlEngine:
             else:
                 bound = spec.bound
                 spec.validate()
+                bound.storage.require_writable()
                 with DeleteTargetSpool() as spool:
                     try:
                         root = spec.instantiate_candidates()

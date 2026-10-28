@@ -274,6 +274,8 @@ def search_text(index: TextIndex, query: str, *, model: str, order="score_desc",
         raise InvalidTypeError("use_indexes must be a bool")
     if not use_indexes and not isinstance(storage, Storage):
         raise InvalidTypeError("TextScan requires its source Storage")
+    if isinstance(storage, Storage):
+        index.require_compatible_storage(storage)
     integer(buffer_bytes, "buffer_bytes", POSTING.size)
     buffer_bytes -= buffer_bytes % POSTING.size
     integer(sort_memory_budget_bytes, "sort_memory_budget_bytes", 1)

@@ -136,6 +136,8 @@ class Database:
             if not root.is_dir():
                 raise DatabaseSetupError("Database root does not exist")
             UndoStore.require_clean(root)
+            if (root / "text_tables.json").exists():
+                raise DatabaseSetupError("This owner does not support published text collections")
             manifest = read_manifest(root / MANIFEST_FILENAME)
             return cls._assemble(
                 root,
@@ -241,6 +243,9 @@ class Database:
 
         self._catalog.register_table(table.metadata)
         storage = HeapFile.open(table_path, table.metadata.schema)
+        if storage.read_only:
+            storage.close()
+            raise DatabaseSetupError("Text-sealed tables require the text-capable demo owner")
         self._storages[table.name] = storage
         self._paths[table.name] = table_path
         self._environment.register_storage(table.name, storage)

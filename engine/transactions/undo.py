@@ -10,6 +10,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock, Semaphore
+from engine.storage.page_manager import PageManager
 
 from .errors import TransactionCapacityError, TransactionUnavailableError
 from .model import TransactionId
@@ -127,6 +128,8 @@ class UndoStore:
     def capture(self, transaction_id: TransactionId, files: TableFiles) -> TableImage:
         if not isinstance(transaction_id, TransactionId) or not isinstance(files, TableFiles):
             raise TypeError("Capture requires a transaction ID and table file set")
+        for path in files.physical_files:
+            PageManager.require_mutable_path(path)
         # A table X grant is the caller's precondition. The quota mutex only
         # protects accounting; it never encloses file copying or lock waits.
         with self._capture_slots:
@@ -247,6 +250,8 @@ class UndoStore:
         if (image.table_name != files.name or image.table_identity != files.identity
                 or tuple(item.path for item in image.files) != files.physical_files):
             raise TransactionUnavailableError("Undo descriptor does not match table file set")
+        for path in files.physical_files:
+            PageManager.require_mutable_path(path)
         prior = set(image.prior_replacements)
         for path in files.physical_files:
             for candidate in _replacement_candidates(path):

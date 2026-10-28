@@ -32,7 +32,7 @@ from engine.query.executor import (
 from engine.query.parser import parse_sql
 from engine.query.errors import SqlQueryError
 from engine.query.planner import PhysicalPlanningOptions
-from engine.storage.page_manager import physical_latch_scope
+from engine.storage.page_manager import physical_latch_scope, register_managed_root, unregister_managed_root
 
 from .errors import (
     SessionBusyError,
@@ -113,6 +113,7 @@ class SessionCoordinator:
             bypass=self.protected_execution_active,
         )
         default_engine._set_metadata_guard(self._metadata_read)
+        self._seal_root = register_managed_root(root)
 
     def _metadata_read(self, action: Callable[[], object]):
         with self.metadata.read():
@@ -226,6 +227,7 @@ class SessionCoordinator:
             with self._mutex:
                 self._closed = False
             raise failures[0]
+        unregister_managed_root(self._seal_root)
 
     def shutdown(
         self,
@@ -275,6 +277,7 @@ class SessionCoordinator:
             with self._mutex:
                 self._closed = False
             raise failures[0]
+        unregister_managed_root(self._seal_root)
 
 
 class SqlSession:

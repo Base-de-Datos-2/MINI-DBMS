@@ -20,6 +20,13 @@ class Storage(ABC):
     here. Future concrete implementations need their own conformance tests.
     """
 
+    def require_writable(self) -> None:
+        """Check a mutation policy; legacy/in-memory implementations stay mutable."""
+
+    @property
+    def read_only(self) -> bool:
+        return False
+
     @abstractmethod
     def insert(self, record: Record) -> RID:
         """Insert one row and return its RID; equal rows may coexist.

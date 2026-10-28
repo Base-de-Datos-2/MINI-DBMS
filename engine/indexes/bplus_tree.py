@@ -324,7 +324,7 @@ class BPlusTree(OrderedIndex):
     def mark_incomplete(self) -> None:
         """Persistently prevent reopening a tree whose storage may be stale."""
 
-        self._require_open()
+        self.require_writable()
         if self._header.build_complete:
             self._write_header(replace(self._header, build_complete=False))
 
@@ -337,7 +337,7 @@ class BPlusTree(OrderedIndex):
         begin a fresh session after replacement.
         """
 
-        self._require_open()
+        self.require_writable()
         temporary_path = self._manager.temporary_replacement_path()
         candidate: BPlusTree | None = None
         committed = False
@@ -402,6 +402,22 @@ class BPlusTree(OrderedIndex):
     def _require_open(self) -> None:
         if self.closed:
             raise RuntimeError("B+ tree is closed")
+
+    @property
+    def read_only(self) -> bool:
+        return self._manager.read_only
+
+    def require_writable(self) -> None:
+        self._manager.require_writable()
+
+    def bind_storage_guard(self, guard) -> None:
+        self._manager.bind_write_guard(guard)
+
+    def require_offline_publication(self) -> None:
+        self._manager.require_offline_publication()
+
+    def seal(self) -> None:
+        self._manager.seal()
 
     def _validate_node_reference(self, page_id: object, label: str) -> int:
         if type(page_id) is not int:
@@ -778,7 +794,7 @@ class BPlusTree(OrderedIndex):
         return new_root_page_id, self._header.height + 1, free_head
 
     def insert(self, key: RecordValue, rid: RID) -> None:
-        self._require_open()
+        self.require_writable()
         checked_key = BPlusKeyCodec.validate(self._header.key_type, key)
         BPlusRIDCodec.encode(rid)
         if self._header.entry_count == (1 << 64) - 1:
@@ -1315,7 +1331,7 @@ class BPlusTree(OrderedIndex):
         )
 
     def delete(self, key: RecordValue, rid: RID) -> None:
-        self._require_open()
+        self.require_writable()
         checked_key = BPlusKeyCodec.validate(self._header.key_type, key)
         BPlusRIDCodec.encode(rid)
         if self._header.entry_count == 0:
