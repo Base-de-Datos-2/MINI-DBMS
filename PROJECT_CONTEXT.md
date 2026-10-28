@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.12** — preserves formal closures and records
-> Part 3 Block 1B acceptance, deterministic exports and Heap verification.
+> Context version: **4.13** — preserves formal closures and records
+> Part 3 Block 2 SPIMI persistence and concurrent readers.
 
 ## Project identity
 
@@ -13,10 +13,11 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 Block 1B closed**, following explicit authorization of 1B.5–1B.8
-> on 2026-10-24. The real corpus gate is PASS: exact nested exports and all
-> 100,000 rows verified through Heap reopening in a fresh process. Block 1A
-> remains closed; later blocks remain pending. See `PART_03/BLOQUE_1B.md`.
+> **Part 3 Block 2 closed**, following explicit authorization on 2026-10-28.
+> SPIMI, persistent statistics/mappings and concurrent readers are verified
+> by 551 focused strict tests. Blocks 1A/1B remain closed and the real corpus
+> gate remains PASS. Ranking and later integration remain pending. See
+> `PART_03/BLOQUE_2.md` and `PART_03/BLOQUE_1B.md`.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -89,9 +90,44 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorizes Part 3 tasks 1B.5–1B.8 after preparation 1B.1–1B.4.
-Final corpus acceptance is PASS; later Part 3 phases and Parts 4–5 remain pending.
-Earlier scope statements below do not override this limited authorization.
+The latest request authorizes Part 3 Block 2 after the closed Blocks 1A/1B.
+It is implemented and verified; Block 3 ranking, 4A sealing, 4B owner/SQL
+integration and subsequent phases/Parts 4–5 remain pending. Corpus acceptance
+is PASS. Earlier scope statements below do not override this authorization.
+
+### Part 3 SPIMI decisions (Block 2)
+
+- `engine.text.build_spimi` consumes a quiescent borrowed Storage/Heap and
+  TableMetadata. It preserves original rows, validates global signed-64 ID
+  and RID uniqueness (including tokenless documents), and builds in a fresh
+  directory. A failed build never overwrites an existing destination.
+- Each SPIMI block stores one `(doc_id, tf)` per term/document. Terms and
+  postings are sorted before spilling. A bounded fan-in k-way merge performs
+  multiple passes without concatenating whole posting lists. The configurable
+  block estimate includes Python objects and sorting workspace; O(N) identity/
+  statistics metadata and O(B) run filenames are separate, not bounded RSS.
+- Version-1 files are `postings.bin` (little-endian signed-64 ID/unsigned-64
+  tf), `lexicon.jsonl`, `documents.jsonl` and a complete manifest written last.
+  Dimensions follow final Unicode term order; offsets/lengths/df, tokenizer
+  algorithm AND Unicode version, schema/constraints/columns, collection and
+  unique generation, file hashes and build telemetry are persisted.
+- N/total_tokens/avgdl include tokenless documents. Complete-vector TF-IDF
+  norms are derived from final N/df. The document map includes every ID/RID,
+  length/norm and a SHA-256 of its full original RecordCodec payload. These
+  norms prepare Block 3; query scoring/ranking is not implemented here.
+- `TextIndex.open` loads only lexicon/document metadata, hashes components
+  by bounded chunks and validates their basic consistency. `validate()`
+  streams all postings to recheck lengths/norms; `verify_storage` checks all
+  original rows and RID resolution. The builder runs both before publication.
+  Callers can require expected collection/generation/schema on reopening.
+- Each posting iterator owns its logical offset and bounded buffer. The
+  shared unbuffered file handle's seek/read and close use one short RLock;
+  no latch spans iteration/scoring. Iterator close does not close the reader.
+  Isolated reopening and two-thread shared-reader acceptance are tested.
+- No owner registry, persistent Heap sealing or SQL/API/transaction changes
+  are implied. The source must remain unchanged; the future owner must bind
+  the exact generation and enforce 4A/4B before serving textual queries.
+  Evidence, resource estimates and limits: `PART_03/BLOQUE_2.md`.
 
 ### Part 3 contract decisions (Block 1A)
 
@@ -103,7 +139,8 @@ Earlier scope statements below do not override this limited authorization.
   immutable collection generation. `N` counts all accepted documents;
   document length counts normalized tokens with repetitions, and `avgdl`
   includes zero-length documents (explicitly `0.0` for an empty corpus).
-  Collection-wide uniqueness, statistics and map persistence are later work.
+  At 1A closure, collection-wide uniqueness, statistics and map persistence
+  were later work; they are now implemented by Block 2 above.
 - Implemented `engine.text.tokenize` applies NFC → lower → NFC, then maximal
   Unicode `str.isalnum()` runs, preserving accents, stopwords, token order and
   repetitions. Nonalphanumeric characters delimit tokens, including residual
@@ -127,7 +164,8 @@ Earlier scope statements below do not override this limited authorization.
   dense-float and analytic calculations validate expected values; all 22
   original texts survive a fresh-process Heap reopen. These are functional
   references, not corpus acceptance, measured retrieval quality or a production
-  ranker. The existing engine text API still exposes only tokenization.
+  ranker. At 1A closure the engine text API exposed only tokenization;
+  Block 2 adds the builder, persistent metadata and readers described above.
 - Block 1A closed on 2026-10-24 with 390 focused regression tests passing
   (88 text tests). Evidence and command: `PART_03/BLOQUE_1A.md`. At that closure
   corpus acceptance was pending in 1B; its completed acceptance is recorded below.

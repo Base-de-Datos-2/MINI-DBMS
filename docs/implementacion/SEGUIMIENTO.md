@@ -287,3 +287,28 @@ La autorización previa de pausa del mapa queda superada por esta indicación.
 Se conservó el motor propio y el subconjunto SQL. Resultados y límites actuales:
 [VERIFICACION_LEAFLET.md](../VERIFICACION_LEAFLET.md). Inicio:
 [GUIA_LEAFLET_LIMA.md](../../GUIA_LEAFLET_LIMA.md).
+
+## Actualización autorizada — Parte 3, bloque 2, 28/10/2026
+
+El usuario autorizó implementar el bloque 2 siguiendo el plan de la Parte 3.
+Se completó el núcleo SPIMI propio: bloques y postings ordenados, mezcla de
+varias pasadas con fan-in limitado, léxico/dimensiones y estadísticas
+persistentes, normas TF-IDF, mapa ID/RID y validación del contenido original.
+El lector comparte un handle con latch breve y conserva offsets/buffers por
+iterador; se verificaron cierre anticipado y dos threads simultáneos.
+
+La regresión focalizada con advertencias como errores aprobó **551 pruebas
+en 95.84 segundos**, incluyendo texto, arquitectura, codecs, Heap, contratos
+del parser, binder y apertura de bases. No se atribuye este resultado a toda
+la suite del proyecto ni a navegador/HTTP. Se preservaron las evidencias de
+aceptación ESCI/100k de 1B; ese experimento no se volvió a ejecutar aquí.
+
+El destino de construcción es nuevo y exclusivo; los fallos no publican un
+manifiesto completo ni modifican/cierran el Heap prestado. El presupuesto
+controla el modelo de bloque/ordenación, con metadatos O(N) separados; no se
+confunde con RSS. Aún no hay ranking de consultas, sellado persistente ni
+integración del índice textual en el owner/SQL/API/UI.
+
+Uso, evidencia y límites: [BLOQUE_2.md](../../PART_03/BLOQUE_2.md) y
+[text.md](../text.md). Bloques 1A, 1B y 2 cerrados. El siguiente pendiente es
+el bloque 3 (TF-IDF/coseno y BM25); requiere nueva autorización.

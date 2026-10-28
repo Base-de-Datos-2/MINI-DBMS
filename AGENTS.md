@@ -1,19 +1,21 @@
 # AGENTS.md
 
-> Context version: **6.4** — records closed Blocks 1A/1B and measured
-> Part 3 corpus acceptance; later implementation blocks remain deferred.
+> Context version: **6.5** — records closed Blocks 1A/1B/2 and measured
+> Part 3 corpus acceptance; ranking and later integration remain deferred.
 
 ## Purpose
 
-Blocks 1A and 1B are closed. The latest request on 2026-10-24 authorizes
-**1B.5–1B.8**: reproducible nested subsets, actual 100k Heap insertion and
-fresh-process reopening, measured corpus acceptance and tested closure.
-The real ESCI corpus gate is PASS. Use `PART_03/BLOQUE_1B.md` and
-`PART_03/PLAN_PARTE_03.md` for evidence and reproducibility instructions.
-This supersedes the historical Part 3 deferral below for these tasks only.
-Later Part 3 blocks and Parts 4–5 remain deferred. Corpus approval is not
-completion of the text engine. Do not build SPIMI, production ranking,
-textual SQL or UI here.
+Blocks 1A, 1B and 2 are closed. The latest request on 2026-10-28 authorizes
+**Part 3 Block 2**: own SPIMI construction, bounded external merging,
+persistent postings/lexicon/statistics/ID-RID mapping, document norms and
+concurrent offset readers. Evidence and reproduction: `PART_03/BLOQUE_2.md`;
+the focused strict regression passes 551 tests. The earlier real ESCI corpus
+gate remains PASS; its 100k experiment was not rerun by Block 2.
+Use `PART_03/BLOQUE_1B.md` and `PART_03/PLAN_PARTE_03.md` for corpus evidence.
+This supersedes historical Part 3 deferrals below for Block 2 only.
+Block 3 ranking, 4A storage sealing, 4B owner/SQL integration, subsequent
+API/UI/experiments and Parts 4–5 remain deferred. Do not implement production
+query ranking, textual SQL, storage sealing or UI without new authorization.
 
 The earlier explicit user authorization started the frontend for Parts 1 and 2,
 including the spatial map and final real-browser verification. Earlier pause

@@ -10,6 +10,12 @@ Este documento es un plan, no evidencia por sí solo de funcionalidades implemen
 
 El PDF no incluye una rúbrica numérica separada. Por ello, la matriz siguiente convierte sus requisitos explícitos en criterios verificables; no inventa puntajes ni obligaciones adicionales. El Avance 3 requiere **Partes 3 y 4**: completar este plan cubre solamente la Parte 3.
 
+Actualización del 28 de octubre de 2026: el usuario autorizó el **bloque 2**,
+ahora cerrado con núcleo SPIMI, persistencia y lectores concurrentes; evidencia
+y límites en [BLOQUE_2.md](BLOQUE_2.md). Los bloques 3 y posteriores siguen
+pendientes. Esta actualización amplía únicamente la autorización histórica
+descrita arriba; no declara completada toda la Parte 3.
+
 ### Requisitos y evidencia de cumplimiento
 
 | Requisito del enunciado | Implementación mínima completa | Evidencia de aceptación |
@@ -312,13 +318,18 @@ Añadir una tabla de ventajas, desventajas y cuándo usar cada opción. Las reco
 
 ## 7. Secuencia de implementación y condiciones de salida
 
-Los bloques 1A y 1B están cerrados. La autorización posterior cubre **1B.5–1B.8**; el corpus real tiene PASS con evidencia, validación completa de Heap y reproducción en [BLOQUE_1B.md](BLOQUE_1B.md). Los bloques restantes se ejecutarán cuando se autoricen. Separar dos dependencias: los contratos y la fixture habilitan el desarrollo del núcleo y su integración; el PASS completo del corpus habilita su adopción y los experimentos finales.
+Los bloques 1A, 1B y 2 están cerrados. La autorización del 28 de octubre cubre
+el núcleo SPIMI y su validación: [BLOQUE_2.md](BLOQUE_2.md). El corpus real
+conserva el PASS, la validación de Heap y la reproducción de
+[BLOQUE_1B.md](BLOQUE_1B.md). Ranking y bloques posteriores se ejecutarán cuando
+se autoricen. Los contratos/fixture habilitan el núcleo y su integración; el
+PASS del corpus habilita su adopción y los experimentos finales.
 
 | Fase | Trabajo concreto | Condición para continuar |
 |---|---|---|
 | 1A. Contratos y fixture — COMPLETADA 2026-10-24 | Semántica, tokenización, fórmulas y fixtures con respuestas verificables; evidencia en BLOQUE_1A.md | 390 tests focalizados aprobados en 1A; núcleo y ranking de producción siguen pendientes; aceptación real cerrada en 1B |
 | 1B. Aceptación de datos — COMPLETADA 2026-10-24 | 1B.1–1B.8: fuentes verificadas, 30 consultas con 439 positivos, conjuntos anidados exactos y reproducción independiente | `corpus_feasibility.json` en PASS; 100 000 filas, IDs, textos y RID verificados tras reapertura real de Heap; 476 tests focalizados aprobados |
-| 2. Núcleo SPIMI | Construcción por bloques con postings ordenados, mezcla, persistencia, léxico, estadísticas y lectura concurrente por offset | Igualdad con índice de referencia; IDs desordenados y duplicados; varios bloques/pasadas, reapertura y lectores intercalados |
+| 2. Núcleo SPIMI — COMPLETADA 2026-10-28 | Construcción por bloques con postings ordenados, mezcla, persistencia, léxico, estadísticas, normas e ID/RID; lectores por offset | Oráculo independiente, IDs desordenados/duplicados, varias pasadas, proceso aislado, lectores intercalados y dos threads; 551 tests focalizados; evidencia en BLOQUE_2.md |
 | 3. Ranking | TF-IDF/coseno, BM25, órdenes de §3.3 y top-k condicionado al orden | Scores y filas correctos para DESC, ASC e ID; igualdad índice/scan y desempates |
 | 4A. Política persistente de escritura | Sello y compatibilidad de formato; guards en almacenamiento/mantenimiento y rechazo antes de undo | Incremento validado por separado: archivos anteriores siguen funcionando, tablas selladas rechazan escrituras sin captura/restauración y el rollback de otras tablas se conserva |
 | 4B. Integración textual | Owner `api.database.Database`, registro textual, parser/binder, operador y EXPLAIN; depende de 4A | Los dos SQL del PDF funcionan; reapertura real; matriz de escritura y dos sesiones lectoras verificadas |
@@ -359,8 +370,8 @@ Demo breve de la Parte 3:
 
 Checklist de cierre:
 
-- [ ] SPIMI propio con varios bloques reales y mezcla externa validada.
-- [ ] Postings ordenados dentro de cada bloque y durante la mezcla, con entrada desordenada e IDs duplicados comprobados.
+- [x] SPIMI propio con varios bloques reales y mezcla externa validada (bloque 2; pruebas externas con fixtures, no benchmark del corpus 100k).
+- [x] Postings ordenados dentro de cada bloque y durante la mezcla, con entrada desordenada e IDs duplicados comprobados.
 - [ ] Un índice persistente compartido por TF-IDF/coseno y BM25.
 - [ ] Los dos ejemplos SQL del PDF funcionan en el motor y por la API.
 - [ ] Resultados y planes visibles mediante el frontend existente.
