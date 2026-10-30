@@ -13,6 +13,7 @@ from engine.storage.record import Record
 from engine.storage.record_codec import RecordCodec
 from engine.storage.rid import RID
 from engine.storage.sequential_ordering import SequentialOrdering
+from engine.storage.seal import StorageSeal
 from engine.storage.slot_entry import SlotEntry
 from engine.storage.value_codec import ValueCodec
 
@@ -21,4 +22,5 @@ __all__ = [
     "FileHeader", "PageManager", "OrganizationType", "OrganizationMetadata",
     "HeapFreeSpaceTracker", "HeapFile", "SequentialOrdering", "PagedSequentialFile",
     "ReorganizationMetrics",
+    "StorageSeal",
 ]

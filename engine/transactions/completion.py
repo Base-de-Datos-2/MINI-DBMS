@@ -62,6 +62,7 @@ class CompletionService:
         # SQL path, so table identity cannot change under the schema grant.
         if self.resources.table_files(table_name) != files:
             raise TransactionUnavailableError("Table resource changed during lock wait")
+        self.runtime.require_writable(files)
         if table_name not in transaction.touched_tables:
             with self._latch_scope(transaction_id, "undo_capture"):
                 self.runtime.flush(files)

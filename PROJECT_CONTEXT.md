@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.12** — preserves formal closures and records
-> Part 3 Block 1B acceptance, deterministic exports and Heap verification.
+> Context version: **4.15** — preserves formal closures and records
+> Part 3 Block 4A persistent sealing and rejection before undo.
 
 ## Project identity
 
@@ -13,10 +13,11 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 Block 1B closed**, following explicit authorization of 1B.5–1B.8
-> on 2026-10-24. The real corpus gate is PASS: exact nested exports and all
-> 100,000 rows verified through Heap reopening in a fresh process. Block 1A
-> remains closed; later blocks remain pending. See `PART_03/BLOQUE_1B.md`.
+> **Part 3 Block 4A closed**, following explicit authorization on 2026-10-28.
+> Persistent sealing, rejection before undo and offline publication are
+> verified by 96 focused strict tests. Blocks 1A/1B/2/3 remain closed and the
+> real corpus gate remains PASS. Text registry, owner/SQL/API/UI integration
+> remain pending. See `PART_03/BLOQUE_4A.md` for evidence and regression limits.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -89,9 +90,114 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorizes Part 3 tasks 1B.5–1B.8 after preparation 1B.1–1B.4.
-Final corpus acceptance is PASS; later Part 3 phases and Parts 4–5 remain pending.
-Earlier scope statements below do not override this limited authorization.
+The latest request authorizes Part 3 Block 4A after the closed Blocks 1A/1B/2/3.
+It is implemented and verified; 4B owner/SQL integration and
+subsequent phases/Parts 4–5 remain pending. Corpus acceptance is PASS.
+Earlier scope statements below do not override this authorization.
+
+### Part 3 persistent write policy (Block 4A)
+
+- Mutable files retain the exact v1 metadata/header encoding. Explicit sealing
+  uses common file-header version 2 and Heap organization metadata version 2,
+  carrying an immutable `StorageSeal(collection_id, generation)`. Old readers
+  reject version 2. Reopen rejects inconsistent header/descriptor combinations.
+  No page layout, RID, row, ranking formula or existing database is migrated.
+- `seal_text_collection` validates the TextIndex, exact Heap contents/schema,
+  metadata capacity and enumerated secondary indexes before mutation. It seals
+  ordinary Heap B+/hash indexes first and the Heap last. The caller must supply
+  the complete declared secondary set; Block 4B will own that enumeration and
+  final registry publication. A partial publication fails closed and requires
+  reconstruction in a new directory. There is no unseal or crash-atomic commit.
+- Publication requires every in-process owner and coordinator of the directory
+  to be closed. A reentrant publication admission latch excludes new claims
+  across validation and the complete multi-file sequence. Ordinary queries and
+  writes do not acquire this latch. This does not add cross-process locking.
+- PageManager enforces the one-way policy on allocate/write/replacement, also
+  protecting exposed raw index handles. A canonical-path cache informs existing
+  in-process aliases; new handles/processes read the persistent header. No disk
+  header read is added to every ordinary mutation. External file manipulation
+  and concurrent cross-process writers are outside the supported contract.
+- Heap, MutationService, direct SqlEngine, index maintenance and owner mutation
+  routes guard before effects. Under schema/table grants, CompletionService
+  checks runtime writability before flush, undo capture and touched-table
+  registration. Physical UndoStore also rejects sealed paths before capture or
+  restoration. Earlier writes to other mutable tables still roll back normally.
+- Runtime reopening restores the same policy. The manifest-backed alternate
+  owner rejects sealed Heaps. Both owners reject the reserved text registry
+  until 4B can validate and own its resources. The demo owner can currently read
+  sealed GUI Heaps with consistently sealed ordinary indexes, without textual
+  binding. Text/spatial co-publication is unsupported and rejected.
+- `TextIndex.require_compatible_storage` checks collection/generation whenever
+  sealed storage is supplied to verification or search. Calls without storage
+  still require the caller to bind the correct index; automatic binding is 4B.
+
+### Part 3 ranking decisions (Block 3)
+
+- `engine.text.search_text` ranks OR matches with required model `TF_IDF` or
+  `BM25`, using Block 2 statistics and full document norms. Query terms are
+  tokenized identically, projected to the known vocabulary and accumulated in
+  stable vocabulary order. Repetitions affect TF-IDF; BM25 uses distinct terms
+  and fixed k1=1.2/b=0.75. Empty/tokenless/unknown inputs yield no false matches.
+- Orders are `score_desc` (default, ID ASC tie break), `score_asc` (ID ASC tie
+  break), `id_asc` and `id_desc`. Sorting uses unrounded finite float scores,
+  never tolerance buckets. LIMIT is applied after the resolved order. Only
+  score_desc with LIMIT uses a size-k heap; all other nonempty routes use the
+  existing Stage 6 ExternalSort over every candidate before limiting.
+- `use_indexes=False` requires the original borrowed Storage and performs a
+  real sequential scan with per-row identity/RID/hash/length and count checks.
+  It uses the same persisted statistics and scoring formulas without reading
+  postings for candidate discovery. Indexed and scan results agree exactly
+  on tested float operations; independent Decimal/frozen references anchor
+  scores with the 1A tolerances and exact ID/order assertions.
+- Results are an eager tuple of immutable ID/score/RID hits plus a measured
+  work report. Original text is not materialized. Accumulator O(C), result/
+  selection sizes, query/scan estimates, posting buffers and sort grant are
+  distinguished; neither top-k nor the sort grant limits total process RSS.
+  This standalone API does not change the existing streaming SQL QueryResult.
+- ExternalSort borrows an optional ExecutionContext and returns reservations,
+  handles and temporaries on success, early limit, cancellation or failure.
+  Cancellation reuses operator cancellation_scope safe points. Index/storage
+  handles remain borrowed. Two concurrent queries over one reader reproduce
+  serial scores/IDs with interleaved small-buffer posting reads.
+- No storage-format change, seal, text owner registry, SQL syntax, endpoints
+  or frontend integration was added. The source still must remain unchanged;
+  4A/4B provide the future persistent protection and session/SQL lifecycle.
+  Evidence, commands and limits: `PART_03/BLOQUE_3.md`.
+
+### Part 3 SPIMI decisions (Block 2)
+
+- `engine.text.build_spimi` consumes a quiescent borrowed Storage/Heap and
+  TableMetadata. It preserves original rows, validates global signed-64 ID
+  and RID uniqueness (including tokenless documents), and builds in a fresh
+  directory. A failed build never overwrites an existing destination.
+- Each SPIMI block stores one `(doc_id, tf)` per term/document. Terms and
+  postings are sorted before spilling. A bounded fan-in k-way merge performs
+  multiple passes without concatenating whole posting lists. The configurable
+  block estimate includes Python objects and sorting workspace; O(N) identity/
+  statistics metadata and O(B) run filenames are separate, not bounded RSS.
+- Version-1 files are `postings.bin` (little-endian signed-64 ID/unsigned-64
+  tf), `lexicon.jsonl`, `documents.jsonl` and a complete manifest written last.
+  Dimensions follow final Unicode term order; offsets/lengths/df, tokenizer
+  algorithm AND Unicode version, schema/constraints/columns, collection and
+  unique generation, file hashes and build telemetry are persisted.
+- N/total_tokens/avgdl include tokenless documents. Complete-vector TF-IDF
+  norms are derived from final N/df. The document map includes every ID/RID,
+  length/norm and a SHA-256 of its full original RecordCodec payload. These
+  norms prepared Block 3; query scoring was not part of Block 2 and is now
+  implemented by the separate ranker described above.
+- `TextIndex.open` loads only lexicon/document metadata, hashes components
+  by bounded chunks and validates their basic consistency. `validate()`
+  streams all postings to recheck lengths/norms; `verify_storage` checks all
+  original rows and RID resolution. The builder runs both before publication.
+  Callers can require expected collection/generation/schema on reopening.
+- Each posting iterator owns its logical offset and bounded buffer. The
+  shared unbuffered file handle's seek/read and close use one short RLock;
+  no latch spans iteration/scoring. Iterator close does not close the reader.
+  Isolated reopening and two-thread shared-reader acceptance are tested.
+- No owner registry, persistent Heap sealing or SQL/API/transaction changes
+  are implied. The source must remain unchanged; the future owner must bind
+  the exact generation and enforce 4A/4B before serving textual queries.
+  Evidence, resource estimates and limits: `PART_03/BLOQUE_2.md`.
 
 ### Part 3 contract decisions (Block 1A)
 
@@ -103,7 +209,8 @@ Earlier scope statements below do not override this limited authorization.
   immutable collection generation. `N` counts all accepted documents;
   document length counts normalized tokens with repetitions, and `avgdl`
   includes zero-length documents (explicitly `0.0` for an empty corpus).
-  Collection-wide uniqueness, statistics and map persistence are later work.
+  At 1A closure, collection-wide uniqueness, statistics and map persistence
+  were later work; they are now implemented by Block 2 above.
 - Implemented `engine.text.tokenize` applies NFC → lower → NFC, then maximal
   Unicode `str.isalnum()` runs, preserving accents, stopwords, token order and
   repetitions. Nonalphanumeric characters delimit tokens, including residual
@@ -127,7 +234,8 @@ Earlier scope statements below do not override this limited authorization.
   dense-float and analytic calculations validate expected values; all 22
   original texts survive a fresh-process Heap reopen. These are functional
   references, not corpus acceptance, measured retrieval quality or a production
-  ranker. The existing engine text API still exposes only tokenization.
+  ranker. At 1A closure the engine text API exposed only tokenization;
+  Block 2 adds the builder, persistent metadata and readers described above.
 - Block 1A closed on 2026-10-24 with 390 focused regression tests passing
   (88 text tests). Evidence and command: `PART_03/BLOQUE_1A.md`. At that closure
   corpus acceptance was pending in 1B; its completed acceptance is recorded below.

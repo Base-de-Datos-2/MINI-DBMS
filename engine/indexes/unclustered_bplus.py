@@ -36,6 +36,19 @@ class UnclusteredBPlusIndex(OrderedIndex):
             raise ValidationError("B+ key type does not match the Heap column")
         self._tree = tree
         self._heap = heap
+        if tree.read_only != heap.read_only:
+            raise ValidationError("B+ and Heap sealing policies disagree")
+        tree.bind_storage_guard(heap.require_writable)
+
+    @property
+    def read_only(self) -> bool:
+        return self.tree.read_only
+
+    def require_offline_publication(self) -> None:
+        self.tree.require_offline_publication()
+
+    def seal(self) -> None:
+        self.tree.seal()
 
     @classmethod
     def build(
@@ -50,6 +63,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
     ) -> "UnclusteredBPlusIndex":
         if not isinstance(heap, HeapFile):
             raise InvalidTypeError("heap must be a HeapFile")
+        heap.require_writable()
         tree = BPlusTree.build_from_storage(
             path,
             storage=heap,
@@ -146,6 +160,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
         return checked_key, record
 
     def insert(self, key: RecordValue, rid: RID) -> None:
+        self.heap.require_writable()
         checked_key, _ = self._record_for_association(key, rid)
         self.tree.insert(checked_key, rid)
 
@@ -246,12 +261,14 @@ class UnclusteredBPlusIndex(OrderedIndex):
         return iterator()
 
     def delete(self, key: RecordValue, rid: RID) -> None:
+        self.heap.require_writable()
         checked_key, _ = self._record_for_association(key, rid)
         self.tree.delete(checked_key, rid)
 
     def insert_record(self, record: Record) -> RID:
         """Insert one Heap row and its index association with best-effort undo."""
 
+        self.heap.require_writable()
         self._require_ready()
         rid = self.heap.insert(record)
         try:
@@ -270,6 +287,7 @@ class UnclusteredBPlusIndex(OrderedIndex):
     def delete_record(self, rid: RID) -> None:
         """Remove the exact index association before freeing its Heap slot."""
 
+        self.heap.require_writable()
         self._require_ready()
         BPlusRIDCodec.encode(rid)
         record = self.heap.read(rid)
@@ -294,12 +312,14 @@ class UnclusteredBPlusIndex(OrderedIndex):
     def rebuild(self) -> BPlusBuildMetrics:
         """Atomically reconstruct all associations from active Heap rows."""
 
+        self.heap.require_writable()
         self._require_open()
         return self._tree.rebuild_from_storage(self.heap)
 
     def mark_incomplete(self) -> None:
         """Persistently disable this adapter until a complete rebuild succeeds."""
 
+        self.heap.require_writable()
         self._require_open()
         self._tree.mark_incomplete()
         self._tree.flush()

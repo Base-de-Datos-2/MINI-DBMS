@@ -6,9 +6,18 @@ Implementar en MINI-DBMS **recuperación textual persistente mediante vectores d
 
 El vocabulario V de la colección define el espacio vectorial: cada término distinto corresponde a una dimensión y cada documento tiene |V| componentes. La componente de frecuencia es `tf(t,d)`; los términos ausentes tienen valor cero. Persistir el léxico con una asignación estable `término → dimensión` y los postings `(doc_id, tf)` conserva únicamente las componentes no nulas, agrupadas por término. Por tanto, esos archivos representan de forma dispersa los vectores documentales sin guardar una matriz densa ni duplicar un vector por cada modelo. Las frecuencias persistidas, `df`, N y las normas permiten reconstruir los pesos TF-IDF; BM25 utiliza las mismas frecuencias más las longitudes y la longitud media. La consulta se proyecta al mismo vocabulario. BM25 es una función de ranking sobre esa representación, no una similitud del coseno adicional.
 
-Este documento es un plan, no evidencia por sí solo de funcionalidades implementadas. Revisión del 22 de octubre de 2026: se precisan representación vectorial, propietario de índices, ordenamiento, inmutabilidad y aceptación del corpus; la segunda revisión añade rechazo antes de capturar undo, lectura concurrente de postings, orden dentro de los bloques SPIMI y separación entre desarrollo con fixtures y aprobación del corpus. Los bloques 1A y 1B están cerrados. La solicitud posterior del 24 de octubre autorizó **1B.5–1B.8**; la aceptación real del corpus está en PASS, documentada en [BLOQUE_1B.md](BLOQUE_1B.md). Los bloques posteriores quedan pendientes. Se basa en `Proyecto_Final.pdf`, sección 2.3 (páginas 3–4), y en el repositorio revisado en el commit `85db1bec94e0515dfff621dfa1ae8dece4c6ca08`. Las Partes 3–5 no se consideran completadas.
+Este documento es un plan, no evidencia por sí solo de funcionalidades implementadas. Revisión del 22 de octubre de 2026: se precisan representación vectorial, propietario de índices, ordenamiento, inmutabilidad y aceptación del corpus; la segunda revisión añade rechazo antes de capturar undo, lectura concurrente de postings, orden dentro de los bloques SPIMI y separación entre desarrollo con fixtures y aprobación del corpus. Los bloques 1A y 1B se cerraron el 24 de octubre. La solicitud de esa fecha autorizó **1B.5–1B.8**; la aceptación real del corpus está en PASS, documentada en [BLOQUE_1B.md](BLOQUE_1B.md). Los bloques posteriores quedaron pendientes en ese cierre; sus autorizaciones del 28 de octubre se registran a continuación. Se basa en `Proyecto_Final.pdf`, sección 2.3 (páginas 3–4), y en el repositorio revisado en el commit `85db1bec94e0515dfff621dfa1ae8dece4c6ca08`. Las Partes 3–5 no se consideran completadas.
 
 El PDF no incluye una rúbrica numérica separada. Por ello, la matriz siguiente convierte sus requisitos explícitos en criterios verificables; no inventa puntajes ni obligaciones adicionales. El Avance 3 requiere **Partes 3 y 4**: completar este plan cubre solamente la Parte 3.
+
+Actualización del 28 de octubre de 2026: el usuario autorizó los **bloques 2 y
+3**, ahora cerrados con SPIMI persistente, lectores concurrentes, ranking
+TF-IDF/coseno y BM25, equivalencia índice/scan y ordenamiento anterior a LIMIT. Evidencia
+y límites en [BLOQUE_2.md](BLOQUE_2.md) y [BLOQUE_3.md](BLOQUE_3.md).
+El bloque **4A**, autorizado después, también está cerrado: sello persistente,
+compatibilidad v1/v2, publicación offline y rechazo previo a undo; evidencia en
+[BLOQUE_4A.md](BLOQUE_4A.md). Los bloques 4B y posteriores siguen pendientes. Esta actualización amplía
+únicamente la autorización histórica; no completa toda la Parte 3.
 
 ### Requisitos y evidencia de cumplimiento
 
@@ -312,15 +321,21 @@ Añadir una tabla de ventajas, desventajas y cuándo usar cada opción. Las reco
 
 ## 7. Secuencia de implementación y condiciones de salida
 
-Los bloques 1A y 1B están cerrados. La autorización posterior cubre **1B.5–1B.8**; el corpus real tiene PASS con evidencia, validación completa de Heap y reproducción en [BLOQUE_1B.md](BLOQUE_1B.md). Los bloques restantes se ejecutarán cuando se autoricen. Separar dos dependencias: los contratos y la fixture habilitan el desarrollo del núcleo y su integración; el PASS completo del corpus habilita su adopción y los experimentos finales.
+Los bloques 1A, 1B, 2, 3 y 4A están cerrados. Las autorizaciones del 28 de octubre cubren
+SPIMI, ranking y sello persistente: [BLOQUE_2.md](BLOQUE_2.md),
+[BLOQUE_3.md](BLOQUE_3.md), [BLOQUE_4A.md](BLOQUE_4A.md). El corpus real
+conserva el PASS, la validación de Heap y la reproducción de
+[BLOQUE_1B.md](BLOQUE_1B.md). Los bloques 4B y posteriores se ejecutarán cuando
+se autoricen. Los contratos/fixture habilitan el núcleo y su integración; el
+PASS del corpus habilita su adopción y los experimentos finales.
 
 | Fase | Trabajo concreto | Condición para continuar |
 |---|---|---|
 | 1A. Contratos y fixture — COMPLETADA 2026-10-24 | Semántica, tokenización, fórmulas y fixtures con respuestas verificables; evidencia en BLOQUE_1A.md | 390 tests focalizados aprobados en 1A; núcleo y ranking de producción siguen pendientes; aceptación real cerrada en 1B |
 | 1B. Aceptación de datos — COMPLETADA 2026-10-24 | 1B.1–1B.8: fuentes verificadas, 30 consultas con 439 positivos, conjuntos anidados exactos y reproducción independiente | `corpus_feasibility.json` en PASS; 100 000 filas, IDs, textos y RID verificados tras reapertura real de Heap; 476 tests focalizados aprobados |
-| 2. Núcleo SPIMI | Construcción por bloques con postings ordenados, mezcla, persistencia, léxico, estadísticas y lectura concurrente por offset | Igualdad con índice de referencia; IDs desordenados y duplicados; varios bloques/pasadas, reapertura y lectores intercalados |
-| 3. Ranking | TF-IDF/coseno, BM25, órdenes de §3.3 y top-k condicionado al orden | Scores y filas correctos para DESC, ASC e ID; igualdad índice/scan y desempates |
-| 4A. Política persistente de escritura | Sello y compatibilidad de formato; guards en almacenamiento/mantenimiento y rechazo antes de undo | Incremento validado por separado: archivos anteriores siguen funcionando, tablas selladas rechazan escrituras sin captura/restauración y el rollback de otras tablas se conserva |
+| 2. Núcleo SPIMI — COMPLETADA 2026-10-28 | Construcción por bloques con postings ordenados, mezcla, persistencia, léxico, estadísticas, normas e ID/RID; lectores por offset | Oráculo independiente, IDs desordenados/duplicados, varias pasadas, proceso aislado, lectores intercalados y dos threads; 551 tests focalizados; evidencia en BLOQUE_2.md |
+| 3. Ranking — COMPLETADA 2026-10-28 | TF-IDF/coseno, BM25, órdenes de §3.3, top-k condicionado y ExternalSort real | Scores/IDs correctos para DESC, ASC e ID, igualdad índice/scan, reapertura y concurrencia; 757 tests focalizados; evidencia en BLOQUE_3.md |
+| 4A. Política persistente de escritura — COMPLETADA 2026-10-28 | Sello y compatibilidad v1/v2; publicación offline y guards en almacenamiento/mantenimiento previos a undo | 96 pruebas focalizadas: archivos anteriores mutables, rechazo sin captura/restauración, rollback de otras tablas, reapertura aislada y exclusión durante publicación; evidencia y límites en BLOQUE_4A.md |
 | 4B. Integración textual | Owner `api.database.Database`, registro textual, parser/binder, operador y EXPLAIN; depende de 4A | Los dos SQL del PDF funcionan; reapertura real; matriz de escritura y dos sesiones lectoras verificadas |
 | 5. API y demo | Consultas de ejemplo y uso de los paneles existentes | Búsqueda completa por UI; score/modelo/plan visibles; reapertura conserva resultados |
 | 6. Comparación | Con fase 1B en PASS y motor integrado, preparar PostgreSQL, comprobar semántica, ejecutar la matriz y generar figuras | Resultados de tres métodos, tres tamaños y tres longitudes; métricas completas |
@@ -359,16 +374,16 @@ Demo breve de la Parte 3:
 
 Checklist de cierre:
 
-- [ ] SPIMI propio con varios bloques reales y mezcla externa validada.
-- [ ] Postings ordenados dentro de cada bloque y durante la mezcla, con entrada desordenada e IDs duplicados comprobados.
-- [ ] Un índice persistente compartido por TF-IDF/coseno y BM25.
+- [x] SPIMI propio con varios bloques reales y mezcla externa validada (bloque 2; pruebas externas con fixtures, no benchmark del corpus 100k).
+- [x] Postings ordenados dentro de cada bloque y durante la mezcla, con entrada desordenada e IDs duplicados comprobados.
+- [x] Un índice persistente compartido por TF-IDF/coseno y BM25 (núcleo Python; integración SQL posterior).
 - [ ] Los dos ejemplos SQL del PDF funcionan en el motor y por la API.
 - [ ] Resultados y planes visibles mediante el frontend existente.
 - [ ] Owner único `api.database.Database` registra, abre y cierra índices textuales, integrado con la UI.
 - [ ] Política de inmutabilidad persistida y aplicada dentro del motor en todas las rutas soportadas, antes y después de reabrir.
 - [ ] Rechazo de escrituras selladas anterior a captura undo, sin restaurarlas ni reconstruir índices; rollback de otras tablas preservado.
 - [ ] Lecturas concurrentes por offset verificadas sobre el mismo lector y mediante dos sesiones, sin interferencia de cursores ni cierre de handles prestados.
-- [ ] LIMIT respeta todos los órdenes admitidos; heap de mayores scores solo en score DESC/id ASC.
+- [ ] LIMIT respeta todos los órdenes admitidos; heap de mayores scores solo en score DESC/id ASC (núcleo Python validado en 3; aceptación SQL pendiente de 4B).
 - [ ] Puerta de viabilidad del corpus en PASS, con evidencia medida; MS MARCO no se da por aceptado de antemano.
 - [ ] Corpus de 1 000, 10 000 y 100 000 documentos reales, con consultas de 1, 3 y 5+ palabras.
 - [ ] Comparación con PostgreSQL GIN + ranking nativo, con semántica y fronteras temporales explícitas.

@@ -92,6 +92,9 @@ def drop_catalog_index(catalog: Catalog, index_name: str) -> None:
         )
     else:  # pragma: no cover - current Enum is exhaustive
         raise ValidationError(f"Unsupported index type: {metadata.index_type!r}")
-    physical.close()
+    try:
+        physical.require_writable()
+    finally:
+        physical.close()
     Path(metadata.file_path).unlink()
     catalog.unregister_index(index_name)

@@ -287,3 +287,92 @@ La autorización previa de pausa del mapa queda superada por esta indicación.
 Se conservó el motor propio y el subconjunto SQL. Resultados y límites actuales:
 [VERIFICACION_LEAFLET.md](../VERIFICACION_LEAFLET.md). Inicio:
 [GUIA_LEAFLET_LIMA.md](../../GUIA_LEAFLET_LIMA.md).
+
+## Actualización autorizada — Parte 3, bloque 2, 28/10/2026
+
+El usuario autorizó implementar el bloque 2 siguiendo el plan de la Parte 3.
+Se completó el núcleo SPIMI propio: bloques y postings ordenados, mezcla de
+varias pasadas con fan-in limitado, léxico/dimensiones y estadísticas
+persistentes, normas TF-IDF, mapa ID/RID y validación del contenido original.
+El lector comparte un handle con latch breve y conserva offsets/buffers por
+iterador; se verificaron cierre anticipado y dos threads simultáneos.
+
+La regresión focalizada con advertencias como errores aprobó **551 pruebas
+en 95.84 segundos**, incluyendo texto, arquitectura, codecs, Heap, contratos
+del parser, binder y apertura de bases. No se atribuye este resultado a toda
+la suite del proyecto ni a navegador/HTTP. Se preservaron las evidencias de
+aceptación ESCI/100k de 1B; ese experimento no se volvió a ejecutar aquí.
+
+El destino de construcción es nuevo y exclusivo; los fallos no publican un
+manifiesto completo ni modifican/cierran el Heap prestado. El presupuesto
+controla el modelo de bloque/ordenación, con metadatos O(N) separados; no se
+confunde con RSS. Aún no hay ranking de consultas, sellado persistente ni
+integración del índice textual en el owner/SQL/API/UI.
+
+Uso, evidencia y límites: [BLOQUE_2.md](../../PART_03/BLOQUE_2.md) y
+[text.md](../text.md). Bloques 1A, 1B y 2 cerrados. El siguiente pendiente es
+el bloque 3 (TF-IDF/coseno y BM25); requiere nueva autorización.
+
+## Actualización autorizada — Parte 3, bloque 3, 28/10/2026
+
+El usuario autorizó continuar con el bloque 3. Se implementó
+`engine.text.search_text`: TF-IDF/coseno y BM25 sobre el mismo índice SPIMI,
+repeticiones/proyección al vocabulario y semántica OR del contrato. Un scan
+real del Heap usa las mismas estadísticas/fórmulas y comprueba identidad,
+RIDs, textos y conteos sin consultar postings para descubrir candidatos.
+
+El orden se resuelve antes de LIMIT: heap exclusivamente para score DESC/id
+ASC con límite; el resto reutiliza el ExternalSort de etapa 6. Se conservan
+IDs para ordenación y desempates, usando scores finitos sin redondeo ni
+agrupación por tolerancia. El reporte separa acumulador, selección/resultados,
+buffers y presupuesto de sort; un heap pequeño no limita toda la memoria.
+
+La verificación inicial del ranking/arquitectura aprobó 154 pruebas; la
+regresión ampliada aprobó **757 en 164.49 segundos**, con advertencias como
+errores. Incluye las anteriores, codecs/Heap, parser/binder, apertura de bases
+y operadores de sort/contextos/ciclo/temporales. Se verificaron referencias
+congeladas y Decimal, índice/scan, reapertura aislada, varias pasadas,
+cancelación, fallos de escritura y consultas concurrentes sobre un lector.
+El TEMP de validación se dirigió al `tmp/` escribible del repositorio ante
+permisos insuficientes en el predeterminado del sandbox.
+
+Se conservan sin cambios las fixtures y la aceptación real ESCI de 1B.
+No se ejecutó el benchmark 100k/GIN ni se implementaron sellado, owner/SQL
+textual, HTTP/UI o integración de sesiones. Uso y límites:
+[BLOQUE_3.md](../../PART_03/BLOQUE_3.md). Bloques 1A, 1B, 2 y 3 cerrados;
+el siguiente pendiente es **4A: política persistente de escritura**.
+
+## Actualización autorizada — Parte 3, bloque 4A, 28/10/2026
+
+El usuario autorizó el bloque 4A. Se implementó la política persistente:
+v1 continúa mutable sin migraciones; el Heap sellado usa header/metadatos v2
+y un descriptor colección/generación. Todos sus secundarios B+/hash enumerados
+también se sellan. El lector anterior rechaza esos archivos por versión.
+
+Heap, PageManager, mantenimiento, cores/adaptadores B+/hash, SqlEngine y rutas
+de mutación del owner comprueban la política antes de efectos. Las sesiones
+SQL/programáticas la consultan bajo grants antes de flush, captura de undo y
+registro touched. UndoStore no captura ni restaura archivos sellados. Una
+transacción que escribió otra tabla mutable conserva su rollback normal.
+La reapertura interna y otro proceso mantienen el sello y los resultados.
+
+La publicación exige cerrar todos los owners/coordinators. Una exclusión de
+admisión cubre la validación y la secuencia completa de sellado, sin bloquear
+las consultas ordinarias. Se probó la carrera con la apertura de un owner.
+La enumeración completa de secundarios es responsabilidad del llamador hasta
+la integración de 4B. No hay desellado, WAL ni publicación atómica ante caídas;
+una preparación parcial incompatible exige reconstrucción en otro directorio.
+
+La verificación focalizada final aprobó **96 pruebas en 85.75 segundos**,
+incluyendo 57 casos nuevos, HTTP con escrituras habilitadas, fallos inyectados,
+hashes intactos, rollback, proceso aislado y arquitectura. La regresión completa
+terminó con **3474 aprobadas, 4 omitidas y 1 fallo en 1391.61 segundos**,
+sin fallos atribuibles a 4A. Su fallo previo de sanitización
+de separadores Windows se reprodujo usando el script original de `039a063`;
+el script y la prueba no se modificaron ni se declara suite completa verde.
+
+Evidencia y comandos: [BLOQUE_4A.md](../../PART_03/BLOQUE_4A.md),
+[recibo](evidencias/text_block4a_closure.json). AGENTS y PROJECT_CONTEXT
+registran las decisiones estables y el alcance. No se implementaron registro
+textual del owner, parser/SQL textual, EXPLAIN, UI ni experimentos GIN/100k.
+Bloques 1A, 1B, 2, 3 y 4A cerrados; siguiente pendiente: **4B**.

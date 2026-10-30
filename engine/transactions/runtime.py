@@ -40,6 +40,10 @@ class TableRuntime:
         for name, _ in files.indexes:
             self.environment.index_for(name).flush()
 
+    def require_writable(self, files: TableFiles) -> None:
+        """Policy gate under schema/table grants, before flush or undo capture."""
+        self.environment.storage_for(files.name).require_writable()
+
     def close_table(self, files: TableFiles) -> None:
         for name, _ in files.indexes:
             index = self.environment.unregister_index(name)

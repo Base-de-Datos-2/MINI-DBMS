@@ -85,6 +85,7 @@ class SpatialIndex:
 
     @classmethod
     def open_or_build(cls, storage: HeapFile, mapping: SpatialMapping, path: Path):
+        storage.require_writable()  # sealed text/spatial co-publication is unsupported
         if path.exists():
             tree = RTree.load(path, metadata=asdict(mapping))
             result = cls(storage, mapping, path, tree)
@@ -112,11 +113,13 @@ class SpatialIndex:
             raise DuplicateError(f"Spatial ID {identity} already exists")
 
     def inserted(self, rid: RID, record: Record):
+        self.storage.require_writable()
         self._require_open()
         self.tree.insert(entry_from_record(self.mapping, rid, record))
         self.flush()
 
     def rebuild(self):
+        self.storage.require_writable()
         self._require_open()
         tree = RTree(self.tree.capacity)
         for entry, _ in scan_entries(self.storage, self.mapping):
@@ -126,6 +129,7 @@ class SpatialIndex:
         self.tree = tree
 
     def flush(self):
+        self.storage.require_writable()
         self._require_open()
         self.tree.save(self.path, metadata=asdict(self.mapping))
 

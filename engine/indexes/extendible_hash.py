@@ -423,14 +423,14 @@ class ExtendibleHashIndex(Index):
 
     def mark_incomplete(self) -> None:
 
-        self._require_open()
+        self.require_writable()
         if self._header.build_complete:
             self._write_header(replace(self._header, build_complete=False))
 
     def rebuild_from_storage(self, storage: Storage) -> HashBuildMetrics:
         """Atomicamente reemplaza este índice desde las filas activas actuales de la fuente."""
 
-        self._require_open()
+        self.require_writable()
         temporary_path = self._manager.temporary_replacement_path()
         candidate: ExtendibleHashIndex | None = None
         committed = False
@@ -507,6 +507,22 @@ class ExtendibleHashIndex(Index):
     def _require_open(self) -> None:
         if self.closed:
             raise RuntimeError("Extendible Hash index is closed")
+
+    @property
+    def read_only(self) -> bool:
+        return self._manager.read_only
+
+    def require_writable(self) -> None:
+        self._manager.require_writable()
+
+    def bind_storage_guard(self, guard) -> None:
+        self._manager.bind_write_guard(guard)
+
+    def require_offline_publication(self) -> None:
+        self._manager.require_offline_publication()
+
+    def seal(self) -> None:
+        self._manager.seal()
 
     def _validate_page_reference(self, page_id: object, label: str) -> int:
         if type(page_id) is not int or not 1 <= page_id <= self._header.index_page_count:
@@ -740,7 +756,7 @@ class ExtendibleHashIndex(Index):
         return iterator()
 
     def insert(self, key: RecordValue, rid: RID) -> None:
-        self._require_open()
+        self.require_writable()
         checked_key = BPlusKeyCodec.validate(self._header.key_type, key)
         BPlusRIDCodec.encode(rid)
         if HashBucket.serialized_size_for(
@@ -934,7 +950,7 @@ class ExtendibleHashIndex(Index):
     def delete(self, key: RecordValue, rid: RID) -> None:
         """Remove one exact association while preserving the current topology."""
 
-        self._require_open()
+        self.require_writable()
         checked_key = BPlusKeyCodec.validate(self._header.key_type, key)
         BPlusRIDCodec.encode(rid)
         hash_value = HashCodec.hash_key(self._header.key_type, checked_key)

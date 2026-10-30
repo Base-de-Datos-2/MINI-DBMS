@@ -41,6 +41,19 @@ class UnclusteredHashIndex(Index):
             raise ValidationError("Hash key type does not match the Heap column")
         self._index = index
         self._heap = heap
+        if index.read_only != heap.read_only:
+            raise ValidationError("Hash and Heap sealing policies disagree")
+        index.bind_storage_guard(heap.require_writable)
+
+    @property
+    def read_only(self) -> bool:
+        return self.index.read_only
+
+    def require_offline_publication(self) -> None:
+        self.index.require_offline_publication()
+
+    def seal(self) -> None:
+        self.index.seal()
 
     @classmethod
     def build(
@@ -55,6 +68,7 @@ class UnclusteredHashIndex(Index):
     ) -> "UnclusteredHashIndex":
         if not isinstance(heap, HeapFile):
             raise InvalidTypeError("heap must be a HeapFile")
+        heap.require_writable()
         index = ExtendibleHashIndex.build_from_storage(
             path,
             storage=heap,
@@ -170,10 +184,12 @@ class UnclusteredHashIndex(Index):
         return checked_key, record
 
     def insert(self, key: RecordValue, rid: RID) -> None:
+        self.heap.require_writable()
         checked_key, _ = self._record_for_association(key, rid)
         self.index.insert(checked_key, rid)
 
     def delete(self, key: RecordValue, rid: RID) -> None:
+        self.heap.require_writable()
         checked_key, _ = self._record_for_association(key, rid)
         self.index.delete(checked_key, rid)
 
@@ -205,6 +221,7 @@ class UnclusteredHashIndex(Index):
     def insert_record(self, record: Record) -> RID:
         """Insert one row and undo it if its hash association cannot be added."""
 
+        self.heap.require_writable()
         self._require_ready()
         rid = self.heap.insert(record)
         try:
@@ -223,6 +240,7 @@ class UnclusteredHashIndex(Index):
     def delete_record(self, rid: RID) -> None:
         """Remove the association before freeing its referenced Heap slot."""
 
+        self.heap.require_writable()
         self._require_ready()
         BPlusRIDCodec.encode(rid)
         record = self.heap.read(rid)
@@ -247,6 +265,7 @@ class UnclusteredHashIndex(Index):
         RID diferente. La fila original permanece activa hasta que existan la nueva fila y su
         asociación, y cualquier error de limpieza marca el índice como incompleto. """
 
+        self.heap.require_writable()
         self._require_ready()
         if not isinstance(record, Record):
             raise InvalidTypeError("Hash record update requires a Record")
@@ -300,12 +319,14 @@ class UnclusteredHashIndex(Index):
     def rebuild(self) -> HashBuildMetrics:
         """Atomically reconstruct associations from all active Heap rows."""
 
+        self.heap.require_writable()
         self._require_open()
         return self.index.rebuild_from_storage(self.heap)
 
     def mark_incomplete(self) -> None:
         """Persistently disable this adapter until a complete rebuild succeeds."""
 
+        self.heap.require_writable()
         self._require_open()
         self._index.mark_incomplete()
         self._index.flush()

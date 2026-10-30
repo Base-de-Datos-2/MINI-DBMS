@@ -233,7 +233,7 @@ class HeapFile(OrganizationFile, Storage):
         return validated, self._manager.read_page(validated.page_id)
 
     def insert(self, record: Record) -> RID:
-        self._require_open()
+        self.require_writable()
         checked = self._validate_record(record)
         payload = self._record_codec.serialize(checked)
         if len(payload) > MAX_RECORD_SIZE:
@@ -304,7 +304,7 @@ class HeapFile(OrganizationFile, Storage):
         return self._record_codec.deserialize(self._metadata.schema, payload)
 
     def delete(self, rid: RID) -> None:
-        self._require_open()
+        self.require_writable()
         validated, page = self._read_rid_page(rid)
         page.delete(validated.slot_id)
         updated_metadata = replace(

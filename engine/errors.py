@@ -18,6 +18,10 @@ class ValidationError(DatabaseError, ValueError):
     """A correctly typed value violates a model or operation invariant."""
 
 
+class ReadOnlyError(ValidationError):
+    """A persisted seal forbids a mutation before any write/undo side effect."""
+
+
 class SchemaError(ValidationError):
     """An invalid column/schema definition, including duplicate column names."""
 

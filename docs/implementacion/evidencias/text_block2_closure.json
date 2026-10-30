@@ -1,0 +1,72 @@
+{
+  "format_version": 1,
+  "scope": "Part 3 Block 2 only",
+  "status": "CLOSED",
+  "recorded_utc": "2026-10-28T21:37:12.877759+00:00",
+  "implementation_commit": "89731d45364226e107dfc6b9f671451721600feb",
+  "runtime": {
+    "python": "3.12.6",
+    "platform": "Windows",
+    "unicode": "15.0.0"
+  },
+  "regression": {
+    "passed": 551,
+    "elapsed_seconds": 95.84,
+    "warnings_as_errors": true,
+    "command": "python -m pytest -q -W error -p no:cacheprovider --tb=short --basetemp tmp/part03_block2_regression tests/text tests/test_architecture.py tests/storage/test_record_codec.py tests/storage/test_value_codec.py tests/storage/test_heap_file.py tests/storage/test_heap_persistence.py tests/query/test_parser_contract.py tests/query/test_binder.py tests/api/test_database.py",
+    "scope": "focused regression; not the full project suite"
+  },
+  "sample": {
+    "fixture": "tests/text/fixtures/collections.v1.json",
+    "fixture_receipt": {
+      "bytes": 2721,
+      "sha256": "cb63b5dbf960722006afc3eeb9dafcaa3ea6de9a8c53a9541ec7d8ef5a6f812f"
+    },
+    "build": {
+      "generation": "bea50e8f62f242ce9bc3c187b007e064",
+      "document_count": 16,
+      "vocabulary_size": 29,
+      "posting_count": 55,
+      "initial_blocks": 27,
+      "merge_passes": 5,
+      "peak_open_runs": 2,
+      "memory_budget_bytes": 2048,
+      "peak_block_estimated_bytes": 1803,
+      "peak_document_estimated_bytes": 1322,
+      "metadata_estimated_bytes": 7776,
+      "metadata_sort_workspace_bytes": 320,
+      "merge_workspace_estimated_bytes": 41880,
+      "io_buffer_bytes": 16,
+      "merge_fan_in": 2
+    },
+    "statistics": {
+      "document_count": 16,
+      "total_tokens": 61,
+      "average_length": 3.8125,
+      "vocabulary_size": 29
+    },
+    "postings_match_frozen_tokens": true,
+    "full_index_validation": "PASS",
+    "storage_and_rid_validation": "PASS",
+    "files": {
+      "postings.bin": {
+        "bytes": 892,
+        "sha256": "32cc2246b2186145221c335c963e49cbf0755292ee146cd29a2161522ef6f301"
+      },
+      "lexicon.jsonl": {
+        "bytes": 2025,
+        "sha256": "f45cd166ca5b957bdeb55b4b5388deca1274085201bdbcd48c7bd44e85b8386b"
+      },
+      "documents.jsonl": {
+        "bytes": 2422,
+        "sha256": "70536795d8e220c219c174282339c583fa4a6db04491f81ed17402a5274f797f"
+      }
+    }
+  },
+  "limits": [
+    "block memory budget is an estimate, not RSS; O(N) metadata and O(B) run filenames are separate",
+    "no new 100k real-corpus SPIMI benchmark",
+    "no production query ranking, text SQL, owner integration, storage sealing or UI",
+    "source must remain quiescent and unchanged; no crash recovery claim"
+  ]
+}

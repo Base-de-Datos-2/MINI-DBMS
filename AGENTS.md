@@ -1,19 +1,25 @@
 # AGENTS.md
 
-> Context version: **6.4** — records closed Blocks 1A/1B and measured
-> Part 3 corpus acceptance; later implementation blocks remain deferred.
+> Context version: **6.7** — records closed Blocks 1A/1B/2/3/4A and measured
+> Part 3 corpus acceptance; owner/textual SQL integration remains deferred.
 
 ## Purpose
 
-Blocks 1A and 1B are closed. The latest request on 2026-10-24 authorizes
-**1B.5–1B.8**: reproducible nested subsets, actual 100k Heap insertion and
-fresh-process reopening, measured corpus acceptance and tested closure.
-The real ESCI corpus gate is PASS. Use `PART_03/BLOQUE_1B.md` and
-`PART_03/PLAN_PARTE_03.md` for evidence and reproducibility instructions.
-This supersedes the historical Part 3 deferral below for these tasks only.
-Later Part 3 blocks and Parts 4–5 remain deferred. Corpus approval is not
-completion of the text engine. Do not build SPIMI, production ranking,
-textual SQL or UI here.
+Blocks 1A, 1B, 2, 3 and 4A are closed. The latest request on 2026-10-28 authorizes
+**Part 3 Block 4A**: persistent one-way storage sealing, legacy compatibility,
+offline publication and rejection before undo, including direct mutation paths.
+Evidence and reproduction: `PART_03/BLOQUE_4A.md`; 96 focused strict tests pass.
+Ranking and SPIMI evidence remains in `PART_03/BLOQUE_3.md` and `BLOQUE_2.md`.
+The earlier real ESCI corpus gate remains PASS; its 100k experiment was not
+rerun by Blocks 2/3/4A.
+Use `PART_03/BLOQUE_1B.md` and `PART_03/PLAN_PARTE_03.md` for corpus evidence.
+This supersedes historical Part 3 deferrals below through Block 4A only.
+Block 4B owner/SQL integration, subsequent API/UI/experiments and Parts 4–5
+remain deferred. Do not implement the text registry, textual SQL, owner text
+lifecycle or UI without new authorization. Sealing is offline-only: close all
+owners/coordinators before publication; never unseal or restore a mutable
+before-image over a sealed collection. The future owner must enumerate every
+declared secondary index when calling `seal_text_collection`.
 
 The earlier explicit user authorization started the frontend for Parts 1 and 2,
 including the spatial map and final real-browser verification. Earlier pause

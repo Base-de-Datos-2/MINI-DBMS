@@ -439,7 +439,9 @@ def test_large_copy_uses_configured_bounded_chunks(tmp_path, monkeypatch):
     image = store.capture(TransactionId(1), files)
     monkeypatch.setattr(Path, "open", original_open)
     assert len(image.files) == 1
-    assert seen and set(seen) == {4096}
+    # Policy reads the fixed prefix first; the actual undo copy retains its
+    # configured bounded chunks, rather than materializing the source file.
+    assert seen[0] == 20 and set(seen[1:]) == {4096}
     assert store.discard(TransactionId(1)) == ()
     assert not (tmp_path / UNCLEAN_MARKER).exists()
 

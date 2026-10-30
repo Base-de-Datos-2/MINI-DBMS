@@ -12,6 +12,7 @@ from engine.errors import InvalidTypeError, ValidationError
 PAGE_SIZE = 4096
 FILE_MAGIC = b"MINIDB\x00\x00"
 FORMAT_VERSION = 1
+SEALED_FORMAT_VERSION = 2
 STRING_ENCODING = "utf-8"
 
 PAGE_HEADER_FORMAT = "<IHHHH"
@@ -60,7 +61,7 @@ def _validate_uint(name: str, value: int, maximum: int) -> None:
 def validate_file_header(
     *, magic: bytes, version: int, page_size: int, allocated_page_count: int,
 ) -> None:
-    """Validate v1 file metadata, independently of a file's physical length."""
+    """Validate mutable v1/sealed v2 metadata, independently of file length."""
     require_bytes(magic)
     if magic != FILE_MAGIC:
         raise ValidationError("Invalid database file signature")
@@ -69,7 +70,7 @@ def validate_file_header(
         ("allocated_page_count", allocated_page_count),
     ):
         _validate_uint(name, value, UINT32_MAX)
-    if version != FORMAT_VERSION:
+    if version not in (FORMAT_VERSION, SEALED_FORMAT_VERSION):
         raise ValidationError(f"Unsupported file format version: {version}")
     if page_size != PAGE_SIZE:
         raise ValidationError(f"Unsupported page size: {page_size}; expected {PAGE_SIZE}")

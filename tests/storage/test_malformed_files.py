@@ -52,7 +52,7 @@ def test_every_magic_byte_is_validated_when_opening_a_populated_file(byte_index,
 
 
 @pytest.mark.parametrize("version,page_size,count", [
-    (0, PAGE_SIZE, 3), (2, PAGE_SIZE, 3), (UINT32_MAX, PAGE_SIZE, 3),
+    (0, PAGE_SIZE, 3), (3, PAGE_SIZE, 3), (UINT32_MAX, PAGE_SIZE, 3),
     (1, 0, 3), (1, PAGE_SIZE - 1, 3), (1, PAGE_SIZE + 1, 3), (1, 8192, 3),
     (1, PAGE_SIZE, 0), (1, PAGE_SIZE, 2), (1, PAGE_SIZE, 4), (1, PAGE_SIZE, UINT32_MAX),
 ])
