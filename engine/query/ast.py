@@ -90,6 +90,12 @@ class FunctionCall(SqlExpr):
 
 
 @dataclass(frozen=True, slots=True)
+class TextMatch(SqlExpr):
+    column: ColumnRef
+    query: StringLiteral
+
+
+@dataclass(frozen=True, slots=True)
 class Comparison(SqlExpr):
     left: SqlExpr
     operator: str  # one of '=', '<>', '<', '<=', '>', '>='
@@ -151,6 +157,7 @@ class SelectStatement(SyntaxNode):
     group_by: tuple[ColumnRef, ...] = field(default_factory=tuple)
     order_by: tuple[OrderItem, ...] = field(default_factory=tuple)
     limit: int | None = None
+    text_model: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
