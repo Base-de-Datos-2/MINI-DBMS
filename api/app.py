@@ -40,6 +40,7 @@ from .schemas import (
     CsvPreviewRequest,
     QueryRequest,
     SpatialQueryRequest,
+    TextSearchRequest,
 )
 from .sessions import SessionSweeper
 from .table_import import MAX_CSV_BYTES, MAX_IMPORT_ROWS
@@ -235,6 +236,14 @@ def create_app(
             body.get("truncated"),
         )
         return body
+
+    @app.get("/api/text/tables")
+    def text_tables() -> list[dict[str, Any]]:
+        return service.list_text_tables()
+
+    @app.post("/api/text/query")
+    def text_query(payload: TextSearchRequest, request: Request, token: SessionToken = None) -> dict[str, Any]:
+        return service.text_query(payload, request.state.request_id, token)
 
     @app.get("/api/spatial/tables")
     def spatial_tables() -> list[dict[str, Any]]:

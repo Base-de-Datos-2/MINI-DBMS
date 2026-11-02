@@ -53,6 +53,8 @@ from engine.storage import HeapFile, PagedSequentialFile, Record
 from engine.spatial.metadata import SpatialMapping, read_mappings
 from engine.spatial.geometry import Metric, Point, Polygon
 from engine.spatial.index import SpatialIndex
+from engine.text import TextIndex, search_text
+from engine.text.registry import read_text_registry
 from engine.spatial.lifecycle import SpatialMutationService, SpatialTableRuntime
 from engine.transactions.ownership import DirectoryLease, claim_directory
 from engine.transactions.resources import TableFiles
@@ -217,6 +219,7 @@ class Database:
         "_gui_tables",
         "_spatial_mappings",
         "_spatial_indexes",
+        "_text_indexes",
     )
 
     def __init__(self) -> None:
@@ -351,8 +354,6 @@ class Database:
         if not isinstance(definition, DatabaseDefinition):
             raise TypeError("definition must be a DatabaseDefinition")
         database = object.__new__(cls)
-        if (root / "text_tables.json").exists():
-            raise DatabaseSetupError("Published text registry requires the Block 4B owner integration")
         database._definition = definition
         database._directory = root
         database._catalog = Catalog()
@@ -368,6 +369,7 @@ class Database:
         database._gui_tables = {}
         database._spatial_mappings = {}
         database._spatial_indexes = {}
+        database._text_indexes = {}
         try:
             for table in definition.tables:
                 database._open_table(
@@ -406,6 +408,28 @@ class Database:
                     database._storages[mapping.table], mapping, root / mapping.index_filename)
                 database._environment.register_spatial(
                     mapping.table, database._spatial_indexes[mapping.table])
+            # The registry is an immutable association with already published
+            # generations. Never rebuild, repair, or silently skip a bad index.
+            for registration in read_text_registry(root):
+                if registration.table not in database._tables:
+                    raise DatabaseSetupError(f"Unknown published text table {registration.table!r}")
+                storage = database._storages[registration.table]
+                if not isinstance(storage, HeapFile) or not storage.read_only:
+                    raise DatabaseSetupError("Published text collections require sealed Heap storage")
+                index = TextIndex.open(
+                    root / registration.directory,
+                    collection_id=registration.collection_id,
+                    generation=registration.generation,
+                    table=database._catalog.get_table(registration.table),
+                )
+                try:
+                    if index.text_column != registration.column:
+                        raise DatabaseSetupError("Published text column does not match registry")
+                    index.require_compatible_storage(storage)
+                except BaseException:
+                    index.close()
+                    raise
+                database._text_indexes[registration.table] = index
             database._engine = SqlEngine(
                 database._environment,
                 mutation_service=SpatialMutationService(database._spatial_indexes),
@@ -567,6 +591,24 @@ class Database:
 
         with self._coordinator.metadata.read():
             return tuple(self._tables)
+
+    def text_search(self, table: str, column: str, query: str, *, model: str,
+                    order: str = "score_desc", limit: int | None = None,
+                    use_indexes: bool = True, session=None):
+        """Typed, read-only query over a published collection, with session locks."""
+        if not self.available:
+            raise TransactionUnavailableError("Database is closed or quarantined")
+        runner = self._coordinator.default_session if session is None else session
+        if not isinstance(runner, SqlSession) or runner._owner is not self._coordinator:
+            raise ValidationError("Text session belongs to another owner")
+        def read():
+            index = self._text_indexes.get(table)
+            if index is None or index.text_column != column:
+                raise ValidationError("No compatible published text index for table/column")
+            return search_text(index, query, model=model, order=order, limit=limit,
+                               use_indexes=use_indexes,
+                               storage=self._storages[table])
+        return runner.run_programmatic_read(table, read)
 
     def spatial_mapping_for(self, name: str) -> SpatialMapping | None:
         """Return explicit coordinate metadata; this does not imply an index."""
@@ -1231,13 +1273,14 @@ class Database:
                 engine.close()
             except BaseException as error:  # noqa: BLE001 - reported below
                 failures.append(error)
-        for handle in list(self._spatial_indexes.values()) + list(self._indexes.values()) + list(self._storages.values()):
+        for handle in list(self._text_indexes.values()) + list(self._spatial_indexes.values()) + list(self._indexes.values()) + list(self._storages.values()):
             try:
                 handle.close()
             except BaseException as error:  # noqa: BLE001 - reported below
                 failures.append(error)
         self._indexes.clear()
         self._spatial_indexes.clear()
+        self._text_indexes.clear()
         self._storages.clear()
         self._owner_lease.release()
         if failures:

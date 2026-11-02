@@ -104,6 +104,19 @@ class QueryRequest(BaseModel):
     parameters: dict[str, tuple[float, float]] | None = Field(default=None, max_length=32)
 
 
+class TextSearchRequest(BaseModel):
+    """Bounded read-only search over an offline-published text collection."""
+    model_config = ConfigDict(extra="forbid")
+    table: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z_][A-Za-z_0-9]*$")
+    column: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z_][A-Za-z_0-9]*$")
+    query: str = Field(max_length=4096)
+    model: Literal["BM25", "TF_IDF"] = "BM25"
+    order: Literal["score_desc", "score_asc", "id_asc", "id_desc"] = "score_desc"
+    limit: int | None = Field(default=10, ge=0, le=100000)
+    use_indexes: bool = True
+    max_rows: int = Field(default=DEFAULT_PREVIEW_ROWS, ge=0, le=MAX_PREVIEW_ROWS)
+
+
 class SpatialQueryRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

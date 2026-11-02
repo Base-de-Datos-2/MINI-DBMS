@@ -605,6 +605,28 @@ class EngineService:
         body["statement"] = family or body.get("statement")
         return body
 
+    def list_text_tables(self):
+        from .text_search import published_tables
+        self._require_ready()
+        return published_tables(self._database)
+
+    def text_query(self, request, request_id, session_token=None):
+        from .text_search import run_published_search
+        with self._runner(session_token) as runner:
+            since = self._trace_mark(runner.session)
+            group_before = None if runner.client is None else runner.client.group_id
+            try:
+                body = run_published_search(self._database, request, session=runner.session)
+            except Exception as error:
+                raise self._failure(error, "TEXT_SEARCH", runner, since, group_before) from None
+            finally:
+                self._verify_idle(runner)
+            body["request_id"] = request_id
+            body["mode"] = self.mode
+            if runner.client is not None:
+                body["session"] = self._sessions.status(runner.client)
+            return self._fit(body)
+
     def spatial_query(self, request, request_id, session_token=None):
         started = perf_counter()
         with self._runner(session_token) as runner:
