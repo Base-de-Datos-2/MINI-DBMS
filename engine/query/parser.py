@@ -457,7 +457,7 @@ class _Parser:
         if self._match_keyword("AS") is not None:
             end = self._expect_identifier()
             alias = end.value
-        elif self._at_identifier():
+        elif self._at_identifier() and self._word(self._current) != "USING":
             end = self._expect_identifier()
             alias = end.value
         return TableRef(

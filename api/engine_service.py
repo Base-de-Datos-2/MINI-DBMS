@@ -552,7 +552,14 @@ class EngineService:
         since = self._trace_mark(runner.session)
         group_before = None if runner.client is None else runner.client.group_id
         try:
-            if isinstance(parsed_statement, (CreateIndexStatement, UpdateStatement, DropStatement)):
+            from .text_sql import is_text_statement, run_text_sql
+            if parsed_statement is not None and is_text_statement(parsed_statement):
+                body = run_text_sql(
+                    self._database, parsed_statement, source=request.sql,
+                    session=runner.session, use_indexes=request.use_indexes,
+                    max_rows=request.max_rows,
+                )
+            elif isinstance(parsed_statement, (CreateIndexStatement, UpdateStatement, DropStatement)):
                 if runner.session.active_transaction is not None:
                     raise ServiceError(
                         "TRANSACTION_PROTOCOL",
