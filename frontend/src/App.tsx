@@ -360,7 +360,7 @@ export default function App() {
           onPreview={spatialPreview} onRequest={spatialRequest} onSql={(text, values) => { setSql(text); setParameters(values); }} />
       </>}
 
-      {loadError === null && <TextPanel token={token.current} />}
+      {loadError === null && <TextPanel token={token.current} onSql={(text) => { setSql(text); setParameters(undefined); }} />}
 
       {creating && health !== null && (
         <CreateTableDialog

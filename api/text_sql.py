@@ -119,7 +119,7 @@ def run_text_sql(database, statement, *, source, session, use_indexes, max_rows)
         else:
             fail(select, 'Unsupported textual ORDER BY key')
 
-    strategy = 'TextIndex' if use_indexes else 'TextScan'
+    strategy = 'TextIndexScan' if use_indexes else 'TextScan'
     plan = {
         'prepared': {'root': {'name': 'TextTopK' if order == 'score_desc' and select.limit is not None else 'TextRank',
                               'output_columns': names,
@@ -129,7 +129,7 @@ def run_text_sql(database, statement, *, source, session, use_indexes, max_rows)
                                           {'key': 'column', 'value': match_column},
                                           {'key': 'order', 'value': order},
                                           {'key': 'limit', 'value': select.limit}],
-                              'ordered_by': order, 'children': []}, 'truncated': False},
+                              'ordered_by': order, 'children': [{'name': strategy, 'output_columns': [c.name for c in schema], 'details': [{'key': 'table', 'value': table}, {'key': 'column', 'value': match_column}, {'key': 'model', 'value': select.text_model}], 'children': []}]}, 'truncated': False},
         'runtime': None,
     }
     columns = [{'position': i, 'name': name,
