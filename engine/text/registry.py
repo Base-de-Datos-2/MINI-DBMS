@@ -27,7 +27,8 @@ def read_text_registry(root: Path) -> tuple[TextRegistration, ...]:
     if not path.exists():
         return ()
     payload = read_json(path)
-    if type(payload) is not dict or set(payload) != {'version', 'collections'} or payload['version'] != 1:
+    if (type(payload) is not dict or set(payload) != {'version', 'collections'}
+            or type(payload['version']) is not int or payload['version'] != 1):
         raise ValidationError('Unsupported text registry format')
     entries = payload['collections']
     if type(entries) is not list:
@@ -49,3 +50,23 @@ def read_text_registry(root: Path) -> tuple[TextRegistration, ...]:
         seen.add(item['table'])
         result.append(TextRegistration(**item))
     return tuple(result)
+
+
+def publish_text_registry(root: Path, entries: tuple[TextRegistration, ...]):
+    """Publish once, after every generation has been built, checked and sealed."""
+    import os
+    from dataclasses import asdict
+    from .format import json_bytes
+    path = root / REGISTRY_FILENAME
+    if path.exists():
+        raise ValidationError('Text registry already published; rebuild in a new directory')
+    temporary = root / 'text_tables.preparing'
+    try:
+        with temporary.open('xb') as stream:
+            stream.write(json_bytes({'version': 1, 'collections': [asdict(e) for e in entries]}))
+            stream.flush()
+            os.fsync(stream.fileno())
+        # Exclusive creation: never overwrite an existing publication.
+        os.link(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)

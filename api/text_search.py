@@ -6,6 +6,7 @@ from typing import Any
 
 from engine.catalog import DataType
 from engine.errors import ValidationError
+from engine.operators.context import cancellation_point
 from .serialization import encode_value
 
 
@@ -23,11 +24,6 @@ def run_published_search(database, request, *, session=None) -> dict[str, Any]:
     index = database._text_indexes.get(request.table)
     if index is None or index.text_column != request.column:
         raise ValidationError("No compatible published text index for table and column")
-    result = database.text_search(
-        request.table, request.column, request.query, model=request.model,
-        order=request.order, limit=request.limit, use_indexes=request.use_indexes,
-        session=session,
-    )
     schema = database._catalog.get_table(request.table).schema
     columns = [
         {"position": i, "name": column.name, "type": column.data_type.value,
@@ -40,9 +36,17 @@ def run_published_search(database, request, *, session=None) -> dict[str, Any]:
     # published heap is sealed, so RIDs and content remain stable.
     storage = database._storages[request.table]
     rows = []
-    for hit in result.hits[:request.max_rows]:
-        record = storage.read(hit.rid)
-        rows.append([encode_value(col.data_type, val) for col, val in zip(record.schema, record.values)] + [hit.score])
+    def materialize(result):
+        for hit in result.hits[:request.max_rows]:
+            cancellation_point()
+            record = storage.read(hit.rid)
+            rows.append([encode_value(col.data_type, val) for col, val in zip(record.schema, record.values)] + [hit.score])
+        return result
+    result = database.text_search(
+        request.table, request.column, request.query, model=request.model,
+        order=request.order, limit=request.limit, use_indexes=request.use_indexes,
+        session=session, consume=materialize,
+    )
     report = asdict(result.report)
     return {
         "kind": "query", "statement": "TEXT_SEARCH", "table": request.table,

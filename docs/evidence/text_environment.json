@@ -1,0 +1,16 @@
+{
+  "python": "3.12.14",
+  "platform": "Linux",
+  "dependencies": {
+    "pytest": "8.4.2",
+    "pytest-xdist": "3.8.0",
+    "fastapi": "0.162.0",
+    "starlette": "1.10.0",
+    "httpx2": "2.16.0",
+    "anyio": "4.14.2"
+  },
+  "scope": "Part 3 blocks 4B and 5",
+  "source_archive_sha256": "29f5e42ef544bda1304caa18e6e71ca047191d2bbd6516e12f9efe6d7035b180",
+  "browser_report": "text_browser.json",
+  "benchmark_matrix_rerun": false
+}

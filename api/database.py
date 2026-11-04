@@ -226,6 +226,53 @@ class Database:
         raise TypeError("Use Database.open() to open a database")
 
     @classmethod
+    def prepare_text(cls, directory, collections, *, memory_budget_bytes=8 * 1024 * 1024):
+        """Create NEW text data, then publish offline and verify a fresh owner.
+
+        Each collection is (NewTable, rows, id_column, text_column). Rows may
+        stream from a CSV. Existing destinations are never overwritten. Failed
+        preparations remain unpublished for inspection; rebuild elsewhere.
+        """
+        from contextlib import ExitStack
+        from uuid import uuid4
+        from engine.text import build_spimi, seal_text_collection
+        from engine.text.registry import TextRegistration, publish_text_registry
+        root = Path(directory).resolve()
+        root.mkdir(parents=True, exist_ok=False)
+        snapshots = []
+        definition = DatabaseDefinition('text')
+        with cls.create(definition, root) as database:
+            for new_table, rows, id_column, text_column in collections:
+                database.create_gui_table(new_table, rows, origin='csv', source_filename='text-source.csv')
+                table = database._catalog.get_table(new_table.name)
+                if not isinstance(database._storages[table.name], HeapFile):
+                    raise ValidationError('Text collections require Heap storage')
+                snapshots.append((database._catalog, table, database._table_files(database._tables[table.name]),
+                                  id_column, text_column))
+        if not snapshots:
+            raise ValidationError('At least one text collection is required')
+        registrations = []
+        # No live owner/coordinator exists while engine-level publication runs.
+        for catalog, table, files, id_column, text_column in snapshots:
+            index_directory = 'text_' + uuid4().hex
+            with ExitStack() as stack:
+                heap = stack.enter_context(HeapFile.open(files.base, table.schema))
+                secondary = [stack.enter_context(open_catalog_index(catalog, name, heap))
+                             for name, _ in files.indexes]
+                build_spimi(root / index_directory, heap, table, collection_id=uuid4().hex,
+                            id_column=id_column, text_column=text_column,
+                            memory_budget_bytes=memory_budget_bytes)
+                index = stack.enter_context(TextIndex.open(root / index_directory, table=table))
+                seal_text_collection(heap, index, secondary_indexes=secondary)
+                registrations.append(TextRegistration(table.name, text_column, index.collection_id,
+                                                       index.generation, index_directory))
+        publish_text_registry(root, tuple(registrations))
+        with cls.open(definition, root) as database:
+            for registration in registrations:
+                database._environment.text_for(registration.table).validate()
+        return tuple(registrations)
+
+    @classmethod
     def create(
         cls,
         definition: DatabaseDefinition,
@@ -430,6 +477,7 @@ class Database:
                     index.close()
                     raise
                 database._text_indexes[registration.table] = index
+                database._environment.register_text(registration.table, index)
             database._engine = SqlEngine(
                 database._environment,
                 mutation_service=SpatialMutationService(database._spatial_indexes),
@@ -594,7 +642,7 @@ class Database:
 
     def text_search(self, table: str, column: str, query: str, *, model: str,
                     order: str = "score_desc", limit: int | None = None,
-                    use_indexes: bool = True, session=None):
+                    use_indexes: bool = True, session=None, consume=None):
         """Typed, read-only query over a published collection, with session locks."""
         if not self.available:
             raise TransactionUnavailableError("Database is closed or quarantined")
@@ -605,9 +653,12 @@ class Database:
             index = self._text_indexes.get(table)
             if index is None or index.text_column != column:
                 raise ValidationError("No compatible published text index for table/column")
-            return search_text(index, query, model=model, order=order, limit=limit,
+            result = search_text(index, query, model=model, order=order, limit=limit,
                                use_indexes=use_indexes,
                                storage=self._storages[table])
+            # Materializers may read source rows while the session still owns
+            # its read/metadata locks and participates in shutdown cancellation.
+            return result if consume is None else consume(result)
         return runner.run_programmatic_read(table, read)
 
     def spatial_mapping_for(self, name: str) -> SpatialMapping | None:
@@ -694,6 +745,15 @@ class Database:
                         file_bytes=_file_bytes(self._paths[index_metadata.name]),
                     )
                 )
+            text = self._text_indexes.get(name)
+            if text is not None:
+                registration = next(item for item in read_text_registry(self._directory) if item.table == name)
+                directory = self._directory / registration.directory
+                indexes.append(IndexSummary(
+                    name=f'{name}_spimi', column=text.text_column, index_type='SPIMI',
+                    unique=False, clustered=False, supports_range=False,
+                    entry_count=text.statistics.document_count,
+                    file_bytes=sum(path.stat().st_size for path in directory.iterdir() if path.is_file())))
             return TableSummary(
                 name=metadata.name,
                 organization=definition.organization,
@@ -1103,7 +1163,8 @@ class Database:
         origin: str,
         source_filename: str | None,
     ) -> None:
-        gui = self._validated_gui_table(spec, len(rows), origin, source_filename)
+        gui = self._validated_gui_table(spec, len(rows) if isinstance(rows, Sequence) else 0,
+                                        origin, source_filename)
         definition = self._gui_definition(gui)
         mapping = self._automatic_spatial_mapping(definition)
         schema = definition.schema
@@ -1130,20 +1191,24 @@ class Database:
                         index.clustered and index.unique for index in gui.indexes
                     ),
                 )
-            ordered = list(zip(lines if lines is not None else [None] * len(rows), rows))
+            from itertools import repeat
+            ordered = zip(lines if lines is not None else repeat(None), rows)
             if gui.organization == SEQUENTIAL:
                 # Loading in key order is the usual bulk load; the file itself
                 # still places every record by its key.
                 position = [column.name for column in schema].index(gui.key_column)
-                ordered.sort(key=lambda pair: pair[1][position])
+                ordered = sorted(ordered, key=lambda pair: pair[1][position])
+            loaded_rows = 0
             for line, values in ordered:
                 try:
                     storage.insert(Record(schema, list(values)))
+                    loaded_rows += 1
                 except ValidationError as error:
                     raise CsvError(
                         f"El motor rechazó la fila: {_message(error)}", line=line,
                     ) from None
 
+            gui = replace(gui, loaded_rows=loaded_rows)
             # Build every index against a private Catalog first, so the live
             # Catalog never holds a half-built table.
             staging = Catalog()

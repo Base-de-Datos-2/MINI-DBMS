@@ -42,10 +42,10 @@ def test_http_sql_real_reopen_and_explain(tmp_path, model, indexed):
                 result = _sql(client, sql, use_indexes=indexed)
                 assert result['rows']
                 assert [r[-1] for r in result['rows']] == sorted((r[-1] for r in result['rows']), reverse=True)
-                assert result['execution_plan']['runtime']['name'] == ('TextIndexScan' if indexed else 'TextScan')
+                assert result['execution_plan']['runtime']['root']['name'] == ('TextIndexScan' if indexed else 'TextScan')
                 prepared = _sql(client, 'EXPLAIN ' + sql, use_indexes=indexed)
                 assert prepared['rows'] == []
-                assert prepared['execution_plan']['prepared']['root']['children'][0]['name'] == ('TextIndexScan' if indexed else 'TextScan')
+                assert prepared['execution_plan']['prepared']['root']['name'] == ('TextIndexScan' if indexed else 'TextScan')
                 analyzed = _sql(client, 'EXPLAIN ANALYZE ' + sql, use_indexes=indexed)
                 assert analyzed['plan_status'] == 'execution-observed'
                 snapshots.append(result['rows'])
@@ -90,5 +90,30 @@ def test_http_required_assignment_first_query(tmp_path):
             response = _sql(client, "SELECT * FROM documentos WHERE MATCH(contenido, 'base de datos vectorial') USING TF_IDF LIMIT 10")
             assert [c['name'] for c in response['columns']] == ['id', 'contenido']
             assert response['statement'] == 'SELECT'
+    finally:
+        service.close()
+
+
+def test_parallel_http_sql_and_panel_without_session_token(tmp_path):
+    """Independent HTTP readers must not race on the shared default session."""
+    _publish(tmp_path)
+    service = EngineService(Database.open(DEFINITION, tmp_path))
+    sql = ("SELECT *, SCORE() AS relevancia FROM documentos "
+           "WHERE MATCH(contenido, 'base datos') USING BM25 "
+           "ORDER BY relevancia DESC LIMIT 3")
+    try:
+        with TestClient(create_app(service)) as client:
+            def read_sql(_):
+                return client.post('/api/query', json={'sql': sql})
+            def read_panel(_):
+                return client.post('/api/text/query', json={
+                    'table': 'documentos', 'column': 'contenido',
+                    'query': 'base datos', 'model': 'BM25', 'limit': 3})
+            for reader in (read_sql, read_panel):
+                with ThreadPoolExecutor(max_workers=8) as pool:
+                    responses = list(pool.map(reader, range(24)))
+                assert all(r.status_code == 200 for r in responses), [
+                    (r.status_code, r.text[:180]) for r in responses if r.status_code != 200]
+                assert all(r.json()['rows'] == responses[0].json()['rows'] for r in responses)
     finally:
         service.close()

@@ -25,15 +25,16 @@ export default function TextPanel({ token, onSql }: { token: string | null; onSq
   const reloadGeneration = useRef(0);
   const invalidate = () => { generation.current += 1; setResult(null); setBusy(false); setError(""); };
   const reload = async () => {
+    // A refresh invalidates in-flight searches immediately, including on failure.
+    invalidate();
     const requestGeneration = ++reloadGeneration.current;
     try {
       const found = await fetchTextTables();
       if (reloadGeneration.current !== requestGeneration) return;
       setCollections(found);
-      invalidate();
       setSelected((previous) => found.some((c) => c.table === previous) ? previous : found[0]?.table ?? "");
       setError("");
-    } catch (cause) { if (reloadGeneration.current === requestGeneration) setError(String(cause)); }
+    } catch (cause) { if (reloadGeneration.current === requestGeneration) { setCollections([]); setSelected(""); setError(String(cause)); } }
   };
   useEffect(() => { void reload(); return () => { generation.current += 1; reloadGeneration.current += 1; }; }, []);
   const current = collections.find((c) => c.table === selected);

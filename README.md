@@ -2,8 +2,8 @@
 
 Proyecto de **Base de Datos 2, ciclo 2026-2**. Implementa un motor de base de
 datos desde sus páginas y registros hasta la ejecución de SQL y la visualización
-de sus resultados. La entrega actual se concentra en tablas relacionales y
-datos espaciales.
+de sus resultados. Incluye tablas relacionales, datos espaciales y búsqueda
+textual integrada con SQL, API e interfaz.
 
 El almacenamiento, los índices, el parser, los operadores y las transacciones
 son implementaciones propias. React y FastAPI proporcionan la interfaz y el
@@ -22,7 +22,24 @@ los experimentos.
 | Datos espaciales | R-Tree propio para puntos 2D, consultas por radio, k-NN y polígonos; distancias Haversine y Euclidiana |
 | Interfaz | Tablas y esquemas, editor SQL, resultados tabulares, planes reales y exploración espacial |
 | Experimentos | Comparaciones de estructuras relacionales y de búsqueda secuencial/R-Tree/GiST con 1 000, 10 000 y 100 000 registros |
-| Núcleo textual | Tokenizador Unicode, SPIMI externo, postings/estadísticas persistentes, mapa ID/RID, lectores concurrentes y ranking Python TF-IDF/coseno y BM25; integración SQL textual pendiente |
+| Búsqueda textual | SPIMI persistente, TF-IDF/coseno y BM25 propios; MATCH/USING/SCORE en el motor SQL nativo, Heap sellado, preparación offline, API y paneles con scores/planes reales |
+
+## Demo textual — bloques 4B y 5
+
+Con Python 3.11 o superior y desde la raíz del proyecto:
+
+```bash
+python -m pip install -e ".[test,api]"
+python scripts/setup_text.py
+python -m api --text
+```
+
+Abrir `http://127.0.0.1:8000`. El paquete incluye el frontend compilado.
+La preparación crea un destino nuevo; para repetirla, usar otro `--data-dir`.
+Los ejemplos literales del PDF, el modo CSV, la arquitectura y la secuencia
+de demo están en [PART_03/BLOQUE_4B_5.md](PART_03/BLOQUE_4B_5.md).
+La muestra incluida es para demostración; la comparación experimental textual
+del bloque 6 se conserva como trabajo separado.
 
 La Parte 3 tiene preparados los datos, SPIMI, el ranking Python y el sellado
 persistente de las colecciones. SQL textual e integración con la interfaz

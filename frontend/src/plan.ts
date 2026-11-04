@@ -5,6 +5,8 @@ import type { KeyValue, PreparedNode, RuntimeNode } from "./types";
  * operator *is*; everything specific to a query comes from the engine report.
  */
 export const OPERATOR_DESCRIPTIONS: Record<string, string> = {
+  TextIndexScan: 'Recupera candidatos del índice SPIMI, calcula relevancia y ordena antes del límite.',
+  TextScan: 'Examina los documentos sin postings y aplica el mismo modelo de relevancia.',
   TableScan: "Recorre todas las filas vivas de un archivo de datos.",
   IndexScan: "Localiza filas a través de un índice B+ o Extendible Hashing.",
   Filter: "Conserva solo las filas que cumplen el predicado.",

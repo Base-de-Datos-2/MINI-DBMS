@@ -380,9 +380,16 @@ class EngineService:
         return {"closed": True, "aborted_transaction_id": aborted}
 
     @contextmanager
-    def _runner(self, session_token: str | None):
+    def _runner(self, session_token: str | None, *, independent_read: bool = False):
         """Yield where the call runs; attach the final session status to errors."""
 
+        if session_token is None and independent_read:
+            # A published collection is immutable. Give each tokenless text
+            # request its own reader rather than the sessionless write gate.
+            self._require_ready()
+            with self._database.open_session() as session:
+                yield _Runner(session.execute, session.prepare, session, None)
+            return
         if session_token is None:
             with self._admitted() as engine:
                 yield _Runner(
@@ -518,7 +525,17 @@ class EngineService:
                 f"El SQL excede el límite de {MAX_SQL_BYTES} bytes UTF-8.",
             )
         started = perf_counter()
-        with self._runner(session_token) as runner:
+        # Published text is immutable and may be queried concurrently without
+        # sharing the legacy default SQL session. Explicit tokens still use
+        # their owning session and retain transaction semantics.
+        independent_read = False
+        if session_token is None:
+            from .text_sql import is_text_statement
+            try:
+                independent_read = is_text_statement(parse_sql(request.sql))
+            except SqlQueryError:
+                pass  # Keep malformed SQL on the existing error path.
+        with self._runner(session_token, independent_read=independent_read) as runner:
             body = self._run_statement(request, runner)
             body["metrics"]["backend_elapsed_ms"] = round(
                 (perf_counter() - started) * 1000, 3
@@ -552,14 +569,7 @@ class EngineService:
         since = self._trace_mark(runner.session)
         group_before = None if runner.client is None else runner.client.group_id
         try:
-            from .text_sql import is_text_statement, run_text_sql
-            if parsed_statement is not None and is_text_statement(parsed_statement):
-                body = run_text_sql(
-                    self._database, parsed_statement, source=request.sql,
-                    session=runner.session, use_indexes=request.use_indexes,
-                    max_rows=request.max_rows,
-                )
-            elif isinstance(parsed_statement, (CreateIndexStatement, UpdateStatement, DropStatement)):
+            if isinstance(parsed_statement, (CreateIndexStatement, UpdateStatement, DropStatement)):
                 if runner.session.active_transaction is not None:
                     raise ServiceError(
                         "TRANSACTION_PROTOCOL",
@@ -619,7 +629,7 @@ class EngineService:
 
     def text_query(self, request, request_id, session_token=None):
         from .text_search import run_published_search
-        with self._runner(session_token) as runner:
+        with self._runner(session_token, independent_read=True) as runner:
             since = self._trace_mark(runner.session)
             group_before = None if runner.client is None else runner.client.group_id
             try:

@@ -50,7 +50,7 @@ class QueryEnvironment:
     a storage/index object; the caller retains lifecycle ownership.
     """
 
-    __slots__ = ("_catalog", "_storages", "_indexes", "_spatial", "_generations", "_mutex")
+    __slots__ = ("_catalog", "_storages", "_indexes", "_spatial", "_text", "_generations", "_mutex")
 
     def __init__(self, catalog: Catalog) -> None:
         if not isinstance(catalog, Catalog):
@@ -60,6 +60,7 @@ class QueryEnvironment:
         self._storages: dict[str, Storage] = {}
         self._indexes: dict[str, Index] = {}
         self._spatial: dict[str, SpatialIndex] = {}
+        self._text = {}
         self._generations: dict[str, int] = {}
 
     @_registry_latched
@@ -71,6 +72,42 @@ class QueryEnvironment:
 
     def _bump_generation(self, table_name: str) -> None:
         self._generations[table_name] = self._generations.get(table_name, 0) + 1
+
+    @_registry_latched
+    def register_text(self, table_name, index):
+        """Borrow one validated immutable generation; its owner closes it."""
+        from engine.text import TextIndex
+        table = self._catalog.get_table(table_name)
+        if not isinstance(index, TextIndex):
+            raise InvalidTypeError("Text registration requires TextIndex")
+        if table.name in self._text:
+            raise DuplicateError("Text index already registered")
+        if index.table != table:
+            raise ValidationError("Text index table metadata does not match")
+        from engine.storage import HeapFile
+        storage = self.storage_for(table.name)
+        if not isinstance(storage, HeapFile) or not storage.read_only:
+            raise ValidationError('Registered text SQL requires a published sealed Heap')
+        index.require_compatible_storage(self.storage_for(table.name))
+        self._text[table.name] = index
+        self._bump_generation(table.name)
+
+    @_registry_latched
+    def text_for(self, table_name):
+        table = self._catalog.get_table(table_name)
+        index = self._text.get(table.name)
+        if index is not None:
+            index._require_open()
+            if not self.storage_for(table.name).read_only:
+                raise InvalidReferenceError('Published text storage is no longer sealed')
+            index.require_compatible_storage(self.storage_for(table.name))
+        return index
+
+    @_registry_latched
+    def unregister_text(self, table_name):
+        table = self._catalog.get_table(table_name)
+        if self._text.pop(table.name, None) is not None:
+            self._bump_generation(table.name)
 
     @_registry_latched
     def register_spatial(self, table_name: str, index: SpatialIndex) -> None:

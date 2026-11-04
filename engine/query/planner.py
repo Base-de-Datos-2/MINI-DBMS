@@ -450,6 +450,53 @@ class SpatialScanSpec(PhysicalPlanSpec):
 
 
 @dataclass(frozen=True, slots=True)
+class TextScanSpec(PhysicalPlanSpec):
+    environment: QueryEnvironment
+    bound: BoundSelect
+    use_index: bool
+    options: PhysicalPlanningOptions
+
+    @property
+    def children(self):
+        return ()
+
+    @property
+    def output_schema(self):
+        return self.bound.output_schema
+
+    @property
+    def capabilities(self):
+        return PlanCapabilities(complete_candidate_set=self.bound.limit is None)
+
+    @property
+    def operator_name(self):
+        return 'TextIndexScan' if self.use_index else 'TextScan'
+
+    @property
+    def details(self):
+        access = self.bound.text_access
+        table = self.bound.relations[0].metadata.name
+        return ((('index', f'{table}_spimi'),) if self.use_index else ()) + (('table', table), ('column', access.column),
+                ('model', access.model), ('order', access.order), ('limit', str(self.bound.limit)),
+                ('collection', access.index.collection_id), ('generation', access.index.generation),
+                ('selection', 'TopKHeap when candidates exist' if access.order == 'score_desc'
+                    and self.bound.limit is not None else 'ExternalSort when candidates exist'))
+
+    def validate(self):
+        relation = self.bound.relations[0]
+        _validate_relation(self.environment, relation)
+        if self.environment.text_for(relation.metadata.name) is not self.bound.text_access.index:
+            raise StalePlanError('Prepared text runtime association changed')
+
+    def instantiate(self):
+        from engine.text.operators import TextScan, TextIndexScan
+        self.validate()
+        operator = TextIndexScan if self.use_index else TextScan
+        return operator(self.bound.relations[0], self.bound.text_access, self.output_schema,
+                        self.bound.limit, self.options)
+
+
+@dataclass(frozen=True, slots=True)
 class ComputeSpec(PhysicalPlanSpec):
     child: PhysicalPlanSpec
     expressions: tuple
@@ -886,7 +933,7 @@ class SelectPlanSpec:
                 _validate_index(self.environment, spec.registered)
             elif isinstance(spec, IndexNestedLoopJoinSpec):
                 _validate_index(self.environment, spec.registered)
-            elif isinstance(spec, SpatialScanSpec):
+            elif isinstance(spec, (SpatialScanSpec, TextScanSpec)):
                 spec.validate()
             for child in spec.children:
                 visit(child)
@@ -1480,6 +1527,10 @@ def prepare_select_plan(
 
     for relation in bound.relations:
         _validate_relation(environment, relation)
+    if bound.text_access is not None:
+        root = TextScanSpec(environment, bound, use_indexes, options)
+        root.validate()
+        return SelectPlanSpec(environment, bound, root, use_indexes, options)
     root = _relational_source_spec(
         environment,
         bound,

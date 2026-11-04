@@ -74,7 +74,9 @@ def main(argv: list[str] | None = None) -> None:
         default=None,
         help="directorio preparado con scripts/setup_demo.py",
     )
-    parser.add_argument("--spatial", action="store_true",
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--text', action='store_true', help='abre colecciones preparadas con setup_text.py')
+    mode.add_argument("--spatial", action="store_true",
                         help="abre la muestra de Parte 02 preparada con setup_spatial.py")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
@@ -91,9 +93,9 @@ def main(argv: list[str] | None = None) -> None:
     )
     args = parser.parse_args(argv)
     if args.data_dir is None:
-        args.data_dir = REPOSITORY / "data/generated" / ("spatial" if args.spatial else "demo")
-    setup_script = "setup_spatial.py" if args.spatial else "setup_demo.py"
-    definition = DatabaseDefinition("spatial") if args.spatial else demo_database()
+        args.data_dir = REPOSITORY / "data/generated" / ('text' if args.text else "spatial" if args.spatial else "demo")
+    setup_script = 'setup_text.py' if args.text else "setup_spatial.py" if args.spatial else "setup_demo.py"
+    definition = DatabaseDefinition('text') if args.text else DatabaseDefinition("spatial") if args.spatial else demo_database()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     if not port_is_free(args.host, args.port):
@@ -103,6 +105,8 @@ def main(argv: list[str] | None = None) -> None:
         )
     started = perf_counter()
     try:
+        if args.text and not (args.data_dir / 'text_tables.json').is_file():
+            raise DatabaseSetupError('Falta el registro de colecciones textuales publicadas')
         if args.spatial and not (args.data_dir / "spatial_tables.json").is_file():
             raise DatabaseSetupError("Falta el mapeo de la muestra espacial")
         database = Database.open(
@@ -119,7 +123,7 @@ def main(argv: list[str] | None = None) -> None:
         flush=True,
     )
     try:
-        app = create_app(service, presets=() if args.spatial else PRESETS,
+        app = create_app(service, presets=() if args.spatial or args.text else PRESETS,
                          frontend_dir=args.frontend_dir)
         # Running statements are cancelled when the stop is requested, so open
         # connections get a real answer; the bound only caps a stuck client.

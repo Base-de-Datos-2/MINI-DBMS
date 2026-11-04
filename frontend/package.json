@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "preview": "vite preview",
-    "test:browser": "node scripts/leaflet-browser-check.cjs"
+    "test:browser": "node scripts/leaflet-browser-check.cjs",
+    "test:browser:text": "node scripts/text-browser-check.cjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

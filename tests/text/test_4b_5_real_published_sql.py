@@ -43,7 +43,7 @@ def test_real_reopen_ranked_sql_and_explain(tmp_path, model, use_indexes):
         assert all(isinstance(row[-1], float) for row in result['rows'])
         assert [row[-1] for row in result['rows']] == sorted(
             (row[-1] for row in result['rows']), reverse=True)
-        assert result['execution_plan']['runtime']['name'] == ('TextIndexScan' if use_indexes else 'TextScan')
+        assert result['execution_plan']['runtime']['root']['name'] == ('TextIndexScan' if use_indexes else 'TextScan')
         assert query(db, 'EXPLAIN ' + sql)['rows'] == []
         assert query(db, 'EXPLAIN ANALYZE ' + sql)['plan_status'] == 'execution-observed'
         expected = result['rows']
@@ -82,11 +82,11 @@ def test_explain_access_node_matches_selected_execution_strategy(tmp_path):
         for indexed, expected in ((True, 'TextIndexScan'), (False, 'TextScan')):
             planned = query(db, 'EXPLAIN ' + SQL, use_indexes=indexed)
             root = planned['execution_plan']['prepared']['root']
-            assert root['name'] == 'TextTopK'
-            assert root['children'][0]['name'] == expected
-            assert root['children'][0]['details'][-1]['value'] == 'BM25'
+            assert root['name'] == expected
+            assert root['name'] == expected
+            assert {'key': 'model', 'value': 'BM25'} in root['details']
             observed = query(db, SQL, use_indexes=indexed)
-            assert observed['execution_plan']['runtime']['name'] == expected
+            assert observed['execution_plan']['runtime']['root']['name'] == expected
 
 
 def test_real_sql_score_ascending_and_id_sort(tmp_path):

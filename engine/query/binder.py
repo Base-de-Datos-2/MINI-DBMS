@@ -169,6 +169,7 @@ class BoundSelect:
     limit: int | None = None
     computed: tuple[tuple[str, Expression], ...] = ()
     spatial_access: SpatialAccess | None = None
+    text_access: object | None = None
 
     @property
     def grouped(self) -> bool:
@@ -712,6 +713,12 @@ def bind_select(
         raise _binding_error(statement, "LIMIT requires a nonnegative integer")
 
     first = _bind_relation(environment, statement.from_table, 0)
+    from .text_binding import is_text_select, bind_text_select
+    if is_text_select(statement):
+        text = bind_text_select(environment, statement, first)
+        projection = tuple(BoundProjectionItem(name, data_type) for name, data_type in text.projection)
+        return BoundSelect((first,), first.layout, None, (), None, (), (), projection, (),
+                           text.schema, statement.limit, text_access=text.access)
     relations = [first]
     source_layout = first.layout
     join_predicate = None
