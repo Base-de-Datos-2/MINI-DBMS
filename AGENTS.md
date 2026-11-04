@@ -1,5 +1,16 @@
 # AGENTS.md
 
+## Current authorization — 2026-11-03
+
+The user explicitly requested implementation and verification of Part 3
+Blocks 4B and 5 following the audit. Their native SQL, owner publication,
+API and UI integration is implemented; evidence and reproduction are in
+`PART_03/BLOQUE_4B_5.md`. This supersedes the historical 4B/5 deferrals below.
+Block 6 experiments, Block 7 general closure and academic Parts 4/5 are not
+included in this authorization. Keep offline sealing and enumerate all declared
+secondary indexes; never unseal a collection. Do not interpret the old advance
+notes as the current implementation state.
+
 > Context version: **6.7** — records closed Blocks 1A/1B/2/3/4A and measured
 > Part 3 corpus acceptance; owner/textual SQL integration remains deferred.
 

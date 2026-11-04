@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "checks": [
+    "offline preparation, publication and fresh owner validation",
+    "panel BM25 index/scan equivalence, rows, score/model/operator visible",
+    "panel TF-IDF scan",
+    "both literal PDF queries via editor; results and native plan visible",
+    "SQL scan equivalence, EXPLAIN and measured EXPLAIN ANALYZE",
+    "Files panel displays SPIMI metadata",
+    "real concurrent HTTP readers and persistent write rejection with allow-writes",
+    "fresh server restart preserves exact documents, order and scores"
+  ],
+  "browser": "153.0.8010.0",
+  "screenshots": "not included"
+}

@@ -34,7 +34,7 @@ function organizationLabel(table: TableDetail): string {
 }
 
 function IndexRow({ index }: { index: IndexInfo }) {
-  const flags = [
+  const flags = index.type === 'SPIMI' ? ['SPIMI', 'TF-IDF / BM25', 'solo lectura'] : [
     index.type === "BPLUS" ? "B+" : "Hash extensible",
     index.clustered ? "clustered" : "unclustered",
     index.unique ? "único" : null,

@@ -43,6 +43,7 @@ from .ast import (
     SqlExpr,
     Statement,
     TableRef,
+    TextMatch,
     TypeSpecification,
 )
 from .errors import SqlLimitError, SqlSyntaxError, SqlUnsupportedError
@@ -56,7 +57,7 @@ _AGGREGATE_FUNCTIONS = frozenset({"COUNT", "SUM", "AVG", "MIN", "MAX"})
 _COMPARISON_OPERATORS = frozenset({"=", "<>", "<", "<=", ">", ">="})
 _UNSUPPORTED_COMPARISON_KEYWORDS = frozenset({"BETWEEN", "IN", "IS", "LIKE"})
 _CONTEXTUAL_IDENTIFIER_KEYWORDS = frozenset(
-    {"ANALYZE", "INT", "INTEGER", "KEY", "PRIMARY", "VARCHAR"}
+    {"ANALYZE", "INT", "INTEGER", "KEY", "PRIMARY", "VARCHAR", "MATCH", "USING", "SCORE", "BM25", "TF_IDF"}
 )
 _UNSUPPORTED_STATEMENTS = frozenset(
     {
@@ -320,6 +321,12 @@ class _Parser:
         from_table = self._parse_table_ref()
         join = self._parse_optional_join()
         where = self._parse_optional_where()
+        text_model = None
+        if self._word(self._current) == "USING":
+            self._advance()
+            text_model = self._expect_identifier().value.upper()
+        if isinstance(where, TextMatch) and text_model is None:
+            raise self._error("MATCH requires USING and a ranking model")
         group_by = self._parse_optional_group_by()
         order_by = self._parse_optional_order_by()
         limit = None
@@ -336,6 +343,7 @@ class _Parser:
             group_by=group_by,
             order_by=order_by,
             limit=limit,
+            text_model=text_model,
             span=self._cover(start.span, self._previous.span),
         )
 
@@ -370,6 +378,11 @@ class _Parser:
         ):
             if token.value.upper() in _AGGREGATE_FUNCTIONS:
                 return self._parse_aggregate_call()
+            if token.value.upper() == "SCORE":
+                name = self._advance()
+                self._expect_punct("(")
+                close = self._expect_punct(")")
+                return FunctionCall("SCORE", (), span=self._cover(name.span, close.span))
             return self._parse_function_call(0)
         return self._parse_select_reference()
 
@@ -444,7 +457,7 @@ class _Parser:
         if self._match_keyword("AS") is not None:
             end = self._expect_identifier()
             alias = end.value
-        elif self._at_identifier():
+        elif self._at_identifier() and self._word(self._current) != "USING":
             end = self._expect_identifier()
             alias = end.value
         return TableRef(
@@ -564,6 +577,16 @@ class _Parser:
         return expression
 
     def _parse_comparison(self) -> SqlExpr:
+        if self._word(self._current) == "MATCH" and self._peek(1).value == "(":
+            start = self._advance()
+            self._expect_punct("(")
+            column = self._parse_column_ref()
+            self._expect_punct(",")
+            query = self._parse_literal()
+            if not isinstance(query, StringLiteral):
+                raise self._error("MATCH requires a string literal")
+            end = self._expect_punct(")")
+            return TextMatch(column, query, span=self._cover(start.span, end.span))
         left = self._parse_value_expr()
         token = self._current
         if (

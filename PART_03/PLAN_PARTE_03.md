@@ -1,5 +1,12 @@
 # Plan de implementación — Parte 3: búsqueda textual
 
+Actualización del 3 de noviembre de 2026: los bloques **4B y 5** cuentan con
+integración SQL nativa, preparación/publicación offline, API e interfaz, y
+aceptación con servidor y navegador reales. Evidencia, regresión y límites en
+[BLOQUE_4B_5.md](BLOQUE_4B_5.md). Esta actualización sustituye las declaraciones
+históricas de integración pendiente que siguen en el documento; los bloques
+6 y 7 y las Partes 4/5 del enunciado continúan fuera de este cierre.
+
 ## 1. Objetivo y criterio de alcance
 
 Implementar en MINI-DBMS **recuperación textual persistente mediante vectores dispersos de términos, un índice invertido SPIMI, TF-IDF/coseno y BM25**. Exponerla mediante SQL y compararla de forma reproducible con **PostgreSQL GIN + ranking nativo**.
@@ -336,8 +343,8 @@ PASS del corpus habilita su adopción y los experimentos finales.
 | 2. Núcleo SPIMI — COMPLETADA 2026-10-28 | Construcción por bloques con postings ordenados, mezcla, persistencia, léxico, estadísticas, normas e ID/RID; lectores por offset | Oráculo independiente, IDs desordenados/duplicados, varias pasadas, proceso aislado, lectores intercalados y dos threads; 551 tests focalizados; evidencia en BLOQUE_2.md |
 | 3. Ranking — COMPLETADA 2026-10-28 | TF-IDF/coseno, BM25, órdenes de §3.3, top-k condicionado y ExternalSort real | Scores/IDs correctos para DESC, ASC e ID, igualdad índice/scan, reapertura y concurrencia; 757 tests focalizados; evidencia en BLOQUE_3.md |
 | 4A. Política persistente de escritura — COMPLETADA 2026-10-28 | Sello y compatibilidad v1/v2; publicación offline y guards en almacenamiento/mantenimiento previos a undo | 96 pruebas focalizadas: archivos anteriores mutables, rechazo sin captura/restauración, rollback de otras tablas, reapertura aislada y exclusión durante publicación; evidencia y límites en BLOQUE_4A.md |
-| 4B. Integración textual | Owner `api.database.Database`, registro textual, parser/binder, operador y EXPLAIN; depende de 4A | Los dos SQL del PDF funcionan; reapertura real; matriz de escritura y dos sesiones lectoras verificadas |
-| 5. API y demo | Consultas de ejemplo y uso de los paneles existentes | Búsqueda completa por UI; score/modelo/plan visibles; reapertura conserva resultados |
+| 4B. Integración textual — IMPLEMENTADA Y VERIFICADA 2026-11-03 | Owner `api.database.Database`, publicación/registro textual, parser/binder, operador nativo y EXPLAIN; depende de 4A | Ambos SQL literales del PDF, motor autónomo, reapertura, sellado y lectores; evidencia en BLOQUE_4B_5.md |
+| 5. API y demo — IMPLEMENTADA Y VERIFICADA 2026-11-03 | Preparación, arranque --text y paneles existentes con SPIMI | Navegador y servidor reales: score/modelo/plan visibles, índice/scan y reinicio conservan resultados; evidencia en BLOQUE_4B_5.md |
 | 6. Comparación | Con fase 1B en PASS y motor integrado, preparar PostgreSQL, comprobar semántica, ejecutar la matriz y generar figuras | Resultados de tres métodos, tres tamaños y tres longitudes; métricas completas |
 | 7. Cierre | Documentación, demo y regresión | Lista final aprobada con evidencia, sin resultados inventados ni pendientes ocultos |
 
@@ -377,13 +384,13 @@ Checklist de cierre:
 - [x] SPIMI propio con varios bloques reales y mezcla externa validada (bloque 2; pruebas externas con fixtures, no benchmark del corpus 100k).
 - [x] Postings ordenados dentro de cada bloque y durante la mezcla, con entrada desordenada e IDs duplicados comprobados.
 - [x] Un índice persistente compartido por TF-IDF/coseno y BM25 (núcleo Python; integración SQL posterior).
-- [ ] Los dos ejemplos SQL del PDF funcionan en el motor y por la API.
-- [ ] Resultados y planes visibles mediante el frontend existente.
-- [ ] Owner único `api.database.Database` registra, abre y cierra índices textuales, integrado con la UI.
-- [ ] Política de inmutabilidad persistida y aplicada dentro del motor en todas las rutas soportadas, antes y después de reabrir.
-- [ ] Rechazo de escrituras selladas anterior a captura undo, sin restaurarlas ni reconstruir índices; rollback de otras tablas preservado.
-- [ ] Lecturas concurrentes por offset verificadas sobre el mismo lector y mediante dos sesiones, sin interferencia de cursores ni cierre de handles prestados.
-- [ ] LIMIT respeta todos los órdenes admitidos; heap de mayores scores solo en score DESC/id ASC (núcleo Python validado en 3; aceptación SQL pendiente de 4B).
+- [x] Los dos ejemplos SQL del PDF funcionan en el motor y por la API.
+- [x] Resultados y planes visibles mediante el frontend existente.
+- [x] Owner único `api.database.Database` registra, abre y cierra índices textuales, integrado con la UI.
+- [x] Política de inmutabilidad persistida y aplicada dentro del motor en todas las rutas soportadas, antes y después de reabrir.
+- [x] Rechazo de escrituras selladas anterior a captura undo, sin restaurarlas ni reconstruir índices; rollback de otras tablas preservado.
+- [x] Lecturas concurrentes por offset verificadas sobre el mismo lector y mediante dos sesiones, sin interferencia de cursores ni cierre de handles prestados.
+- [x] LIMIT respeta todos los órdenes admitidos; heap de mayores scores solo en score DESC/id ASC (núcleo y aceptación SQL nativa verificados).
 - [ ] Puerta de viabilidad del corpus en PASS, con evidencia medida; MS MARCO no se da por aceptado de antemano.
 - [ ] Corpus de 1 000, 10 000 y 100 000 documentos reales, con consultas de 1, 3 y 5+ palabras.
 - [ ] Comparación con PostgreSQL GIN + ranking nativo, con semántica y fronteras temporales explícitas.
@@ -391,7 +398,7 @@ Checklist de cierre:
 - [ ] Datos crudos, configuración, gráficas y tabla de recomendaciones conservados.
 - [ ] README, explicación de algoritmos, instrucciones reproducibles e informe incremental actualizados.
 - [ ] Demo preparada para incorporarse al video general de 5–10 minutos exigido por el proyecto.
-- [ ] Regresión de las funcionalidades existentes sin fallos atribuibles a esta extensión.
+- [x] Regresión de las funcionalidades existentes: 3 547 pruebas backend aprobadas y 43 frontend; evidencia de 4B/5 en BLOQUE_4B_5.md.
 
 No se considera terminada la Parte 3 solamente porque devuelve resultados: también deben completarse la comparación experimental y sus evidencias.
 

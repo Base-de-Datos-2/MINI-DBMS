@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "scope": "Part 3 blocks 4B and 5",
+  "backend_tests": 3547,
+  "backend_failed": 0,
+  "backend_seconds": 133.59,
+  "frontend_tests": 43,
+  "frontend_test_files": 6,
+  "frontend_build": "PASS",
+  "browser_acceptance": "PASS",
+  "browser_check_groups": 8,
+  "native_focused_tests_included_in_backend_total": 51,
+  "backend_command": "python -m pytest -q -n 4 -W error",
+  "frontend_commands": [
+    "npm run build",
+    "npm test -- --reporter=dot"
+  ],
+  "browser_command": "npm run test:browser:text",
+  "experimental_block_6_included": false,
+  "platform": "Linux / Python 3.12.14"
+}

@@ -21,6 +21,7 @@ import QueryPanel from "./components/QueryPanel";
 import ResultsPanel from "./components/ResultsPanel";
 import SessionBar from "./components/SessionBar";
 import SpatialPanel from "./components/SpatialPanel";
+import TextPanel from "./components/TextPanel";
 import { groupOpen } from "./session";
 import type {
   CreateTableResponse,
@@ -282,7 +283,7 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="brand"><h1>MINI-DBSM</h1><p className="app-description">Motor relacional y espacial</p></div>
-        <nav className="workspace-nav" aria-label="Secciones de trabajo"><a href="#query-title">SQL</a><a href="#spatial-title">Mapa</a></nav>
+        <nav className="workspace-nav" aria-label="Secciones de trabajo"><a href="#query-title">SQL</a><a href="#spatial-title">Mapa</a><a href="#text-title">Texto</a></nav>
         {health !== null && (
           <>
             <span
@@ -358,6 +359,8 @@ export default function App() {
         <SpatialPanel tables={spatialTables} metadataError={spatialError} revision={spatialRevision} busy={busy} outcome={outcome}
           onPreview={spatialPreview} onRequest={spatialRequest} onSql={(text, values) => { setSql(text); setParameters(values); }} />
       </>}
+
+      {loadError === null && <TextPanel token={token.current} onSql={(text) => { setSql(text); setParameters(undefined); }} />}
 
       {creating && health !== null && (
         <CreateTableDialog
