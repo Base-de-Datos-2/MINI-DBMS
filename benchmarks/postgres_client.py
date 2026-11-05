@@ -18,9 +18,19 @@ def literal(value):
     return "'" + value.replace("'", "''") + "'"
 
 
+#: Spatial E4 forces GiST access; other comparators pass their own settings.
+FORCED_INDEX_SETTINGS = (
+    "SET max_parallel_workers_per_gather=0; SET enable_seqscan=off; "
+    "SET enable_bitmapscan=off; SET jit=off;"
+)
+POSTGIS_VERSION_SQL = "PostGIS_Full_Version()"
+
+
 class PostgresClient:
-    def __init__(self, container, database="minidbms_bench", docker="docker", timeout=120):
+    def __init__(self, container, database="minidbms_bench", docker="docker", timeout=120,
+                 settings=FORCED_INDEX_SETTINGS, extension_version_sql=POSTGIS_VERSION_SQL):
         self.timeout = timeout
+        self.extension_version_sql = extension_version_sql
         self.process = subprocess.Popen(
             [docker, "exec", "-i", container, "psql", "-X", "-w", "-qAt",
              "-v", "ON_ERROR_STOP=1", "-P", "pager=off", "-U", "postgres", "-d", identifier(database)],
@@ -28,7 +38,7 @@ class PostgresClient:
             text=True, encoding="utf-8", bufsize=1,
         )
         try:
-            self.execute("SET max_parallel_workers_per_gather=0; SET enable_seqscan=off; SET enable_bitmapscan=off; SET jit=off;")
+            self.execute(settings)
             self.execute("""
 CREATE FUNCTION pg_temp.measure(statement text, returns_rows boolean) RETURNS jsonb
 LANGUAGE plpgsql AS $$
@@ -80,11 +90,12 @@ END $$;
         return json.loads("\n".join(self.execute(f"EXPLAIN ({options}) " + sql + ";")))[0]
 
     def resources(self):
-        return self.json("""SELECT json_build_object(
+        extension = self.extension_version_sql or "NULL"
+        return self.json(f"""SELECT json_build_object(
             'status',pg_read_file('/proc/'||pg_backend_pid()||'/status'),
             'shared_buffers',current_setting('shared_buffers'),
             'work_mem',current_setting('work_mem'),
-            'version',version(),'postgis',PostGIS_Full_Version());""")
+            'version',version(),'postgis',{extension});""")
 
     def close(self):
         if not self.process.stdin.closed:
