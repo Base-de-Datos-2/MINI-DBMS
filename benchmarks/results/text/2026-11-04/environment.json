@@ -1,0 +1,99 @@
+{
+  "bm25": {
+    "b": 0.75,
+    "k1": 1.2
+  },
+  "commit": "83d73db261296ba67a48c50dccb998b4795b52ed",
+  "corpus": "data/generated/text_corpus/esci_us_test/accepted_py312",
+  "corpus_sha256": {
+    "1000/documents.jsonl": "e941efa679907a6f9590ac4376278daf8d679410cb3b1b1bbc0ce308f225427e",
+    "1000/manifest.json": "e69849f612a514e0bb44430c2c39eb536cc42ffb974687d4fd22c6e33d6825dc",
+    "1000/qrels.tsv": "9334beb2e9818be0568b0937eeccf39e79b4c1a0156a5cafdc55bc8d6bcd468c",
+    "1000/queries.json": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5",
+    "10000/documents.jsonl": "329047b2701a5272e6adaf7764b338fdeaae3da821ad957389d605708ab544e9",
+    "10000/manifest.json": "06d5f09900ba340877d1df2a766c8cbfb13303c20f560c79b3e835b091748d1d",
+    "10000/qrels.tsv": "ca6c9ca2e81bb7d1b9f246f56da900019afb185dcee5aa16d1c7570130bdfc73",
+    "10000/queries.json": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5",
+    "100000/documents.jsonl": "edf56cae3257cd7390b8fe5669df01b2bb8bb65631d88e854da878a5e1586de5",
+    "100000/manifest.json": "bca03019000b5be24deb3f99c2cb849aeae8343736b69d8397bc4a7c40703312",
+    "100000/qrels.tsv": "8a84177da6ed025ce694dff3b8dfa076d034f1e367b61b16d1a44b37c6b74ee0",
+    "100000/queries.json": "6fd671261b07eab44e02b9583ebb3f3ba58bf48e5f3a7b77fe7971ca4e118ac5"
+  },
+  "cpu": "AMD Ryzen 7 250 w/ Radeon 780M Graphics",
+  "cpu_count": 8,
+  "format": "MINIDBMS_TEXT_EXPERIMENT",
+  "measured_source_sha256": {
+    "api/database.py": "af87f097d6b0597cae680f13d236726d7bbe20d892e8efd619b4ffb15c215ea1",
+    "benchmarks/postgres_client.py": "c5455e6b7b3cf3638c2f01579b057aaf2e21fbed13cb02d20ebdddb4319f74fc",
+    "benchmarks/text/__init__.py": "7fd30e51654a3da05fa87e5eb88e18cd8d19ded9791e69b5a02066135808b9d7",
+    "benchmarks/text/acceptance.py": "30b2817784b1a767002c1c9093d4b72faa3eece0de2d1c35e7e1bca07587da05",
+    "benchmarks/text/corpus.py": "bbc1ee15f13e44a15718cbcf73925ce10f12d38a63eb504813cd281b6dbd3a0d",
+    "benchmarks/text/esci.py": "fc64bb9a197f904f086a4f31962f938ccc9a7287b16bab4f89fc6d51ec4e404e",
+    "benchmarks/text/experiment.py": "70da41b37d5555d40bf04af0e597c92b4bd5e31a47a55778c0c766f8de2829f8",
+    "benchmarks/text/fts.py": "d1950793ea3d20e9297f8c6ae2111c180f282d5849599bb7d8f0aa2acd0e5f3a",
+    "benchmarks/text/metrics.py": "48c4e7f721d650a829e6f2781f95b8a20c839bc41da45d88d3a002ea94a0ec7c",
+    "benchmarks/text/results.py": "d378d3bac8e26c7331daa37374ac2d93abd85f2c8f96c7512c312f19c0672ca1",
+    "benchmarks/text/sources.py": "250b46d4483e3f6638d0c9458db800a63aacaf8a42bac78fb5d2ddcc88b83431",
+    "engine/query/text_binding.py": "0b9ec06644dd19ea75e693f55feef78baf0e22f5f520b6d3097e3a51d9b15e39",
+    "engine/text/__init__.py": "3adead217ae9bf4b4680109ddfc25715df47eaca8bef54c3c7c3e8a2b995be99",
+    "engine/text/format.py": "332377bf08ff2feb4ff5de549a3dbc9ab56ffe89e91a59019af94dd254605500",
+    "engine/text/index.py": "eaa4ea27ab6afe3bf832887304f6b33214220dde1c6435e1ac4c0e7e154fa402",
+    "engine/text/operators.py": "a44d7d9ff967981631b333a936e2daf892a42684bb75777a429f40de33bd5ba9",
+    "engine/text/ranking.py": "d13e1b1cdfa9d4877c9b86b276a9b37e6d2ea0d7d83162bc60364e97108db61b",
+    "engine/text/registry.py": "b244c4b4f9fe519c856ffb77851bb04135054a1907b5c8b956815a9658ac6524",
+    "engine/text/sealing.py": "132d34ad98e3ab56333a7cfdcf0cad46df62793a5291714443e6f38b9ae59822",
+    "engine/text/spimi.py": "9c5cf8084d03d5ec8d374a6c2214a674d09101a9233b9cb52949da2a93e3ecd9",
+    "engine/text/tokenizer.py": "5b9fb655e694bd722b091127d1adc24ddcc584dc5bfb2f242825ddd484baff1f"
+  },
+  "memory_total": "8132220 kB",
+  "methods": [
+    "tfidf",
+    "bm25",
+    "postgres"
+  ],
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "postgres": {
+    "container": "minidbms-text-pg",
+    "image": "postgres:17",
+    "image_digest": "postgres@sha256:e42539a54ee3e82e21f19d7eded61b579869585f86b90b5e851ff0d3dd8b4001",
+    "lexemes": "engine tokens loaded as tsvector input ('term':positions); the 'simple' parser drops characters such as '½' that the engine keeps",
+    "memory_limit": "2g",
+    "network": "none",
+    "query_operator": "OR of quoted lexemes",
+    "server_settings": {
+      "shared_buffers": "128MB",
+      "work_mem": "4MB"
+    },
+    "session_settings": "max_parallel_workers_per_gather=0, jit=off",
+    "ts_rank_normalization": 0,
+    "version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"
+  },
+  "python": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "query_count": 30,
+  "repetitions": 3,
+  "sizes": [
+    1000,
+    10000,
+    100000
+  ],
+  "spimi_memory_budget_bytes": 8388608,
+  "tfidf": "tf_weight=1+ln(tf); idf=ln((N+1)/(df+1))+1; cosine over full document norm",
+  "timing_boundary": {
+    "engine": "SqlEngine.execute through parse, bind, plan, TextIndexScan and iteration of the top-10 id/score rows (no HTTP, UI or document texts)",
+    "postgres": "client round trip through psql/docker exec of a function returning top-10 id/ts_rank as JSON; server_seconds measured separately inside PostgreSQL"
+  },
+  "tokenizer": {
+    "algorithm": "nfc-lower-nfc-alnum-v1",
+    "unicode_version": "15.0.0"
+  },
+  "uncommitted_changes_in_engine_api_benchmarks": [
+    "M benchmarks/postgres_client.py",
+    "?? benchmarks/text/experiment.py",
+    "?? benchmarks/text/fts.py",
+    "?? benchmarks/text/metrics.py",
+    "?? benchmarks/text/results.py"
+  ],
+  "unicode": "15.0.0",
+  "version": 1,
+  "warmup_passes": 1
+}

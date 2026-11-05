@@ -1,0 +1,54 @@
+{
+  "backend_status_end": "Name:\tpostgres\nUmask:\t0077\nState:\tR (running)\nTgid:\t170\nNgid:\t0\nPid:\t170\nPPid:\t1\nTracerPid:\t0\nUid:\t999\t999\t999\t999\nGid:\t999\t999\t999\t999\nFDSize:\t64\nGroups:\t101 \nNStgid:\t170\nNSpid:\t170\nNSpgid:\t170\nNSsid:\t170\nKthread:\t0\nVmPeak:\t  231008 kB\nVmSize:\t  226908 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   45348 kB\nVmRSS:\t   44856 kB\nRssAnon:\t    9844 kB\nRssFile:\t   12340 kB\nRssShmem:\t   22672 kB\nVmData:\t    9580 kB\nVmStk:\t     132 kB\nVmExe:\t    5884 kB\nVmLib:\t   14984 kB\nVmPTE:\t     216 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nuntag_mask:\t0xffffffffffffffff\nThreads:\t1\nSigQ:\t0/31723\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000400000\nSigIgn:\t0000000001301800\nSigCgt:\t0000000020006287\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t00000000a80425fb\nCapAmb:\t0000000000000000\nNoNewPrivs:\t0\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread vulnerable\nSpeculationIndirectBranch:\tconditional enabled\nCpus_allowed:\tff\nCpus_allowed_list:\t0-7\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t61\nnonvoluntary_ctxt_switches:\t2\n",
+  "backend_status_start": "Name:\tpostgres\nUmask:\t0077\nState:\tR (running)\nTgid:\t170\nNgid:\t0\nPid:\t170\nPPid:\t1\nTracerPid:\t0\nUid:\t999\t999\t999\t999\nGid:\t999\t999\t999\t999\nFDSize:\t64\nGroups:\t101 \nNStgid:\t170\nNSpid:\t170\nNSpgid:\t170\nNSsid:\t170\nKthread:\t0\nVmPeak:\t  220548 kB\nVmSize:\t  220520 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t   20680 kB\nVmRSS:\t   20680 kB\nRssAnon:\t    3348 kB\nRssFile:\t   10960 kB\nRssShmem:\t    6372 kB\nVmData:\t    3192 kB\nVmStk:\t     132 kB\nVmExe:\t    5884 kB\nVmLib:\t   14984 kB\nVmPTE:\t     176 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t1\nuntag_mask:\t0xffffffffffffffff\nThreads:\t1\nSigQ:\t0/31723\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000400000\nSigIgn:\t0000000001301800\nSigCgt:\t0000000020006287\nCapInh:\t0000000000000000\nCapPrm:\t0000000000000000\nCapEff:\t0000000000000000\nCapBnd:\t00000000a80425fb\nCapAmb:\t0000000000000000\nNoNewPrivs:\t0\nSeccomp:\t2\nSeccomp_filters:\t1\nSpeculation_Store_Bypass:\tthread vulnerable\nSpeculationIndirectBranch:\tconditional enabled\nCpus_allowed:\tff\nCpus_allowed_list:\t0-7\nMems_allowed:\t00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t6\nnonvoluntary_ctxt_switches:\t0\n",
+  "construction_includes": "tsvector construction from engine tokens (tsvector input syntax, no PostgreSQL parser/dictionary) + GIN creation; Python tokenization, primary key and ANALYZE reported separately",
+  "construction_seconds": 0.1483795279982587,
+  "database": "minidbms_text_10000",
+  "method": "postgres_fts_gin",
+  "python_tokenization_seconds": 0.23359001400058332,
+  "size": 10000,
+  "sizes": {
+    "database_bytes": 14202547,
+    "documents": 10000,
+    "gin_bytes": 2023424,
+    "primary_key_bytes": 245760,
+    "settings": {
+      "default_text_search_config": "pg_catalog.english",
+      "maintenance_work_mem": "64MB",
+      "shared_buffers": "128MB",
+      "work_mem": "4MB"
+    },
+    "table_main_bytes": 4194304,
+    "table_with_toast_bytes": 4202496,
+    "text_column_bytes": 1070604,
+    "tsvector_column_bytes": 2245870
+  },
+  "stages": {
+    "analyze": {
+      "elapsed_seconds": 0.034947698999530985,
+      "rows": null,
+      "server_seconds": 0.032656
+    },
+    "copy_base_data": {
+      "elapsed_seconds": 0.04222846599986951,
+      "server_seconds": null
+    },
+    "gin_index": {
+      "elapsed_seconds": 0.09788404099890613,
+      "rows": null,
+      "server_seconds": 0.093602
+    },
+    "primary_key": {
+      "elapsed_seconds": 0.006953651998628629,
+      "rows": null,
+      "server_seconds": 0.004336
+    },
+    "tsvector_conversion": {
+      "elapsed_seconds": 0.05049548699935258,
+      "rows": null,
+      "server_seconds": 0.044901
+    }
+  },
+  "staging_bytes": 2952746,
+  "version": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit"
+}
