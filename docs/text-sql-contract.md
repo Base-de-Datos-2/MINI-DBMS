@@ -1,5 +1,9 @@
 # Part 3 textual SQL contract — 1A.4
 
+> **Status 2026-11-04:** this contract is implemented by block 4B and exposed
+> through the API/UI by block 5 ([BLOQUE_4B_5.md](../PART_03/BLOQUE_4B_5.md)).
+> The frozen text below is kept unchanged as the historical specification.
+
 Frozen: 2026-10-24 for tasks 1A.1–1A.4. This document specifies the **future
 phase 4B** extension to the handwritten parser/binder/planner. It does not
 describe currently executable textual SQL. The current relational/spatial

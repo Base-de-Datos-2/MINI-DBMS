@@ -2,9 +2,12 @@
 
 La Parte 3 implementa recuperación léxica con vectores dispersos de términos.
 El tokenizador Unicode y los contratos/fixtures de 1A están cerrados; el corpus
-real de 1B tiene aceptación PASS. Los **bloques 2 (SPIMI), 3 (ranking Python)
-y 4A (sellado persistente) están implementados y verificados**. SQL textual,
-registro textual e integración en el owner/HTTP/UI siguen pendientes.
+real de 1B tiene aceptación PASS. Los **bloques 2 (SPIMI), 3 (ranking), 4A
+(sellado persistente), 4B (SQL nativo y owner) y 5 (API y demo)** están
+implementados y verificados; el uso desde SQL y la interfaz está en
+[BLOQUE_4B_5.md](../PART_03/BLOQUE_4B_5.md). La comparación experimental
+frente a PostgreSQL (bloque 6) está en
+[EXPERIMENTOS_TEXTO.md](EXPERIMENTOS_TEXTO.md).
 
 `engine.text.build_spimi` construye un índice persistente desde un Heap
 prestado, con presupuesto de bloques y mezcla externa por fan-in limitado.
@@ -63,4 +66,5 @@ Referencias:
 - [Contratos y fixtures](../PART_03/BLOQUE_1A.md).
 - [Aceptación del corpus real](../PART_03/BLOQUE_1B.md).
 - [Fórmulas de ranking](text-ranking-contract.md).
-- [Contrato SQL textual, aún por implementar](text-sql-contract.md).
+- [Contrato SQL textual](text-sql-contract.md); implementación en [BLOQUE_4B_5.md](../PART_03/BLOQUE_4B_5.md).
+- [Comparación experimental con PostgreSQL](EXPERIMENTOS_TEXTO.md).
