@@ -21,7 +21,7 @@ los experimentos.
 | Transacciones | Sesiones independientes, BEGIN TRANSACTION, END TRANSACTION, ROLLBACK, locks compartidos/exclusivos, cancelación y undo físico |
 | Datos espaciales | R-Tree propio para puntos 2D, consultas por radio, k-NN y polígonos; distancias Haversine y Euclidiana |
 | Interfaz | Tablas y esquemas, editor SQL, resultados tabulares, planes reales y exploración espacial |
-| Experimentos | Comparaciones de estructuras relacionales y de búsqueda secuencial/R-Tree/GiST con 1 000, 10 000 y 100 000 registros |
+| Experimentos | Comparaciones de estructuras relacionales, de búsqueda secuencial/R-Tree/GiST y de TF-IDF/BM25 propios frente a PostgreSQL GIN, con 1 000, 10 000 y 100 000 registros o documentos |
 | Búsqueda textual | SPIMI persistente, TF-IDF/coseno y BM25 propios; MATCH/USING/SCORE en el motor SQL nativo, Heap sellado, preparación offline, API y paneles con scores/planes reales |
 
 ## Demo textual — bloques 4B y 5
@@ -38,14 +38,15 @@ Abrir `http://127.0.0.1:8000`. El paquete incluye el frontend compilado.
 La preparación crea un destino nuevo; para repetirla, usar otro `--data-dir`.
 Los ejemplos literales del PDF, el modo CSV, la arquitectura y la secuencia
 de demo están en [PART_03/BLOQUE_4B_5.md](PART_03/BLOQUE_4B_5.md).
-La muestra incluida es para demostración; la comparación experimental textual
-del bloque 6 se conserva como trabajo separado.
+La muestra incluida es para demostración. La comparación experimental con el
+corpus real (Amazon ESCI, 1 000/10 000/100 000 documentos y 30 consultas
+originales) está en [docs/EXPERIMENTOS_TEXTO.md](docs/EXPERIMENTOS_TEXTO.md).
 
-La Parte 3 tiene preparados los datos, SPIMI, el ranking Python y el sellado
-persistente de las colecciones. SQL textual e integración con la interfaz
-quedan pendientes. Uso y límites actuales
-en [docs/text.md](docs/text.md). Las Partes 4 y 5 —multimedia y aplicación
-multimodal— quedan para las siguientes entregas.
+La Parte 3 está completa: corpus aceptado, SPIMI, TF-IDF/coseno, BM25,
+sellado persistente, SQL nativo, API, interfaz y comparación con PostgreSQL.
+Uso y límites en [docs/text.md](docs/text.md); cierre de las fases 6 y 7 en
+[PART_03/BLOQUE_6_7.md](PART_03/BLOQUE_6_7.md). Las Partes 4 y 5 —multimedia
+y aplicación multimodal— quedan para las siguientes entregas.
 
 ## Arquitectura
 
@@ -318,6 +319,7 @@ de 1 000/10 000 se documentan por separado para no mezclar entornos en una curva
 | Heap frente a secuencial; B+ agrupado/no agrupado frente a hash | [Método y conclusiones](docs/EXPERIMENTOS.md), [gráficos y tablas](docs/experimentos/resultados.md) |
 | Repetición relacional de 1 000 y 10 000, cinco repeticiones | [Guía](docs/experimentos/README.md), [11 gráficos y resultados](docs/experimentos/actualizados_1k_10k/resultados.md) |
 | Secuencial frente a R-Tree y PostgreSQL GiST | [Método y conclusiones](docs/EXPERIMENTOS_ESPACIALES.md), [radio](docs/figuras/spatial/radius.png), [k-NN](docs/figuras/spatial/knn.png), [recursos](docs/figuras/spatial/recursos.png), [memoria](docs/figuras/spatial/memoria.png) |
+| TF-IDF/coseno y BM25 sobre SPIMI frente a PostgreSQL FTS + GIN + `ts_rank` | [Método y conclusiones](docs/EXPERIMENTOS_TEXTO.md), [construcción](docs/figuras/text/construccion.png), [consultas](docs/figuras/text/consultas.png), [relevancia](docs/figuras/text/relevancia.png), [disco y memoria](docs/figuras/text/recursos.png) |
 
 La matriz espacial reúne 5 400 consultas medidas: tres tamaños, tres métodos,
 radios de 1/5/10 km y k de 10/50/100, con 100 centros por configuración.
@@ -328,6 +330,15 @@ Para regenerar los gráficos espaciales desde los resultados conservados:
 
 ```bash
 python -m benchmarks.spatial results --input benchmarks/results/spatial/2026-10-04 --output docs/figuras/spatial
+```
+
+La matriz textual reúne 810 consultas medidas: tres tamaños, tres métodos y
+30 consultas originales de 1, 3 y 5+ palabras, con tres repeticiones. Antes de
+medir se verifica que motor y PostgreSQL indexen los mismos lexemas y
+encuentren los mismos documentos. Para regenerar sus tablas y gráficos:
+
+```bash
+python -m benchmarks.text.results --input benchmarks/results/text/2026-11-04 --output docs/figuras/text
 ```
 
 ## Pruebas

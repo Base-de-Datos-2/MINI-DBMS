@@ -1,5 +1,12 @@
 # Plan de implementación — Parte 3: búsqueda textual
 
+Actualización del 4 de noviembre de 2026: las fases **6 (comparación) y 7
+(cierre)** están completas. Matriz de 3 métodos × 3 tamaños × 30 consultas ×
+3 repeticiones con verificación semántica previa, métricas, figuras y tabla de
+recomendaciones en [EXPERIMENTOS_TEXTO.md](../docs/EXPERIMENTOS_TEXTO.md);
+evidencia, regresión y límites en [BLOQUE_6_7.md](BLOQUE_6_7.md). Las Partes
+4 y 5 del enunciado quedan fuera de este plan.
+
 Actualización del 3 de noviembre de 2026: los bloques **4B y 5** cuentan con
 integración SQL nativa, preparación/publicación offline, API e interfaz, y
 aceptación con servidor y navegador reales. Evidencia, regresión y límites en
@@ -345,8 +352,8 @@ PASS del corpus habilita su adopción y los experimentos finales.
 | 4A. Política persistente de escritura — COMPLETADA 2026-10-28 | Sello y compatibilidad v1/v2; publicación offline y guards en almacenamiento/mantenimiento previos a undo | 96 pruebas focalizadas: archivos anteriores mutables, rechazo sin captura/restauración, rollback de otras tablas, reapertura aislada y exclusión durante publicación; evidencia y límites en BLOQUE_4A.md |
 | 4B. Integración textual — IMPLEMENTADA Y VERIFICADA 2026-11-03 | Owner `api.database.Database`, publicación/registro textual, parser/binder, operador nativo y EXPLAIN; depende de 4A | Ambos SQL literales del PDF, motor autónomo, reapertura, sellado y lectores; evidencia en BLOQUE_4B_5.md |
 | 5. API y demo — IMPLEMENTADA Y VERIFICADA 2026-11-03 | Preparación, arranque --text y paneles existentes con SPIMI | Navegador y servidor reales: score/modelo/plan visibles, índice/scan y reinicio conservan resultados; evidencia en BLOQUE_4B_5.md |
-| 6. Comparación | Con fase 1B en PASS y motor integrado, preparar PostgreSQL, comprobar semántica, ejecutar la matriz y generar figuras | Resultados de tres métodos, tres tamaños y tres longitudes; métricas completas |
-| 7. Cierre | Documentación, demo y regresión | Lista final aprobada con evidencia, sin resultados inventados ni pendientes ocultos |
+| 6. Comparación — COMPLETADA 2026-11-04 | Con fase 1B en PASS y motor integrado, preparar PostgreSQL, comprobar semántica, ejecutar la matriz y generar figuras | 810 tiempos, lexemas y coincidencias idénticos en los tres tamaños, P@10/R@10, memoria, disco y cuatro figuras; evidencia en BLOQUE_6_7.md |
+| 7. Cierre — COMPLETADA 2026-11-04 | Documentación, demo y regresión | Lista final de §9 con evidencia; regresión completa en BLOQUE_6_7.md |
 
 No ampliar el alcance durante estas fases. Si aparece un impedimento técnico, elegir la solución más pequeña que preserve el requisito: por ejemplo, seleccionar documentos cortos válidos antes que rediseñar el almacenamiento general.
 
@@ -391,13 +398,13 @@ Checklist de cierre:
 - [x] Rechazo de escrituras selladas anterior a captura undo, sin restaurarlas ni reconstruir índices; rollback de otras tablas preservado.
 - [x] Lecturas concurrentes por offset verificadas sobre el mismo lector y mediante dos sesiones, sin interferencia de cursores ni cierre de handles prestados.
 - [x] LIMIT respeta todos los órdenes admitidos; heap de mayores scores solo en score DESC/id ASC (núcleo y aceptación SQL nativa verificados).
-- [ ] Puerta de viabilidad del corpus en PASS, con evidencia medida; MS MARCO no se da por aceptado de antemano.
-- [ ] Corpus de 1 000, 10 000 y 100 000 documentos reales, con consultas de 1, 3 y 5+ palabras.
-- [ ] Comparación con PostgreSQL GIN + ranking nativo, con semántica y fronteras temporales explícitas.
-- [ ] Construcción, consulta, Precision@10, Recall@10, memoria y disco reportados.
-- [ ] Datos crudos, configuración, gráficas y tabla de recomendaciones conservados.
-- [ ] README, explicación de algoritmos, instrucciones reproducibles e informe incremental actualizados.
-- [ ] Demo preparada para incorporarse al video general de 5–10 minutos exigido por el proyecto.
+- [x] Puerta de viabilidad del corpus en PASS, con evidencia medida; MS MARCO no se da por aceptado de antemano (bloque 1B; regenerado el 2026-11-04 con los 13 artefactos idénticos).
+- [x] Corpus de 1 000, 10 000 y 100 000 documentos reales, con consultas de 1, 3 y 5+ palabras.
+- [x] Comparación con PostgreSQL GIN + ranking nativo, con semántica y fronteras temporales explícitas (EXPERIMENTOS_TEXTO.md).
+- [x] Construcción, consulta, Precision@10, Recall@10, memoria y disco reportados.
+- [x] Datos crudos, configuración, gráficas y tabla de recomendaciones conservados (`benchmarks/results/text/2026-11-04`, `docs/figuras/text`).
+- [x] README, explicación de algoritmos, instrucciones reproducibles e informe incremental actualizados (BLOQUE_6_7.md enumera los documentos).
+- [x] Demo preparada para incorporarse al video general de 5–10 minutos exigido por el proyecto (guion en BLOQUE_6_7.md; la grabación del video es tarea del equipo).
 - [x] Regresión de las funcionalidades existentes: 3 547 pruebas backend aprobadas y 43 frontend; evidencia de 4B/5 en BLOQUE_4B_5.md.
 
 No se considera terminada la Parte 3 solamente porque devuelve resultados: también deben completarse la comparación experimental y sus evidencias.

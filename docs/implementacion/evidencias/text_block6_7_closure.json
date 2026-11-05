@@ -1,0 +1,137 @@
+{
+ "format_version": 1,
+ "scope": "Part 3 Blocks 6 (comparison) and 7 (closure)",
+ "status": "CLOSED",
+ "recorded_utc": "2026-11-05T00:29:19.423028+00:00",
+ "measured_base_commit": "83d73db261296ba67a48c50dccb998b4795b52ed",
+ "measured_uncommitted_sources": [
+  "M benchmarks/postgres_client.py",
+  "?? benchmarks/text/experiment.py",
+  "?? benchmarks/text/fts.py",
+  "?? benchmarks/text/metrics.py",
+  "?? benchmarks/text/results.py"
+ ],
+ "measured_source_sha256": {
+  "api/database.py": "af87f097d6b0597cae680f13d236726d7bbe20d892e8efd619b4ffb15c215ea1",
+  "benchmarks/postgres_client.py": "c5455e6b7b3cf3638c2f01579b057aaf2e21fbed13cb02d20ebdddb4319f74fc",
+  "benchmarks/text/__init__.py": "7fd30e51654a3da05fa87e5eb88e18cd8d19ded9791e69b5a02066135808b9d7",
+  "benchmarks/text/acceptance.py": "30b2817784b1a767002c1c9093d4b72faa3eece0de2d1c35e7e1bca07587da05",
+  "benchmarks/text/corpus.py": "bbc1ee15f13e44a15718cbcf73925ce10f12d38a63eb504813cd281b6dbd3a0d",
+  "benchmarks/text/esci.py": "fc64bb9a197f904f086a4f31962f938ccc9a7287b16bab4f89fc6d51ec4e404e",
+  "benchmarks/text/experiment.py": "70da41b37d5555d40bf04af0e597c92b4bd5e31a47a55778c0c766f8de2829f8",
+  "benchmarks/text/fts.py": "d1950793ea3d20e9297f8c6ae2111c180f282d5849599bb7d8f0aa2acd0e5f3a",
+  "benchmarks/text/metrics.py": "48c4e7f721d650a829e6f2781f95b8a20c839bc41da45d88d3a002ea94a0ec7c",
+  "benchmarks/text/results.py": "d378d3bac8e26c7331daa37374ac2d93abd85f2c8f96c7512c312f19c0672ca1",
+  "benchmarks/text/sources.py": "250b46d4483e3f6638d0c9458db800a63aacaf8a42bac78fb5d2ddcc88b83431",
+  "engine/query/text_binding.py": "0b9ec06644dd19ea75e693f55feef78baf0e22f5f520b6d3097e3a51d9b15e39",
+  "engine/text/__init__.py": "3adead217ae9bf4b4680109ddfc25715df47eaca8bef54c3c7c3e8a2b995be99",
+  "engine/text/format.py": "332377bf08ff2feb4ff5de549a3dbc9ab56ffe89e91a59019af94dd254605500",
+  "engine/text/index.py": "eaa4ea27ab6afe3bf832887304f6b33214220dde1c6435e1ac4c0e7e154fa402",
+  "engine/text/operators.py": "a44d7d9ff967981631b333a936e2daf892a42684bb75777a429f40de33bd5ba9",
+  "engine/text/ranking.py": "d13e1b1cdfa9d4877c9b86b276a9b37e6d2ea0d7d83162bc60364e97108db61b",
+  "engine/text/registry.py": "b244c4b4f9fe519c856ffb77851bb04135054a1907b5c8b956815a9658ac6524",
+  "engine/text/sealing.py": "132d34ad98e3ab56333a7cfdcf0cad46df62793a5291714443e6f38b9ae59822",
+  "engine/text/spimi.py": "9c5cf8084d03d5ec8d374a6c2214a674d09101a9233b9cb52949da2a93e3ecd9",
+  "engine/text/tokenizer.py": "5b9fb655e694bd722b091127d1adc24ddcc584dc5bfb2f242825ddd484baff1f"
+ },
+ "runtime": {
+  "python": "3.12.3",
+  "unicode": "15.0.0",
+  "platform": "Linux WSL2 x86-64",
+  "cpu": "AMD Ryzen 7 250 w/ Radeon 780M Graphics",
+  "cpu_count": 8,
+  "memory_total": "8132220 kB",
+  "postgres": "PostgreSQL 17.11 (Debian 17.11-1.pgdg13+2)",
+  "postgres_image": "postgres@sha256:e42539a54ee3e82e21f19d7eded61b579869585f86b90b5e851ff0d3dd8b4001"
+ },
+ "corpus": {
+  "regenerated_from_official_sources": true,
+  "frozen_artifacts_identical": 13,
+  "frozen_artifacts_total": 13,
+  "seed": 20261024,
+  "reference": "docs/implementacion/evidencias/text_1b_closure"
+ },
+ "matrix": {
+  "sizes": [
+   1000,
+   10000,
+   100000
+  ],
+  "methods": [
+   "tfidf",
+   "bm25",
+   "postgres"
+  ],
+  "queries": 30,
+  "repetitions": 3,
+  "warmup_passes": 1,
+  "timed_executions": 810
+ },
+ "semantic_gates": {
+  "lexemes_equal": [
+   true,
+   true,
+   true
+  ],
+  "match_sets_equal": "30/30 per size",
+  "index_equals_scan": "60/60 per size (TF-IDF and BM25)",
+  "postgres_parser_difference": "'simple' parser drops characters such as U+00BD that str.isalnum() keeps (5 of 1,000 documents); resolved by loading engine tokens as tsvector input"
+ },
+ "validation": {
+  "focused": {
+   "passed": 42,
+   "command": "python -m pytest -q -W error -p no:cacheprovider tests/benchmarks"
+  },
+  "full_regression_py312": {
+   "passed": 3561,
+   "failed": 0,
+   "elapsed_seconds": 85.66,
+   "warnings_as_errors": true,
+   "command": "python -m pytest -q -n 4 -W error -p no:cacheprovider --basetemp tmp/part03_b6_7_regression_20261104"
+  },
+  "full_regression_py311": {
+   "passed": 3561,
+   "failed": 0,
+   "elapsed_seconds": 100.31,
+   "warnings_as_errors": true,
+   "command": "python -m pytest -q -n 4 -W error -p no:cacheprovider --basetemp tmp/part03_b6_7_regression_py311"
+  },
+  "frontend": {
+   "tests_passed": 43,
+   "typecheck": "PASS",
+   "build": "PASS"
+  },
+  "browser_acceptance": "not rerun in blocks 6/7; frontend unchanged since block 5 (docs/evidence/text_browser.json)"
+ },
+ "results_sha256": {
+  "benchmarks/results/text/2026-11-04/build_engine_1000.json": "18750899d72c1991b03639f723993a9d1b69af17c596724aedb31f5a6379e253",
+  "benchmarks/results/text/2026-11-04/build_engine_10000.json": "e6ad5d4207a90bf6650ff6cd6a14bebe8f60f6f5514c11b3eb4046971010c23e",
+  "benchmarks/results/text/2026-11-04/build_engine_100000.json": "28c48633c3a8cec2c1562c69bbc3b3406534ab6d796370101d11962fa6664bf7",
+  "benchmarks/results/text/2026-11-04/build_postgres_1000.json": "16d790b72aa74c3adccff7f37178bce2728ad28a96528f8e06dc70aadfec62c7",
+  "benchmarks/results/text/2026-11-04/build_postgres_10000.json": "6816f4358e152f3aba122fbf059e701b7384bef2888ef4e10d0b7a88a3d49e42",
+  "benchmarks/results/text/2026-11-04/build_postgres_100000.json": "0528cf1a4f13b1bdcc6d76e4c08a857fb1e2e8546f0a462cda1160c4493a182d",
+  "benchmarks/results/text/2026-11-04/environment.json": "5621f95f7b88c827b81ccd99b4e3d1234402480c3733ee87de112e7b857f64ce",
+  "benchmarks/results/text/2026-11-04/plans_1000.json": "610006351f224bf113fe6bf1b8522c59c621b4a69a55f24efb4c319252a32752",
+  "benchmarks/results/text/2026-11-04/plans_10000.json": "eb34f14e68ae1f7d0f1fbd50d2f120dba6b87e4c3da7d3d5c3acd771a654b8e8",
+  "benchmarks/results/text/2026-11-04/plans_100000.json": "5a897706c51596aa71eaa24309935361577d538007e90154a67e69dfb509bdf5",
+  "benchmarks/results/text/2026-11-04/queries_1000.jsonl": "49d9930d2e26e103db099c3d2757d0176dbb9f749acde14952676e11e30f04eb",
+  "benchmarks/results/text/2026-11-04/queries_10000.jsonl": "fa6a2b41b858e2f4740be30f2b908ddf8cfe6ecf8594042fe1ac0352ad50886a",
+  "benchmarks/results/text/2026-11-04/queries_100000.jsonl": "5f495765743fb61feac0c93ee20c191133cc0719bb236f7dcafdbd188adc1089",
+  "benchmarks/results/text/2026-11-04/query_resources_1000.json": "c0b1b41115e0aeb5a4c27cef3c5b8aa8c8cf8a82485a4c4dc76417acfb63da98",
+  "benchmarks/results/text/2026-11-04/query_resources_10000.json": "37e3560f78a0f2c430a6d4e86e1ed1542c15e0907e7f7caa0dafcadb06752b52",
+  "benchmarks/results/text/2026-11-04/query_resources_100000.json": "32dc4e267a6a761aeb747a656dfc39020abd5a5c936b065b2f62817964db9dc6",
+  "benchmarks/results/text/2026-11-04/semantics_1000.json": "1f5bf272af7e04fb2874df2e0a1990453660c24f5be4cdefa32bc9817fb7ee4d",
+  "benchmarks/results/text/2026-11-04/semantics_10000.json": "4efa3b4194a4ce3a58c4c273abc5cedc91144b145d2785a5da806579a4d8d8af",
+  "benchmarks/results/text/2026-11-04/semantics_100000.json": "82bc3aee7423b91dab3e1e4f0b63790a6c31413a6a4f1a8fcff77f1ff4521899"
+ },
+ "figures_sha256": {
+  "docs/figuras/text/construccion.png": "e0fdffb9482a2959f5be7db498833e400812eff858e939d39a96f45bd24ef4d3",
+  "docs/figuras/text/construccion_y_recursos.csv": "10194e26c7c5a002baee7ea0790b9ce0697eeb90c6c61b02f907c85e6f4ef892",
+  "docs/figuras/text/consultas.png": "71fcb6e66e329ff127ee62b45240f2b3221674ae75a6e8ecfb0b25a1285fdaa5",
+  "docs/figuras/text/recursos.png": "54067dfdf7012a07a620d3b993025eb549a0c2917e7186212dcd0e8159f769d6",
+  "docs/figuras/text/relevancia.csv": "9338b25ef733880c2fc013298a97f349a4613a6b955de4d620e295633d1848d8",
+  "docs/figuras/text/relevancia.png": "f69fc5d58c1d8efc9267bfcfc1ad3a72d1daf4508b138a216ba09829be4c72fc",
+  "docs/figuras/text/resumen.json": "9aded38a4ea9f29cd3e77909229bec90f27327e2bfb0eb96dba5a71d05cf6551",
+  "docs/figuras/text/tiempos_consulta.csv": "e3f891d35fb306090b2b7cad248ee6b27b12545d173c6fb1ab723c6157f1fe67"
+ }
+}

@@ -1,6 +1,15 @@
 # AGENTS.md
 
-## Current authorization — 2026-11-03
+## Current authorization — 2026-11-04
+
+The user explicitly requested Part 3 phases 6 (PostgreSQL comparison) and 7
+(closure). Both are implemented and verified: evidence, regression and the
+video demo script are in `PART_03/BLOQUE_6_7.md`, results in
+`docs/EXPERIMENTOS_TEXTO.md`. Part 3 is complete. Academic Parts 4 and 5
+remain unimplemented and need a new authorization. Reproduce text
+experiments with CPython 3.12 (frozen tokenizer signature: Unicode 15.0.0).
+
+## Previous authorization — 2026-11-03
 
 The user explicitly requested implementation and verification of Part 3
 Blocks 4B and 5 following the audit. Their native SQL, owner publication,
