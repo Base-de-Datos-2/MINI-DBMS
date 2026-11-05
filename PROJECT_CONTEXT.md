@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.15** — preserves formal closures and records
-> Part 3 Block 4A persistent sealing and rejection before undo.
+> Context version: **4.16** — records the Part 3 experimental comparison
+> and closure (Blocks 6–7), after Blocks 4B/5 integrated SQL, API and UI.
 
 ## Project identity
 
@@ -13,11 +13,12 @@ The project consists of building a small multimodal database-management system p
 
 The current implementation focus is:
 
-> **Part 3 Block 4A closed**, following explicit authorization on 2026-10-28.
-> Persistent sealing, rejection before undo and offline publication are
-> verified by 96 focused strict tests. Blocks 1A/1B/2/3 remain closed and the
-> real corpus gate remains PASS. Text registry, owner/SQL/API/UI integration
-> remain pending. See `PART_03/BLOQUE_4A.md` for evidence and regression limits.
+> **Part 3 complete (Blocks 1A–7)**, following the explicit request of
+> 2026-11-04 for phases 6 and 7. Blocks 4B/5 integrated native textual SQL,
+> the owner registry, API and UI (`PART_03/BLOQUE_4B_5.md`); Blocks 6/7 add
+> the PostgreSQL comparison, documentation and a 3,561-test regression
+> (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). Parts 4 and 5
+> remain unimplemented. Block 4A sealing details are kept below.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -90,10 +91,30 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorizes Part 3 Block 4A after the closed Blocks 1A/1B/2/3.
-It is implemented and verified; 4B owner/SQL integration and
-subsequent phases/Parts 4–5 remain pending. Corpus acceptance is PASS.
+The latest request (2026-11-04) authorized Part 3 phases 6 and 7; they are
+implemented and verified, completing Part 3. Parts 4–5 remain pending.
 Earlier scope statements below do not override this authorization.
+
+### Part 3 experimental comparison (Blocks 6–7)
+
+- The comparator is `benchmarks/text/` and stays outside `engine/`; PostgreSQL
+  never answers MINI-DBMS queries. Timed engine queries use the native
+  `SqlEngine` path; PostgreSQL timings are psql client round trips, with
+  server time stored separately.
+- PostgreSQL's `simple` parser does not reproduce the engine tokenizer (it
+  drops characters such as `½` that `str.isalnum()` keeps). The comparator
+  therefore loads engine tokens as `tsvector` input (`'term':positions`) and
+  queries an OR `tsquery` of quoted lexemes bound as a typed parameter.
+  Lexeme/frequency and match-set equality are verified before any timing.
+- The frozen tokenizer signature requires Unicode 15.0.0: the corpus and the
+  experiment are reproduced with CPython 3.12. CPython 3.11 regenerates
+  identical documents/qrels but different signature metadata.
+- Access paths are not forced: PostgreSQL plans are recorded as chosen
+  (sequential scans appear at 1,000 documents). Memory is per process and
+  scope: VmHWM is reset before SPIMI and before the timed workload, and the
+  timed PostgreSQL workload uses a fresh session.
+- Results live in `benchmarks/results/text/<run>`; `benchmarks.text.results`
+  regenerates tables/figures and refuses incomplete or semantically failed runs.
 
 ### Part 3 persistent write policy (Block 4A)
 
