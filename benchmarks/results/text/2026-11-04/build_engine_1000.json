@@ -1,0 +1,62 @@
+{
+  "collection_directory": "text_b085851479f6482e9b5aad36f4b3370a",
+  "construction_includes": "SPIMI: Heap scan, tokenization, blocks, k-way merge, postings, lexicon, statistics, TF-IDF norms, ID/RID map and full index/storage validation (shared by TF-IDF and BM25)",
+  "construction_seconds": 0.26730164399850764,
+  "disk": {
+    "heap_bytes": 135188,
+    "index_components_bytes": {
+      "documents.jsonl": 169742,
+      "lexicon.jsonl": 380650,
+      "manifest.json": 1210,
+      "postings.bin": 264780
+    },
+    "index_total_bytes": 816382,
+    "registry_bytes": 225,
+    "spimi_temporary_peak_bytes": 356276
+  },
+  "elapsed_seconds": {
+    "create_reopen_and_final_validation": 0.10287074600273627,
+    "load_base_heap": 0.2521117369997228,
+    "prepare_text_total": 0.7558073639993381,
+    "publish_registry": 0.0022383559989975765,
+    "seal": 0.13128488099937385,
+    "spimi_build": 0.26730164399850764,
+    "spimi_scan_tokenize_accumulate_and_validate": 0.19263895900076022,
+    "spimi_stages": {
+      "write_blocks": 0.010448260998600745,
+      "write_postings_lexicon_statistics_norms": 0.06421442399914667
+    }
+  },
+  "memory": {
+    "process_lifetime_peak_bytes": 32022528,
+    "rss_after_spimi_bytes": 31039488,
+    "rss_before_spimi_bytes": 28139520,
+    "rss_peak_during_spimi_bytes": 31039488,
+    "scope": "isolated Python worker; VmHWM reset immediately before SPIMI"
+  },
+  "method": "engine_spimi",
+  "size": 1000,
+  "spimi_report": {
+    "document_count": 1000,
+    "generation": "3a06e838937145f7a0d24a5eb9d28739",
+    "initial_blocks": 1,
+    "io_buffer_bytes": 4096,
+    "memory_budget_bytes": 8388608,
+    "merge_fan_in": 16,
+    "merge_passes": 0,
+    "merge_workspace_estimated_bytes": 29116,
+    "metadata_estimated_bytes": 474936,
+    "metadata_sort_workspace_bytes": 16064,
+    "peak_block_estimated_bytes": 5307339,
+    "peak_document_estimated_bytes": 6027,
+    "peak_open_runs": 1,
+    "posting_count": 16548,
+    "vocabulary_size": 5113
+  },
+  "statistics": {
+    "N": 1000,
+    "avgdl": 17.972,
+    "total_tokens": 17972,
+    "vocabulary_size": 5113
+  }
+}

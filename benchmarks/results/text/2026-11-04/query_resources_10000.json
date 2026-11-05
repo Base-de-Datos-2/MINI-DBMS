@@ -1,0 +1,17 @@
+{
+  "engine_open_seconds": 0.1957156459993712,
+  "postgres_backend": {
+    "peak_bytes": 28807168,
+    "rss_start_bytes": 20545536,
+    "scope": "backend of the fresh timed-query session only (excludes psql client, Docker, other server processes and the verification session)",
+    "verification_session_peak_bytes": 32505856
+  },
+  "python_worker": {
+    "peak_bytes": 43307008,
+    "rss_after_open_bytes": 37650432,
+    "rss_before_timing_bytes": 43307008,
+    "rss_start_bytes": 28983296,
+    "scope": "isolated Python query worker: owner, open readers, harness and result rows; VmHWM reset after semantic verification, so the peak covers warm-up plus timed queries only"
+  },
+  "size": 10000
+}

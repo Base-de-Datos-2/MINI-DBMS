@@ -1,0 +1,453 @@
+{
+  "all_index_equals_scan": true,
+  "all_match_sets_equal": true,
+  "lexemes": {
+    "engine_tokenizer": [
+      100000,
+      "473ef81cf84c80547a359154a8a495f2"
+    ],
+    "equal": true,
+    "postgres": {
+      "count": 100000,
+      "md5": "473ef81cf84c80547a359154a8a495f2"
+    }
+  },
+  "queries": [
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 15,
+      "match_sets_equal": true,
+      "postgres_matches": 15,
+      "query_id": 2144,
+      "terms": [
+        "14x24x1"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'14x24x1'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 13,
+      "match_sets_equal": true,
+      "postgres_matches": 13,
+      "query_id": 2838,
+      "terms": [
+        "200k"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'200k'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 3,
+      "match_sets_equal": true,
+      "postgres_matches": 3,
+      "query_id": 2966,
+      "terms": [
+        "23andme"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'23andme'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 15,
+      "match_sets_equal": true,
+      "postgres_matches": 15,
+      "query_id": 3207,
+      "terms": [
+        "2k20"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'2k20'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 9853,
+      "match_sets_equal": true,
+      "postgres_matches": 9853,
+      "query_id": 3299,
+      "terms": [
+        "3"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'3'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 1,
+      "match_sets_equal": true,
+      "postgres_matches": 1,
+      "query_id": 4295,
+      "terms": [
+        "499p9h"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'499p9h'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 0,
+      "match_sets_equal": true,
+      "postgres_matches": 0,
+      "query_id": 4321,
+      "terms": [
+        "4exls"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'4exls'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 0,
+      "match_sets_equal": true,
+      "postgres_matches": 0,
+      "query_id": 4398,
+      "terms": [
+        "4khdmi"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'4khdmi'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 42,
+      "match_sets_equal": true,
+      "postgres_matches": 42,
+      "query_id": 4420,
+      "terms": [
+        "4runner"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'4runner'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 1,
+      "match_sets_equal": true,
+      "postgres_matches": 1,
+      "query_id": 5574,
+      "terms": [
+        "990k"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'990k'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 10060,
+      "match_sets_equal": true,
+      "postgres_matches": 10060,
+      "query_id": 36,
+      "terms": [
+        "5",
+        "machine",
+        "screws"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'5' | 'machine' | 'screws'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 1715,
+      "match_sets_equal": true,
+      "postgres_matches": 1715,
+      "query_id": 52,
+      "terms": [
+        "metoo",
+        "not",
+        "you"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'metoo' | 'not' | 'you'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 2172,
+      "match_sets_equal": true,
+      "postgres_matches": 2172,
+      "query_id": 109,
+      "terms": [
+        "not",
+        "without",
+        "hoodie"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'not' | 'without' | 'hoodie'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 1832,
+      "match_sets_equal": true,
+      "postgres_matches": 1832,
+      "query_id": 194,
+      "terms": [
+        "batteries",
+        "not",
+        "included"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'batteries' | 'not' | 'included'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 594,
+      "match_sets_equal": true,
+      "postgres_matches": 594,
+      "query_id": 247,
+      "terms": [
+        "pharmaton",
+        "without",
+        "yinseng"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'pharmaton' | 'without' | 'yinseng'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 9913,
+      "match_sets_equal": true,
+      "postgres_matches": 9913,
+      "query_id": 353,
+      "terms": [
+        "5",
+        "mm",
+        "pen"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'5' | 'mm' | 'pen'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 6256,
+      "match_sets_equal": true,
+      "postgres_matches": 6256,
+      "query_id": 457,
+      "terms": [
+        "0",
+        "7",
+        "pens"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'0' | '7' | 'pens'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 882,
+      "match_sets_equal": true,
+      "postgres_matches": 882,
+      "query_id": 539,
+      "terms": [
+        "06",
+        "expedition",
+        "cup"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'06' | 'expedition' | 'cup'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 1390,
+      "match_sets_equal": true,
+      "postgres_matches": 1390,
+      "query_id": 605,
+      "terms": [
+        "0w20",
+        "synthetic",
+        "oil"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'0w20' | 'synthetic' | 'oil'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 1243,
+      "match_sets_equal": true,
+      "postgres_matches": 1243,
+      "query_id": 606,
+      "terms": [
+        "0zo",
+        "not",
+        "bit"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'0zo' | 'not' | 'bit'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 28807,
+      "match_sets_equal": true,
+      "postgres_matches": 28807,
+      "query_id": 12,
+      "terms": [
+        "1",
+        "black",
+        "natural",
+        "hair",
+        "dye",
+        "without",
+        "ammonia",
+        "or",
+        "peroxide"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'1' | 'black' | 'natural' | 'hair' | 'dye' | 'without' | 'ammonia' | 'or' | 'peroxide'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 11641,
+      "match_sets_equal": true,
+      "postgres_matches": 11641,
+      "query_id": 13,
+      "terms": [
+        "1",
+        "rated",
+        "resveratrol",
+        "supplement",
+        "without",
+        "tea",
+        "leaves"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'1' | 'rated' | 'resveratrol' | 'supplement' | 'without' | 'tea' | 'leaves'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 5800,
+      "match_sets_equal": true,
+      "postgres_matches": 5800,
+      "query_id": 18,
+      "terms": [
+        "10",
+        "envelopes",
+        "without",
+        "security",
+        "tint"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'10' | 'envelopes' | 'without' | 'security' | 'tint'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 9088,
+      "match_sets_equal": true,
+      "postgres_matches": 9088,
+      "query_id": 19,
+      "terms": [
+        "10",
+        "standard",
+        "no",
+        "tint",
+        "window",
+        "not",
+        "self",
+        "seal"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'10' | 'standard' | 'no' | 'tint' | 'window' | 'not' | 'self' | 'seal'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 14746,
+      "match_sets_equal": true,
+      "postgres_matches": 14746,
+      "query_id": 37,
+      "terms": [
+        "5",
+        "orb",
+        "to",
+        "not",
+        "fitting"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'5' | 'orb' | 'to' | 'not' | 'fitting'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 7478,
+      "match_sets_equal": true,
+      "postgres_matches": 7478,
+      "query_id": 42,
+      "terms": [
+        "8",
+        "merchandising",
+        "tags",
+        "without",
+        "string"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'8' | 'merchandising' | 'tags' | 'without' | 'string'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 11936,
+      "match_sets_equal": true,
+      "postgres_matches": 11936,
+      "query_id": 60,
+      "terms": [
+        "1",
+        "first",
+        "addition",
+        "charizard",
+        "not",
+        "fake"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'1' | 'first' | 'addition' | 'charizard' | 'not' | 'fake'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 8506,
+      "match_sets_equal": true,
+      "postgres_matches": 8506,
+      "query_id": 67,
+      "terms": [
+        "10",
+        "credit",
+        "not",
+        "given",
+        "on",
+        "purchase",
+        "prime",
+        "day"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'10' | 'credit' | 'not' | 'given' | 'on' | 'purchase' | 'prime' | 'day'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 4015,
+      "match_sets_equal": true,
+      "postgres_matches": 4015,
+      "query_id": 72,
+      "terms": [
+        "100",
+        "things",
+        "that",
+        "are",
+        "not",
+        "electronics"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'100' | 'things' | 'that' | 'are' | 'not' | 'electronics'"
+    },
+    {
+      "bm25_index_equals_scan": true,
+      "engine_matches": 5962,
+      "match_sets_equal": true,
+      "postgres_matches": 5962,
+      "query_id": 99,
+      "terms": [
+        "44red",
+        "phone",
+        "without",
+        "having",
+        "to",
+        "pay",
+        "production"
+      ],
+      "tfidf_index_equals_scan": true,
+      "tsquery": "'44red' | 'phone' | 'without' | 'having' | 'to' | 'pay' | 'production'"
+    }
+  ]
+}
