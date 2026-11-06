@@ -282,8 +282,8 @@ Produce timing-versus-N charts for construction and queries, plus Recall@10 and 
 | 4. HNSW — COMPLETED 2026-11-06 | Real hierarchy, graph construction/search and serialization | Structural invariants, reproducible reopening and measured recall; no disguised scan; evidence in [BLOQUE_4.md](BLOQUE_4.md) |
 | 5. Integration — COMPLETED 2026-11-06 | Single owner, guards, SQL, operator, API and simple results view | Both PDF examples work through UI; all mutation routes tested; existing behavior preserved; evidence in [BLOQUE_5.md](BLOQUE_5.md) |
 | 6. Data and scale gate — COMPLETED 2026-11-06 | Finish candidate validation, 10,000-object pilot and resource assessment | Feasibility PASS, frozen 100,000 valid objects and query manifests before final benchmark; evidence in [BLOQUE_6.md](BLOQUE_6.md) |
-| 7. Measurements | Run required matrix, independent reference, memory and gallery | Complete raw results at all three sizes, honest failures and reproducible figures |
-| 8. Delivery | README, incremental report, demo and regression | Final checklist complete with evidence links |
+| 7. Measurements — COMPLETED 2026-11-06 | Run required matrix, independent reference, memory and gallery | Complete raw results at all three sizes, honest failures and reproducible figures; evidence in [BLOQUE_7.md](BLOQUE_7.md) and [EXPERIMENTOS_MULTIMEDIA.md](../docs/EXPERIMENTOS_MULTIMEDIA.md) |
+| 8. Delivery — COMPLETED 2026-11-06 | README, incremental report, demo and regression | Final checklist complete with evidence links; [BLOQUE_8.md](BLOQUE_8.md) |
 
 Begin data feasibility early while developing on fixtures; do not wait until the UI is finished to discover that the corpus or own HNSW cannot meet the scale. No time estimates are asserted before the pilot.
 
@@ -301,20 +301,25 @@ Begin data feasibility early while developing on fixtures; do not wait until the
 
 ## 12. Definition of done
 
-- [ ] Required scope is images **and audio**; video is not presented as implemented.
-- [ ] ExtractFeatures produces persisted K-dimensional TF-IDF histograms using SIFT/MFCC and fitted K-Means vocabularies.
-- [ ] Own IVF and genuine multilayer HNSW build, reopen and search correctly.
-- [ ] Both indexes support Euclidean, dot and cosine with explicit score semantics.
-- [ ] Exact scan supplies an independent neighbor reference and the no-index UI path.
-- [ ] Both assignment SQL examples work through the existing owner, API and interface.
-- [ ] Published collection policy is enforced by the engine on every supported mutation path, including after reopen.
-- [ ] Feasibility gate passed on actual media; 1,000/10,000/100,000 counts refer to objects, not descriptors or duplicated padding.
-- [ ] IVF/HNSW × Euclidean/cosine at k=10 measured at all three sizes; audio functional coverage and the chosen experimental modality are explicit.
-- [ ] Construction/query timing, Recall@10 and memory are reported with raw data and boundaries.
-- [ ] Figures, success/error gallery, recommendation table and limitations are included in the incremental report.
-- [ ] README explains architecture, dependencies, preparation, opening and query commands; all command examples have been run before delivery.
-- [ ] Demonstration prepared for the project's combined 5–10-minute video and final presentation, without inventing an extra Part 4-only duration requirement.
-- [ ] Existing functionality passes regression checks.
+Checked 2026-11-06 with the evidence in [BLOQUE_8.md](BLOQUE_8.md). Two plan
+items are knowingly not covered: Windows-specific playback and memory-map
+release were not tested (the work ran on Linux/WSL2), and no query-upload
+action exists (queries are registered files, which the plan allows).
+
+- [x] Required scope is images **and audio**; video is not presented as implemented.
+- [x] ExtractFeatures produces persisted K-dimensional TF-IDF histograms using SIFT/MFCC and fitted K-Means vocabularies.
+- [x] Own IVF and genuine multilayer HNSW build, reopen and search correctly.
+- [x] Both indexes support Euclidean, dot and cosine with explicit score semantics.
+- [x] Exact scan supplies an independent neighbor reference and the no-index UI path.
+- [x] Both assignment SQL examples work through the existing owner, API and interface.
+- [x] Published collection policy is enforced by the engine on every supported mutation path, including after reopen.
+- [x] Feasibility gate passed on actual media; 1,000/10,000/100,000 counts refer to objects, not descriptors or duplicated padding.
+- [x] IVF/HNSW × Euclidean/cosine at k=10 measured at all three sizes; audio functional coverage and the chosen experimental modality are explicit.
+- [x] Construction/query timing, Recall@10 and memory are reported with raw data and boundaries.
+- [x] Figures, success/error gallery, recommendation table and limitations are included in the incremental report.
+- [x] README explains architecture, dependencies, preparation, opening and query commands; all command examples have been run before delivery.
+- [x] Demonstration prepared for the project's combined 5–10-minute video and final presentation, without inventing an extra Part 4-only duration requirement.
+- [x] Existing functionality passes regression checks.
 
 Returning a few similar images is not sufficient: the persistent engine path, audio requirement and full experimental evidence are part of completion.
 

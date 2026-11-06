@@ -15,10 +15,19 @@ COPY pyproject.toml README.md ./
 COPY engine/ engine/
 COPY api/ api/
 COPY scripts/ scripts/
-RUN pip install --no-cache-dir -e ".[api]"
+COPY benchmarks/__init__.py benchmarks/
+COPY benchmarks/spatial/__init__.py benchmarks/spatial/datasets.py benchmarks/spatial/
+COPY data/lima/ data/lima/
+COPY data/multimedia_demo/ data/multimedia_demo/
+# Part 4 needs numpy, OpenCV (SIFT), soundfile and librosa (MFCC).
+RUN pip install --no-cache-dir -e ".[api,multimedia]"
 COPY --from=frontend /app/frontend/dist frontend/dist
-# The demo database is built into the image; every restart starts from it.
-RUN python scripts/setup_demo.py
+# The four demo databases are built into the image; a recreated container
+# starts from them again. Part 1 is the default; docker-compose.yml runs all.
+RUN python scripts/setup_demo.py \
+ && python scripts/setup_lima.py \
+ && python scripts/setup_text.py \
+ && python scripts/setup_multimedia.py --assets data/multimedia_demo
 EXPOSE 8000
 # One process owns the data directory. Render sets PORT; ALLOW_WRITES=1
 # enables INSERT/DELETE, table creation and transactions.

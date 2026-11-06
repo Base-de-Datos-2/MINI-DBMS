@@ -1,8 +1,8 @@
 {
   "date": "2026-11-06",
-  "commit": "139c41e349e4f5f5d06457bc92a66163014c66bd",
+  "commit": "26d1e2c5938458b9987d019582b236d1eee239ba",
   "dirty_measured_files": [
-    "?? benchmarks/multimedia/"
+    "?? benchmarks/multimedia/results.py"
   ],
   "measured_source_sha256": "209675e916fe1fc4753037186d5ff30e5de5d22b19dcc315273c47b93f031a80",
   "python": "3.12.3",

@@ -1,14 +1,67 @@
 {
   "status": "PASS",
   "date": "2026-11-06",
-  "collections": "synthetic fixtures (scripts/setup_multimedia.py without --assets)",
   "script": "frontend/scripts/multimedia-browser-check.mjs",
   "browser": "Chromium 156.0.8078.4 (Playwright, headless)",
-  "checks": [
-    {"query": "Imágenes similares (PDF)", "rows": 8, "thumbnails_loaded": true, "query_image_loaded": true, "plan": "VectorIndexScan · HNSW"},
-    {"query": "Canciones con reproductor", "audio_players": 5, "columns": ["nombre", "artista", "media_key", "score"], "plan": "VectorIndexScan · IVF", "score_note": "score = −distancia euclidiana"},
-    {"query": "Misma consulta con IVF, «Usar índices» off", "plan": "VectorScan"},
-    {"request": "/api/multimedia/imagenes/media/..%2Fcollection.json", "http_status": 404}
-  ],
-  "screenshots": "not included"
+  "screenshots": "not included",
+  "runs": [
+    {
+      "collections": "synthetic fixtures (scripts/setup_multimedia.py without --assets)",
+      "checks": [
+        {
+          "query": "Imágenes similares (PDF)",
+          "rows": 8,
+          "thumbnails_loaded": true,
+          "query_image_loaded": true,
+          "plan": "VectorIndexScan · HNSW"
+        },
+        {
+          "query": "Canciones con reproductor",
+          "audio_players": 5,
+          "columns": [
+            "nombre",
+            "artista",
+            "media_key",
+            "score"
+          ],
+          "plan": "VectorIndexScan · IVF",
+          "score_note": "score = −distancia euclidiana"
+        },
+        {
+          "query": "Misma consulta con IVF, «Usar índices» off",
+          "plan": "VectorScan"
+        },
+        {
+          "request": "/api/multimedia/imagenes/media/..%2Fcollection.json",
+          "http_status": 404
+        }
+      ]
+    },
+    {
+      "collections": "real demo media (data/multimedia_demo: 120 COCO images, 30 FMA clips) in the docker-compose parte4 service, port 8003",
+      "checks": [
+        {
+          "query": "Imágenes similares (PDF)",
+          "rows": 10,
+          "thumbnails_loaded": true,
+          "query_image_loaded": true,
+          "plan": "VectorIndexScan · HNSW"
+        },
+        {
+          "query": "Canciones con reproductor",
+          "audio_players": 5,
+          "plan": "VectorIndexScan · IVF",
+          "score_note": "score = −distancia euclidiana"
+        },
+        {
+          "query": "Misma consulta con IVF, «Usar índices» off",
+          "plan": "VectorScan"
+        },
+        {
+          "request": "/api/multimedia/imagenes/media/..%2Fcollection.json",
+          "http_status": 404
+        }
+      ]
+    }
+  ]
 }

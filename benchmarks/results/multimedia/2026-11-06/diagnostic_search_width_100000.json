@@ -1,0 +1,133 @@
+{
+  "note": "Post-hoc diagnostic on the final queries at N=100,000. It does not change the frozen parameters (HNSW efSearch=max(64,k), IVF nprobe=16) used in the reported matrix; it documents the speed/recall trade-off for the recommendation table.",
+  "rows": [
+    {
+      "index": "HNSW",
+      "metric": "euclidean",
+      "ef_search": 64,
+      "mean_recall": 0.6833,
+      "mean_ms": 2.164,
+      "mean_evaluated": 1606.1
+    },
+    {
+      "index": "HNSW",
+      "metric": "euclidean",
+      "ef_search": 128,
+      "mean_recall": 0.8267,
+      "mean_ms": 4.553,
+      "mean_evaluated": 2779.1
+    },
+    {
+      "index": "HNSW",
+      "metric": "euclidean",
+      "ef_search": 256,
+      "mean_recall": 0.92,
+      "mean_ms": 10.815,
+      "mean_evaluated": 4790.8
+    },
+    {
+      "index": "HNSW",
+      "metric": "euclidean",
+      "ef_search": 512,
+      "mean_recall": 0.9667,
+      "mean_ms": 16.922,
+      "mean_evaluated": 8086.9
+    },
+    {
+      "index": "IVF",
+      "metric": "euclidean",
+      "nprobe": 16,
+      "mean_recall": 0.7233,
+      "mean_ms": 8.752,
+      "mean_evaluated": 5663.3
+    },
+    {
+      "index": "IVF",
+      "metric": "euclidean",
+      "nprobe": 32,
+      "mean_recall": 0.86,
+      "mean_ms": 14.57,
+      "mean_evaluated": 10968.0
+    },
+    {
+      "index": "IVF",
+      "metric": "euclidean",
+      "nprobe": 64,
+      "mean_recall": 0.93,
+      "mean_ms": 23.239,
+      "mean_evaluated": 20952.8
+    },
+    {
+      "index": "IVF",
+      "metric": "euclidean",
+      "nprobe": 128,
+      "mean_recall": 0.9633,
+      "mean_ms": 41.061,
+      "mean_evaluated": 40436.2
+    },
+    {
+      "index": "HNSW",
+      "metric": "cosine",
+      "ef_search": 64,
+      "mean_recall": 0.6933,
+      "mean_ms": 1.696,
+      "mean_evaluated": 1637.9
+    },
+    {
+      "index": "HNSW",
+      "metric": "cosine",
+      "ef_search": 128,
+      "mean_recall": 0.8167,
+      "mean_ms": 3.012,
+      "mean_evaluated": 2771.4
+    },
+    {
+      "index": "HNSW",
+      "metric": "cosine",
+      "ef_search": 256,
+      "mean_recall": 0.9167,
+      "mean_ms": 5.469,
+      "mean_evaluated": 4761.7
+    },
+    {
+      "index": "HNSW",
+      "metric": "cosine",
+      "ef_search": 512,
+      "mean_recall": 0.9733,
+      "mean_ms": 9.708,
+      "mean_evaluated": 8059.0
+    },
+    {
+      "index": "IVF",
+      "metric": "cosine",
+      "nprobe": 16,
+      "mean_recall": 0.8,
+      "mean_ms": 3.453,
+      "mean_evaluated": 5766.3
+    },
+    {
+      "index": "IVF",
+      "metric": "cosine",
+      "nprobe": 32,
+      "mean_recall": 0.9133,
+      "mean_ms": 6.355,
+      "mean_evaluated": 11089.7
+    },
+    {
+      "index": "IVF",
+      "metric": "cosine",
+      "nprobe": 64,
+      "mean_recall": 0.9767,
+      "mean_ms": 14.022,
+      "mean_evaluated": 21674.9
+    },
+    {
+      "index": "IVF",
+      "metric": "cosine",
+      "nprobe": 128,
+      "mean_recall": 0.9967,
+      "mean_ms": 31.072,
+      "mean_evaluated": 42235.0
+    }
+  ]
+}
