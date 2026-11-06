@@ -2,8 +2,9 @@
 
 Proyecto de **Base de Datos 2, ciclo 2026-2**. Implementa un motor de base de
 datos desde sus páginas y registros hasta la ejecución de SQL y la visualización
-de sus resultados. Incluye tablas relacionales, datos espaciales y búsqueda
-textual integrada con SQL, API e interfaz.
+de sus resultados. Incluye tablas relacionales, datos espaciales, búsqueda
+textual y búsqueda multimedia (imágenes y audio) integradas con SQL, API e
+interfaz.
 
 El almacenamiento, los índices, el parser, los operadores y las transacciones
 son implementaciones propias. React y FastAPI proporcionan la interfaz y el
@@ -21,8 +22,9 @@ los experimentos.
 | Transacciones | Sesiones independientes, BEGIN TRANSACTION, END TRANSACTION, ROLLBACK, locks compartidos/exclusivos, cancelación y undo físico |
 | Datos espaciales | R-Tree propio para puntos 2D, consultas por radio, k-NN y polígonos; distancias Haversine y Euclidiana |
 | Interfaz | Tablas y esquemas, editor SQL, resultados tabulares, planes reales y exploración espacial |
-| Experimentos | Comparaciones de estructuras relacionales, de búsqueda secuencial/R-Tree/GiST y de TF-IDF/BM25 propios frente a PostgreSQL GIN, con 1 000, 10 000 y 100 000 registros o documentos |
+| Experimentos | Comparaciones de estructuras relacionales, de búsqueda secuencial/R-Tree/GiST, de TF-IDF/BM25 propios frente a PostgreSQL GIN y de IVF frente a HNSW (euclidiana y coseno), con 1 000, 10 000 y 100 000 registros, documentos o imágenes |
 | Búsqueda textual | SPIMI persistente, TF-IDF/coseno y BM25 propios; MATCH/USING/SCORE en el motor SQL nativo, Heap sellado, preparación offline, API y paneles con scores/planes reales |
+| Búsqueda multimedia | SIFT (imágenes) y MFCC (audio), vocabulario K-Means e histogramas TF-IDF; IVF y HNSW propios con métricas euclidiana, producto punto y coseno; SIMILAR_TO/SIMILARITY_SCORE en SQL, miniaturas y reproductor de audio en la interfaz |
 
 ## Demo textual — bloques 4B y 5
 
@@ -45,8 +47,37 @@ originales) está en [docs/EXPERIMENTOS_TEXTO.md](docs/EXPERIMENTOS_TEXTO.md).
 La Parte 3 está completa: corpus aceptado, SPIMI, TF-IDF/coseno, BM25,
 sellado persistente, SQL nativo, API, interfaz y comparación con PostgreSQL.
 Uso y límites en [docs/text.md](docs/text.md); cierre de las fases 6 y 7 en
-[PART_03/BLOQUE_6_7.md](PART_03/BLOQUE_6_7.md). Las Partes 4 y 5 —multimedia
-y aplicación multimodal— quedan para las siguientes entregas.
+[PART_03/BLOQUE_6_7.md](PART_03/BLOQUE_6_7.md).
+
+## Demo multimedia — Parte 4
+
+Requiere además el extra `multimedia` (numpy, OpenCV, soundfile y librosa):
+
+```bash
+python -m pip install -e ".[test,api,multimedia]"
+python scripts/setup_multimedia.py --assets data/multimedia_demo
+python -m api --multimedia
+```
+
+La demo incluye 120 fotos de COCO y 30 fragmentos de canciones de FMA con su
+atribución ([data/multimedia_demo/ATTRIBUTION.md](data/multimedia_demo/ATTRIBUTION.md)).
+En «Ejemplos SQL» están los dos ejemplos literales del enunciado:
+
+```sql
+SELECT * FROM imagenes WHERE SIMILAR_TO('foto_consulta.jpg', k=10)
+USING HNSW WITH METRIC=cosine;
+
+SELECT nombre, artista, SIMILARITY_SCORE() AS score FROM canciones
+WHERE SIMILAR_TO('audio_query.mp3', k=5) USING IVF WITH METRIC=euclidean
+ORDER BY score DESC;
+```
+
+Uso, API y reglas del SQL en [docs/multimedia.md](docs/multimedia.md);
+contrato en [docs/multimedia-contract.md](docs/multimedia-contract.md);
+experimentos con 100 000 imágenes en
+[docs/EXPERIMENTOS_MULTIMEDIA.md](docs/EXPERIMENTOS_MULTIMEDIA.md); evidencia
+por fase en `PART_04/BLOQUE_*.md`. La Parte 5 (aplicación) queda para la
+entrega final.
 
 ## Arquitectura
 
@@ -94,14 +125,16 @@ Solo se necesita Docker. Desde la raíz del repositorio:
 docker compose up --build
 ```
 
-La primera vez tarda unos minutos: compila la interfaz y prepara las tres
-bases dentro de la imagen. Luego abre:
+La primera vez tarda unos minutos: compila la interfaz y prepara las cuatro
+bases dentro de la imagen (la multimedia extrae SIFT/MFCC y construye IVF y
+HNSW). Luego abre:
 
 | Parte | Dirección | Datos |
 |---|---|---|
 | 1. Relacional | http://localhost:8000 | `students`, `courses`, `enrollments` y sus versiones `_big`; escritura habilitada |
 | 2. Espacial | http://localhost:8001 | `tiendas`, `restaurantes` y `lugares_lima` con mapa; escritura habilitada |
 | 3. Texto | http://localhost:8002 | `documentos` y `articulos`; colecciones selladas, solo lectura |
+| 4. Multimedia | http://localhost:8003 | `imagenes` (120 fotos COCO) y `canciones` (30 clips FMA); solo lectura |
 
 Cada servicio es un único proceso dueño de su directorio de datos.
 `docker compose down` descarta los cambios: el siguiente `up` empieza desde
@@ -118,7 +151,7 @@ En Windows, desde PowerShell:
 
 ```powershell
 python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[test,api,bench]"
+.\.venv\Scripts\python.exe -m pip install -e ".[test,api,bench,multimedia]"
 cd frontend
 npm ci
 npm run build
@@ -129,7 +162,7 @@ En Linux o macOS:
 
 ```bash
 python3 -m venv .venv
-.venv/bin/python -m pip install -e ".[test,api,bench]"
+.venv/bin/python -m pip install -e ".[test,api,bench,multimedia]"
 cd frontend
 npm ci
 npm run build
@@ -325,6 +358,8 @@ El servidor publica la referencia interactiva en
 | `POST /api/sessions` | Abrir una sesión |
 | `GET /api/spatial/tables` | Mapeos, convenciones y tablas espaciales registradas |
 | `POST /api/spatial/query` | Consultas tipadas de radio, k-NN o polígono |
+| `GET /api/multimedia/tables` | Colecciones de imágenes/audio publicadas, índices y consultas registradas |
+| `GET /api/multimedia/{tabla}/media/{archivo}` | Sirve solo archivos registrados de una colección |
 
 Las peticiones de una sesión llevan `X-Session-Token`. El token identifica
 una sesión del motor y permanece en memoria en la interfaz. Las consultas
@@ -342,6 +377,7 @@ de 1 000/10 000 se documentan por separado para no mezclar entornos en una curva
 | Repetición relacional de 1 000 y 10 000, cinco repeticiones | [Guía](docs/experimentos/README.md), [11 gráficos y resultados](docs/experimentos/actualizados_1k_10k/resultados.md) |
 | Secuencial frente a R-Tree y PostgreSQL GiST | [Método y conclusiones](docs/EXPERIMENTOS_ESPACIALES.md), [radio](docs/figuras/spatial/radius.png), [k-NN](docs/figuras/spatial/knn.png), [recursos](docs/figuras/spatial/recursos.png), [memoria](docs/figuras/spatial/memoria.png) |
 | TF-IDF/coseno y BM25 sobre SPIMI frente a PostgreSQL FTS + GIN + `ts_rank` | [Método y conclusiones](docs/EXPERIMENTOS_TEXTO.md), [construcción](docs/figuras/text/construccion.png), [consultas](docs/figuras/text/consultas.png), [relevancia](docs/figuras/text/relevancia.png), [disco y memoria](docs/figuras/text/recursos.png) |
+| IVF frente a HNSW, euclidiana frente a coseno, k = 10, imágenes COCO | [Método y conclusiones](docs/EXPERIMENTOS_MULTIMEDIA.md), [construcción](docs/figuras/multimedia/construccion.png), [consultas](docs/figuras/multimedia/consultas.png), [Recall@10](docs/figuras/multimedia/recall.png), [memoria](docs/figuras/multimedia/memoria.png), [galería](docs/figuras/multimedia/galeria.png) |
 
 La matriz espacial reúne 5 400 consultas medidas: tres tamaños, tres métodos,
 radios de 1/5/10 km y k de 10/50/100, con 100 centros por configuración.
@@ -361,6 +397,16 @@ encuentren los mismos documentos. Para regenerar sus tablas y gráficos:
 
 ```bash
 python -m benchmarks.text.results --input benchmarks/results/text/2026-11-04 --output docs/figuras/text
+```
+
+La matriz multimedia reúne 1 080 búsquedas medidas: tres tamaños, IVF y HNSW
+con euclidiana y coseno, 30 consultas y tres repeticiones, siempre contra la
+búsqueda exacta sobre los mismos vectores. El corpus (unos 6 GB) se descarga
+localmente; los resultados conservados regeneran tablas y gráficos (la galería
+necesita además las imágenes descargadas):
+
+```bash
+python -m benchmarks.multimedia.results --input benchmarks/results/multimedia/2026-11-06 --output docs/figuras/multimedia
 ```
 
 ## Pruebas
@@ -404,5 +450,6 @@ entre procesos ni commit atómico de múltiples archivos ante pérdida de energ�
 - [SQL y ejecución](docs/sql.md), [gramática](docs/sql-grammar.md).
 - [Transacciones y concurrencia](docs/transactions.md).
 - [Convenciones y consultas espaciales](docs/spatial.md).
+- [Búsqueda textual](docs/text.md) y [búsqueda multimedia](docs/multimedia.md).
 - [Configuración de despliegue](docs/despliegue.md).
 - [Especificación del proyecto](Proyecto_Final.pdf).
