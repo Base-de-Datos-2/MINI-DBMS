@@ -130,6 +130,13 @@ pending. Earlier scope statements below do not override this authorization.
   efConstruction=100, efSearch=max(64,k), exact rescoring of the ef
   candidates; dot is built in the augmented Euclidean form, whose order equals
   descending dot exactly).
+- Phase 5 (`PART_04/BLOQUE_5.md`): `MultimediaCollection` (model, store,
+  rids, IVF, HNSW per metric, media/ and queries/), `seal_multimedia_collection`,
+  `multimedia_tables.json`, AST `SimilarTo` + `vector_method/vector_metric`,
+  `vector_binding.py`, `VectorScanSpec` and `VectorIndexScan`/`VectorScan`;
+  owner `Database.prepare_multimedia`; HTTP `/api/multimedia/tables` and
+  `/api/multimedia/{table}/media/{key}`; `python -m api --multimedia`;
+  Results panel renders thumbnails/audio only for real vector-scan plans.
 - The host has ~32 GB of free physical storage, so COCO images are acquired
   individually as ≤512 px copies with original URL and hash; the data gate is
   PENDING (`docs/implementacion/evidencias/multimedia/`).

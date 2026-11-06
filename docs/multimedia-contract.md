@@ -112,7 +112,10 @@ score_expr    = "SIMILARITY_SCORE", "(", ")" ;
   `VectorIndexScan` (method, metric, effective nprobe or efSearch, candidates
   and distance evaluations) and `VectorScan` (exhaustive; shown with the
   requested method when «Usar índices» is off). An index never silently falls
-  back to a scan while reporting index timing.
+  back to a scan while reporting index timing. Runtime detail keys
+  (phase 5): `requested`, `executed`, `evaluations`, `nprobe`, `nprobe_used`,
+  `centroids`, `ef_search`, `max_level`, `candidates`, `shortfall`,
+  `extract_ms`, `search_ms`.
 
 ## 6. Representation
 
