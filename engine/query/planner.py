@@ -497,6 +497,54 @@ class TextScanSpec(PhysicalPlanSpec):
 
 
 @dataclass(frozen=True, slots=True)
+class VectorScanSpec(PhysicalPlanSpec):
+    """Part 4 SIMILAR_TO: VectorIndexScan (IVF/HNSW) or the exact VectorScan."""
+
+    environment: QueryEnvironment
+    bound: BoundSelect
+    use_index: bool
+
+    @property
+    def children(self):
+        return ()
+
+    @property
+    def output_schema(self):
+        return self.bound.output_schema
+
+    @property
+    def capabilities(self):
+        return PlanCapabilities(complete_candidate_set=False)
+
+    @property
+    def operator_name(self):
+        return 'VectorIndexScan' if self.use_index else 'VectorScan'
+
+    @property
+    def details(self):
+        access = self.bound.vector_access
+        table = self.bound.relations[0].metadata.name
+        method = access.method if self.use_index else f'exact scan (requested {access.method})'
+        return (('table', table), ('modality', access.collection.modality.value), ('method', method),
+                ('metric', access.metric), ('k', str(access.k)), ('limit', str(self.bound.limit)),
+                ('media_key', access.media_key),
+                ('score', '-distance' if access.metric == 'euclidean' else access.metric),
+                ('collection', access.collection.collection_id), ('generation', access.collection.generation))
+
+    def validate(self):
+        relation = self.bound.relations[0]
+        _validate_relation(self.environment, relation)
+        if self.environment.multimedia_for(relation.metadata.name) is not self.bound.vector_access.collection:
+            raise StalePlanError('Prepared multimedia runtime association changed')
+
+    def instantiate(self):
+        from engine.multimedia.operators import VectorIndexScan, VectorScan
+        self.validate()
+        operator = VectorIndexScan if self.use_index else VectorScan
+        return operator(self.bound.relations[0], self.bound.vector_access, self.output_schema, self.bound.limit)
+
+
+@dataclass(frozen=True, slots=True)
 class ComputeSpec(PhysicalPlanSpec):
     child: PhysicalPlanSpec
     expressions: tuple
@@ -933,7 +981,7 @@ class SelectPlanSpec:
                 _validate_index(self.environment, spec.registered)
             elif isinstance(spec, IndexNestedLoopJoinSpec):
                 _validate_index(self.environment, spec.registered)
-            elif isinstance(spec, (SpatialScanSpec, TextScanSpec)):
+            elif isinstance(spec, (SpatialScanSpec, TextScanSpec, VectorScanSpec)):
                 spec.validate()
             for child in spec.children:
                 visit(child)
@@ -1527,6 +1575,10 @@ def prepare_select_plan(
 
     for relation in bound.relations:
         _validate_relation(environment, relation)
+    if bound.vector_access is not None:
+        root = VectorScanSpec(environment, bound, use_indexes)
+        root.validate()
+        return SelectPlanSpec(environment, bound, root, use_indexes, options)
     if bound.text_access is not None:
         root = TextScanSpec(environment, bound, use_indexes, options)
         root.validate()

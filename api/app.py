@@ -19,7 +19,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI, Header, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .demo import Preset
@@ -244,6 +244,17 @@ def create_app(
     @app.post("/api/text/query")
     def text_query(payload: TextSearchRequest, request: Request, token: SessionToken = None) -> dict[str, Any]:
         return service.text_query(payload, request.state.request_id, token)
+
+    @app.get("/api/multimedia/tables")
+    def multimedia_tables() -> list[dict[str, Any]]:
+        return service.list_multimedia_tables()
+
+    @app.get("/api/multimedia/{table}/media/{key}")
+    def multimedia_media(table: str, key: str) -> FileResponse:
+        path = service.multimedia_media(table, key)
+        media_type = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png",
+                      ".wav": "audio/wav", ".mp3": "audio/mpeg"}[path.suffix.lower()]
+        return FileResponse(path, media_type=media_type, headers={"Cache-Control": "max-age=3600"})
 
     @app.get("/api/spatial/tables")
     def spatial_tables() -> list[dict[str, Any]]:

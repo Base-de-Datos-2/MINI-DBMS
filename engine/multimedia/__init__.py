@@ -1,7 +1,7 @@
 """Part 4 multimedia retrieval (docs/multimedia-contract.md).
 
 Contracts (phase 1), feature extraction and the exact vector store (phase 2),
-IVF with our own K-Means (phase 3).
+IVF with our own K-Means (phase 3) and a multilayer HNSW graph (phase 4).
 Media decoding, SIFT/MFCC and the vocabulary K-Means are imported lazily by
 ``features``; ``numpy`` is required by the package.
 """
@@ -17,6 +17,7 @@ from .contracts import (
 from .features import CollectionFeatures, FeatureExtractionError, FeatureModel
 from .vectors import VectorSearchResult, VectorStore
 from .ivf import IvfIndex
+from .hnsw import HnswIndex
 
 __all__ = [
     "Modality", "Metric", "IndexMethod", "Neighbor",
@@ -26,5 +27,5 @@ __all__ = [
     "output_size", "exact_top_k", "recall_at_k", "tf_weight", "idf_weight", "weighted_histogram",
     "default_nlist", "default_nprobe", "default_ef_search",
     "CollectionFeatures", "FeatureExtractionError", "FeatureModel", "VectorSearchResult", "VectorStore",
-    "IvfIndex",
+    "IvfIndex", "HnswIndex",
 ]
