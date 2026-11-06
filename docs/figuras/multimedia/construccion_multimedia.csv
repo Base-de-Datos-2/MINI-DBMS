@@ -1,0 +1,13 @@
+size,config,seconds,peak_rss_mib,index_bytes,parameters
+1000,hnsw-cosine,3.311757,44.3,134961,"{""ef_construction"": 100, ""m"": 16, ""m0"": 32, ""seed"": 20261106}"
+1000,hnsw-euclidean,4.796788,42.6,134965,"{""ef_construction"": 100, ""m"": 16, ""m0"": 32, ""seed"": 20261106}"
+1000,ivf-cosine,0.177942,50.3,75186,"{""nlist"": 32, ""nprobe"": 8, ""seed"": 20261106}"
+1000,ivf-euclidean,0.141939,49.3,75183,"{""nlist"": 32, ""nprobe"": 8, ""seed"": 20261106}"
+10000,hnsw-cosine,42.650613,115.3,1338024,"{""ef_construction"": 100, ""m"": 16, ""m0"": 32, ""seed"": 20261106}"
+10000,hnsw-euclidean,59.088333,89.7,1338028,"{""ef_construction"": 100, ""m"": 16, ""m0"": 32, ""seed"": 20261106}"
+10000,ivf-cosine,3.899860,162.7,286997,"{""nlist"": 100, ""nprobe"": 8, ""seed"": 20261106}"
+10000,ivf-euclidean,4.046916,156.7,286996,"{""nlist"": 100, ""nprobe"": 8, ""seed"": 20261106}"
+100000,hnsw-cosine,495.998293,677.0,13343416,"{""ef_construction"": 100, ""m"": 16, ""m0"": 32, ""seed"": 20261106}"
+100000,hnsw-euclidean,708.643213,579.9,13343419,"{""ef_construction"": 100, ""m"": 16, ""m0"": 32, ""seed"": 20261106}"
+100000,ivf-cosine,57.415358,658.4,1451095,"{""nlist"": 316, ""nprobe"": 8, ""seed"": 20261106}"
+100000,ivf-euclidean,61.187277,657.9,1451092,"{""nlist"": 316, ""nprobe"": 8, ""seed"": 20261106}"

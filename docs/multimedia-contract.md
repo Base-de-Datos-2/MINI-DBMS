@@ -168,8 +168,11 @@ The host has about 32 GB of free physical storage (the WSL virtual disk's
 817 GB figure is only its maximum size). Storing COCO `train2017.zip`
 (19.3 GB) plus its extraction does not fit. Images are therefore downloaded
 individually using the annotations file as list and provenance (URL and
-SHA-256 of the original bytes recorded), and kept as ≤ 512 px copies, which
-is exactly the first preprocessing step, so features are unaffected. Audio
+SHA-256 of the original bytes recorded), and kept as ≤ 512 px colour copies
+(JPEG quality 90). The resize is the first preprocessing step, but the JPEG
+re-encoding is not lossless: the stored copy is the collection's media file,
+and features of gallery and queries alike are computed from stored copies
+(phase 6 correction of the earlier "features unaffected" wording). Audio
 clips come from FMA as individual zip members read through HTTP byte ranges.
-Status and probes: [multimedia_feasibility.json](implementacion/evidencias/multimedia/multimedia_feasibility.json)
-(PENDING until phase 6 measures it).
+Status and measured checks: [multimedia_feasibility.json](implementacion/evidencias/multimedia/multimedia_feasibility.json)
+(PASS since phase 6).

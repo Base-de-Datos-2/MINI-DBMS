@@ -1,0 +1,1 @@
+{"step": "exact", "size": 1000, "vectorscan": {"euclidean": {"mean_seconds": 0.0034907838665579525, "median_seconds": 0.0033835430003819056}, "cosine": {"mean_seconds": 0.0002721973664544445, "median_seconds": 0.00021102599930600263}}}

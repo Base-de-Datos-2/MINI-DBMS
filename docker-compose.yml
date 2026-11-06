@@ -1,0 +1,38 @@
+# Evaluation: `docker compose up --build`, then open
+#   Part 1 (relational) http://localhost:8000
+#   Part 2 (spatial)    http://localhost:8001
+#   Part 3 (text)       http://localhost:8002
+#   Part 4 (multimedia) http://localhost:8003
+# Each service is one process that owns its own data directory inside the
+# image. `docker compose down` discards changes; the next `up` starts clean.
+x-minidbms: &minidbms
+  build: .
+  image: minidbms:demo
+  restart: unless-stopped
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+services:
+  parte1:
+    <<: *minidbms
+    command: ["python", "-m", "api", "--host", "0.0.0.0", "--port", "8000", "--allow-writes"]
+    ports: ["8000:8000"]
+
+  parte2:
+    <<: *minidbms
+    command: ["python", "-m", "api", "--spatial", "--data-dir", "data/generated/demo_lima",
+              "--host", "0.0.0.0", "--port", "8000", "--allow-writes"]
+    ports: ["8001:8000"]
+
+  parte3:
+    <<: *minidbms
+    command: ["python", "-m", "api", "--text", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8002:8000"]
+
+  parte4:
+    <<: *minidbms
+    command: ["python", "-m", "api", "--multimedia", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8003:8000"]
