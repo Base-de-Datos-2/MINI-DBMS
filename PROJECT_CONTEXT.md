@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.17** — records the Part 4 phase-1 contracts after the
-> Part 3 closure (Blocks 6–7).
+> Context version: **4.18** — records the complete Part 4 (multimedia
+> retrieval, phases 1–8) after the Part 3 closure.
 
 ## Project identity
 
@@ -17,9 +17,9 @@ The current implementation focus is:
 > 2026-11-04 for phases 6 and 7. Blocks 4B/5 integrated native textual SQL,
 > the owner registry, API and UI (`PART_03/BLOQUE_4B_5.md`); Blocks 6/7 add
 > the PostgreSQL comparison, documentation and a 3,561-test regression
-> (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). Part 4 phase 1
-> (contracts, fixtures, data gate start) is done (`PART_04/BLOQUE_1.md`);
-> phases 2–8 and Part 5 remain. Block 4A sealing details are kept below.
+> (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). **Part 4 is
+> complete** (phases 1–8, `PART_04/BLOQUE_8.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`);
+> Part 5 remains. Block 4A sealing details are kept below.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -146,6 +146,9 @@ pending. Earlier scope statements below do not override this authorization.
   CC BY clips. Frozen search parameters: HNSW efSearch=max(64,k), IVF
   nprobe=16 (single tuning adjustment on the tuning set). Committed demo
   media: `data/multimedia_demo` (120 images, 30 clips, attribution).
+- Phase 8 (`PART_04/BLOQUE_8.md`): docker-compose `parte4` (port 8003) built
+  from `data/multimedia_demo`; README, `docs/multimedia.md`, report section
+  `docs/informe/informe_parte_04.md`; 3,784 strict tests on Python 3.12/3.11.
 - Phase 7 (`PART_04/BLOQUE_7.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`): 1,080
   timed searches. At 100k: IVF builds ~1 min vs HNSW 8–12 min; HNSW queries
   ~1.8 ms vs IVF 3.7–8.2 ms; frozen-parameter Recall@10 0.68–0.80, recovering
