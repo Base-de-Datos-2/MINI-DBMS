@@ -56,7 +56,7 @@ def batch_scores(rows: np.ndarray, norms: np.ndarray, query: np.ndarray, query_n
     block = rows.astype(np.float64)
     if metric is Metric.EUCLIDEAN:
         difference = block - query
-        return -np.sqrt(np.einsum("ij,ij->i", difference, difference))
+        return 0.0 - np.sqrt(np.einsum("ij,ij->i", difference, difference))   # no -0.0
     # einsum keeps each row's sum independent of the block it is computed in,
     # so an index scoring a subset of rows gets bit-identical scores.
     if metric is Metric.DOT:
