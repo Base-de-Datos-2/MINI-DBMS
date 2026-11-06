@@ -50,7 +50,8 @@ class QueryEnvironment:
     a storage/index object; the caller retains lifecycle ownership.
     """
 
-    __slots__ = ("_catalog", "_storages", "_indexes", "_spatial", "_text", "_generations", "_mutex")
+    __slots__ = ("_catalog", "_storages", "_indexes", "_spatial", "_text", "_multimedia", "_generations",
+                 "_mutex")
 
     def __init__(self, catalog: Catalog) -> None:
         if not isinstance(catalog, Catalog):
@@ -61,6 +62,7 @@ class QueryEnvironment:
         self._indexes: dict[str, Index] = {}
         self._spatial: dict[str, SpatialIndex] = {}
         self._text = {}
+        self._multimedia = {}
         self._generations: dict[str, int] = {}
 
     @_registry_latched
@@ -107,6 +109,43 @@ class QueryEnvironment:
     def unregister_text(self, table_name):
         table = self._catalog.get_table(table_name)
         if self._text.pop(table.name, None) is not None:
+            self._bump_generation(table.name)
+
+    @_registry_latched
+    def register_multimedia(self, table_name, collection):
+        """Borrow one published multimedia collection; its owner closes it."""
+        from engine.multimedia.collection import MultimediaCollection
+        from engine.storage import HeapFile
+        table = self._catalog.get_table(table_name)
+        if not isinstance(collection, MultimediaCollection):
+            raise InvalidTypeError("Multimedia registration requires MultimediaCollection")
+        if table.name in self._multimedia:
+            raise DuplicateError("Multimedia collection already registered")
+        if collection.table_name != table.name:
+            raise ValidationError("Multimedia collection table does not match")
+        storage = self.storage_for(table.name)
+        if not isinstance(storage, HeapFile) or not storage.read_only:
+            raise ValidationError("Registered multimedia SQL requires a published sealed Heap")
+        collection.require_compatible_storage(storage)
+        self._multimedia[table.name] = collection
+        self._bump_generation(table.name)
+
+    @_registry_latched
+    def multimedia_for(self, table_name):
+        table = self._catalog.get_table(table_name)
+        collection = self._multimedia.get(table.name)
+        if collection is not None:
+            if collection.closed:
+                raise InvalidReferenceError("Published multimedia collection is closed")
+            if not self.storage_for(table.name).read_only:
+                raise InvalidReferenceError("Published multimedia storage is no longer sealed")
+            collection.require_compatible_storage(self.storage_for(table.name))
+        return collection
+
+    @_registry_latched
+    def unregister_multimedia(self, table_name):
+        table = self._catalog.get_table(table_name)
+        if self._multimedia.pop(table.name, None) is not None:
             self._bump_generation(table.name)
 
     @_registry_latched

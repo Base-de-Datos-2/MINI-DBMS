@@ -1,0 +1,1 @@
+{"step": "prepare", "size": 100000, "seconds": 4.8225930640001025, "memory": {"rss_mib": 372.0546875, "peak_mib": 944.34765625}, "store_bytes": 104000825, "model_bytes": 136478, "vector_matrix_bytes": 102400000, "fingerprint": "1f2054e354a29f1f522ba2e028f7d426010222d4f471e69a57b734e7f84b7cd3"}

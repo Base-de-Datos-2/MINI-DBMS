@@ -142,6 +142,32 @@ class DatabaseDefinition:
 
 
 @dataclass(frozen=True, slots=True)
+class MultimediaSource:
+    """One image or audio collection for ``Database.prepare_multimedia``."""
+
+    table: "NewTable"
+    rows: Iterable
+    id_column: str
+    key_column: str
+    modality: object                      # engine.multimedia.Modality
+    media_directory: Path
+    query_files: tuple = ()
+    vocabulary_size: int | None = None
+    training_ids: tuple | None = None
+    ivf_metrics: tuple | None = None      # None: all three metrics
+    hnsw_metrics: tuple | None = None     # None: all three metrics
+    hnsw_parameters: object | None = None
+
+    def __post_init__(self):
+        from engine.multimedia import HnswParameters, Metric
+        for name in ("ivf_metrics", "hnsw_metrics"):
+            if getattr(self, name) is None:
+                object.__setattr__(self, name, tuple(Metric))
+        if self.hnsw_parameters is None:
+            object.__setattr__(self, "hnsw_parameters", HnswParameters())
+
+
+@dataclass(frozen=True, slots=True)
 class IndexSummary:
     """Structure the Files panel shows for one index."""
 
@@ -220,6 +246,7 @@ class Database:
         "_spatial_mappings",
         "_spatial_indexes",
         "_text_indexes",
+        "_multimedia",
     )
 
     def __init__(self) -> None:
@@ -271,6 +298,98 @@ class Database:
             for registration in registrations:
                 database._environment.text_for(registration.table).validate()
         return tuple(registrations)
+
+    @classmethod
+    def prepare_multimedia(cls, directory, sources):
+        """Create NEW image/audio collections, publish offline, verify a fresh owner.
+
+        Each source is a ``MultimediaSource``. Existing destinations are never
+        overwritten; a failed preparation stays unpublished for inspection.
+        """
+        from contextlib import ExitStack
+        from uuid import uuid4
+        from engine.multimedia.collection import build_collection
+        from engine.multimedia.registry import MultimediaRegistration, publish_multimedia_registry
+        from engine.multimedia.sealing import seal_multimedia_collection
+        root = Path(directory).resolve()
+        root.mkdir(parents=True, exist_ok=False)
+        definition = DatabaseDefinition("multimedia")
+        snapshots = []
+        with cls.create(definition, root) as database:
+            for source in sources:
+                if not isinstance(source, MultimediaSource):
+                    raise TypeError("prepare_multimedia expects MultimediaSource items")
+                database.create_gui_table(source.table, source.rows, origin="csv",
+                                          source_filename="multimedia-source.csv")
+                table = database._catalog.get_table(source.table.name)
+                if not isinstance(database._storages[table.name], HeapFile):
+                    raise ValidationError("Multimedia collections require Heap storage")
+                snapshots.append((database._catalog, table,
+                                  database._table_files(database._tables[table.name]), source))
+        if not snapshots:
+            raise ValidationError("At least one multimedia collection is required")
+        registrations = []
+        # No live owner/coordinator exists while engine-level publication runs.
+        for catalog, table, files, source in snapshots:
+            name = "mm_" + uuid4().hex
+            with ExitStack() as stack:
+                heap = stack.enter_context(HeapFile.open(files.base, table.schema))
+                secondary = [stack.enter_context(open_catalog_index(catalog, index_name, heap))
+                             for index_name, _ in files.indexes]
+                collection = stack.enter_context(build_collection(
+                    root / name, heap=heap, schema=table.schema, table=table.name,
+                    id_column=source.id_column, key_column=source.key_column, modality=source.modality,
+                    media_directory=source.media_directory, query_files=source.query_files,
+                    collection_id=uuid4().hex, generation=uuid4().hex,
+                    vocabulary_size=source.vocabulary_size, training_ids=source.training_ids,
+                    ivf_metrics=source.ivf_metrics, hnsw_metrics=source.hnsw_metrics,
+                    hnsw_parameters=source.hnsw_parameters))
+                seal_multimedia_collection(heap, collection, secondary_indexes=secondary)
+                registrations.append(MultimediaRegistration(
+                    table.name, source.key_column, source.modality.value, collection.collection_id,
+                    collection.generation, name))
+        publish_multimedia_registry(root, tuple(registrations))
+        with cls.open(definition, root) as database:
+            for registration in registrations:
+                if database._environment.multimedia_for(registration.table) is None:
+                    raise ValidationError("Published multimedia collection did not reopen")
+        return tuple(registrations)
+
+    def _open_multimedia(self, root: Path) -> None:
+        """Open published multimedia collections; never builds or repairs one."""
+        if not (root / "multimedia_tables.json").is_file():
+            return          # numpy and the media stack are only needed for Part 4
+        from engine.multimedia.collection import MultimediaCollection
+        from engine.multimedia.registry import read_multimedia_registry
+        for registration in read_multimedia_registry(root):
+            if registration.table not in self._tables:
+                raise DatabaseSetupError(f"Unknown published multimedia table {registration.table!r}")
+            storage = self._storages[registration.table]
+            if not isinstance(storage, HeapFile) or not storage.read_only:
+                raise DatabaseSetupError("Published multimedia collections require sealed Heap storage")
+            collection = MultimediaCollection.open(root / registration.directory,
+                                                   collection_id=registration.collection_id,
+                                                   generation=registration.generation)
+            try:
+                if (collection.table_name != registration.table
+                        or collection.key_column != registration.column
+                        or collection.modality.value != registration.modality):
+                    raise DatabaseSetupError("Published multimedia collection does not match its registry")
+                collection.require_compatible_storage(storage)
+            except BaseException:
+                collection.close()
+                raise
+            self._multimedia[registration.table] = collection
+            self._environment.register_multimedia(registration.table, collection)
+
+    def multimedia_collection(self, table: str):
+        """The published collection of ``table`` (for media serving), or None."""
+        if not self.available:
+            raise TransactionUnavailableError("Database is closed or quarantined")
+        return self._multimedia.get(table)
+
+    def multimedia_tables(self) -> tuple[str, ...]:
+        return tuple(sorted(self._multimedia))
 
     @classmethod
     def create(
@@ -417,6 +536,7 @@ class Database:
         database._spatial_mappings = {}
         database._spatial_indexes = {}
         database._text_indexes = {}
+        database._multimedia = {}
         try:
             for table in definition.tables:
                 database._open_table(
@@ -478,6 +598,7 @@ class Database:
                     raise
                 database._text_indexes[registration.table] = index
                 database._environment.register_text(registration.table, index)
+            database._open_multimedia(root)
             database._engine = SqlEngine(
                 database._environment,
                 mutation_service=SpatialMutationService(database._spatial_indexes),
@@ -745,6 +866,18 @@ class Database:
                         file_bytes=_file_bytes(self._paths[index_metadata.name]),
                     )
                 )
+            collection = self._multimedia.get(name)
+            if collection is not None:
+                def folder_bytes(path):
+                    return sum(item.stat().st_size for item in path.rglob("*") if item.is_file())
+                for method, metrics in collection.methods.items():
+                    for metric in metrics if method == "HNSW" else [",".join(metrics)]:
+                        folder = "ivf" if method == "IVF" else f"hnsw_{metric}"
+                        indexes.append(IndexSummary(
+                            name=f"{name}_{folder}", column=collection.key_column,
+                            index_type=f"{method} ({metric})", unique=False, clustered=False,
+                            supports_range=False, entry_count=collection.size,
+                            file_bytes=folder_bytes(collection.directory / folder)))
             text = self._text_indexes.get(name)
             if text is not None:
                 registration = next(item for item in read_text_registry(self._directory) if item.table == name)
@@ -1338,7 +1471,7 @@ class Database:
                 engine.close()
             except BaseException as error:  # noqa: BLE001 - reported below
                 failures.append(error)
-        for handle in list(self._text_indexes.values()) + list(self._spatial_indexes.values()) + list(self._indexes.values()) + list(self._storages.values()):
+        for handle in list(getattr(self, "_multimedia", {}).values()) + list(self._text_indexes.values()) + list(self._spatial_indexes.values()) + list(self._indexes.values()) + list(self._storages.values()):
             try:
                 handle.close()
             except BaseException as error:  # noqa: BLE001 - reported below
@@ -1346,6 +1479,8 @@ class Database:
         self._indexes.clear()
         self._spatial_indexes.clear()
         self._text_indexes.clear()
+        if hasattr(self, "_multimedia"):
+            self._multimedia.clear()
         self._storages.clear()
         self._owner_lease.release()
         if failures:

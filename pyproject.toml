@@ -21,6 +21,20 @@ test = [
     "fastapi>=0.110,<1",
     "httpx2>=2,<3",
     "anyio>=4,<4.15",
+    # Part 4 feature tests (same pins as the multimedia extra).
+    "numpy>=1.26,<3",
+    "opencv-python-headless>=4.8,<6",
+    "soundfile>=0.12,<1",
+    "librosa>=0.11,<2",
+]
+# Part 4 feature extraction helpers only: decoding, SIFT, MFCC and the
+# vocabulary K-Means (scikit-learn, installed by librosa). IVF, HNSW, the
+# vector store and TF-IDF are our own code (docs/multimedia-contract.md §7).
+multimedia = [
+    "numpy>=1.26,<3",
+    "opencv-python-headless>=4.8,<6",
+    "soundfile>=0.12,<1",
+    "librosa>=0.11,<2",
 ]
 # Stage 10 charts: `python -m benchmarks report` renders them from raw results.
 bench = [

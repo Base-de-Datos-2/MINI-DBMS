@@ -836,3 +836,9 @@ input[type="text"], input[type="number"], select { border-color: #d9d8d4; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Part 4: gallery thumbnails and audio players in SIMILAR_TO results. */
+.media-cell { display: inline-flex; flex-direction: column; gap: 0.25rem; align-items: flex-start; }
+.media-thumb { max-width: 160px; max-height: 120px; border-radius: 4px; border: 1px solid var(--border, #ccc); object-fit: cover; }
+.media-audio { width: 220px; max-width: 100%; }
+.media-query { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin: 0.5rem 0; }

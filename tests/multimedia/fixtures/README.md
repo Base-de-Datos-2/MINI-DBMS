@@ -20,3 +20,10 @@ the decoded pixels/samples against the generator.
 `near_duplicate_of` marks the expected nearest gallery object of each variant
 and query. It is a design intention for later feature tests, not a guaranteed
 neighbor: phase 2 must verify it with the actual SIFT/MFCC pipeline.
+
+Phase 2 check (16 visual words, 8 audio words): `foto_consulta.jpg` finds
+`scene_a`, both image variants find their originals, and `audio_query.mp3`
+finds `acorde_grave` under every metric. `acorde_grave_variante` (quieter,
+with noise) is closer to `barrido` than to `acorde_grave`: a real
+representation failure of bag-of-MFCC-words with level and noise changes,
+kept as an error example rather than "fixed".
