@@ -2,6 +2,7 @@
 #   Part 1 (relational) http://localhost:8000
 #   Part 2 (spatial)    http://localhost:8001
 #   Part 3 (text)       http://localhost:8002
+#   Part 4 (multimedia) http://localhost:8003
 # Each service is one process that owns its own data directory inside the
 # image. `docker compose down` discards changes; the next `up` starts clean.
 x-minidbms: &minidbms
@@ -30,3 +31,8 @@ services:
     <<: *minidbms
     command: ["python", "-m", "api", "--text", "--host", "0.0.0.0", "--port", "8000"]
     ports: ["8002:8000"]
+
+  parte4:
+    <<: *minidbms
+    command: ["python", "-m", "api", "--multimedia", "--host", "0.0.0.0", "--port", "8000"]
+    ports: ["8003:8000"]
