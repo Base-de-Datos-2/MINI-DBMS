@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "status": "PENDING",
+  "updated": "2026-11-06",
+  "note": "Phase 1 starts the gate of PLAN_PARTE_04.md section 3.2. No media has been downloaded, decoded or measured yet; every check is PENDING until phase 6 records measured evidence.",
+  "checks": [
+    {"id": "accessible_media", "status": "PENDING", "pass_condition": "Original files available locally with provenance and usable formats; URLs or feature-only datasets are insufficient"},
+    {"id": "valid_scale", "status": "PENDING", "pass_condition": "At least 100,000 unique accepted images decode and yield finite, nonzero histograms; duplicates removed and rejections counted"},
+    {"id": "experimental_split", "status": "PENDING", "pass_condition": "Frozen nested 1,000 / 10,000 / 100,000 subsets, 30 separate query images and a small tuning set, with no byte-identical query/gallery overlap"},
+    {"id": "real_pipeline", "status": "PENDING", "pass_condition": "Selected files pass the final preprocessing/descriptor pipeline; metadata inserts and reopens without truncation"},
+    {"id": "audio_path", "status": "PENDING", "pass_condition": "About 30 valid clips and 5 query clips pass MFCC, vocabulary, vectorization and SQL, including MP3 decoding"},
+    {"id": "resources", "status": "PENDING", "pass_condition": "Pilots at 1,000 and 10,000 measure extraction, K-Means and own HNSW time/RSS; the projected 100,000 workload fits the actual machine and window"},
+    {"id": "persistence", "status": "PENDING", "pass_condition": "Artifact sizes, hashes, IDs and required files recorded; reopening does not train models or regenerate vectors"}
+  ],
+  "host_observations_2026_11_06": {
+    "physical_free_storage_gb": 32,
+    "physical_storage_note": "The Windows system drive has about 32 GB free (97 % used). The WSL root reports 817 GB available, but that is the virtual disk's maximum size: the disk is a file on the same drive, so 32 GB is the real limit.",
+    "memory_total_gib": 7,
+    "memory_available_gib_at_probe": 4,
+    "logical_cpus": 8
+  },
+  "source_probes_2026_11_06": [
+    {"source": "COCO 2017 single image", "url": "http://images.cocodataset.org/train2017/000000000009.jpg", "http_status": 200, "content_length": 224297},
+    {"source": "COCO 2017 annotations (image list, licenses, URLs)", "url": "http://images.cocodataset.org/annotations/annotations_trainval2017.zip", "http_status": 200, "content_length": 252907541},
+    {"source": "COCO 2017 train zip", "url": "http://images.cocodataset.org/zips/train2017.zip", "http_status": 200, "content_length": 19336861798, "byte_ranges": "HTTP 206 observed"},
+    {"source": "FMA metadata (titles, artists, licenses)", "url": "https://os.unil.cloud.switch.ch/fma/fma_metadata.zip", "http_status": 200, "content_length": 358412441},
+    {"source": "FMA small (8,000 MP3 clips of 30 s)", "url": "https://os.unil.cloud.switch.ch/fma/fma_small.zip", "http_status": 200, "content_length": 7679594875, "byte_ranges": "Accept-Ranges: bytes; HTTP 206 observed"}
+  ],
+  "acquisition_strategy": {
+    "images": "Do not store train2017.zip: the zip plus its extraction (about 36 GB) exceeds the free storage. Use the annotations file as the image list and provenance, download selected images individually, record URL and SHA-256 of the original bytes, then keep an aspect-preserving copy with longest side <= 512 px (the first step of the frozen SIFT preprocessing). Estimated footprint 4-6 GB, to be measured in the 1,000-image pilot.",
+    "audio": "Candidate: about 35 FMA clips with permissive Creative Commons licenses selected from fma_metadata, fetched as individual zip members through HTTP byte ranges instead of downloading fma_small. MP3 originals are kept with their source, license, duration and SHA-256.",
+    "status": "PROPOSED; validated only when the pilot measures it"
+  }
+}

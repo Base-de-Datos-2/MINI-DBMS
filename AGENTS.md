@@ -1,6 +1,17 @@
 # AGENTS.md
 
-## Current authorization — 2026-11-04
+## Current authorization — 2026-11-06
+
+The user explicitly requested **Part 4 phase 1** (baseline and contracts) of
+`PART_04/PLAN_PARTE_04.md`. It is implemented: contracts in
+`docs/multimedia-contract.md` and `engine/multimedia/contracts.py`, fixtures in
+`tests/multimedia/fixtures/`, the PENDING data gate and evidence in
+`PART_04/BLOQUE_1.md`. Part 4 phases 2–8 and Part 5 need a new authorization.
+Third-party code in `engine/` is limited to numpy in `engine.multimedia` and
+lazily imported OpenCV/librosa in its feature adapter; IVF, HNSW and the
+vector logic stay our own (`tests/test_architecture.py`).
+
+## Previous authorization — 2026-11-04
 
 The user explicitly requested Part 3 phases 6 (PostgreSQL comparison) and 7
 (closure). Both are implemented and verified: evidence, regression and the

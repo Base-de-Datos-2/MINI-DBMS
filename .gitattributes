@@ -7,3 +7,4 @@ docs/experimentos/actualizados_1k_10k/** -text
 tests/text/fixtures/*.json text eol=lf
 docs/implementacion/evidencias/text_1b_1_4/** -text
 docs/implementacion/evidencias/text_1b_closure/** -text
+tests/multimedia/fixtures/** -text

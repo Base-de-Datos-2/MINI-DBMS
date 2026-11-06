@@ -1,0 +1,289 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "generator": "tests/multimedia/make_fixtures.py",
+  "encoder": "ffmpeg version 6.1.1-3ubuntu5",
+  "files": [
+    {
+      "name": "scene_a.png",
+      "sha256": "88989dbc40ad3782bfa0f8332e81fcc9303f3985c815f7fa0b1a19b009ff9ae4",
+      "bytes": 2144,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene a"
+      }
+    },
+    {
+      "name": "scene_b.png",
+      "sha256": "4c0ed7fa720388a92f61e24470ec61e68b290e2d03c9b10bbd65d13c99b55a50",
+      "bytes": 2263,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene b"
+      }
+    },
+    {
+      "name": "scene_c.png",
+      "sha256": "59614c70139ea4af25fa211cc6c5cc22a3afefebf269e0782a2eb1cd4daf1f53",
+      "bytes": 2140,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene c"
+      }
+    },
+    {
+      "name": "scene_d.png",
+      "sha256": "1a54bd35410a2fd3b37dfa0111a4ae67c71b15092eb423147d79fb7637b4268c",
+      "bytes": 2117,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene d"
+      }
+    },
+    {
+      "name": "scene_e.png",
+      "sha256": "4fbe5166fbcffeb66303578dbdd13691dcd580decb7da031f82ae7bfb8f958bc",
+      "bytes": 2261,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene e"
+      }
+    },
+    {
+      "name": "scene_f.png",
+      "sha256": "9b8e683ccacc9deb0c84ed783939a44b5e308e03a575f332dc67db7c492739aa",
+      "bytes": 2288,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene f"
+      }
+    },
+    {
+      "name": "scene_a_shifted.png",
+      "sha256": "98c7203c2bc9cc5838f1391be48ee965336a977ac1ca4d10cc08c82f084ced3c",
+      "bytes": 2009,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene a shifted"
+      },
+      "near_duplicate_of": "scene_a.png"
+    },
+    {
+      "name": "scene_b_mirror.png",
+      "sha256": "e1c0bfce4275c90f175957e778c054ef66164693b8bb0fdf64091c224ffb028f",
+      "bytes": 2249,
+      "modality": "image",
+      "role": "gallery",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "scene b mirror"
+      },
+      "near_duplicate_of": "scene_b.png"
+    },
+    {
+      "name": "blank.png",
+      "sha256": "155e01ab9dd22be6f99a0d7398a02cecc882bdf11a1390e363ce34c378c92cfe",
+      "bytes": 316,
+      "modality": "image",
+      "role": "invalid",
+      "format": "png",
+      "width": 160,
+      "height": 160,
+      "metadata": {
+        "nombre": "blank"
+      },
+      "expected_rejection": "no_descriptors"
+    },
+    {
+      "name": "foto_consulta.jpg",
+      "sha256": "63f0da4072eaeeae0ded707a1211357cdb619bade95014897d2372567ef496fd",
+      "bytes": 7398,
+      "modality": "image",
+      "role": "query",
+      "format": "jpeg",
+      "width": 160,
+      "height": 160,
+      "near_duplicate_of": "scene_a.png",
+      "metadata": {
+        "nombre": "consulta: scene a más brillante (JPEG)"
+      }
+    },
+    {
+      "name": "corrupt.jpg",
+      "sha256": "a0732ff645ad1bd7c9083648a0007d085766b4b8aaf9e897b33e32c60acad76f",
+      "bytes": 512,
+      "modality": "image",
+      "role": "invalid",
+      "format": "garbage",
+      "expected_rejection": "undecodable",
+      "metadata": {
+        "nombre": "bytes aleatorios"
+      }
+    },
+    {
+      "name": "acorde_grave.wav",
+      "sha256": "3b507ba1771758cedeca7fd6ffb8e82e2ca19ff0233b0ebc3aaf2ea94fe204c2",
+      "bytes": 44144,
+      "modality": "audio",
+      "role": "gallery",
+      "format": "wav",
+      "sample_rate": 22050,
+      "channels": 1,
+      "frames": 22050,
+      "metadata": {
+        "nombre": "Acorde grave La-Do#-Mi",
+        "artista": "Generador sintético MINI-DBMS"
+      }
+    },
+    {
+      "name": "acorde_agudo.wav",
+      "sha256": "bd0a498f6c9dc4ef901a85ee3c44137277d3004ddb5c2a48a08aee346f1eab54",
+      "bytes": 44144,
+      "modality": "audio",
+      "role": "gallery",
+      "format": "wav",
+      "sample_rate": 22050,
+      "channels": 1,
+      "frames": 22050,
+      "metadata": {
+        "nombre": "Acorde agudo La-Do#-Mi",
+        "artista": "Generador sintético MINI-DBMS"
+      }
+    },
+    {
+      "name": "barrido.wav",
+      "sha256": "6df6e5a042ce7f8baee8fc17b41ee51e8f35b61f6fae64c064933a499afde769",
+      "bytes": 44144,
+      "modality": "audio",
+      "role": "gallery",
+      "format": "wav",
+      "sample_rate": 22050,
+      "channels": 1,
+      "frames": 22050,
+      "metadata": {
+        "nombre": "Barrido de 200 a 2000 Hz",
+        "artista": "Generador sintético MINI-DBMS"
+      }
+    },
+    {
+      "name": "ruido.wav",
+      "sha256": "ebd06a8a2aa0faa435f0f6ee337bb4194199a880d537657ef6b32e02cc39014b",
+      "bytes": 44144,
+      "modality": "audio",
+      "role": "gallery",
+      "format": "wav",
+      "sample_rate": 22050,
+      "channels": 1,
+      "frames": 22050,
+      "metadata": {
+        "nombre": "Ruido blanco",
+        "artista": "Generador sintético MINI-DBMS"
+      }
+    },
+    {
+      "name": "pulsos.wav",
+      "sha256": "4651832fd8bdf4bbb21e53de5e9127f8c5c6887f59527b615a4fd8cb50b7e9fd",
+      "bytes": 44144,
+      "modality": "audio",
+      "role": "gallery",
+      "format": "wav",
+      "sample_rate": 22050,
+      "channels": 1,
+      "frames": 22050,
+      "metadata": {
+        "nombre": "Pulsos a 8 Hz",
+        "artista": "Generador sintético MINI-DBMS"
+      }
+    },
+    {
+      "name": "acorde_grave_variante.wav",
+      "sha256": "4b1a8b1106a878131d209cf0d5ed43d0052bd34544d60efbea55879224b51898",
+      "bytes": 44144,
+      "modality": "audio",
+      "role": "gallery",
+      "format": "wav",
+      "sample_rate": 22050,
+      "channels": 1,
+      "frames": 22050,
+      "metadata": {
+        "nombre": "Acorde grave más suave con ruido",
+        "artista": "Generador sintético MINI-DBMS"
+      },
+      "near_duplicate_of": "acorde_grave.wav"
+    },
+    {
+      "name": "silencio.wav",
+      "sha256": "842d8ff3d950813e85a6f5cd2e3c0639ea69070ca01766ad47184befd309b8ec",
+      "bytes": 44144,
+      "modality": "audio",
+      "role": "invalid",
+      "format": "wav",
+      "sample_rate": 22050,
+      "channels": 1,
+      "frames": 22050,
+      "metadata": {
+        "nombre": "Silencio",
+        "artista": "Generador sintético MINI-DBMS"
+      },
+      "expected_rejection": "no_signal"
+    },
+    {
+      "name": "audio_query.mp3",
+      "sha256": "34ff024cee5b98af126bc9b7feda6edc6cd9219382a11f23a85187dd6324496b",
+      "bytes": 17573,
+      "modality": "audio",
+      "role": "query",
+      "format": "mp3",
+      "sample_rate": 22050,
+      "channels": 1,
+      "near_duplicate_of": "acorde_grave.wav",
+      "metadata": {
+        "nombre": "consulta: acorde grave desafinado 0,5 % (MP3)",
+        "artista": "Generador sintético MINI-DBMS"
+      }
+    },
+    {
+      "name": "corrupt.mp3",
+      "sha256": "dfb8e8721254dfafae4c381a36fd11c85e663127d39e54005f9921ad348b1b85",
+      "bytes": 512,
+      "modality": "audio",
+      "role": "invalid",
+      "format": "garbage",
+      "expected_rejection": "undecodable",
+      "metadata": {
+        "nombre": "bytes aleatorios",
+        "artista": "Generador sintético MINI-DBMS"
+      }
+    }
+  ]
+}
