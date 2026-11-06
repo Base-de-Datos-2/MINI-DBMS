@@ -86,6 +86,28 @@ sesiones y la coherencia de los índices.
 | `scripts/` | Preparación de datos y comprobaciones de integración |
 | `docs/` | Guías técnicas y resultados experimentales |
 
+## Evaluación rápida con Docker Compose
+
+Solo se necesita Docker. Desde la raíz del repositorio:
+
+```bash
+docker compose up --build
+```
+
+La primera vez tarda unos minutos: compila la interfaz y prepara las tres
+bases dentro de la imagen. Luego abre:
+
+| Parte | Dirección | Datos |
+|---|---|---|
+| 1. Relacional | http://localhost:8000 | `students`, `courses`, `enrollments` y sus versiones `_big`; escritura habilitada |
+| 2. Espacial | http://localhost:8001 | `tiendas`, `restaurantes` y `lugares_lima` con mapa; escritura habilitada |
+| 3. Texto | http://localhost:8002 | `documentos` y `articulos`; colecciones selladas, solo lectura |
+
+Cada servicio es un único proceso dueño de su directorio de datos.
+`docker compose down` descarta los cambios: el siguiente `up` empieza desde
+las bases originales. Las consultas de ejemplo están en
+[Consultas de ejemplo](#consultas-de-ejemplo) y en la sección de demo textual.
+
 ## Instalación
 
 Se necesita **Python 3.11 o superior**, **Node.js 20 o superior** y npm.
