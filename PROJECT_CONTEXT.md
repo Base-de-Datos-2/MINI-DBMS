@@ -137,9 +137,15 @@ pending. Earlier scope statements below do not override this authorization.
   owner `Database.prepare_multimedia`; HTTP `/api/multimedia/tables` and
   `/api/multimedia/{table}/media/{key}`; `python -m api --multimedia`;
   Results panel renders thumbnails/audio only for real vector-scan plans.
-- The host has ~32 GB of free physical storage, so COCO images are acquired
-  individually as ≤512 px copies with original URL and hash; the data gate is
-  PENDING (`docs/implementacion/evidencias/multimedia/`).
+- Phase 6 (`PART_04/BLOQUE_6.md`): data gate PASS. COCO 2017 train acquired
+  image by image (≤512 px JPEG copies, ~5.5 GB, under ~32 GB free storage),
+  frozen nested 1k ⊂ 10k ⊂ 100k gallery, 30 queries and 50 tuning images;
+  one image without SIFT keypoints replaced from the seeded permutation.
+  Vocabulary K=256 trained once on the 1k subset; word counts for all images
+  in `data/generated/multimedia/features` (not committed). Audio: 30 + 5 FMA
+  CC BY clips. Frozen search parameters: HNSW efSearch=max(64,k), IVF
+  nprobe=16 (single tuning adjustment on the tuning set). Committed demo
+  media: `data/multimedia_demo` (120 images, 30 clips, attribution).
 
 ### Part 3 experimental comparison (Blocks 6–7)
 
