@@ -622,6 +622,32 @@ class EngineService:
         body["statement"] = family or body.get("statement")
         return body
 
+    def list_multimedia_tables(self):
+        """Published image/audio collections (Part 4); read-only metadata."""
+        self._require_ready()
+        database = self._database
+        result = []
+        for table in database.multimedia_tables():
+            collection = database.multimedia_collection(table)
+            result.append({"table": table, "modality": collection.modality.value,
+                           "key_column": collection.key_column, "id_column": collection.id_column,
+                           "objects": collection.size, "dimension": collection.dimension,
+                           "methods": collection.methods, "queries": collection.query_keys(),
+                           "collection_id": collection.collection_id})
+        return result
+
+    def multimedia_media(self, table: str, key: str):
+        """Path of a registered gallery/query file; anything else is not found."""
+        from engine.errors import ValidationError as EngineValidationError
+        self._require_ready()
+        collection = self._database.multimedia_collection(table)
+        if collection is None:
+            raise ServiceError("NOT_FOUND", f"Table {table!r} has no published multimedia collection")
+        try:
+            return collection.resolve_media(key)
+        except EngineValidationError as error:
+            raise ServiceError("NOT_FOUND", str(error)) from None
+
     def list_text_tables(self):
         from .text_search import published_tables
         self._require_ready()
