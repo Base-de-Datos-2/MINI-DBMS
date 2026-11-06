@@ -278,7 +278,7 @@ Produce timing-versus-N charts for construction and queries, plus Recall@10 and 
 |---|---|---|
 | 1. Baseline and contracts — COMPLETED 2026-11-06 | Record actual Part 3 commit; confirm owner/seal; fix modality, score and SQL contracts; start data gate | No competing owners or ambiguous order semantics; tiny fixtures ready; evidence in [BLOQUE_1.md](BLOQUE_1.md) and [multimedia-contract.md](../docs/multimedia-contract.md) |
 | 2. Features and exact scan — COMPLETED 2026-11-06 | SIFT/MFCC, fitted vocabularies, TF-IDF, vector persistence and exact top-k | Known histograms/scores, both modalities, reopened model consistency; evidence in [BLOQUE_2.md](BLOQUE_2.md) |
-| 3. IVF | Coarse training, lists, metric routing and persistence | nprobe=nlist equals exact oracle for all three measures; limited probes measured |
+| 3. IVF — COMPLETED 2026-11-06 | Coarse training, lists, metric routing and persistence | nprobe=nlist equals exact oracle for all three measures; limited probes measured; evidence in [BLOQUE_3.md](BLOQUE_3.md) |
 | 4. HNSW | Real hierarchy, graph construction/search and serialization | Structural invariants, reproducible reopening and measured recall; no disguised scan |
 | 5. Integration | Single owner, guards, SQL, operator, API and simple results view | Both PDF examples work through UI; all mutation routes tested; existing behavior preserved |
 | 6. Data and scale gate | Finish candidate validation, 10,000-object pilot and resource assessment | Feasibility PASS, frozen 100,000 valid objects and query manifests before final benchmark |

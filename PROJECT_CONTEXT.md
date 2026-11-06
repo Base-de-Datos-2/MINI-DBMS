@@ -119,6 +119,11 @@ pending. Earlier scope statements below do not override this authorization.
   vocabulary, own assignment/TF-IDF, `FeatureModel` persisted with checksums
   and fingerprint) and `vectors.py` (`VectorStore`: ids/vectors/norms `.npy`
   written once, memory-mapped read-only; exact batched `search`).
+- Phase 3 (`PART_04/BLOQUE_3.md`): `kmeans.py` (own k-means++/Lloyd, empty-
+  cluster refill, best of 3 seeded restarts) and `ivf.py` (`IvfIndex`: `raw`
+  partition for Euclidean/dot, `unit` partition for cosine; lists persisted as
+  centers/offsets/rows bound to the store identity; routing by the query
+  objective; extra probes until min(k, N) candidates; exact candidate scores).
 - The host has ~32 GB of free physical storage, so COCO images are acquired
   individually as ≤512 px copies with original URL and hash; the data gate is
   PENDING (`docs/implementacion/evidencias/multimedia/`).
