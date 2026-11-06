@@ -66,7 +66,7 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         "maintenance": {"errors", "catalog", "storage", "indexes", "maintenance"},
         # Native textual SQL consumes the text core, just as spatial SQL
         # consumes its core. Neither core may depend back on query/API.
-        "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions", "spatial", "text"},
+        "query": {"errors", "catalog", "storage", "indexes", "operators", "query", "maintenance", "transactions", "spatial", "text", "multimedia"},
         # The Stage 8 coordinator wraps the existing query facade and AST;
         # query modules do not import the coordinator, keeping the module
         # dependency graph acyclic (checked below).

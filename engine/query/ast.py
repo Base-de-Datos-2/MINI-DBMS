@@ -96,6 +96,14 @@ class TextMatch(SqlExpr):
 
 
 @dataclass(frozen=True, slots=True)
+class SimilarTo(SqlExpr):
+    """Part 4 ``SIMILAR_TO('<media key>', k=<n>)``; the whole WHERE condition."""
+
+    media: StringLiteral
+    k: IntegerLiteral
+
+
+@dataclass(frozen=True, slots=True)
 class Comparison(SqlExpr):
     left: SqlExpr
     operator: str  # one of '=', '<>', '<', '<=', '>', '>='
@@ -158,6 +166,8 @@ class SelectStatement(SyntaxNode):
     order_by: tuple[OrderItem, ...] = field(default_factory=tuple)
     limit: int | None = None
     text_model: str | None = None
+    vector_method: str | None = None   # Part 4: USING IVF | HNSW
+    vector_metric: str | None = None   # Part 4: WITH METRIC=euclidean | dot | cosine
 
 
 @dataclass(frozen=True, slots=True)
