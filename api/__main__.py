@@ -78,6 +78,8 @@ def main(argv: list[str] | None = None) -> None:
     mode.add_argument('--text', action='store_true', help='abre colecciones preparadas con setup_text.py')
     mode.add_argument("--spatial", action="store_true",
                         help="abre la muestra de Parte 02 preparada con setup_spatial.py")
+    mode.add_argument("--multimedia", action="store_true",
+                      help="abre las colecciones de imágenes/audio preparadas con setup_multimedia.py")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument(
@@ -92,10 +94,12 @@ def main(argv: list[str] | None = None) -> None:
         help="habilita INSERT, DELETE, CREATE INDEX, UPDATE y DROP en la demo (base desechable)",
     )
     args = parser.parse_args(argv)
+    kind = "text" if args.text else "spatial" if args.spatial else "multimedia" if args.multimedia else "demo"
     if args.data_dir is None:
-        args.data_dir = REPOSITORY / "data/generated" / ('text' if args.text else "spatial" if args.spatial else "demo")
-    setup_script = 'setup_text.py' if args.text else "setup_spatial.py" if args.spatial else "setup_demo.py"
-    definition = DatabaseDefinition('text') if args.text else DatabaseDefinition("spatial") if args.spatial else demo_database()
+        args.data_dir = REPOSITORY / "data/generated" / kind
+    setup_script = {"text": "setup_text.py", "spatial": "setup_spatial.py",
+                    "multimedia": "setup_multimedia.py", "demo": "setup_demo.py"}[kind]
+    definition = demo_database() if kind == "demo" else DatabaseDefinition(kind)
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 
     if not port_is_free(args.host, args.port):
@@ -109,6 +113,8 @@ def main(argv: list[str] | None = None) -> None:
             raise DatabaseSetupError('Falta el registro de colecciones textuales publicadas')
         if args.spatial and not (args.data_dir / "spatial_tables.json").is_file():
             raise DatabaseSetupError("Falta el mapeo de la muestra espacial")
+        if args.multimedia and not (args.data_dir / "multimedia_tables.json").is_file():
+            raise DatabaseSetupError("Falta el registro de colecciones multimedia publicadas")
         database = Database.open(
             definition, args.data_dir, memory_budget_bytes=DEMO_MEMORY_BUDGET_BYTES
         )
@@ -123,7 +129,9 @@ def main(argv: list[str] | None = None) -> None:
         flush=True,
     )
     try:
-        app = create_app(service, presets=() if args.spatial or args.text else PRESETS,
+        from .demo import MULTIMEDIA_PRESETS
+        presets = {"demo": PRESETS, "multimedia": MULTIMEDIA_PRESETS}.get(kind, ())
+        app = create_app(service, presets=presets,
                          frontend_dir=args.frontend_dir)
         # Running statements are cancelled when the stop is requested, so open
         # connections get a real answer; the bound only caps a stuck client.

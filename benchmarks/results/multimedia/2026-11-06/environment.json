@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-06",
+  "commit": "26d1e2c5938458b9987d019582b236d1eee239ba",
+  "dirty_measured_files": [
+    "?? benchmarks/multimedia/results.py"
+  ],
+  "measured_source_sha256": "209675e916fe1fc4753037186d5ff30e5de5d22b19dcc315273c47b93f031a80",
+  "python": "3.12.3",
+  "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "cpu": "AMD Ryzen 7 250 w/ Radeon 780M Graphics",
+  "logical_cpus": 8,
+  "memory_total_mib": 7941,
+  "libraries": {
+    "numpy": "2.5.4",
+    "cv2": "5.0.0",
+    "sklearn": "1.9.1",
+    "librosa": "1.0.0",
+    "soundfile": "0.14.0"
+  },
+  "k": 10,
+  "repetitions": 3,
+  "sizes": [
+    1000,
+    10000,
+    100000
+  ],
+  "configs": [
+    "ivf-euclidean",
+    "ivf-cosine",
+    "hnsw-euclidean",
+    "hnsw-cosine"
+  ],
+  "hnsw": {
+    "m": 16,
+    "m0": 32,
+    "ef_construction": 100,
+    "min_ef_search": 64
+  },
+  "nlist": {
+    "1000": 32,
+    "10000": 100,
+    "100000": 316
+  },
+  "vocabulary": {
+    "training_objects": 1000,
+    "descriptors_total": 251019,
+    "descriptors_sampled": 100000,
+    "vocabulary_size": 256,
+    "extract_seconds": 48.169260754999414,
+    "kmeans_seconds": 29.732150289000856,
+    "peak_rss_mib": 692.62890625,
+    "seed": 20261106,
+    "kmeans": {
+      "restarts": 3,
+      "max_iterations": 100
+    }
+  },
+  "counts": {
+    "objects": 100080,
+    "gallery": 100000,
+    "queries": 30,
+    "tuning": 50,
+    "rejected": {},
+    "workers": 2,
+    "reused_rows": 100079,
+    "extracted_now": 1,
+    "wall_seconds": 0.20553707699946244,
+    "cpu_seconds_per_image_mean": 0.13730970599863213,
+    "cpu_seconds_per_image_median": 0.13730970599863213,
+    "descriptors_mean": 256.0,
+    "descriptors_min": 256,
+    "objects_with_256_descriptors": 1
+  },
+  "counts_first_pass": {
+    "objects": 100080,
+    "gallery": 100000,
+    "queries": 30,
+    "tuning": 50,
+    "rejected": {
+      "456425": "no_descriptors"
+    },
+    "workers": 7,
+    "wall_seconds": 3768.2225769180004,
+    "cpu_seconds_per_image_mean": 0.26325169788760905,
+    "cpu_seconds_per_image_median": 0.24811472999954276,
+    "descriptors_mean": 250.62612536096483,
+    "descriptors_min": 1,
+    "objects_with_256_descriptors": 93891
+  },
+  "split_sha256": "18fc3e794234bd1041f9ab2ac05d8409bfb0de6c140311fe1e07f941fc67c071",
+  "codebook_sha256": "24f457b3315b67a55b20daf69e970b73f6f6fd8f351d4652f92c1082c656461b",
+  "counts_sha256": "b8d0ada10b46cb9263bb3caf8e36a8d042a0d8013c57e172e99a33ab4fc7988e"
+}

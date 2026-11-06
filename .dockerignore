@@ -1,5 +1,5 @@
 .git
-.venv
+.venv*
 venv
 **/__pycache__
 **/*.py[cod]
@@ -9,7 +9,13 @@ venv
 frontend/dist
 data/generated
 benchmarks
+# Part 2 setup needs only the frozen spatial fixture generator.
+!benchmarks/__init__.py
+!benchmarks/spatial/__init__.py
+!benchmarks/spatial/datasets.py
 tests
 docs
 *.docx
 *.pdf
+tmp
+*.zip

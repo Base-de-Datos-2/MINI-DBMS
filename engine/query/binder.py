@@ -170,6 +170,7 @@ class BoundSelect:
     computed: tuple[tuple[str, Expression], ...] = ()
     spatial_access: SpatialAccess | None = None
     text_access: object | None = None
+    vector_access: object | None = None
 
     @property
     def grouped(self) -> bool:
@@ -713,6 +714,12 @@ def bind_select(
         raise _binding_error(statement, "LIMIT requires a nonnegative integer")
 
     first = _bind_relation(environment, statement.from_table, 0)
+    from .vector_binding import is_vector_select, bind_vector_select
+    if is_vector_select(statement):
+        vector = bind_vector_select(environment, statement, first)
+        projection = tuple(BoundProjectionItem(name, data_type) for name, data_type in vector.projection)
+        return BoundSelect((first,), first.layout, None, (), None, (), (), projection, (),
+                           vector.schema, statement.limit, vector_access=vector.access)
     from .text_binding import is_text_select, bind_text_select
     if is_text_select(statement):
         text = bind_text_select(environment, statement, first)

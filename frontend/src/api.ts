@@ -168,3 +168,5 @@ export interface TextQueryRequest { table: string; column: string; query: string
 export interface TextQueryResult { columns: { name: string }[]; rows: unknown[][]; total_rows: number; truncated: boolean; model: string; plan: { operator: string; selection: string; model: string; order: string }; metrics: { backend_elapsed_ms: number } }
 export const fetchTextTables = () => getJson<TextCollection[]>("/api/text/tables");
 export const runTextQuery = (request: TextQueryRequest, token: string | null) => postJson<TextQueryResult>("/api/text/query", request, token);
+export const fetchMultimediaTables = () =>
+  getJson<import("./multimedia").MultimediaTable[]>("/api/multimedia/tables");

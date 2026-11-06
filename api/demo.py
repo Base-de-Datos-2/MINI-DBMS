@@ -257,3 +257,50 @@ PRESETS = (
         "SELECT id, name, age FROM students_big WHERE age >= 30 AND age <= 31 ORDER BY id;",
     ),
 )
+
+
+#: Part 4 examples: both literal queries of the assignment (§2.4.3) plus the
+#: comparison switches. They only fill the editor; POST /api/query runs them.
+MULTIMEDIA_PRESETS = (
+    Preset(
+        "Imágenes similares (PDF)",
+        "Primer ejemplo del enunciado: HNSW con similitud del coseno.",
+        "SELECT * FROM imagenes WHERE SIMILAR_TO('foto_consulta.jpg', k=10) USING HNSW WITH METRIC=cosine;",
+        None,
+    ),
+    Preset(
+        "Canciones similares (PDF)",
+        "Segundo ejemplo del enunciado: IVF con distancia euclidiana (score = −distancia).",
+        "SELECT nombre, artista, SIMILARITY_SCORE() AS score FROM canciones "
+        "WHERE SIMILAR_TO('audio_query.mp3', k=5) USING IVF WITH METRIC=euclidean ORDER BY score DESC;",
+        None,
+    ),
+    Preset(
+        "Canciones con reproductor",
+        "Igual que el ejemplo del PDF, proyectando media_key para escuchar cada resultado.",
+        "SELECT nombre, artista, media_key, SIMILARITY_SCORE() AS score FROM canciones "
+        "WHERE SIMILAR_TO('audio_query.mp3', k=5) USING IVF WITH METRIC=euclidean ORDER BY score DESC;",
+        None,
+    ),
+    Preset(
+        "Misma consulta con IVF",
+        "Cambia el índice; desmarca «Usar índices» para ver la búsqueda exacta (VectorScan).",
+        "SELECT id, nombre, media_key, SIMILARITY_SCORE() AS score FROM imagenes "
+        "WHERE SIMILAR_TO('foto_consulta.jpg', k=10) USING IVF WITH METRIC=cosine;",
+        None,
+    ),
+    Preset(
+        "Euclidiana frente a coseno",
+        "La métrica cambia el orden; el score euclidiano es −distancia.",
+        "SELECT id, nombre, media_key, SIMILARITY_SCORE() AS score FROM imagenes "
+        "WHERE SIMILAR_TO('foto_consulta.jpg', k=10) USING HNSW WITH METRIC=euclidean;",
+        None,
+    ),
+    Preset(
+        "Plan con EXPLAIN ANALYZE",
+        "Muestra método, métrica, candidatos evaluados y tiempos de extracción y búsqueda.",
+        "EXPLAIN ANALYZE SELECT * FROM imagenes WHERE SIMILAR_TO('foto_consulta.jpg', k=10) "
+        "USING HNSW WITH METRIC=cosine;",
+        None,
+    ),
+)
