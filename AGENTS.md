@@ -2,11 +2,26 @@
 
 ## Current authorization — 2026-11-06
 
-The user explicitly requested **Part 4 phase 1** (baseline and contracts) of
+**Part 4 is complete** (phases 1–8, `PART_04/BLOQUE_1.md` … `BLOQUE_8.md`,
+results in `docs/EXPERIMENTOS_MULTIMEDIA.md`). Part 5 (application) needs a
+new authorization. Reproduce the multimedia experiment with CPython 3.12 and
+the `multimedia` extra; the 100k corpus lives in `data/generated/multimedia`
+and is not committed.
+
+## Authorization history for Part 4 — 2026-11-06
+
+The user authorized implementing **Part 4 phases 2–8** of
+`PART_04/PLAN_PARTE_04.md` autonomously, deciding open points per the plan,
+one branch per phase chained to the previous one, commits authored only by
+the user and no push. Decisions: vocabulary K-Means via scikit-learn, own
+K-Means for IVF; audio stays a functional ~30-clip collection (images are the
+scaled modality). Progress: `PART_04/BLOQUE_*.md`.
+
+Earlier the same day the user requested **Part 4 phase 1** (baseline and contracts) of
 `PART_04/PLAN_PARTE_04.md`. It is implemented: contracts in
 `docs/multimedia-contract.md` and `engine/multimedia/contracts.py`, fixtures in
 `tests/multimedia/fixtures/`, the PENDING data gate and evidence in
-`PART_04/BLOQUE_1.md`. Part 4 phases 2–8 and Part 5 need a new authorization.
+`PART_04/BLOQUE_1.md`. Part 5 needs a new authorization.
 Third-party code in `engine/` is limited to numpy in `engine.multimedia` and
 lazily imported OpenCV/librosa in its feature adapter; IVF, HNSW and the
 vector logic stay our own (`tests/test_architecture.py`).

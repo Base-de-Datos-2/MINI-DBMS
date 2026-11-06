@@ -1,0 +1,632 @@
+{
+  "source": "Free Music Archive, fma_small (Defferrard et al., ISMIR 2017)",
+  "metadata_url": "https://os.unil.cloud.switch.ch/fma/fma_metadata.zip",
+  "audio_url": "https://os.unil.cloud.switch.ch/fma/fma_small.zip",
+  "seed": 20261106,
+  "eligible_tracks": 221,
+  "selection": "seeded round-robin across genres; CC licenses allowing derivatives",
+  "encoding": "ffmpeg libmp3lame mono 22,050 Hz 64 kbit/s",
+  "bytes_transferred": 75121172,
+  "clips": [
+    {
+      "id": 1,
+      "track_id": 71508,
+      "media_key": "fma_071508.mp3",
+      "role": "gallery",
+      "title": "Burn Down the Monostery",
+      "artist": "egr",
+      "genre": "Electronic",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/071/071508.mp3",
+      "original_sha256": "8e3613f3a6732ab542c1a00fb526e742181c64deed68290809de0386c72af2d1",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "8a8f33233a62b22106cc7208a53d3faa357dbcff070cc521ba36aa9efdcda2e0",
+      "bytes": 80685
+    },
+    {
+      "track_id": 71508,
+      "media_key": "audio_query.mp3",
+      "role": "query",
+      "same_track_as": "fma_071508.mp3",
+      "title": "Burn Down the Monostery",
+      "artist": "egr",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/071/071508.mp3",
+      "clip": {
+        "start_seconds": 15.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "7bbc0e81cdadc263466dd83377b5ec51c307b9b36fbefe0588cad25e20a948e2",
+      "bytes": 80685
+    },
+    {
+      "id": 2,
+      "track_id": 6679,
+      "media_key": "fma_006679.mp3",
+      "role": "gallery",
+      "title": "Different Strokes for Different Folks",
+      "artist": "Jarrod Fowler",
+      "genre": "Experimental",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/006/006679.mp3",
+      "original_sha256": "33dd1bcc4798928d95fabfc262297f859344f3aae8441bd49a338c9d543c20a2",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "fca6b8f5e360b0181bdbe18d7583d0f4d06419c491a5ca5eb2e1080b815e4161",
+      "bytes": 80685
+    },
+    {
+      "track_id": 6679,
+      "media_key": "consulta_006679.mp3",
+      "role": "query",
+      "same_track_as": "fma_006679.mp3",
+      "title": "Different Strokes for Different Folks",
+      "artist": "Jarrod Fowler",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/006/006679.mp3",
+      "clip": {
+        "start_seconds": 15.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "22885ed0bbf93fb21dd337c33e4b09f59063f74a84bb4b8dacfc42a2ccc27a5e",
+      "bytes": 80685
+    },
+    {
+      "id": 3,
+      "track_id": 61011,
+      "media_key": "fma_061011.mp3",
+      "role": "gallery",
+      "title": "Week Seven",
+      "artist": "Ben von Wildenhaus",
+      "genre": "Folk",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/061/061011.mp3",
+      "original_sha256": "10747e960ca6a5976ee1af058466e2e8269bdca74899c1bd373b119b64ac946f",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "8db49383264c20bec3145e7f093b1f3a5ecc898e97c5945d0d0aea5e78387902",
+      "bytes": 80685
+    },
+    {
+      "track_id": 61011,
+      "media_key": "consulta_061011.mp3",
+      "role": "query",
+      "same_track_as": "fma_061011.mp3",
+      "title": "Week Seven",
+      "artist": "Ben von Wildenhaus",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/061/061011.mp3",
+      "clip": {
+        "start_seconds": 15.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "425c2ef01e52aae48ac765e8d48167c86978b83e5c7c2f23d2298b595a9fb46e",
+      "bytes": 80685
+    },
+    {
+      "id": 4,
+      "track_id": 24432,
+      "media_key": "fma_024432.mp3",
+      "role": "gallery",
+      "title": "Christmas Eve 2009",
+      "artist": "Black Ant",
+      "genre": "Hip-Hop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/024/024432.mp3",
+      "original_sha256": "5a50548286261e95c5d28d222d4a8d782705dd0fbd8096875f1de918f6e6bb62",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "e04dde377d2e18bf16e7d151394ba6bd1afea99e9311a467f76d6ccec7e2e639",
+      "bytes": 80685
+    },
+    {
+      "track_id": 24432,
+      "media_key": "consulta_024432.mp3",
+      "role": "query",
+      "same_track_as": "fma_024432.mp3",
+      "title": "Christmas Eve 2009",
+      "artist": "Black Ant",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/024/024432.mp3",
+      "clip": {
+        "start_seconds": 15.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "f93e842a3a1f7aab9c2ae2e1451346c4df249e54754ae1c2459c2d0dfd21b5a2",
+      "bytes": 80685
+    },
+    {
+      "id": 5,
+      "track_id": 50956,
+      "media_key": "fma_050956.mp3",
+      "role": "gallery",
+      "title": "Devastation and Revenge",
+      "artist": "Kevin MacLeod",
+      "genre": "Instrumental",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/050/050956.mp3",
+      "original_sha256": "cf32c71fe262464bc841c5c2afe1f435f5372f318180c0fc6007dc334f2d3f13",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "c4dd7c426e803013d2d6eabf47ce6dc79be0454e5bb7ee161e5556e627e3b07f",
+      "bytes": 80685
+    },
+    {
+      "track_id": 50956,
+      "media_key": "consulta_050956.mp3",
+      "role": "query",
+      "same_track_as": "fma_050956.mp3",
+      "title": "Devastation and Revenge",
+      "artist": "Kevin MacLeod",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/050/050956.mp3",
+      "clip": {
+        "start_seconds": 15.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "a00e52f0f7bf4131c75507344f70c9f9b67b5bc233d6967a97814971213f85df",
+      "bytes": 80685
+    },
+    {
+      "id": 6,
+      "track_id": 54468,
+      "media_key": "fma_054468.mp3",
+      "role": "gallery",
+      "title": "Dub Action",
+      "artist": "DuBoLoGy",
+      "genre": "International",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/054/054468.mp3",
+      "original_sha256": "14df8b66b319b56c081ad1c8e00b2684c5b7d707dcf69849231e8074d00805db",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "9234d37b7c28384e29c79024d85f1402d79cad50519b7b2c35bb2ccbec062fef",
+      "bytes": 80685
+    },
+    {
+      "id": 7,
+      "track_id": 91157,
+      "media_key": "fma_091157.mp3",
+      "role": "gallery",
+      "title": "The Cave of Time",
+      "artist": "Monroeville Music Center",
+      "genre": "Pop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/091/091157.mp3",
+      "original_sha256": "05c5b481c91f7c9e2b7c8cca720837a9425427590c1b2f7f5fd50458769404bb",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "8acb32cf09e1e4b3ca0d22c89c09eb13f14efbff3194424b0dc6f90606c96d11",
+      "bytes": 80685
+    },
+    {
+      "id": 8,
+      "track_id": 61493,
+      "media_key": "fma_061493.mp3",
+      "role": "gallery",
+      "title": "Redlight",
+      "artist": "Room For A Ghost",
+      "genre": "Rock",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/061/061493.mp3",
+      "original_sha256": "858bc461b57d4522a097c85158dbadd282da869cf495448783a3930b15ccaad1",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "507ba3593ba646fac9c0911cffd05196225bc8b02aee8c4aa733d58044e3757c",
+      "bytes": 80685
+    },
+    {
+      "id": 9,
+      "track_id": 91620,
+      "media_key": "fma_091620.mp3",
+      "role": "gallery",
+      "title": "ayVentura",
+      "artist": "Rolemusic",
+      "genre": "Electronic",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/091/091620.mp3",
+      "original_sha256": "cba9726337a9170513efdad33de5e4201b035568a7ff4cc23eec1e496c69847a",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "25581e74f53ea9edb7133310d914f7b7ec179a3fa6b184086395ce2f2d83b81b",
+      "bytes": 80685
+    },
+    {
+      "id": 10,
+      "track_id": 6684,
+      "media_key": "fma_006684.mp3",
+      "role": "gallery",
+      "title": "Preface",
+      "artist": "Jarrod Fowler",
+      "genre": "Experimental",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/006/006684.mp3",
+      "original_sha256": "02cbf174e59727744f460c97248c8dfce2e0e52dbdd59bebdbea479a9dc0ee9e",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "8f12b22cfc5d0dcb343b5574d842f6401026233f52e22e08e207114857f41d33",
+      "bytes": 80685
+    },
+    {
+      "id": 11,
+      "track_id": 61008,
+      "media_key": "fma_061008.mp3",
+      "role": "gallery",
+      "title": "Week Four",
+      "artist": "Ben von Wildenhaus",
+      "genre": "Folk",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/061/061008.mp3",
+      "original_sha256": "0268c52b639b53836a0f2a6bf27fee5ee553876706ee93ce68c8f8b5fe894086",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "edfdca3ceb9e9936b261cc7ec11508bf3aca48c799f1bf49f36d0cdc71bfee1c",
+      "bytes": 80685
+    },
+    {
+      "id": 12,
+      "track_id": 75417,
+      "media_key": "fma_075417.mp3",
+      "role": "gallery",
+      "title": "Trapped",
+      "artist": "Kellee Maize",
+      "genre": "Hip-Hop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/075/075417.mp3",
+      "original_sha256": "3f067d3202231d75ed16ec6ab95e0fbea3111ae9dd9318f1b3b4902a07b5559e",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "26d8a4e71552c875689bbd029e042fcfbd30adfddc1ea313166857b496cdd105",
+      "bytes": 80685
+    },
+    {
+      "id": 13,
+      "track_id": 50955,
+      "media_key": "fma_050955.mp3",
+      "role": "gallery",
+      "title": "Eastminster",
+      "artist": "Kevin MacLeod",
+      "genre": "Instrumental",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/050/050955.mp3",
+      "original_sha256": "ef21990e0ca2ea61d8088b3312059d373a9d8fe8a3fcde7696c6c54a2d92ecfd",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "41589a40d3198af574480abeb71883633301895ac31a2e992a59deb07061c324",
+      "bytes": 80685
+    },
+    {
+      "id": 14,
+      "track_id": 54464,
+      "media_key": "fma_054464.mp3",
+      "role": "gallery",
+      "title": "Dub Atao",
+      "artist": "DuBoLoGy",
+      "genre": "International",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/054/054464.mp3",
+      "original_sha256": "86f1c9b7071145bb84df2f79c1b33c241feb37be8f043b7975199a0e584e94b4",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "a15d4220013df0f897f9c6d4089894c1da5f1e85c2c9ddeba6532236f3bd048a",
+      "bytes": 80685
+    },
+    {
+      "id": 15,
+      "track_id": 91160,
+      "media_key": "fma_091160.mp3",
+      "role": "gallery",
+      "title": "Invaders From Within",
+      "artist": "Monroeville Music Center",
+      "genre": "Pop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/091/091160.mp3",
+      "original_sha256": "e8d84ea78b7742dc352687719266b19e526eb61ec93f0063fcd8f4d22544c864",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "6abaf2e8e7240628b7d9a9cadb6831c27aaee0db0eccb0d0582da91f518acb7d",
+      "bytes": 80685
+    },
+    {
+      "id": 16,
+      "track_id": 74908,
+      "media_key": "fma_074908.mp3",
+      "role": "gallery",
+      "title": "In A Graveyard On Halloween Night",
+      "artist": "Did You Just Hex Me?",
+      "genre": "Rock",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/074/074908.mp3",
+      "original_sha256": "46f7c0b2e090a735a3e493f0792033363e8ddcf2c1c624fbedb97ac2bda5c87d",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "63cd5f4a6f3f3b778f79dd947fd3ec23f494d8155eec85949a1110c8fa180ecc",
+      "bytes": 80685
+    },
+    {
+      "id": 17,
+      "track_id": 71514,
+      "media_key": "fma_071514.mp3",
+      "role": "gallery",
+      "title": "Shut Up",
+      "artist": "Rhinostrich",
+      "genre": "Electronic",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/071/071514.mp3",
+      "original_sha256": "0e4f4ecc3a4d8435adbdfc7549a12806b9765cb83ffe89c6e83696308575fce7",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "4a734b8998749e6dc3254fa67364d39d50df998375eee0a344f017d0f4e8635f",
+      "bytes": 80685
+    },
+    {
+      "id": 18,
+      "track_id": 38859,
+      "media_key": "fma_038859.mp3",
+      "role": "gallery",
+      "title": "Berries",
+      "artist": "Gurdonark",
+      "genre": "Experimental",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/038/038859.mp3",
+      "original_sha256": "34bc16a9dd08ca6fc84c26b9d0365c0f603e598144aa1739d6bc0f6413c9592e",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "ad483840974b2fd9e89b714cc5211b0f3db9479fec83a273ac8564f66367ab7d",
+      "bytes": 80685
+    },
+    {
+      "id": 19,
+      "track_id": 61006,
+      "media_key": "fma_061006.mp3",
+      "role": "gallery",
+      "title": "Week One",
+      "artist": "Ben von Wildenhaus",
+      "genre": "Folk",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/061/061006.mp3",
+      "original_sha256": "612b0e6ee0f111694d027903134b013571f13f3119822053640e531045b78034",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "a31a9b7a75311c3e4290552fa4ac44afe5b359bc6aa37c80b08b87028efa0acb",
+      "bytes": 80685
+    },
+    {
+      "id": 20,
+      "track_id": 24423,
+      "media_key": "fma_024423.mp3",
+      "role": "gallery",
+      "title": "D8M3",
+      "artist": "Black Ant",
+      "genre": "Hip-Hop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/024/024423.mp3",
+      "original_sha256": "bf10defc665470401ce82dd3ad1a791483d3aab76f20ffae469581a761c5cd9b",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "fe3091a6eefd8e7a23cb6c3b32833439d8b1f7b2b4d09af943395a6222105c2b",
+      "bytes": 80685
+    },
+    {
+      "id": 21,
+      "track_id": 54465,
+      "media_key": "fma_054465.mp3",
+      "role": "gallery",
+      "title": "Black Monday",
+      "artist": "DuBoLoGy",
+      "genre": "International",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/054/054465.mp3",
+      "original_sha256": "7df89b9ad53d6a9bff1aa8f7cee446eb316053d21e8aa1a797a618165d7fa81e",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "2879fb8699fbf6d4bd66e24da975e964dee7daf602501f97e45ecfd57930d829",
+      "bytes": 80685
+    },
+    {
+      "id": 22,
+      "track_id": 91163,
+      "media_key": "fma_091163.mp3",
+      "role": "gallery",
+      "title": "You Are A Monster",
+      "artist": "Monroeville Music Center",
+      "genre": "Pop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/091/091163.mp3",
+      "original_sha256": "807906513ac4715621c97f8bd34d074c56f96046f07f6d510d87a530656623f5",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "773716aa59b79eb4c2706a8923de3cc38a32f69c98756553d0e3d9b137e54528",
+      "bytes": 80685
+    },
+    {
+      "id": 23,
+      "track_id": 61492,
+      "media_key": "fma_061492.mp3",
+      "role": "gallery",
+      "title": "No.02",
+      "artist": "Room For A Ghost",
+      "genre": "Rock",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/061/061492.mp3",
+      "original_sha256": "cb58979f89fe9a8ec12dab0fa5cca132920275878761f2095f9e89511ad99ca7",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "9f102fcca0d414fb22d674ad6d5c4c0dada63066e11c7778beaa035dedef2570",
+      "bytes": 80685
+    },
+    {
+      "id": 24,
+      "track_id": 71509,
+      "media_key": "fma_071509.mp3",
+      "role": "gallery",
+      "title": "Ravetrap",
+      "artist": "Hexawe (Various Artists)",
+      "genre": "Electronic",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/071/071509.mp3",
+      "original_sha256": "083d8bea726d372ea955e346afa39e2e0eaf46b5156b9f4e6902728ae63de635",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "4f1e593fece4a7c2138cf5047f9539d7696e0fb692744de1a6a4ae3be3042ff9",
+      "bytes": 80685
+    },
+    {
+      "id": 25,
+      "track_id": 51118,
+      "media_key": "fma_051118.mp3",
+      "role": "gallery",
+      "title": "Tickled Pink",
+      "artist": "Bob Ostertag",
+      "genre": "Experimental",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/051/051118.mp3",
+      "original_sha256": "f4dd271e835c3c9c91a54ba18b4b7a58e1401e2cb2c8134dc856be68d6a51827",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "71213796f3e5069b63e8e09f953c54a81d8c91d766f5346c465ee1674f1b5db4",
+      "bytes": 80685
+    },
+    {
+      "id": 26,
+      "track_id": 61013,
+      "media_key": "fma_061013.mp3",
+      "role": "gallery",
+      "title": "Week Nine",
+      "artist": "Ben von Wildenhaus",
+      "genre": "Folk",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/061/061013.mp3",
+      "original_sha256": "c95bf1ffb2a98b4dbf80afaee4ca2eadd1a7f6e34d46941b2cf7989e39853d1f",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "6a6305943a8cd0bc1f50116d834484626bec47756dacb79ea81953b4f9f363b4",
+      "bytes": 80685
+    },
+    {
+      "id": 27,
+      "track_id": 75927,
+      "media_key": "fma_075927.mp3",
+      "role": "gallery",
+      "title": "Bullit",
+      "artist": "Tricky Diesel",
+      "genre": "Hip-Hop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/075/075927.mp3",
+      "original_sha256": "eb23f3e86e4a09130bb19956f1851899e0572d7c60debcd7c2a831bf9685cc30",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "f044a1268be3a75fa28b5d07df55b86a96463cfd9c42ea665f1cf84b892622bc",
+      "bytes": 80685
+    },
+    {
+      "id": 28,
+      "track_id": 54467,
+      "media_key": "fma_054467.mp3",
+      "role": "gallery",
+      "title": "Chacha Dub",
+      "artist": "DuBoLoGy",
+      "genre": "International",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/054/054467.mp3",
+      "original_sha256": "f3da9ceb994b6b1567daf0799955e8c2d333e3eef08af6530a23651681e69eeb",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "ba7c790fdb578057a754ba99fa7a7d9d6bd6c15d176b8ce646cad76bec3ec3d6",
+      "bytes": 80685
+    },
+    {
+      "id": 29,
+      "track_id": 91164,
+      "media_key": "fma_091164.mp3",
+      "role": "gallery",
+      "title": "Roller Star",
+      "artist": "Monroeville Music Center",
+      "genre": "Pop",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/091/091164.mp3",
+      "original_sha256": "67f289cf28b0b29cd5cf88c55fa96a39eb5a67b88c4a131b101f0d0e6e452b74",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "a2f4f9cd4ed22e4a32f9095c3325f062488152709b821740b2d978ca01c5e7ff",
+      "bytes": 80685
+    },
+    {
+      "id": 30,
+      "track_id": 67163,
+      "media_key": "fma_067163.mp3",
+      "role": "gallery",
+      "title": "Poserslave",
+      "artist": "Hisko Detria",
+      "genre": "Rock",
+      "license": "Creative Commons Attribution",
+      "source_member": "fma_small/067/067163.mp3",
+      "original_sha256": "4cf824d3b14172e6b36f7643b85d1f54fe1e8087e212c05a02b07c16f4334a28",
+      "clip": {
+        "start_seconds": 0.0,
+        "duration_seconds": 10.0
+      },
+      "sha256": "b11bc4105a9e43f08ffc1174ddc3d54e1cfdee1149b2b93e3b8aa9f208091b60",
+      "bytes": 80685
+    }
+  ]
+}

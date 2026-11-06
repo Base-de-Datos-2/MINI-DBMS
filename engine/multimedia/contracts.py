@@ -185,7 +185,7 @@ def similarity_score(metric: Metric, x: Sequence[float], q: Sequence[float]) -> 
     probabilities and are not comparable across metrics or modalities.
     """
     if metric is Metric.EUCLIDEAN:
-        return -euclidean_distance(x, q)
+        return 0.0 - euclidean_distance(x, q)      # 0.0, never -0.0, for identical vectors
     if metric is Metric.DOT:
         return dot_product(x, q)
     if metric is Metric.COSINE:

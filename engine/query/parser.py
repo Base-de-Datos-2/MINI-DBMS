@@ -44,6 +44,7 @@ from .ast import (
     Statement,
     TableRef,
     TextMatch,
+    SimilarTo,
     TypeSpecification,
 )
 from .errors import SqlLimitError, SqlSyntaxError, SqlUnsupportedError
@@ -321,12 +322,31 @@ class _Parser:
         from_table = self._parse_table_ref()
         join = self._parse_optional_join()
         where = self._parse_optional_where()
-        text_model = None
+        text_model = vector_method = vector_metric = None
         if self._word(self._current) == "USING":
-            self._advance()
-            text_model = self._expect_identifier().value.upper()
+            using = self._advance()
+            name = self._expect_identifier().value.upper()
+            if self._match_keyword("WITH") is not None:
+                # Part 4: USING IVF|HNSW WITH METRIC=<metric>; never a text model.
+                if self._word(self._current) != "METRIC":
+                    raise self._expected("METRIC after WITH")
+                self._advance()
+                operator = self._current
+                if operator.type is not TokenType.COMPARISON_OPERATOR or operator.value != "=":
+                    raise self._expected("'=' after METRIC")
+                self._advance()
+                vector_method, vector_metric = name, self._expect_identifier().value.lower()
+            elif isinstance(where, SimilarTo):
+                raise self._error("SIMILAR_TO requires USING <IVF|HNSW> WITH METRIC=<metric>",
+                                  token=using)
+            else:
+                text_model = name
         if isinstance(where, TextMatch) and text_model is None:
             raise self._error("MATCH requires USING and a ranking model")
+        if isinstance(where, SimilarTo) and vector_method is None:
+            raise self._error("SIMILAR_TO requires USING <IVF|HNSW> WITH METRIC=<metric>")
+        if vector_method is not None and not isinstance(where, SimilarTo):
+            raise self._error("USING ... WITH METRIC requires a single SIMILAR_TO condition")
         group_by = self._parse_optional_group_by()
         order_by = self._parse_optional_order_by()
         limit = None
@@ -344,6 +364,8 @@ class _Parser:
             order_by=order_by,
             limit=limit,
             text_model=text_model,
+            vector_method=vector_method,
+            vector_metric=vector_metric,
             span=self._cover(start.span, self._previous.span),
         )
 
@@ -378,11 +400,11 @@ class _Parser:
         ):
             if token.value.upper() in _AGGREGATE_FUNCTIONS:
                 return self._parse_aggregate_call()
-            if token.value.upper() == "SCORE":
+            if token.value.upper() in ("SCORE", "SIMILARITY_SCORE"):
                 name = self._advance()
                 self._expect_punct("(")
                 close = self._expect_punct(")")
-                return FunctionCall("SCORE", (), span=self._cover(name.span, close.span))
+                return FunctionCall(name.value.upper(), (), span=self._cover(name.span, close.span))
             return self._parse_function_call(0)
         return self._parse_select_reference()
 
@@ -577,6 +599,25 @@ class _Parser:
         return expression
 
     def _parse_comparison(self) -> SqlExpr:
+        if self._word(self._current) == "SIMILAR_TO" and self._peek(1).value == "(":
+            start = self._advance()
+            self._expect_punct("(")
+            media = self._parse_literal()
+            if not isinstance(media, StringLiteral):
+                raise self._error("SIMILAR_TO requires a registered media key string")
+            self._expect_punct(",")
+            if self._word(self._current) != "K":
+                raise self._expected("k=<positive integer>")
+            self._advance()
+            operator = self._current
+            if operator.type is not TokenType.COMPARISON_OPERATOR or operator.value != "=":
+                raise self._expected("'=' after k")
+            self._advance()
+            k = self._parse_literal()
+            if not isinstance(k, IntegerLiteral) or k.value < 1:
+                raise self._error("SIMILAR_TO requires k to be a positive integer")
+            end = self._expect_punct(")")
+            return SimilarTo(media, k, span=self._cover(start.span, end.span))
         if self._word(self._current) == "MATCH" and self._peek(1).value == "(":
             start = self._advance()
             self._expect_punct("(")
@@ -673,6 +714,10 @@ class _Parser:
         token = self._expect_identifier()
         self._check_nesting(nesting, token)
         name = token.value.upper()
+        if name == "SIMILARITY_SCORE":
+            self._expect_punct("(")
+            close = self._expect_punct(")")
+            return FunctionCall(name, (), span=self._cover(token.span, close.span))
         if name not in {"POINT", "DISTANCIA", "DISTANCE"}:
             raise self._error(
                 f"Function {token.lexeme!r} is not supported",

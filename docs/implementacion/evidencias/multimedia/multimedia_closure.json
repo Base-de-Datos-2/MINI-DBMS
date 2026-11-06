@@ -1,0 +1,110 @@
+{
+  "part": 4,
+  "date": "2026-11-06",
+  "status": "COMPLETE",
+  "branches": [
+    "feat/parte-04-fase-1",
+    "feat/parte-04-fase-2",
+    "feat/parte-04-fase-3",
+    "feat/parte-04-fase-4",
+    "feat/parte-04-fase-5",
+    "feat/parte-04-fase-6",
+    "feat/parte-04-fase-7",
+    "feat/parte-04-fase-8"
+  ],
+  "base_commit": "7766e22",
+  "versions": {
+    "python": [
+      "3.12.3",
+      "3.11.9"
+    ],
+    "numpy": [
+      "2.5.4",
+      "2.4.6"
+    ],
+    "opencv": "5.0.0",
+    "librosa": [
+      "1.0.0",
+      "0.11.0"
+    ],
+    "scikit_learn": "1.9.1",
+    "soundfile": "0.14.0",
+    "libsndfile": "1.2.2",
+    "chromium": "156.0.8078.4"
+  },
+  "engine_source_sha256": {
+    "engine/multimedia/__init__.py": "c4c3aba6fb66fcf0cb668f891808dc72c98bfe9e3a0a9ef3c96693d6949a38c7",
+    "engine/multimedia/collection.py": "bd7d90c45daa3491eb91ed5debe92e7ceccf3a7d9042154c001369e69c4c6333",
+    "engine/multimedia/contracts.py": "3fd5c2a5b833987f301cf799b4b25c5612b42ef859954807fb07ab62e66762b1",
+    "engine/multimedia/features.py": "daa99714cd7c44f01abe684668237ea2d484869b0bf3960720b4821b3bce9e01",
+    "engine/multimedia/files.py": "568ddc09919d23b11c25bd0c5622f5b3ad722143917ef1a1a7285323dd8f9e8d",
+    "engine/multimedia/hnsw.py": "15c1b18b8f656eef5e9781f7cd4962b3197f721b9023ce5f0d624562d162c9a0",
+    "engine/multimedia/ivf.py": "baf3bfdff2c1b3d02fc8049bd320f41c9dd8227a634a5efdca916024aaa1da48",
+    "engine/multimedia/kmeans.py": "9621120d5c7d43808568a76638948e1873952d20ad0fed0b56b7c59357b155d4",
+    "engine/multimedia/operators.py": "d9ed2316ceadd7c5c74d397dd9d9b365b667a7038c8cf5e30f3d13158766642d",
+    "engine/multimedia/registry.py": "b3c48a495eee269cb361d88cfbdf9d3759865baa0824e27bf7aee11197b6559d",
+    "engine/multimedia/sealing.py": "b205c75af3a2b56a62f8f3421209dea727b5c782be909cf0feae093397260a55",
+    "engine/multimedia/vectors.py": "4696eb616b17bf66ca699cd510f338029932d2ac8e118829ce63db48a3f1a209",
+    "engine/query/vector_binding.py": "3fec542fdff00c0ee432ee081e1dd69c831b998825f099f10e2983bbf248a01c"
+  },
+  "results": {
+    "benchmarks/results/multimedia/2026-11-06/build_100000_hnsw-cosine.json": "1de6087488879e4ddfd4580ef7fd993e5dff6c69098593e90ec5dc03542f3fe2",
+    "benchmarks/results/multimedia/2026-11-06/build_100000_hnsw-euclidean.json": "607061a22035677c5e1edf80fece19c90b03001eb1c8631148f3165790263730",
+    "benchmarks/results/multimedia/2026-11-06/build_100000_ivf-cosine.json": "88cd319b195d8f68da9b54407a47d7ecf0484f03c3a44d8a9a6d072f4f209db8",
+    "benchmarks/results/multimedia/2026-11-06/build_100000_ivf-euclidean.json": "f550f6e20f601773cc2f6c858ee305b8f3d6c5fdb44faa44d03a4872ae37e905",
+    "benchmarks/results/multimedia/2026-11-06/build_10000_hnsw-cosine.json": "af21ad7d16380825f0c02193f669b95e039d453197b817db56cd569821ba3a49",
+    "benchmarks/results/multimedia/2026-11-06/build_10000_hnsw-euclidean.json": "b3b38106511ed11a33647a17962697e19a1400c8bdb3b8b1cfbe6806cf4ccb8f",
+    "benchmarks/results/multimedia/2026-11-06/build_10000_ivf-cosine.json": "2fdb94984fc092d24fa24d0eae377b68b72f1ad76ab6a395c535927bb00b03d1",
+    "benchmarks/results/multimedia/2026-11-06/build_10000_ivf-euclidean.json": "37a0426fca9fe48cc06dc011a0698d4347a6dace5040354d978b3eb69db803b2",
+    "benchmarks/results/multimedia/2026-11-06/build_1000_hnsw-cosine.json": "35e8820b31642fc6b33ef2f75ec1e8f4b7eda57100e3a9b80caac3fceaf3fd8d",
+    "benchmarks/results/multimedia/2026-11-06/build_1000_hnsw-euclidean.json": "fa24ad5705c8224acb369d3a5ef1aa23426637ae14d42bd84aefe3df2c93de1a",
+    "benchmarks/results/multimedia/2026-11-06/build_1000_ivf-cosine.json": "47625bc83e274fbc33addbf12413b1dd1d574cd0e2306a8b73f552352ff2cef2",
+    "benchmarks/results/multimedia/2026-11-06/build_1000_ivf-euclidean.json": "33042e47c665559cefa1e9d9af6b255510f7ab8fc4a9a617775b34a833ee7ae0",
+    "benchmarks/results/multimedia/2026-11-06/diagnostic_search_width_100000.json": "19c91a4ad7412f2d7d50b94ff3d08e8cfb27ca7fb319014c9f8952d3704b820b",
+    "benchmarks/results/multimedia/2026-11-06/environment.json": "6f283a9411dab74829d5d7c7c9a0d6d9508307433ce885715b3d3aa0e4fc490f",
+    "benchmarks/results/multimedia/2026-11-06/environment_pilot.json": "7a611a17564c51aaa2c49757280ed69c449d08e3e9cad84555351d9bcf361e22",
+    "benchmarks/results/multimedia/2026-11-06/exact_1000.json": "b0b92750740a00f70b5e95f0d65b981a8f1fa2bc1dcdd5b4b077ee62a7860f51",
+    "benchmarks/results/multimedia/2026-11-06/exact_10000.json": "1dfe2143c6a06d448f5292ef264c39d8c7926e53cff92ec8db094c02ee7f18bf",
+    "benchmarks/results/multimedia/2026-11-06/exact_100000.json": "42197d0ef50f50c87957e94f732d3a1ed94077fbca644a48024dfc708f5284af",
+    "benchmarks/results/multimedia/2026-11-06/exact_top10_1000.json": "2c31e164a229ac0bf183e88071a38926b28b5167c021540d70461f2204a35271",
+    "benchmarks/results/multimedia/2026-11-06/exact_top10_10000.json": "771ec891ed003131012d768a93c7ddca8102562b6b09ef63cc7d0b6e39c8a6cc",
+    "benchmarks/results/multimedia/2026-11-06/exact_top10_100000.json": "0fbcda7e9fa85b79bb13b31b7c4e833a8070d4efedf235d115bc8c4462f77e21",
+    "benchmarks/results/multimedia/2026-11-06/prepare_1000.json": "41be866f46c2366f85a8af3cbc6166ceb52845ab846f4a466332774cad1a4399",
+    "benchmarks/results/multimedia/2026-11-06/prepare_10000.json": "6ffc5d5de7e76275f432ca297735ec134cc456bfd6d0596d90f50feed4b6ec74",
+    "benchmarks/results/multimedia/2026-11-06/prepare_100000.json": "7dcca1909f2cb2a57e15bbf0b3e1c675a90e96a6466f7105b57ec7751be8d624",
+    "benchmarks/results/multimedia/2026-11-06/tune_10000.json": "fb4f0a776260010a89291a038062fa8566727bdd4fd23566e712b425388d1c1c"
+  },
+  "query_result_files": 36,
+  "figures": {
+    "docs/figuras/multimedia/construccion.png": "a36c4ce177fdc336171bba7142eee3a8b39912b56e15a917608719495f0681e7",
+    "docs/figuras/multimedia/construccion_multimedia.csv": "4b23b8dfb98ea6bbebefeda189a9b78870d33b6bf9ddf8a565e2c22ad2d00fd7",
+    "docs/figuras/multimedia/consultas.png": "254f153f1acdb33b431568cd6efd0eb91704ffa3ece092fabd398e05118fd32c",
+    "docs/figuras/multimedia/consultas_multimedia.csv": "2f8b54fff1a54bf8d8e15edcff0e6316e2b6faa439207b8604d07b424fef9de2",
+    "docs/figuras/multimedia/galeria.png": "b65701593b6a3e219a89cc7587d9495cddc2dac2c77f4246116f0ee90802488f",
+    "docs/figuras/multimedia/memoria.png": "0e2574be0af4f874e460b55d17ffefee4588315457c94370406abbe601a8bb5b",
+    "docs/figuras/multimedia/recall.png": "123ef6bd84a22c0e35e4bd6cd8b3c6c735b3250871595d72518002443710174b",
+    "docs/figuras/multimedia/resumen_multimedia.csv": "4048e799df0933b54b3bfdaec258433492eb0b8697a712e92f6e922f852a53e8",
+    "docs/figuras/multimedia/resumen_multimedia.json": "4d82bd33d679bc738415dd4680a98e359bb104821ccd8199fb7c2a1ec3f7276e"
+  },
+  "feasibility": {
+    "file": "docs/implementacion/evidencias/multimedia/multimedia_feasibility.json",
+    "status": "PASS"
+  },
+  "regression": {
+    "backend_py312": "3784 passed (127.48 s)",
+    "backend_py311": "3784 passed (160.34 s)",
+    "frontend": "46 passed; tsc clean; vite build ok",
+    "commands": [
+      "python -m pytest -q -n 4 -W error",
+      "npm test",
+      "npm run typecheck",
+      "npm run build",
+      "docker compose up --build",
+      "node scripts/multimedia-browser-check.mjs <base> <dir>"
+    ]
+  },
+  "not_covered": [
+    "Windows-specific playback and memory-map release",
+    "query upload action"
+  ]
+}
