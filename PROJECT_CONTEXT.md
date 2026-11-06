@@ -146,6 +146,10 @@ pending. Earlier scope statements below do not override this authorization.
   CC BY clips. Frozen search parameters: HNSW efSearch=max(64,k), IVF
   nprobe=16 (single tuning adjustment on the tuning set). Committed demo
   media: `data/multimedia_demo` (120 images, 30 clips, attribution).
+- Phase 7 (`PART_04/BLOQUE_7.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`): 1,080
+  timed searches. At 100k: IVF builds ~1 min vs HNSW 8–12 min; HNSW queries
+  ~1.8 ms vs IVF 3.7–8.2 ms; frozen-parameter Recall@10 0.68–0.80, recovering
+  to ≥0.92 with HNSW ef 256 or IVF nprobe 32–64 (post-hoc diagnostic).
 
 ### Part 3 experimental comparison (Blocks 6–7)
 

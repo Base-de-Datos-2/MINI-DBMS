@@ -282,7 +282,7 @@ Produce timing-versus-N charts for construction and queries, plus Recall@10 and 
 | 4. HNSW — COMPLETED 2026-11-06 | Real hierarchy, graph construction/search and serialization | Structural invariants, reproducible reopening and measured recall; no disguised scan; evidence in [BLOQUE_4.md](BLOQUE_4.md) |
 | 5. Integration — COMPLETED 2026-11-06 | Single owner, guards, SQL, operator, API and simple results view | Both PDF examples work through UI; all mutation routes tested; existing behavior preserved; evidence in [BLOQUE_5.md](BLOQUE_5.md) |
 | 6. Data and scale gate — COMPLETED 2026-11-06 | Finish candidate validation, 10,000-object pilot and resource assessment | Feasibility PASS, frozen 100,000 valid objects and query manifests before final benchmark; evidence in [BLOQUE_6.md](BLOQUE_6.md) |
-| 7. Measurements | Run required matrix, independent reference, memory and gallery | Complete raw results at all three sizes, honest failures and reproducible figures |
+| 7. Measurements — COMPLETED 2026-11-06 | Run required matrix, independent reference, memory and gallery | Complete raw results at all three sizes, honest failures and reproducible figures; evidence in [BLOQUE_7.md](BLOQUE_7.md) and [EXPERIMENTOS_MULTIMEDIA.md](../docs/EXPERIMENTOS_MULTIMEDIA.md) |
 | 8. Delivery | README, incremental report, demo and regression | Final checklist complete with evidence links |
 
 Begin data feasibility early while developing on fixtures; do not wait until the UI is finished to discover that the corpus or own HNSW cannot meet the scale. No time estimates are asserted before the pilot.
