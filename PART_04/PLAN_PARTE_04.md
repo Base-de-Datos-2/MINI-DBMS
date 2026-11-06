@@ -1,5 +1,13 @@
 # Implementation plan — Part 4: multimedia vector retrieval
 
+> **Update 2026-11-06 (phase 1):** baseline is `main` at `7766e22`, which
+> replaces the historical commit cited in §1. Contracts are frozen in
+> [docs/multimedia-contract.md](../docs/multimedia-contract.md). The measured
+> host has about 32 GB of free physical storage, so §3.1's COCO candidate is
+> acquired image by image (≤512 px copies, original URL and SHA-256 kept)
+> instead of storing `train2017.zip`; see the contract §8 and
+> [BLOQUE_1.md](BLOQUE_1.md). Phases 2–8 are pending.
+
 ## 1. Objective, assumptions and scope
 
 Implement **persistent image and audio retrieval using local SIFT/MFCC descriptors, a learned visual/audio vocabulary, TF-IDF histograms, and custom IVF and HNSW indexes**. Expose retrieval through MINI-DBMS SQL and the existing interface; evaluate accuracy, latency, construction cost and memory.
@@ -268,7 +276,7 @@ Produce timing-versus-N charts for construction and queries, plus Recall@10 and 
 
 | Phase | Work | Exit evidence |
 |---|---|---|
-| 1. Baseline and contracts | Record actual Part 3 commit; confirm owner/seal; fix modality, score and SQL contracts; start data gate | No competing owners or ambiguous order semantics; tiny fixtures ready |
+| 1. Baseline and contracts — COMPLETED 2026-11-06 | Record actual Part 3 commit; confirm owner/seal; fix modality, score and SQL contracts; start data gate | No competing owners or ambiguous order semantics; tiny fixtures ready; evidence in [BLOQUE_1.md](BLOQUE_1.md) and [multimedia-contract.md](../docs/multimedia-contract.md) |
 | 2. Features and exact scan | SIFT/MFCC, fitted vocabularies, TF-IDF, vector persistence and exact top-k | Known histograms/scores, both modalities, reopened model consistency |
 | 3. IVF | Coarse training, lists, metric routing and persistence | nprobe=nlist equals exact oracle for all three measures; limited probes measured |
 | 4. HNSW | Real hierarchy, graph construction/search and serialization | Structural invariants, reproducible reopening and measured recall; no disguised scan |

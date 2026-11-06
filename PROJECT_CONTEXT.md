@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.16** — records the Part 3 experimental comparison
-> and closure (Blocks 6–7), after Blocks 4B/5 integrated SQL, API and UI.
+> Context version: **4.17** — records the Part 4 phase-1 contracts after the
+> Part 3 closure (Blocks 6–7).
 
 ## Project identity
 
@@ -17,8 +17,9 @@ The current implementation focus is:
 > 2026-11-04 for phases 6 and 7. Blocks 4B/5 integrated native textual SQL,
 > the owner registry, API and UI (`PART_03/BLOQUE_4B_5.md`); Blocks 6/7 add
 > the PostgreSQL comparison, documentation and a 3,561-test regression
-> (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). Parts 4 and 5
-> remain unimplemented. Block 4A sealing details are kept below.
+> (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). Part 4 phase 1
+> (contracts, fixtures, data gate start) is done (`PART_04/BLOQUE_1.md`);
+> phases 2–8 and Part 5 remain. Block 4A sealing details are kept below.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -91,9 +92,31 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request (2026-11-04) authorized Part 3 phases 6 and 7; they are
-implemented and verified, completing Part 3. Parts 4–5 remain pending.
-Earlier scope statements below do not override this authorization.
+The latest request (2026-11-06) authorized Part 4 phase 1 only. Part 3 is
+complete (2026-11-04). Part 4 phases 2–8 and Part 5 remain pending. Earlier
+scope statements below do not override this authorization.
+
+### Part 4 contract decisions (phase 1)
+
+- Contract: `docs/multimedia-contract.md`; executable scalar reference:
+  `engine/multimedia/contracts.py` (new `multimedia` engine layer, same
+  dependencies as `text`). Baseline commit `7766e22`.
+- One modality per collection; `imagenes(id, nombre, media_key)` and
+  `canciones(id, nombre, artista, media_key)` with VARCHAR(200) names and
+  128-character ASCII media keys; bytes and vectors stay outside Heap rows.
+- `SIMILARITY_SCORE()` is higher-is-better: −distance, dot, cosine on
+  unnormalized TF-IDF vectors; order score DESC, id ASC; output
+  `min(k, LIMIT, N)`; media keys are registered file names, never paths.
+- Integration reuses the Part 3 path: owner `api.database.Database`, a
+  separate `multimedia_tables.json` registry, the storage-level seal and
+  query-environment registration; the parser must route `USING IVF/HNSW WITH
+  METRIC` away from the text-model branch.
+- Third-party code in `engine/`: numpy only in `engine.multimedia`; OpenCV and
+  librosa only in its lazily imported feature adapter (enforced by
+  `tests/test_architecture.py`).
+- The host has ~32 GB of free physical storage, so COCO images are acquired
+  individually as ≤512 px copies with original URL and hash; the data gate is
+  PENDING (`docs/implementacion/evidencias/multimedia/`).
 
 ### Part 3 experimental comparison (Blocks 6–7)
 
