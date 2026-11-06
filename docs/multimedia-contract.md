@@ -142,7 +142,11 @@ identical vectors.
 - IVF (full vectors): `nlist = min(N, max(1, round(√N)))`, `nprobe = min(8,
   nlist)`; probing every list must equal the exact scan for all measures.
 - HNSW: M = 16, base-layer cap 32, efConstruction = 100,
-  `efSearch = max(64, k)`; genuine multilayer graph per objective.
+  `efSearch = max(64, k)`; genuine multilayer graph per objective. The dot
+  graph is built on the augmented vectors `[x, sqrt(M² − ‖x‖²)]` with queries
+  `[q, 0]`, a true metric whose ascending distance equals descending dot
+  (phase 4 finding: building on −dot directly left ~13 % of a test graph
+  unreachable).
 - The exact reference (`exact_top_k`, and later `VectorScan`) defines
   Recall@10 = |ANN top-10 ∩ exact top-10| / min(10, N).
 - Third-party code inside `engine/`: only `numpy`, anywhere in

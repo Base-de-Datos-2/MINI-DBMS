@@ -124,6 +124,12 @@ pending. Earlier scope statements below do not override this authorization.
   partition for Euclidean/dot, `unit` partition for cosine; lists persisted as
   centers/offsets/rows bound to the store identity; routing by the query
   objective; extra probes until min(k, N) candidates; exact candidate scores).
+- Phase 4 (`PART_04/BLOQUE_4.md`): `hnsw.py` (`HnswIndex`, one graph per
+  metric: seeded levels, Algorithm 2 search, Algorithm 4 heuristic with
+  keepPrunedConnections, reciprocal links with heuristic shrinking, M=16/M0=32,
+  efConstruction=100, efSearch=max(64,k), exact rescoring of the ef
+  candidates; dot is built in the augmented Euclidean form, whose order equals
+  descending dot exactly).
 - The host has ~32 GB of free physical storage, so COCO images are acquired
   individually as ≤512 px copies with original URL and hash; the data gate is
   PENDING (`docs/implementacion/evidencias/multimedia/`).
