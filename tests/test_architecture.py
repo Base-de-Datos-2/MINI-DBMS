@@ -100,13 +100,16 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
 
 
 # Part 4 (docs/multimedia-contract.md §7): numeric arrays may be used anywhere
-# inside engine.multimedia; media decoding and SIFT/MFCC only in its feature
-# adapter, imported lazily so the package imports without them. Nothing else in
-# the engine may import third-party code. IVF/HNSW/K-Means stay our own.
+# inside engine.multimedia; media decoding, SIFT/MFCC and the vocabulary
+# K-Means only in its feature adapter, imported lazily. Nothing else in the
+# engine may import third-party code. IVF, HNSW and the vector store stay ours.
+_FEATURES = frozenset({"engine.multimedia.features"})
 MULTIMEDIA_THIRD_PARTY = {
     "numpy": frozenset(),
-    "cv2": frozenset({"engine.multimedia.features"}),
-    "librosa": frozenset({"engine.multimedia.features"}),
+    "cv2": _FEATURES,
+    "librosa": _FEATURES,
+    "soundfile": _FEATURES,
+    "sklearn": _FEATURES,
 }
 
 
