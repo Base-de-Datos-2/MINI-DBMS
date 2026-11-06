@@ -146,13 +146,14 @@ identical vectors.
 - The exact reference (`exact_top_k`, and later `VectorScan`) defines
   Recall@10 = |ANN top-10 ∩ exact top-10| / min(10, N).
 - Third-party code inside `engine/`: only `numpy`, anywhere in
-  `engine.multimedia`; `cv2` (OpenCV) and `librosa` only in
-  `engine.multimedia.features`, imported lazily so the package imports without
-  them. `tests/test_architecture.py` enforces this; FAISS, hnswlib,
-  scikit-learn or a vector database cannot enter the engine.
-- **Open decision D1, to settle before phase 2:** the plan allows a K-Means
-  library; the proposal is an own seeded K-Means in numpy (short, and it keeps
-  scikit-learn out of the dependency set).
+  `engine.multimedia`; `cv2` (OpenCV), `soundfile`, `librosa` and `sklearn`
+  only in `engine.multimedia.features`, imported lazily so the package imports
+  without them. `tests/test_architecture.py` enforces this; FAISS, hnswlib or a
+  vector database cannot enter the engine.
+- **Decision D1 (user, 2026-11-06):** the **vocabulary** K-Means uses
+  scikit-learn (k-means++, Lloyd, seeded; installed anyway by librosa), as a
+  feature-extraction helper. The **IVF coarse partition** uses our own K-Means,
+  because it is part of the index the assignment asks us to implement.
 
 ## 8. Data acquisition under the measured storage limit
 

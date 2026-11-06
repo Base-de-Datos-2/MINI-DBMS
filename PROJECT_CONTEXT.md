@@ -92,9 +92,9 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request (2026-11-06) authorized Part 4 phase 1 only. Part 3 is
-complete (2026-11-04). Part 4 phases 2–8 and Part 5 remain pending. Earlier
-scope statements below do not override this authorization.
+The latest request (2026-11-06) authorized Part 4 phases 1–8 (phase 1
+first, then 2–8 autonomously). Part 3 is complete (2026-11-04). Part 5 remains
+pending. Earlier scope statements below do not override this authorization.
 
 ### Part 4 contract decisions (phase 1)
 
@@ -114,6 +114,11 @@ scope statements below do not override this authorization.
 - Third-party code in `engine/`: numpy only in `engine.multimedia`; OpenCV and
   librosa only in its lazily imported feature adapter (enforced by
   `tests/test_architecture.py`).
+- Phase 2 (`PART_04/BLOQUE_2.md`): `engine/multimedia/features.py` (SIFT via
+  OpenCV, MFCC via soundfile+librosa with pinned mel settings, scikit-learn
+  vocabulary, own assignment/TF-IDF, `FeatureModel` persisted with checksums
+  and fingerprint) and `vectors.py` (`VectorStore`: ids/vectors/norms `.npy`
+  written once, memory-mapped read-only; exact batched `search`).
 - The host has ~32 GB of free physical storage, so COCO images are acquired
   individually as ≤512 px copies with original URL and hash; the data gate is
   PENDING (`docs/implementacion/evidencias/multimedia/`).
