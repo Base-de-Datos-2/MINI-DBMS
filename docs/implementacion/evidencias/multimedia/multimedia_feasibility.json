@@ -1,16 +1,199 @@
 {
   "version": 1,
-  "status": "PENDING",
+  "status": "PASS",
   "updated": "2026-11-06",
-  "note": "Phase 1 starts the gate of PLAN_PARTE_04.md section 3.2. No media has been downloaded, decoded or measured yet; every check is PENDING until phase 6 records measured evidence.",
+  "source": "COCO 2017 train (images), FMA small (audio)",
   "checks": [
-    {"id": "accessible_media", "status": "PENDING", "pass_condition": "Original files available locally with provenance and usable formats; URLs or feature-only datasets are insufficient"},
-    {"id": "valid_scale", "status": "PENDING", "pass_condition": "At least 100,000 unique accepted images decode and yield finite, nonzero histograms; duplicates removed and rejections counted"},
-    {"id": "experimental_split", "status": "PENDING", "pass_condition": "Frozen nested 1,000 / 10,000 / 100,000 subsets, 30 separate query images and a small tuning set, with no byte-identical query/gallery overlap"},
-    {"id": "real_pipeline", "status": "PENDING", "pass_condition": "Selected files pass the final preprocessing/descriptor pipeline; metadata inserts and reopens without truncation"},
-    {"id": "audio_path", "status": "PENDING", "pass_condition": "About 30 valid clips and 5 query clips pass MFCC, vocabulary, vectorization and SQL, including MP3 decoding"},
-    {"id": "resources", "status": "PENDING", "pass_condition": "Pilots at 1,000 and 10,000 measure extraction, K-Means and own HNSW time/RSS; the projected 100,000 workload fits the actual machine and window"},
-    {"id": "persistence", "status": "PENDING", "pass_condition": "Artifact sizes, hashes, IDs and required files recorded; reopening does not train models or regenerate vectors"}
+    {
+      "id": "accessible_media",
+      "status": "PASS",
+      "attempted": 100090,
+      "statuses": {
+        "stored": 100081,
+        "duplicate_bytes": 8,
+        "rejected_features": 1
+      },
+      "files_on_disk": 100081,
+      "stored_bytes": 5645807772,
+      "original_bytes_downloaded": 16355382539,
+      "licenses": {
+        "Attribution-NonCommercial-ShareAlike License": 27820,
+        "Attribution-NonCommercial-NoDerivs License": 27340,
+        "Attribution-NonCommercial License": 13803,
+        "Attribution License": 16508,
+        "Attribution-NoDerivs License": 5048,
+        "Attribution-ShareAlike License": 9167,
+        "No known copyright restrictions": 395
+      },
+      "provenance": "coco_url, license and SHA-256 of the original per image"
+    },
+    {
+      "id": "valid_scale",
+      "status": "PASS",
+      "gallery_objects": 100000,
+      "rejected_in_final_split": 0,
+      "replaced_after_first_pass": {
+        "456425": "no_descriptors"
+      },
+      "finite": true,
+      "zero_norm": 0,
+      "duplicate_bytes_removed": 8,
+      "descriptors_mean": 250.62612536096483,
+      "descriptors_min": 1
+    },
+    {
+      "id": "experimental_split",
+      "status": "PASS",
+      "sizes": [
+        1000,
+        10000,
+        100000
+      ],
+      "nested_prefixes": true,
+      "queries": 30,
+      "tuning": 50,
+      "ids_disjoint": true,
+      "byte_identical_overlap": 0,
+      "seed": 20261106
+    },
+    {
+      "id": "real_pipeline",
+      "status": "PASS",
+      "heap_rows": 100000,
+      "sampled_rows_intact": 101,
+      "data_pages": 1177,
+      "insert_and_reopen_seconds": 44.26125799399961,
+      "descriptor_pipeline": "every gallery, query and tuning image passed SIFT + vocabulary (features/counts.json)"
+    },
+    {
+      "id": "audio_path",
+      "status": "PASS",
+      "gallery_clips": 30,
+      "query_clips": 5,
+      "all_mp3": true,
+      "mfcc_frames_per_clip": [
+        431
+      ],
+      "licenses": [
+        "Creative Commons Attribution"
+      ],
+      "same_track_rank_ivf_euclidean_k5": {
+        "audio_query.mp3": 1,
+        "consulta_006679.mp3": 1,
+        "consulta_061011.mp3": 1,
+        "consulta_024432.mp3": 1,
+        "consulta_050956.mp3": 2
+      },
+      "bytes_transferred": 75121172
+    },
+    {
+      "id": "resources",
+      "status": "PASS",
+      "extraction_all_images_seconds": 3768.2225769180004,
+      "extraction_workers": 7,
+      "vocabulary": {
+        "training_objects": 1000,
+        "descriptors_total": 251019,
+        "descriptors_sampled": 100000,
+        "vocabulary_size": 256,
+        "extract_seconds": 48.169260754999414,
+        "kmeans_seconds": 29.732150289000856,
+        "peak_rss_mib": 692.62890625,
+        "seed": 20261106,
+        "kmeans": {
+          "restarts": 3,
+          "max_iterations": 100
+        }
+      },
+      "pilot_builds": {
+        "ivf-euclidean": {
+          "1000": {
+            "seconds": 0.14193875099954312,
+            "peak_mib": 49.26171875
+          },
+          "10000": {
+            "seconds": 4.0469163979978475,
+            "peak_mib": 156.6953125
+          }
+        },
+        "ivf-cosine": {
+          "1000": {
+            "seconds": 0.17794162000063807,
+            "peak_mib": 50.32421875
+          },
+          "10000": {
+            "seconds": 3.8998601179991965,
+            "peak_mib": 162.66796875
+          }
+        },
+        "hnsw-euclidean": {
+          "1000": {
+            "seconds": 4.796787928000413,
+            "peak_mib": 42.5703125
+          },
+          "10000": {
+            "seconds": 59.0883325299983,
+            "peak_mib": 89.72265625
+          }
+        },
+        "hnsw-cosine": {
+          "1000": {
+            "seconds": 3.3117565239990654,
+            "peak_mib": 44.26953125
+          },
+          "10000": {
+            "seconds": 42.650613186000555,
+            "peak_mib": 115.265625
+          }
+        }
+      },
+      "projected_100000": {
+        "ivf-euclidean": {
+          "seconds": 50.586454974973094,
+          "peak_mib": 1231.03125
+        },
+        "ivf-cosine": {
+          "seconds": 48.74825147498996,
+          "peak_mib": 1286.10546875
+        },
+        "hnsw-euclidean": {
+          "seconds": 738.6041566249787,
+          "peak_mib": 561.24609375
+        },
+        "hnsw-cosine": {
+          "seconds": 533.1326648250069,
+          "peak_mib": 825.2265625
+        }
+      },
+      "projection": "time x 10*log(1e5)/log(1e4); memory linear in N",
+      "memory_limit_mib": 4096,
+      "time_window_seconds": 14400,
+      "note": "A projection is not proof; the measured 100,000 builds are reported by phase 7."
+    },
+    {
+      "id": "persistence",
+      "status": "PASS",
+      "artifacts": {
+        "data/generated/multimedia/coco/split.json": {
+          "bytes": 782524,
+          "sha256": "18fc3e794234bd1041f9ab2ac05d8409bfb0de6c140311fe1e07f941fc67c071"
+        },
+        "data/generated/multimedia/features/codebook.npy": {
+          "bytes": 131200,
+          "sha256": "24f457b3315b67a55b20daf69e970b73f6f6fd8f351d4652f92c1082c656461b"
+        },
+        "data/generated/multimedia/features/counts.npy": {
+          "bytes": 102482048,
+          "sha256": "b8d0ada10b46cb9263bb3caf8e36a8d042a0d8013c57e172e99a33ab4fc7988e"
+        },
+        "data/generated/multimedia/features/order.npy": {
+          "bytes": 800768,
+          "sha256": "b249882765af07a7c104c08017aea952997bf73065ae5962d071dd90e90bc4b2"
+        }
+      },
+      "reopened_size": 10000,
+      "reopen": "FeatureModel.load and VectorStore.open(verify=True) without training; tests disable K-Means and graph insertion during reopen"
+    }
   ],
   "host_observations_2026_11_06": {
     "physical_free_storage_gb": 32,
@@ -20,15 +203,42 @@
     "logical_cpus": 8
   },
   "source_probes_2026_11_06": [
-    {"source": "COCO 2017 single image", "url": "http://images.cocodataset.org/train2017/000000000009.jpg", "http_status": 200, "content_length": 224297},
-    {"source": "COCO 2017 annotations (image list, licenses, URLs)", "url": "http://images.cocodataset.org/annotations/annotations_trainval2017.zip", "http_status": 200, "content_length": 252907541},
-    {"source": "COCO 2017 train zip", "url": "http://images.cocodataset.org/zips/train2017.zip", "http_status": 200, "content_length": 19336861798, "byte_ranges": "HTTP 206 observed"},
-    {"source": "FMA metadata (titles, artists, licenses)", "url": "https://os.unil.cloud.switch.ch/fma/fma_metadata.zip", "http_status": 200, "content_length": 358412441},
-    {"source": "FMA small (8,000 MP3 clips of 30 s)", "url": "https://os.unil.cloud.switch.ch/fma/fma_small.zip", "http_status": 200, "content_length": 7679594875, "byte_ranges": "Accept-Ranges: bytes; HTTP 206 observed"}
+    {
+      "source": "COCO 2017 single image",
+      "url": "http://images.cocodataset.org/train2017/000000000009.jpg",
+      "http_status": 200,
+      "content_length": 224297
+    },
+    {
+      "source": "COCO 2017 annotations (image list, licenses, URLs)",
+      "url": "http://images.cocodataset.org/annotations/annotations_trainval2017.zip",
+      "http_status": 200,
+      "content_length": 252907541
+    },
+    {
+      "source": "COCO 2017 train zip",
+      "url": "http://images.cocodataset.org/zips/train2017.zip",
+      "http_status": 200,
+      "content_length": 19336861798,
+      "byte_ranges": "HTTP 206 observed"
+    },
+    {
+      "source": "FMA metadata (titles, artists, licenses)",
+      "url": "https://os.unil.cloud.switch.ch/fma/fma_metadata.zip",
+      "http_status": 200,
+      "content_length": 358412441
+    },
+    {
+      "source": "FMA small (8,000 MP3 clips of 30 s)",
+      "url": "https://os.unil.cloud.switch.ch/fma/fma_small.zip",
+      "http_status": 200,
+      "content_length": 7679594875,
+      "byte_ranges": "Accept-Ranges: bytes; HTTP 206 observed"
+    }
   ],
   "acquisition_strategy": {
     "images": "Do not store train2017.zip: the zip plus its extraction (about 36 GB) exceeds the free storage. Use the annotations file as the image list and provenance, download selected images individually, record URL and SHA-256 of the original bytes, then keep an aspect-preserving copy with longest side <= 512 px (the first step of the frozen SIFT preprocessing). Estimated footprint 4-6 GB, to be measured in the 1,000-image pilot.",
     "audio": "Candidate: about 35 FMA clips with permissive Creative Commons licenses selected from fma_metadata, fetched as individual zip members through HTTP byte ranges instead of downloading fma_small. MP3 originals are kept with their source, license, duration and SHA-256.",
-    "status": "PROPOSED; validated only when the pilot measures it"
+    "status": "APPLIED"
   }
 }

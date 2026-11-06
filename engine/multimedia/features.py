@@ -16,7 +16,6 @@ from dataclasses import asdict, dataclass
 import hashlib
 import io
 import json
-import os
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +25,7 @@ from engine.errors import InvalidTypeError, ValidationError
 from .contracts import (
     AudioFeatureParameters, ImageFeatureParameters, Modality, TrainingParameters,
 )
+from .files import read_array, read_json, require_files, sha256_file, verify_checksums, write_array, write_json
 
 
 MODEL_VERSION = 1
@@ -308,69 +308,35 @@ class FeatureModel:
         """Write into a NEW directory; existing models are never overwritten."""
         directory = Path(directory)
         directory.mkdir(parents=True, exist_ok=False)
-        _write_array(directory / "codebook.npy", self.codebook)
-        _write_array(directory / "document_frequencies.npy", self.document_frequencies)
-        _write_array(directory / "idf.npy", self.idf)
+        write_array(directory / "codebook.npy", self.codebook)
+        write_array(directory / "document_frequencies.npy", self.document_frequencies)
+        write_array(directory / "idf.npy", self.idf)
         payload = {**self._description(), "libraries": self.libraries, "fingerprint": self.fingerprint,
-                   "files": {name: _sha256(directory / name) for name in MODEL_FILES[1:]}}
-        _write_bytes(directory / "model.json", json.dumps(payload, indent=2, sort_keys=True).encode())
+                   "files": {name: sha256_file(directory / name) for name in MODEL_FILES[1:]}}
+        write_json(directory / "model.json", payload)
 
     @classmethod
     def load(cls, directory: Path) -> "FeatureModel":
         """Open a fitted model; never trains, extracts or recomputes vocabularies."""
         directory = Path(directory)
-        missing = [name for name in MODEL_FILES if not (directory / name).is_file()]
-        if missing:
-            raise ValidationError(f"Feature model is missing {', '.join(missing)}")
-        try:
-            payload = json.loads((directory / "model.json").read_text(encoding="utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            raise ValidationError("Feature model metadata is not valid JSON") from None
-        if type(payload) is not dict or payload.get("version") != MODEL_VERSION:
+        require_files(directory, MODEL_FILES, "Feature model")
+        payload = read_json(directory / "model.json", "Feature model metadata")
+        if payload.get("version") != MODEL_VERSION:
             raise ValidationError("Unsupported feature model version")
-        for name, digest in payload["files"].items():
-            if _sha256(directory / name) != digest:
-                raise ValidationError(f"Feature model file {name} does not match its checksum")
+        verify_checksums(directory, payload.get("files"), "Feature model")
         modality = Modality(payload["modality"])
         parameter_type = ImageFeatureParameters if modality is Modality.IMAGE else AudioFeatureParameters
         if modality is Modality.AUDIO and payload["mel_settings"] != MEL_SETTINGS:
             raise ValidationError("Feature model was built with different MFCC settings")
         model = cls(modality, parameter_type(**payload["parameters"]),
                     TrainingParameters(**payload["training"]),
-                    _read_array(directory / "codebook.npy", np.float32),
-                    _read_array(directory / "document_frequencies.npy", np.int64),
+                    read_array(directory / "codebook.npy", np.float32),
+                    read_array(directory / "document_frequencies.npy", np.int64),
                     payload["collection_size"], payload["libraries"])
-        stored_idf = _read_array(directory / "idf.npy", np.float64)
+        stored_idf = read_array(directory / "idf.npy", np.float64)
         if not np.array_equal(stored_idf, model.idf) or model.fingerprint != payload["fingerprint"]:
             raise ValidationError("Feature model fingerprint or IDF is inconsistent")
         return model
-
-
-def _sha256(path: Path) -> str:
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
-
-
-def _write_bytes(path: Path, data: bytes) -> None:
-    with open(path, "xb") as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-
-
-def _write_array(path: Path, array: np.ndarray) -> None:
-    buffer = io.BytesIO()
-    np.save(buffer, np.ascontiguousarray(array), allow_pickle=False)
-    _write_bytes(path, buffer.getvalue())
-
-
-def _read_array(path: Path, dtype) -> np.ndarray:
-    try:
-        array = np.load(path, allow_pickle=False)
-    except ValueError:
-        raise ValidationError(f"{Path(path).name} is not a valid array file") from None
-    if array.dtype != dtype:
-        raise ValidationError(f"{Path(path).name} has dtype {array.dtype}; expected {np.dtype(dtype)}")
-    return array
 
 
 # --- Collection-level construction ------------------------------------------

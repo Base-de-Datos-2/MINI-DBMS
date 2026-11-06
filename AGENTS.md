@@ -2,6 +2,14 @@
 
 ## Current authorization — 2026-11-06
 
+**Part 4 is complete** (phases 1–8, `PART_04/BLOQUE_1.md` … `BLOQUE_8.md`,
+results in `docs/EXPERIMENTOS_MULTIMEDIA.md`). Part 5 (application) needs a
+new authorization. Reproduce the multimedia experiment with CPython 3.12 and
+the `multimedia` extra; the 100k corpus lives in `data/generated/multimedia`
+and is not committed.
+
+## Authorization history for Part 4 — 2026-11-06
+
 The user authorized implementing **Part 4 phases 2–8** of
 `PART_04/PLAN_PARTE_04.md` autonomously, deciding open points per the plan,
 one branch per phase chained to the previous one, commits authored only by

@@ -112,7 +112,10 @@ score_expr    = "SIMILARITY_SCORE", "(", ")" ;
   `VectorIndexScan` (method, metric, effective nprobe or efSearch, candidates
   and distance evaluations) and `VectorScan` (exhaustive; shown with the
   requested method when «Usar índices» is off). An index never silently falls
-  back to a scan while reporting index timing.
+  back to a scan while reporting index timing. Runtime detail keys
+  (phase 5): `requested`, `executed`, `evaluations`, `nprobe`, `nprobe_used`,
+  `centroids`, `ef_search`, `max_level`, `candidates`, `shortfall`,
+  `extract_ms`, `search_ms`.
 
 ## 6. Representation
 
@@ -142,7 +145,11 @@ identical vectors.
 - IVF (full vectors): `nlist = min(N, max(1, round(√N)))`, `nprobe = min(8,
   nlist)`; probing every list must equal the exact scan for all measures.
 - HNSW: M = 16, base-layer cap 32, efConstruction = 100,
-  `efSearch = max(64, k)`; genuine multilayer graph per objective.
+  `efSearch = max(64, k)`; genuine multilayer graph per objective. The dot
+  graph is built on the augmented vectors `[x, sqrt(M² − ‖x‖²)]` with queries
+  `[q, 0]`, a true metric whose ascending distance equals descending dot
+  (phase 4 finding: building on −dot directly left ~13 % of a test graph
+  unreachable).
 - The exact reference (`exact_top_k`, and later `VectorScan`) defines
   Recall@10 = |ANN top-10 ∩ exact top-10| / min(10, N).
 - Third-party code inside `engine/`: only `numpy`, anywhere in
@@ -161,8 +168,11 @@ The host has about 32 GB of free physical storage (the WSL virtual disk's
 817 GB figure is only its maximum size). Storing COCO `train2017.zip`
 (19.3 GB) plus its extraction does not fit. Images are therefore downloaded
 individually using the annotations file as list and provenance (URL and
-SHA-256 of the original bytes recorded), and kept as ≤ 512 px copies, which
-is exactly the first preprocessing step, so features are unaffected. Audio
+SHA-256 of the original bytes recorded), and kept as ≤ 512 px colour copies
+(JPEG quality 90). The resize is the first preprocessing step, but the JPEG
+re-encoding is not lossless: the stored copy is the collection's media file,
+and features of gallery and queries alike are computed from stored copies
+(phase 6 correction of the earlier "features unaffected" wording). Audio
 clips come from FMA as individual zip members read through HTTP byte ranges.
-Status and probes: [multimedia_feasibility.json](implementacion/evidencias/multimedia/multimedia_feasibility.json)
-(PENDING until phase 6 measures it).
+Status and measured checks: [multimedia_feasibility.json](implementacion/evidencias/multimedia/multimedia_feasibility.json)
+(PASS since phase 6).

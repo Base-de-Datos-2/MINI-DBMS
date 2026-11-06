@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.17** — records the Part 4 phase-1 contracts after the
-> Part 3 closure (Blocks 6–7).
+> Context version: **4.18** — records the complete Part 4 (multimedia
+> retrieval, phases 1–8) after the Part 3 closure.
 
 ## Project identity
 
@@ -17,9 +17,9 @@ The current implementation focus is:
 > 2026-11-04 for phases 6 and 7. Blocks 4B/5 integrated native textual SQL,
 > the owner registry, API and UI (`PART_03/BLOQUE_4B_5.md`); Blocks 6/7 add
 > the PostgreSQL comparison, documentation and a 3,561-test regression
-> (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). Part 4 phase 1
-> (contracts, fixtures, data gate start) is done (`PART_04/BLOQUE_1.md`);
-> phases 2–8 and Part 5 remain. Block 4A sealing details are kept below.
+> (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). **Part 4 is
+> complete** (phases 1–8, `PART_04/BLOQUE_8.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`);
+> Part 5 remains. Block 4A sealing details are kept below.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -119,9 +119,40 @@ pending. Earlier scope statements below do not override this authorization.
   vocabulary, own assignment/TF-IDF, `FeatureModel` persisted with checksums
   and fingerprint) and `vectors.py` (`VectorStore`: ids/vectors/norms `.npy`
   written once, memory-mapped read-only; exact batched `search`).
-- The host has ~32 GB of free physical storage, so COCO images are acquired
-  individually as ≤512 px copies with original URL and hash; the data gate is
-  PENDING (`docs/implementacion/evidencias/multimedia/`).
+- Phase 3 (`PART_04/BLOQUE_3.md`): `kmeans.py` (own k-means++/Lloyd, empty-
+  cluster refill, best of 3 seeded restarts) and `ivf.py` (`IvfIndex`: `raw`
+  partition for Euclidean/dot, `unit` partition for cosine; lists persisted as
+  centers/offsets/rows bound to the store identity; routing by the query
+  objective; extra probes until min(k, N) candidates; exact candidate scores).
+- Phase 4 (`PART_04/BLOQUE_4.md`): `hnsw.py` (`HnswIndex`, one graph per
+  metric: seeded levels, Algorithm 2 search, Algorithm 4 heuristic with
+  keepPrunedConnections, reciprocal links with heuristic shrinking, M=16/M0=32,
+  efConstruction=100, efSearch=max(64,k), exact rescoring of the ef
+  candidates; dot is built in the augmented Euclidean form, whose order equals
+  descending dot exactly).
+- Phase 5 (`PART_04/BLOQUE_5.md`): `MultimediaCollection` (model, store,
+  rids, IVF, HNSW per metric, media/ and queries/), `seal_multimedia_collection`,
+  `multimedia_tables.json`, AST `SimilarTo` + `vector_method/vector_metric`,
+  `vector_binding.py`, `VectorScanSpec` and `VectorIndexScan`/`VectorScan`;
+  owner `Database.prepare_multimedia`; HTTP `/api/multimedia/tables` and
+  `/api/multimedia/{table}/media/{key}`; `python -m api --multimedia`;
+  Results panel renders thumbnails/audio only for real vector-scan plans.
+- Phase 6 (`PART_04/BLOQUE_6.md`): data gate PASS. COCO 2017 train acquired
+  image by image (≤512 px JPEG copies, ~5.5 GB, under ~32 GB free storage),
+  frozen nested 1k ⊂ 10k ⊂ 100k gallery, 30 queries and 50 tuning images;
+  one image without SIFT keypoints replaced from the seeded permutation.
+  Vocabulary K=256 trained once on the 1k subset; word counts for all images
+  in `data/generated/multimedia/features` (not committed). Audio: 30 + 5 FMA
+  CC BY clips. Frozen search parameters: HNSW efSearch=max(64,k), IVF
+  nprobe=16 (single tuning adjustment on the tuning set). Committed demo
+  media: `data/multimedia_demo` (120 images, 30 clips, attribution).
+- Phase 8 (`PART_04/BLOQUE_8.md`): docker-compose `parte4` (port 8003) built
+  from `data/multimedia_demo`; README, `docs/multimedia.md`, report section
+  `docs/informe/informe_parte_04.md`; 3,784 strict tests on Python 3.12/3.11.
+- Phase 7 (`PART_04/BLOQUE_7.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`): 1,080
+  timed searches. At 100k: IVF builds ~1 min vs HNSW 8–12 min; HNSW queries
+  ~1.8 ms vs IVF 3.7–8.2 ms; frozen-parameter Recall@10 0.68–0.80, recovering
+  to ≥0.92 with HNSW ef 256 or IVF nprobe 32–64 (post-hoc diagnostic).
 
 ### Part 3 experimental comparison (Blocks 6–7)
 

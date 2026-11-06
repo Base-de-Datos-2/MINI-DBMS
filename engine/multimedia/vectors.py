@@ -15,11 +15,7 @@ exact scan scores in float64 batches and keeps a bounded best-first top-k
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-import hashlib
-import io
-import json
-import os
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +23,7 @@ import numpy as np
 from engine.errors import InvalidTypeError, ValidationError
 
 from .contracts import Metric, Neighbor, validate_k
+from .files import read_array, read_json, require_files, sha256_file, verify_checksums, write_array, write_json
 
 
 STORE_VERSION = 1
@@ -37,8 +34,9 @@ DEFAULT_BATCH_ROWS = 8192
 @dataclass(frozen=True, slots=True)
 class VectorSearchResult:
     neighbors: tuple[Neighbor, ...]
-    evaluated: int          # vectors scored (distance evaluations)
+    evaluated: int          # vectors scored exactly (distance evaluations)
     method: str = "VectorScan"
+    details: dict = field(default_factory=dict)
 
 
 def prepare_query(query, dimension: int) -> np.ndarray:
@@ -58,11 +56,13 @@ def batch_scores(rows: np.ndarray, norms: np.ndarray, query: np.ndarray, query_n
     block = rows.astype(np.float64)
     if metric is Metric.EUCLIDEAN:
         difference = block - query
-        return -np.sqrt(np.einsum("ij,ij->i", difference, difference))
+        return 0.0 - np.sqrt(np.einsum("ij,ij->i", difference, difference))   # no -0.0
+    # einsum keeps each row's sum independent of the block it is computed in,
+    # so an index scoring a subset of rows gets bit-identical scores.
     if metric is Metric.DOT:
-        return block @ query
+        return np.einsum("ij,j->i", block, query)
     if metric is Metric.COSINE:
-        return (block @ query) / (norms * query_norm)
+        return np.einsum("ij,j->i", block, query) / (norms * query_norm)
     raise InvalidTypeError("metric must be a Metric")
 
 
@@ -115,41 +115,34 @@ class VectorStore:
             raise ValidationError("A 64-character model fingerprint is required")
         directory.mkdir(parents=True, exist_ok=False)
         for name, array in zip(STORE_FILES, (ids, np.ascontiguousarray(vectors), norms)):
-            _write_array(directory / name, array)
+            write_array(directory / name, array)
         manifest = {"version": STORE_VERSION, "size": len(ids), "dimension": int(vectors.shape[1]),
                     "dtype": "float32", "model_fingerprint": model_fingerprint,
-                    "files": {name: _sha256(directory / name) for name in STORE_FILES}}
-        _write_bytes(directory / "manifest.json", json.dumps(manifest, indent=2, sort_keys=True).encode())
+                    "files": {name: sha256_file(directory / name) for name in STORE_FILES}}
+        write_json(directory / "manifest.json", manifest)
         return cls.open(directory, expected_fingerprint=model_fingerprint)
 
     @classmethod
     def open(cls, directory: Path, *, expected_fingerprint: str | None = None,
              verify: bool = False) -> "VectorStore":
         directory = Path(directory)
-        missing = [n for n in ("manifest.json", *STORE_FILES) if not (directory / n).is_file()]
-        if missing:
-            raise ValidationError(f"Vector store is missing {', '.join(missing)}")
-        try:
-            manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
-        except (UnicodeDecodeError, json.JSONDecodeError):
-            raise ValidationError("Vector store manifest is not valid JSON") from None
-        if type(manifest) is not dict or manifest.get("version") != STORE_VERSION:
+        require_files(directory, ("manifest.json", *STORE_FILES), "Vector store")
+        manifest = read_json(directory / "manifest.json", "Vector store manifest")
+        if manifest.get("version") != STORE_VERSION:
             raise ValidationError("Unsupported vector store version")
         if expected_fingerprint is not None and manifest["model_fingerprint"] != expected_fingerprint:
             raise ValidationError("Vector store belongs to a different feature model")
         if verify:
-            for name, digest in manifest["files"].items():
-                if _sha256(directory / name) != digest:
-                    raise ValidationError(f"Vector store file {name} does not match its checksum")
+            verify_checksums(directory, manifest["files"], "Vector store")
         store = object.__new__(cls)
         store._directory = directory
         store._manifest = manifest
         store._closed = False
         size, dimension = manifest["size"], manifest["dimension"]
         try:
-            store._ids = _map(directory / "ids.npy", np.int64, (size,))
-            store._vectors = _map(directory / "vectors.npy", np.float32, (size, dimension))
-            store._norms = _map(directory / "norms.npy", np.float64, (size,))
+            store._ids = read_array(directory / "ids.npy", np.int64, (size,), mmap=True)
+            store._vectors = read_array(directory / "vectors.npy", np.float32, (size, dimension), mmap=True)
+            store._norms = read_array(directory / "norms.npy", np.float64, (size,), mmap=True)
         except BaseException:
             store.close()
             raise
@@ -175,6 +168,13 @@ class VectorStore:
     @property
     def model_fingerprint(self) -> str:
         return self._manifest["model_fingerprint"]
+
+    @property
+    def identity(self) -> dict:
+        """What a derived index binds to: model, shape and exact ids/vectors files."""
+        return {"model_fingerprint": self.model_fingerprint, "size": self.size,
+                "dimension": self.dimension, "ids_sha256": self._manifest["files"]["ids.npy"],
+                "vectors_sha256": self._manifest["files"]["vectors.npy"]}
 
     @property
     def ids(self) -> np.ndarray:
@@ -244,39 +244,6 @@ class VectorStore:
 
     def __exit__(self, *exc) -> None:
         self.close()
-
-
-def _map(path: Path, dtype, shape) -> np.ndarray:
-    try:
-        array = np.load(path, mmap_mode="r", allow_pickle=False)
-    except ValueError:
-        raise ValidationError(f"{path.name} is not a valid array file") from None
-    if array.dtype != dtype or array.shape != shape:
-        found = f"{array.dtype}{array.shape}"
-        del array
-        raise ValidationError(f"{path.name} has {found}; expected {np.dtype(dtype)}{shape}")
-    return array
-
-
-def _sha256(path: Path) -> str:
-    digest = hashlib.sha256()
-    with open(path, "rb") as stream:
-        for block in iter(lambda: stream.read(1 << 20), b""):
-            digest.update(block)
-    return digest.hexdigest()
-
-
-def _write_bytes(path: Path, data: bytes) -> None:
-    with open(path, "xb") as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-
-
-def _write_array(path: Path, array: np.ndarray) -> None:
-    buffer = io.BytesIO()
-    np.save(buffer, np.ascontiguousarray(array), allow_pickle=False)
-    _write_bytes(path, buffer.getvalue())
 
 
 __all__ = ["VectorStore", "VectorSearchResult", "prepare_query", "batch_scores", "merge_top_k", "to_neighbors"]

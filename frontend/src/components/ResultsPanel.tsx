@@ -1,4 +1,7 @@
+import { useEffect, useState } from "react";
+import { fetchMultimediaTables } from "../api";
 import { completenessMessage, formatCount, formatMs, formatValue, isNumeric } from "../format";
+import { mediaContext, mediaUrl, scoreNote, type MediaContext, type MultimediaTable } from "../multimedia";
 import { commandNote, transactionFacts, transactionHeadline } from "../session";
 import type { Outcome, QueryResponse } from "../types";
 
@@ -52,7 +55,47 @@ interface Props {
   maxResponseBytes: number;
 }
 
+function MediaCell({ context, value }: { context: MediaContext; value: string }) {
+  const url = mediaUrl(context.table, value);
+  return context.modality === "image" ? (
+    <a href={url} target="_blank" rel="noreferrer" className="media-cell">
+      <img src={url} alt={value} loading="lazy" className="media-thumb" />
+      <span className="muted small">{value}</span>
+    </a>
+  ) : (
+    <span className="media-cell">
+      <audio controls preload="none" src={url} className="media-audio" />
+      <span className="muted small">{value}</span>
+    </span>
+  );
+}
+
+function MediaQuery({ context }: { context: MediaContext }) {
+  if (context.queryKey === null) return null;
+  const url = mediaUrl(context.table, context.queryKey);
+  return (
+    <div className="media-query">
+      <span className="muted small">
+        Consulta {context.method ?? ""} · {context.metric ?? ""}: {context.queryKey}
+      </span>
+      {context.modality === "image"
+        ? <img src={url} alt={context.queryKey} className="media-thumb" />
+        : <audio controls preload="none" src={url} className="media-audio" />}
+      {scoreNote(context.metric) && <span className="muted small">{scoreNote(context.metric)}</span>}
+    </div>
+  );
+}
+
 export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props) {
+  const [multimedia, setMultimedia] = useState<MultimediaTable[]>([]);
+  useEffect(() => {
+    let active = true;
+    // Absent or failing in Parts 1-3 modes: results then render as plain text.
+    fetchMultimediaTables().then((found) => { if (active) setMultimedia(found); }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+  const media = outcome?.status === "success" && outcome.body.kind === "rows"
+    ? mediaContext(outcome.body, multimedia) : null;
   return (
     <section className="panel results-panel" aria-labelledby="results-title" aria-busy={busy}>
       <h2 id="results-title" className="panel-title">
@@ -118,6 +161,7 @@ export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props)
               <pre className="submitted-sql">{outcome.sql}</pre>
             </details>
           </div>
+          {media !== null && <MediaQuery context={media} />}
           {outcome.body.columns.length > 0 && (
             <div className="table-scroll">
               <table className="result-table">
@@ -136,7 +180,11 @@ export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props)
                   {outcome.body.rows.map((row, rowIndex) => (
                     <tr key={rowIndex}>
                       {outcome.body.columns.map((column) => {
-                        const cell = formatValue(row[column.position], column.encoding);
+                        const raw = row[column.position];
+                        if (media !== null && column.name === media.keyColumn && typeof raw === "string") {
+                          return <td key={column.position}><MediaCell context={media} value={raw} /></td>;
+                        }
+                        const cell = formatValue(raw, column.encoding);
                         const classes = [
                           isNumeric(column.encoding) ? "numeric" : "",
                           cell.marker ? "marker" : "",
