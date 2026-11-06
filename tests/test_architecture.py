@@ -56,6 +56,9 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
         # Text consumes schema/Heap contracts plus Stage 6 ExternalSort and
         # cancellation for ranking. No SQL, transaction, API or benchmarks.
         "text": {"errors", "catalog", "storage", "indexes", "operators", "text"},
+        # Part 4 multimedia core: same position as text (schema/Heap/operators),
+        # never SQL, transactions, API or benchmarks.
+        "multimedia": {"errors", "catalog", "storage", "indexes", "operators", "multimedia"},
         "operators": {"errors", "catalog", "storage", "indexes", "operators"},
         # Maintenance is the Stage 7 write path (INSERT/DELETE + index upkeep):
         # a storage-layer concern the query engine consumes, so it sits beside
@@ -88,8 +91,23 @@ def test_engine_dependencies_follow_layer_boundaries_and_use_only_allowed_librar
                 if module == "engine.spatial.lifecycle":
                     allowed = allowed | {"maintenance", "transactions"}
                 assert target in allowed, (module, imported)
+            elif root in MULTIMEDIA_THIRD_PARTY:
+                assert module in MULTIMEDIA_THIRD_PARTY[root] or (
+                    root == "numpy" and module.split(".")[:2] == ["engine", "multimedia"]
+                ), (module, imported)
             else:
                 assert root in sys.stdlib_module_names, (module, imported)
+
+
+# Part 4 (docs/multimedia-contract.md §7): numeric arrays may be used anywhere
+# inside engine.multimedia; media decoding and SIFT/MFCC only in its feature
+# adapter, imported lazily so the package imports without them. Nothing else in
+# the engine may import third-party code. IVF/HNSW/K-Means stay our own.
+MULTIMEDIA_THIRD_PARTY = {
+    "numpy": frozenset(),
+    "cv2": frozenset({"engine.multimedia.features"}),
+    "librosa": frozenset({"engine.multimedia.features"}),
+}
 
 
 def test_engine_explicit_module_dependency_graph_has_no_cycles():
