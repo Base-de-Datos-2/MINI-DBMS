@@ -1,6 +1,7 @@
 import type { KeyboardEvent } from "react";
 import { failureNote } from "../session";
 import type { JoinStrategy, Outcome, Preset, QueryOptions } from "../types";
+import { useWorkspace } from "../workspaceScope";
 
 interface Props {
   sql: string;
@@ -88,6 +89,7 @@ export default function QueryPanel({
   outcome,
   onExecute,
 }: Props) {
+  const { id: scoped } = useWorkspace();
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
@@ -96,9 +98,9 @@ export default function QueryPanel({
   };
 
   return (
-    <section className="panel query-panel" aria-labelledby="query-title" aria-busy={busy}>
+    <section className="panel query-panel" aria-labelledby={scoped("query-title")} aria-busy={busy}>
       <div className="panel-heading">
-        <h2 id="query-title" className="panel-title">
+        <h2 id={scoped("query-title")} className="panel-title">
           Consulta
         </h2>
         <label className="inline-field">
@@ -125,7 +127,7 @@ export default function QueryPanel({
         aria-label="Editor SQL"
         value={sql}
         spellCheck={false}
-        aria-describedby="query-shortcut"
+        aria-describedby={scoped("query-shortcut")}
         autoCapitalize="off"
         autoCorrect="off"
         onChange={(event) => onSqlChange(event.target.value)}
@@ -178,7 +180,7 @@ export default function QueryPanel({
           {busy ? "Ejecutando…" : "Ejecutar"}
         </button>
       </div>
-      <p id="query-shortcut" className="muted small query-shortcut">
+      <p id={scoped("query-shortcut")} className="muted small query-shortcut">
         <kbd>Ctrl</kbd> + <kbd>Enter</kbd> o <kbd>⌘</kbd> + <kbd>Enter</kbd> para ejecutar.
         {" "}Cada envío se ejecuta una sola vez.
       </p>

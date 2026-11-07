@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Coordinate, Outcome, PointParameters, QueryResponse, SpatialPoint, SpatialRequest, SpatialResponse, SpatialTable } from "../types";
 import LeafletMap from "./LeafletMap";
 import { inDomain, mergePoints, parsePolygon, previewPoints, radiusRing, spatialSql } from "../spatial/geometry";
+import { useWorkspace } from "../workspaceScope";
 
 interface Props {
   tables: SpatialTable[];
@@ -22,6 +23,7 @@ function defaultPolygon(origin: Coordinate): string {
 }
 
 export default function SpatialPanel({ tables, metadataError, revision, busy, outcome, onPreview, onRequest, onSql }: Props) {
+  const { id: scoped } = useWorkspace();
   const [name, setName] = useState("");
   const table = tables.find((candidate) => candidate.table === name) ?? tables[0];
   const [center, setCenter] = useState<Coordinate>([-12.0464, -77.0428]);
@@ -142,7 +144,7 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
       loadedSql.current = { sql: text, request };
       onSql(text, { mi_ubicacion: [...request.center] });
       setError(null);
-      document.getElementById("query-title")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      document.getElementById(scoped("query-title"))?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
     } catch (reason: unknown) { setError(failure(reason)); }
   };
 
@@ -162,8 +164,8 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
     } else chooseCenter(point);
   };
 
-  return <section className="panel spatial-panel" aria-labelledby="spatial-title">
-    <div className="panel-heading"><div><h2 className="panel-title" id="spatial-title">Explorador espacial</h2>
+  return <section className="panel spatial-panel" aria-labelledby={scoped("spatial-title")}>
+    <div className="panel-heading"><div><h2 className="panel-title" id={scoped("spatial-title")}>Explorador espacial</h2>
       <p className="muted small">Coordenadas geográficas · consultas sobre el motor R-Tree</p></div>
       <a href="#query-title">Volver al editor SQL</a></div>
     {metadataError !== null && <p role="alert" className="error-box">{metadataError}</p>}

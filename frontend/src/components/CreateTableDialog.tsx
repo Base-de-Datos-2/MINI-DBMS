@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { ApiError, createTable, previewCsv } from "../api";
+import { ApiError } from "../api";
 import { formatBytes, formatCount, plural } from "../format";
 import {
   COLUMN_TYPES,
@@ -15,6 +15,7 @@ import {
 } from "../tableDraft";
 import type { TableDraft } from "../tableDraft";
 import type { ColumnType, CreateTableResponse, CsvPreview, IndexType, Limits } from "../types";
+import { useWorkspace } from "../workspaceScope";
 
 interface Props {
   existingTables: string[];
@@ -77,6 +78,7 @@ function describeFailure(error: unknown): Failure {
 }
 
 export default function CreateTableDialog({ existingTables, limits, token, onClose, onCreated }: Props) {
+  const { api, id: scoped } = useWorkspace();
   const dialog = useRef<HTMLDialogElement>(null);
   const failureBox = useRef<HTMLDivElement>(null);
   const [source, setSource] = useState<Source>("csv");
@@ -115,7 +117,7 @@ export default function CreateTableDialog({ existingTables, limits, token, onClo
     setPhase("reading");
     try {
       const text = await file.text();
-      const preview = await previewCsv(text, file.name);
+      const preview = await api.previewCsv(text, file.name);
       setUpload({ filename: file.name, text, preview });
       setDraft(draftFromPreview(preview));
     } catch (error: unknown) {
@@ -142,7 +144,7 @@ export default function CreateTableDialog({ existingTables, limits, token, onClo
         ? { text: upload.text, filename: upload.filename, delimiter: upload.preview.delimiter }
         : null;
     try {
-      onCreated(await createTable(toRequest(draft, csv), token));
+      onCreated(await api.createTable(toRequest(draft, csv), token));
     } catch (error: unknown) {
       setFailure(describeFailure(error));
       setPhase("idle");
@@ -169,7 +171,7 @@ export default function CreateTableDialog({ existingTables, limits, token, onClo
     <dialog
       ref={dialog}
       className="dialog"
-      aria-labelledby="create-table-title"
+      aria-labelledby={scoped("create-table-title")}
       onCancel={(event) => {
         if (working) event.preventDefault();
       }}
@@ -177,7 +179,7 @@ export default function CreateTableDialog({ existingTables, limits, token, onClo
     >
       <form onSubmit={(event) => void submit(event)}>
         <div className="panel-heading">
-          <h2 id="create-table-title" className="dialog-title">
+          <h2 id={scoped("create-table-title")} className="dialog-title">
             Nueva tabla
           </h2>
           <div className="tabs" role="tablist" aria-label="Origen de la tabla">

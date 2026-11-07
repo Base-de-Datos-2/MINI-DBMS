@@ -11,6 +11,7 @@ import type {
   PreparedNode,
   RuntimeNode,
 } from "../types";
+import { useWorkspace } from "../workspaceScope";
 
 interface Props {
   outcome: Outcome | null;
@@ -186,6 +187,7 @@ function Summary({ metrics, partial, root }: {
 }
 
 export default function PlanPanel({ outcome, busy = false }: Props) {
+  const { id: scoped } = useWorkspace();
   const data = busy ? null : planData(outcome);
   const [view, setView] = useState<View>("runtime");
   const runtime = data?.plan.runtime ?? null;
@@ -209,19 +211,19 @@ export default function PlanPanel({ outcome, busy = false }: Props) {
   };
 
   return (
-    <section className="panel plan-panel" aria-labelledby="plan-title" aria-busy={busy}>
+    <section className="panel plan-panel" aria-labelledby={scoped("plan-title")} aria-busy={busy}>
       <div className="panel-heading">
-        <h2 id="plan-title" className="panel-title">
+        <h2 id={scoped("plan-title")} className="panel-title">
           Plan de ejecución
         </h2>
         {data !== null && (
           <div className="tabs" role="tablist" aria-label="Vista del plan" onKeyDown={changeTabWithKeyboard}>
             <button
-              id="plan-runtime-tab"
+              id={scoped("plan-runtime-tab")}
               data-view="runtime"
               type="button"
               role="tab"
-              aria-controls="plan-content"
+              aria-controls={scoped("plan-content")}
               aria-selected={view === "runtime"}
               tabIndex={view === "runtime" ? 0 : -1}
               disabled={runtime === null}
@@ -230,11 +232,11 @@ export default function PlanPanel({ outcome, busy = false }: Props) {
               Ejecutado
             </button>
             <button
-              id="plan-prepared-tab"
+              id={scoped("plan-prepared-tab")}
               data-view="prepared"
               type="button"
               role="tab"
-              aria-controls="plan-content"
+              aria-controls={scoped("plan-content")}
               aria-selected={view === "prepared"}
               tabIndex={view === "prepared" ? 0 : -1}
               onClick={() => setView("prepared")}
@@ -261,7 +263,7 @@ export default function PlanPanel({ outcome, busy = false }: Props) {
         </p>
       )}
 
-      {data !== null && <div id="plan-content" role="tabpanel" aria-labelledby={`plan-${view}-tab`} tabIndex={0}>
+      {data !== null && <div id={scoped("plan-content")} role="tabpanel" aria-labelledby={scoped(`plan-${view}-tab`)} tabIndex={0}>
       {view === "runtime" && runtime !== null && (
         <>
           {data.metrics !== null && (

@@ -1,6 +1,15 @@
 # AGENTS.md
 
-## Current authorization — 2026-11-06
+## Current authorization — 2026-11-07
+
+The user requested one port for the whole evaluation: `python -m api --all`
+(`api/unified.py`, `scripts/setup_all.py`) mounts each part at `/parteN`, and
+the frontend shows one tab per part; Docker Compose runs one service on 8000.
+Part 3 gained real demo texts (`data/text_demo`) and Parts 2–3 gained SQL
+presets. Part 5 still needs its own authorization; when it comes, add it as
+a new tab of this server.
+
+## Previous authorization — 2026-11-06
 
 **Part 4 is complete** (phases 1–8, `PART_04/BLOQUE_1.md` … `BLOQUE_8.md`,
 results in `docs/EXPERIMENTOS_MULTIMEDIA.md`). Part 5 (application) needs a

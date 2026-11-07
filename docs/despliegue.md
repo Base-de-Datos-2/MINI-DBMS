@@ -4,7 +4,8 @@ Cómo dejar la interfaz y la API corriendo en una máquina para que otros
 integrantes del grupo la usen desde su navegador. El servidor es el mismo de
 [demo.md](demo.md): **un solo proceso** (`python -m api`) sirve la API y el
 frontend compilado en el mismo puerto, y es el único dueño del directorio de
-datos. No hay que desplegar el frontend por separado: usa rutas relativas
+datos. La imagen Docker usa `python -m api --all`: las cuatro partes en ese
+mismo puerto, una pestaña cada una. No hay que desplegar el frontend por separado: usa rutas relativas
 (`/api/...`), así que funciona en cualquier dirección donde se publique el 8000.
 
 ## 1. Antes de publicar
@@ -98,7 +99,7 @@ usa la opción A.
 El repositorio trae un `Dockerfile` que compila el frontend, instala la API y
 crea la base de demo dentro de la imagen. Probado localmente con los límites
 del plan gratuito (512 MB de RAM, 0,1 CPU, puerto en `PORT`): arranca en
-~11 s, usa ~45 MB de memoria, la consulta más pesada del demo (JOIN + GROUP BY
+~11 s, usa ~45 MB de memoria (con las cuatro partes de `--all`, ~57 MiB al arrancar y ~170 MiB tras una consulta multimedia, medido en Docker el 2026-11-07), la consulta más pesada del demo (JOIN + GROUP BY
 con volcado a disco) responde en ~3 s, y se detiene de forma ordenada con la
 señal de Render.
 

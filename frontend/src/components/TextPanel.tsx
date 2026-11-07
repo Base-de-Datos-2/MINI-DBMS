@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { fetchTextTables, runTextQuery } from "../api";
+import { useWorkspace } from "../workspaceScope";
 
 interface Collection { table: string; column: string; id_column: string; documents: number; collection_id: string }
 interface SearchResult {
@@ -13,6 +13,7 @@ interface SearchResult {
 }
 
 export default function TextPanel({ token, onSql }: { token: string | null; onSql: (sql: string) => void }) {
+  const { api, id: scoped } = useWorkspace();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [selected, setSelected] = useState("");
   const [query, setQuery] = useState("");
@@ -29,7 +30,7 @@ export default function TextPanel({ token, onSql }: { token: string | null; onSq
     invalidate();
     const requestGeneration = ++reloadGeneration.current;
     try {
-      const found = await fetchTextTables();
+      const found = await api.fetchTextTables();
       if (reloadGeneration.current !== requestGeneration) return;
       setCollections(found);
       setSelected((previous) => found.some((c) => c.table === previous) ? previous : found[0]?.table ?? "");
@@ -46,7 +47,7 @@ export default function TextPanel({ token, onSql }: { token: string | null; onSq
   const explainSql = `EXPLAIN ${exampleSql}`;
   const sendToEditor = (sql: string) => {
     onSql(sql);
-    document.getElementById("query-title")?.scrollIntoView({ behavior: "smooth" });
+    document.getElementById(scoped("query-title"))?.scrollIntoView({ behavior: "smooth" });
   };
   const search = async () => {
     if (!current || busy || !query.trim()) return;
@@ -55,13 +56,13 @@ export default function TextPanel({ token, onSql }: { token: string | null; onSq
     setError("");
     setResult(null);
     try {
-      const answer = await runTextQuery({ table: current.table, column: current.column,
+      const answer = await api.runTextQuery({ table: current.table, column: current.column,
         query, model, order: "score_desc", limit: 100, max_rows: 100, use_indexes: useIndexes }, token);
       if (generation.current === requestGeneration) setResult(answer);
     } catch (cause) { if (generation.current === requestGeneration) setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { if (generation.current === requestGeneration) setBusy(false); }
   };
-  return <section className="panel" id="text-title" aria-label="Búsqueda textual" style={{ margin: "1rem" }}>
+  return <section className="panel" id={scoped("text-title")} aria-label="Búsqueda textual" style={{ margin: "1rem" }}>
     <div className="panel-heading"><h2 className="panel-title">Búsqueda textual · Parte 3</h2>
       <button type="button" onClick={() => void reload()}>Actualizar colecciones</button></div>
     <p>Consulta colecciones publicadas y selladas. Los resultados provienen de SPIMI, TF-IDF o BM25.</p>

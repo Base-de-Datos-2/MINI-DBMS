@@ -26,9 +26,29 @@ los experimentos.
 | Búsqueda textual | SPIMI persistente, TF-IDF/coseno y BM25 propios; MATCH/USING/SCORE en el motor SQL nativo, Heap sellado, preparación offline, API y paneles con scores/planes reales |
 | Búsqueda multimedia | SIFT (imágenes) y MFCC (audio), vocabulario K-Means e histogramas TF-IDF; IVF y HNSW propios con métricas euclidiana, producto punto y coseno; SIMILAR_TO/SIMILARITY_SCORE en SQL, miniaturas y reproductor de audio en la interfaz |
 
-## Demo textual — bloques 4B y 5
+## Demo completa en un solo puerto
 
 Con Python 3.11 o superior y desde la raíz del proyecto:
+
+```bash
+python -m pip install -e ".[test,api,multimedia]"
+python scripts/setup_all.py
+python -m api --all --allow-writes
+```
+
+Abrir `http://127.0.0.1:8000`. La interfaz tiene una pestaña por parte
+(Relacional, Espacial, Texto y Multimedia), cada una con su base, su sesión y
+sus **Ejemplos SQL**. `setup_all.py` prepara las cuatro bases en
+`data/generated/todas/` y nunca reemplaza una parte que ya existe; para
+reconstruir una, borra su subdirectorio. `--allow-writes` solo afecta a las
+Partes 1 y 2: las colecciones de texto y multimedia están selladas. Cada
+pestaña tiene dirección propia (`#parte3`), y la API de cada parte vive en
+`/parteN/api/...` (detalles en [api/unified.py](api/unified.py)).
+
+Cada parte se puede seguir sirviendo sola (`python -m api --text`, etc.), como
+se describe abajo.
+
+## Demo textual — bloques 4B y 5
 
 ```bash
 python -m pip install -e ".[test,api]"
@@ -38,11 +58,15 @@ python -m api --text
 
 Abrir `http://127.0.0.1:8000`. El paquete incluye el frontend compilado.
 La preparación crea un destino nuevo; para repetirla, usar otro `--data-dir`.
-Los ejemplos literales del PDF, el modo CSV, la arquitectura y la secuencia
-de demo están en [PART_03/BLOQUE_4B_5.md](PART_03/BLOQUE_4B_5.md).
-La muestra incluida es para demostración. La comparación experimental con el
-corpus real (Amazon ESCI, 1 000/10 000/100 000 documentos y 30 consultas
-originales) está en [docs/EXPERIMENTOS_TEXTO.md](docs/EXPERIMENTOS_TEXTO.md).
+La demo publica tres colecciones ([data/text_demo](data/text_demo/ATTRIBUTION.md)):
+`documentos` (36 frases en español sobre el curso) y `articulos` (20 en
+inglés), que son las tablas de los dos ejemplos del PDF, y `productos`, con
+1 000 títulos reales de Amazon ESCI: el mismo subconjunto N = 1 000 del
+experimento. Los ejemplos literales del PDF, el modo CSV, la arquitectura y la
+secuencia de demo están en [PART_03/BLOQUE_4B_5.md](PART_03/BLOQUE_4B_5.md).
+La comparación experimental con el corpus real (1 000/10 000/100 000
+documentos y 30 consultas originales) está en
+[docs/EXPERIMENTOS_TEXTO.md](docs/EXPERIMENTOS_TEXTO.md).
 
 La Parte 3 está completa: corpus aceptado, SPIMI, TF-IDF/coseno, BM25,
 sellado persistente, SQL nativo, API, interfaz y comparación con PostgreSQL.
@@ -127,19 +151,18 @@ docker compose up --build
 
 La primera vez tarda unos minutos: compila la interfaz y prepara las cuatro
 bases dentro de la imagen (la multimedia extrae SIFT/MFCC y construye IVF y
-HNSW). Luego abre:
+HNSW). Luego abre **http://localhost:8000**: una pestaña por parte.
 
-| Parte | Dirección | Datos |
-|---|---|---|
-| 1. Relacional | http://localhost:8000 | `students`, `courses`, `enrollments` y sus versiones `_big`; escritura habilitada |
-| 2. Espacial | http://localhost:8001 | `tiendas`, `restaurantes` y `lugares_lima` con mapa; escritura habilitada |
-| 3. Texto | http://localhost:8002 | `documentos` y `articulos`; colecciones selladas, solo lectura |
-| 4. Multimedia | http://localhost:8003 | `imagenes` (120 fotos COCO) y `canciones` (30 clips FMA); solo lectura |
+| Pestaña | Datos |
+|---|---|
+| Parte 1 · Relacional | `students`, `courses`, `enrollments` y sus versiones `_big`; escritura habilitada |
+| Parte 2 · Espacial | `tiendas`, `restaurantes` y `lugares_lima` con mapa; escritura habilitada |
+| Parte 3 · Texto | `documentos`, `articulos` y `productos` (1 000 títulos ESCI); colecciones selladas, solo lectura |
+| Parte 4 · Multimedia | `imagenes` (120 fotos COCO) y `canciones` (30 clips FMA); solo lectura |
 
-Cada servicio es un único proceso dueño de su directorio de datos.
-`docker compose down` descarta los cambios: el siguiente `up` empieza desde
-las bases originales. Las consultas de ejemplo están en
-[Consultas de ejemplo](#consultas-de-ejemplo) y en la sección de demo textual.
+Un único proceso es dueño de los cuatro directorios de datos. Cada pestaña
+tiene su propia sesión y sus **Ejemplos SQL**. `docker compose down` descarta
+los cambios: el siguiente `up` empieza desde las bases originales.
 
 ## Instalación
 

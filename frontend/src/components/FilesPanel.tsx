@@ -1,5 +1,6 @@
 import { formatBytes, plural } from "../format";
 import type { IndexInfo, TableDetail, TableOrigin, TableSummary } from "../types";
+import { useWorkspace } from "../workspaceScope";
 
 interface Props {
   tables: TableSummary[];
@@ -74,10 +75,11 @@ export default function FilesPanel({
   onSelect,
   onUseInQuery,
 }: Props) {
+  const { id: scoped } = useWorkspace();
   return (
-    <section className="panel files-panel" aria-labelledby="files-title">
+    <section className="panel files-panel" aria-labelledby={scoped("files-title")}>
       <div className="panel-heading">
-        <h2 id="files-title" className="panel-title">
+        <h2 id={scoped("files-title")} className="panel-title">
           Archivos
         </h2>
         <button
