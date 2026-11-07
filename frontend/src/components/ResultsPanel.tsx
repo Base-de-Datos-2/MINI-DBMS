@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { fetchMultimediaTables } from "../api";
 import { completenessMessage, formatCount, formatMs, formatValue, isNumeric } from "../format";
-import { mediaContext, mediaUrl, scoreNote, type MediaContext, type MultimediaTable } from "../multimedia";
+import { mediaContext, scoreNote, type MediaContext, type MultimediaTable } from "../multimedia";
+import { useWorkspace } from "../workspaceScope";
 import { commandNote, transactionFacts, transactionHeadline } from "../session";
 import type { Outcome, QueryResponse } from "../types";
 
@@ -56,7 +56,8 @@ interface Props {
 }
 
 function MediaCell({ context, value }: { context: MediaContext; value: string }) {
-  const url = mediaUrl(context.table, value);
+  const { api } = useWorkspace();
+  const url = api.mediaUrl(context.table, value);
   return context.modality === "image" ? (
     <a href={url} target="_blank" rel="noreferrer" className="media-cell">
       <img src={url} alt={value} loading="lazy" className="media-thumb" />
@@ -71,8 +72,9 @@ function MediaCell({ context, value }: { context: MediaContext; value: string })
 }
 
 function MediaQuery({ context }: { context: MediaContext }) {
+  const { api } = useWorkspace();
   if (context.queryKey === null) return null;
-  const url = mediaUrl(context.table, context.queryKey);
+  const url = api.mediaUrl(context.table, context.queryKey);
   return (
     <div className="media-query">
       <span className="muted small">
@@ -87,18 +89,19 @@ function MediaQuery({ context }: { context: MediaContext }) {
 }
 
 export default function ResultsPanel({ outcome, busy, maxResponseBytes }: Props) {
+  const { api, id: scoped } = useWorkspace();
   const [multimedia, setMultimedia] = useState<MultimediaTable[]>([]);
   useEffect(() => {
     let active = true;
     // Absent or failing in Parts 1-3 modes: results then render as plain text.
-    fetchMultimediaTables().then((found) => { if (active) setMultimedia(found); }).catch(() => undefined);
+    api.fetchMultimediaTables().then((found) => { if (active) setMultimedia(found); }).catch(() => undefined);
     return () => { active = false; };
-  }, []);
+  }, [api]);
   const media = outcome?.status === "success" && outcome.body.kind === "rows"
     ? mediaContext(outcome.body, multimedia) : null;
   return (
-    <section className="panel results-panel" aria-labelledby="results-title" aria-busy={busy}>
-      <h2 id="results-title" className="panel-title">
+    <section className="panel results-panel" aria-labelledby={scoped("results-title")} aria-busy={busy}>
+      <h2 id={scoped("results-title")} className="panel-title">
         Resultados
       </h2>
 

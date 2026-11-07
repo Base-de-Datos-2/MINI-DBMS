@@ -25,11 +25,6 @@ export interface MediaContext {
 
 const VECTOR_OPERATORS = new Set(["VectorIndexScan", "VectorScan"]);
 
-/** URL of a registered gallery or query file; keys are encoded, never paths. */
-export function mediaUrl(table: string, key: string): string {
-  return `/api/multimedia/${encodeURIComponent(table)}/media/${encodeURIComponent(key)}`;
-}
-
 /**
  * Media context of a row result whose plan root is a real vector scan over a
  * published collection; null for every other result. It reads the plan the

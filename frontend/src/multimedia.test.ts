@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mediaContext, mediaUrl, scoreNote, type MultimediaTable } from "./multimedia";
+import { createApi, mediaUrl } from "./api";
+import { mediaContext, scoreNote, type MultimediaTable } from "./multimedia";
 import type { QueryResponse } from "./types";
 
 const tables: MultimediaTable[] = [{
@@ -42,6 +43,7 @@ describe("multimedia results", () => {
   it("encodes keys and explains scores", () => {
     expect(mediaUrl("imagenes", "a b.jpg")).toBe("/api/multimedia/imagenes/media/a%20b.jpg");
     expect(mediaUrl("imagenes", "../x.jpg")).toBe("/api/multimedia/imagenes/media/..%2Fx.jpg");
+    expect(createApi("/parte4").mediaUrl("imagenes", "q.jpg")).toBe("/parte4/api/multimedia/imagenes/media/q.jpg");
     expect(scoreNote("euclidean")).toContain("−distancia");
     expect(scoreNote(null)).toBeNull();
   });
