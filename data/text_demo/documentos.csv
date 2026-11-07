@@ -1,0 +1,37 @@
+id,contenido
+1,Una base de datos vectorial permite buscar documentos por similitud.
+2,La base de datos conserva registros e índices persistentes.
+3,Un índice invertido contiene términos y frecuencias.
+4,La búsqueda vectorial representa documentos mediante vectores.
+5,El archivo heap guarda los registros en páginas de tamaño fijo sin ningún orden.
+6,El archivo secuencial mantiene los registros ordenados por una clave y reorganiza su área auxiliar.
+7,El árbol B+ responde búsquedas por igualdad y por rango recorriendo sus hojas enlazadas.
+8,Un índice B+ agrupado guarda los registros completos en sus hojas; uno no agrupado guarda punteros.
+9,El hashing extensible duplica el directorio cuando un bucket se llena y su profundidad local alcanza la global.
+10,El ordenamiento externo crea runs ordenados en disco y luego los mezcla en varias pasadas.
+11,El join por hash particiona ambas tablas en disco antes de unir cada partición en memoria.
+12,El planificador elige entre un recorrido completo de la tabla y un acceso por índice.
+13,Las transacciones garantizan atomicidad: o se aplican todos sus cambios o ninguno.
+14,El control de concurrencia usa bloqueos compartidos y exclusivos para evitar condiciones de carrera.
+15,Un rollback deshace los cambios de la transacción y restaura también los índices.
+16,El R-Tree agrupa puntos cercanos en rectángulos mínimos para acelerar consultas espaciales.
+17,Una consulta por radio devuelve los lugares a menos de cierta distancia de un punto.
+18,La búsqueda de los k vecinos más cercanos ordena los objetos por distancia a la consulta.
+19,La distancia haversine mide metros sobre la superficie de la Tierra a partir de latitud y longitud.
+20,SPIMI construye el índice invertido por bloques en memoria y los mezcla en disco.
+21,El modelo TF-IDF pondera cada término por su frecuencia en el documento y su rareza en la colección.
+22,BM25 satura la frecuencia del término y normaliza por la longitud del documento.
+23,La similitud de coseno compara la dirección de dos vectores e ignora su magnitud.
+24,Las palabras vacías como de o la se eliminan antes de construir el índice textual.
+25,El stemming reduce las palabras a su raíz para que consultas y documentos coincidan.
+26,Una base de datos multimedia extrae vectores característicos de imágenes y audio.
+27,SIFT detecta puntos clave en una imagen y describe cada uno con un vector de 128 dimensiones.
+28,Los coeficientes MFCC describen el timbre de cada ventana de un audio.
+29,La bolsa de palabras visuales cuenta cuántos descriptores caen en cada centroide de K-Means.
+30,El índice IVF agrupa los vectores con K-Means y solo revisa las listas más cercanas a la consulta.
+31,HNSW navega un grafo de vecinos por capas para encontrar rápido los vectores más parecidos.
+32,El recall mide qué fracción de los vecinos exactos recupera un índice aproximado.
+33,Una base de datos relacional organiza los datos en tablas con filas y columnas.
+34,El lenguaje SQL permite consultar una base de datos de forma declarativa.
+35,El plan de ejecución muestra los operadores físicos que usará la consulta.
+36,La maldición de la dimensionalidad hace que las distancias en alta dimensión se parezcan entre sí.

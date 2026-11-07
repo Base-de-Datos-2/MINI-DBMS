@@ -10,6 +10,21 @@ sys.path.insert(0, str(REPOSITORY))
 from api.database import Database, NewTable
 from engine.catalog import DataType
 
+#: Demo collections (data/text_demo/ATTRIBUTION.md): table, text column, file.
+DEMO_DIRECTORY = REPOSITORY / 'data' / 'text_demo'
+DEMO_COLLECTIONS = (('documentos', 'contenido', 'documentos.csv'),
+                    ('articulos', 'texto', 'articulos.csv'),
+                    ('productos', 'titulo', 'productos.csv'))
+
+
+def _csv_rows(path, text_column):
+    with Path(path).open(encoding='utf-8-sig', newline='') as stream:
+        reader = csv.DictReader(stream)
+        if reader.fieldnames is None or 'id' not in reader.fieldnames or text_column not in reader.fieldnames:
+            raise ValueError(f'CSV requires id and {text_column} columns')
+        for row in reader:
+            yield int(row['id']), row[text_column]
+
 
 def prepare(directory, *, csv_path=None, table='documentos', text_column='contenido',
             memory_budget_bytes=8 * 1024 * 1024):
@@ -18,16 +33,8 @@ def prepare(directory, *, csv_path=None, table='documentos', text_column='conten
         return (NewTable(name, (('id', DataType.INTEGER), (column, DataType.VARCHAR))),
                 rows, 'id', column)
     if csv_path is None:
-        collections = [
-            collection('documentos', 'contenido', [
-                (1, 'Una base de datos vectorial permite buscar documentos por similitud.'),
-                (2, 'La base de datos conserva registros e índices persistentes.'),
-                (3, 'Un índice invertido contiene términos y frecuencias.'),
-                (4, 'La búsqueda vectorial representa documentos mediante vectores.')]),
-            collection('articulos', 'texto', [
-                (10, 'Machine learning uses data to train a model.'),
-                (11, 'Learning algorithms include machine learning and deep learning.'),
-                (12, 'Database systems store and retrieve persistent records.')])]
+        collections = [collection(name, column, list(_csv_rows(DEMO_DIRECTORY / filename, column)))
+                       for name, column, filename in DEMO_COLLECTIONS]
         return Database.prepare_text(directory, collections, memory_budget_bytes=memory_budget_bytes)
     with Path(csv_path).open(encoding='utf-8-sig', newline='') as stream:
         reader = csv.DictReader(stream)

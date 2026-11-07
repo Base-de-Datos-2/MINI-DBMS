@@ -1,0 +1,21 @@
+id,texto
+10,Machine learning uses data to train a model.
+11,Learning algorithms include machine learning and deep learning.
+12,Database systems store and retrieve persistent records.
+13,Supervised learning trains a model on labelled examples to predict new labels.
+14,Unsupervised learning finds clusters in data without labels; K-Means is a classic example.
+15,Deep learning stacks many neural network layers to learn representations from raw data.
+16,A vector database stores embeddings produced by machine learning models.
+17,Approximate nearest neighbor search trades a little recall for much faster queries.
+18,Retrieval augmented generation looks up relevant documents before a language model answers.
+19,Feature engineering turns raw data into inputs that a learning algorithm can use.
+20,Overfitting happens when a model learns the training data too closely and generalizes poorly.
+21,Cross validation estimates how well a machine learning model performs on unseen data.
+22,Query optimization chooses an efficient execution plan for a database query.
+23,An inverted index maps each term to the list of documents that contain it.
+24,BM25 is a ranking function used by search engines to score documents for a query.
+25,Gradient descent updates model parameters in the direction that reduces the loss.
+26,Reinforcement learning trains an agent through rewards from its environment.
+27,Transfer learning reuses a model trained on one task as the starting point for another.
+28,Indexing structures such as B+ trees and hash tables speed up database lookups.
+29,Distributed databases replicate and partition data across several machines.
