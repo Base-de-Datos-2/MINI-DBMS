@@ -259,6 +259,101 @@ PRESETS = (
 )
 
 
+#: Part 2 examples over the spatial demo (scripts/setup_lima.py): radius, k-NN
+#: and the R-Tree plan. POINT is (latitude, longitude); distances are metres.
+SPATIAL_PRESETS = (
+    Preset(
+        "Radio de 200 m",
+        "Puntos a menos de 200 m del centro (haversine); repite sin índices para ver SpatialScan.",
+        "SELECT id, nombre FROM tiendas "
+        "WHERE distancia(ubicacion, POINT(-12.0464, -77.0428), 'haversine') < 200 ORDER BY id;",
+    ),
+    Preset(
+        "Radio de 5 km (PDF)",
+        "Ejemplo del enunciado: la métrica por defecto es haversine.",
+        "SELECT id, nombre FROM tiendas WHERE distancia(ubicacion, POINT(-12.0464, -77.0428)) < 5000 ORDER BY id;",
+    ),
+    Preset(
+        "k vecinos más cercanos",
+        "Los 3 puntos más cercanos; los empates se resuelven por id.",
+        "SELECT id, nombre FROM tiendas "
+        "ORDER BY distancia(ubicacion, POINT(-12.0464, -77.0428), 'haversine') LIMIT 3;",
+    ),
+    Preset(
+        "Euclidiana frente a haversine",
+        "Misma consulta k-NN con la otra métrica.",
+        "SELECT id, nombre FROM tiendas "
+        "ORDER BY distancia(ubicacion, POINT(-12.0464, -77.0428), 'euclidean') LIMIT 5;",
+    ),
+    Preset(
+        "Lugares reales de Lima",
+        "Los 5 lugares de OpenStreetMap más cercanos, con su distancia en metros.",
+        "SELECT nombre, categoria, distancia(ubicacion, POINT(-12.0464, -77.0428)) AS metros "
+        "FROM lugares_lima ORDER BY distancia(ubicacion, POINT(-12.0464, -77.0428)) LIMIT 5;",
+    ),
+    Preset(
+        "Radio sobre lugares reales",
+        "Lugares de Lima a menos de 200 m del centro.",
+        "SELECT nombre, categoria FROM lugares_lima "
+        "WHERE distancia(ubicacion, POINT(-12.0464, -77.0428)) < 200 ORDER BY nombre;",
+    ),
+    Preset(
+        "Plan del R-Tree",
+        "EXPLAIN ANALYZE muestra nodos visitados, candidatos y filas leídas del Heap.",
+        "EXPLAIN ANALYZE SELECT id FROM tiendas WHERE distancia(ubicacion, POINT(-12.0464, -77.0428)) < 200;",
+    ),
+)
+
+
+#: Part 3 examples (scripts/setup_text.py): both literal queries of the
+#: assignment (§2.3) and real ESCI product titles for TF-IDF versus BM25.
+TEXT_PRESETS = (
+    Preset(
+        "Documentos con TF-IDF (PDF)",
+        "Primer ejemplo del enunciado: TF-IDF con similitud de coseno.",
+        "SELECT * FROM documentos WHERE MATCH(contenido, 'base de datos vectorial') USING TF_IDF LIMIT 10;",
+    ),
+    Preset(
+        "Artículos con BM25 (PDF)",
+        "Segundo ejemplo del enunciado, con el score como columna.",
+        "SELECT *, SCORE() AS relevancia FROM articulos WHERE MATCH(texto, 'machine learning') "
+        "USING BM25 ORDER BY relevancia DESC;",
+    ),
+    Preset(
+        "Productos con BM25",
+        "1 000 títulos reales de Amazon (ESCI); desmarca «Usar índices» para ver TextScan.",
+        "SELECT id, titulo, SCORE() AS relevancia FROM productos "
+        "WHERE MATCH(titulo, 'wireless headphones') USING BM25 ORDER BY relevancia DESC LIMIT 10;",
+    ),
+    Preset(
+        "Consulta larga con BM25",
+        "Consulta real del corpus de 7 palabras; compárala con la versión TF-IDF.",
+        "SELECT id, titulo, SCORE() AS relevancia FROM productos "
+        "WHERE MATCH(titulo, 'black natural hair dye without ammonia or peroxide') "
+        "USING BM25 ORDER BY relevancia DESC LIMIT 10;",
+    ),
+    Preset(
+        "Consulta larga con TF-IDF",
+        "La misma consulta con TF-IDF + coseno: el orden cambia.",
+        "SELECT id, titulo, SCORE() AS relevancia FROM productos "
+        "WHERE MATCH(titulo, 'black natural hair dye without ammonia or peroxide') "
+        "USING TF_IDF ORDER BY relevancia DESC LIMIT 10;",
+    ),
+    Preset(
+        "Temas del curso",
+        "Búsqueda en español sobre los documentos de ejemplo.",
+        "SELECT id, contenido, SCORE() AS relevancia FROM documentos "
+        "WHERE MATCH(contenido, 'índice para búsqueda por rango') USING BM25 ORDER BY relevancia DESC LIMIT 5;",
+    ),
+    Preset(
+        "Plan con EXPLAIN ANALYZE",
+        "Muestra el índice SPIMI, el modelo, los candidatos puntuados y la selección top-k.",
+        "EXPLAIN ANALYZE SELECT id, titulo, SCORE() AS relevancia FROM productos "
+        "WHERE MATCH(titulo, 'wireless headphones') USING BM25 ORDER BY relevancia DESC LIMIT 10;",
+    ),
+)
+
+
 #: Part 4 examples: both literal queries of the assignment (§2.4.3) plus the
 #: comparison switches. They only fill the editor; POST /api/query runs them.
 MULTIMEDIA_PRESETS = (

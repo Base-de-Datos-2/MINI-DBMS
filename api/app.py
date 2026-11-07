@@ -117,10 +117,15 @@ def create_app(
     async def request_context(request: Request, call_next):
         request.state.request_id = uuid4().hex
         declared = request.headers.get("content-length")
-        # Only the CSV routes may carry a large body.
+        # Only the CSV routes may carry a large body. Under the unified server
+        # this app is mounted at /parteN, so compare the path inside the app.
+        path = request.url.path
+        root = request.scope.get("root_path", "")
+        if root and path.startswith(root):
+            path = path[len(root):]
         limit = (
             MAX_IMPORT_REQUEST_BYTES
-            if request.method == "POST" and request.url.path in IMPORT_ROUTES
+            if request.method == "POST" and path in IMPORT_ROUTES
             else MAX_REQUEST_BYTES
         )
         if declared is not None and declared.isdigit() and int(declared) > limit:
