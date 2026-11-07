@@ -21,7 +21,9 @@ authored by the user, and nothing was pushed.
 
 ## Delivered in this phase
 
-- **Docker Compose.** The `build: add docker compose with one service per
+- **Docker Compose.** (Superseded on 2026-11-07: Compose now runs one
+  service on port 8000 with one tab per part; see the README.) The
+  `build: add docker compose with one service per
   part` commit was brought in from `build/docker-compose`, which was never
   pushed. On top of it:
   - the image installs the `multimedia` extra and builds the Part 4 demo from

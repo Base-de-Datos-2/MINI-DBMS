@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.18** — records the complete Part 4 (multimedia
-> retrieval, phases 1–8) after the Part 3 closure.
+> Context version: **4.19** — adds the unified server and the tabbed
+> frontend (one port, one tab per part) after the complete Part 4.
 
 ## Project identity
 
@@ -2600,6 +2600,22 @@ manifest-backed owner stays unchanged. The stable rules are:
   that group. CSV parsing/type inference use standard `csv` before execution;
 - imports are bounded to 8 MiB and 10,000 rows. Schema X protects construction
   and publication; conflicting work waits under the engine's schema locks.
+
+**Unified server (2026-11-07).** `python -m api --all` serves every part on
+one port (`api/unified.py`). Each prepared part under one root
+(`scripts/setup_all.py`, default `data/generated/todas/parteN`) is opened as
+its own `Database` + `EngineService` and its unchanged Stage 9 app is mounted
+at `/parteN`; the root adds only `GET /api/parts` (tab list, ready/missing with
+the setup command) and a cached `GET /api/health`. Parts never share an
+owner, a session registry or a token; the root lifespan starts each mounted
+app's idle-session sweeper, and shutdown cancels and closes every part.
+`--allow-writes` applies to Parts 1 and 2 only. A missing part is reported,
+not fatal. Single-part modes (`--text`, `--spatial`, `--multimedia`, default)
+remain, and the frontend detects them by the absence of `/api/parts`.
+The frontend shows one tab per part (`#parteN`), mounted on first use and
+kept mounted; each tab binds its own API prefix and element-id prefix
+(`frontend/src/workspaceScope.ts`). Adding Part 5 means adding a `PartSpec`
+and its panels, not a new port.
 
 The DBMS engine must be callable independently from the web layer.
 
