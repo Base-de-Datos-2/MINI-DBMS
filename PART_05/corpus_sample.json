@@ -1,0 +1,35 @@
+[
+  {
+    "paper_id": 1,
+    "pdf": "paper_01.pdf",
+    "source_url": "https://arxiv.org/pdf/1603.09320v4",
+    "version": "1603.09320v4",
+    "sha256": "f78da128a3ea9ac08d37cfe6c4b641f371f88adb677d6d2bf637d90bad8d414a",
+    "authors": "Yu. A. Malkov, D. A. Yashunin",
+    "year": 2018,
+    "title": "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs",
+    "abstract": "We present a new approach for the approximate K-nearest neighbor search based on navigable small world graphs with controllable hierarchy (Hierarchical NSW, HNSW). The proposed solution is fully graph-based, without any need for additional search structures, which are typically used at the coarse search stage of the most proximity graph techniques. Hierarchical NSW incrementally builds a multi-layer structure consisting from hierarchical set of proximity graphs (layers) for nested subsets of the stored elements. The maximum layer in which an element is present is selected randomly with an exponentially decaying probability distribution. This allows producing graphs similar to the previously studied Navigable Small World (NSW) structures while additionally having the links separated by their characteristic distance scales. Starting search from the upper layer together with utilizing the scale separation boosts the performance compared to NSW and allows a logarithmic complexity scaling. Additional employment of a heuristic for selecting proximity graph neighbors significantly increases performance at high recall and in case of highly clustered data. Performance evaluation has demonstrated that the proposed general metric space search index is able to strongly outperform previous opensource state-of-the-art vector-only approaches. Similarity of the algorithm to the skip list structure allows straightforward balanced distributed implementation."
+  },
+  {
+    "paper_id": 2,
+    "pdf": "paper_02.pdf",
+    "source_url": "https://arxiv.org/pdf/1702.08734v1",
+    "version": "1702.08734v1",
+    "sha256": "89b2371b261846059d416bdf1423b15a6e3cc7d1b2d5dc2729ee5f6c3399049a",
+    "authors": "Jeff Johnson, Matthijs Douze, Hervé Jégou",
+    "year": 2017,
+    "title": "Billion-scale similarity search with GPUs",
+    "abstract": "Similarity search finds application in specialized database systems handling complex data such as images or videos, which are typically represented by high-dimensional features and require specific indexing structures. This paper tackles the problem of better utilizing GPUs for this task. While GPUs excel at data-parallel tasks, prior approaches are bottlenecked by algorithms that expose less parallelism, such as k-min selection, or make poor use of the memory hierarchy. We propose a design for k-selection that operates at up to 55% of theoretical peak performance, enabling a nearest neighbor implementation that is 8.5× faster than prior GPU state of the art. We apply it in different similarity search scenarios, by proposing optimized design for brute-force, approximate and compressed-domain search based on product quantization. In all these setups, we outperform the state of the art by large margins. Our implementation enables the construction of a high accuracy k-NN graph on 95 million images from the Yfcc100M dataset in 35 minutes, and of a graph connecting 1 billion vectors in less than 12 hours on 4 Maxwell Titan X GPUs. We have open-sourced our approach for the sake of comparison and reproducibility."
+  },
+  {
+    "paper_id": 3,
+    "pdf": "paper_03.pdf",
+    "source_url": "https://arxiv.org/pdf/2004.04906v2",
+    "version": "2004.04906v2",
+    "sha256": "cb551710ff63f08048057924d0f4e7a954aaaeff19e31b6e306fa0aef32d6291",
+    "authors": "Vladimir Karpukhin, Barlas Oğuz, Sewon Min, Patrick Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, Wen-tau Yih",
+    "year": 2020,
+    "title": "Dense Passage Retrieval for Open-Domain Question Answering",
+    "abstract": "Open-domain question answering relies on efficient passage retrieval to select candidate contexts, where traditional sparse vector space models, such as TF-IDF or BM25, are the de facto method. In this work, we show that retrieval can be practically implemented using dense representations alone, where embeddings are learned from a small number of questions and passages by a simple dual-encoder framework. When evaluated on a wide range of open-domain QA datasets, our dense retriever outperforms a strong Lucene-BM25 system largely by 9%-19% absolute in terms of top-20 passage retrieval accuracy, and helps our end-to-end QA system establish new state-of-the-art on multiple open-domain QA benchmarks."
+  }
+]
