@@ -1,12 +1,12 @@
 # Part 5 Stage 1 results
 
-- Overall status: **PENDING_HUMAN**
+- Overall status: **PASS**
 - Coding-agent technical checks: **PASS**
 - Tested commit: `f8b6a568b89c15ae272c75cb3861d28541cce41a`
 - Branch: `docs/part5-stage1`
 - Execution date: 2026-11-09
 - Agent reviewer: Codex
-- Human reviewers: pending
+- Human corpus and answer reviewer: JPCP (2026-11-09)
 - Runtime: Windows, CPython 3.12.4, Unicode 15.0.0, Node 22.23.4, npm 10.9.9
 - Probe packages: pypdf 7.0.0 and OpenAI Python SDK 3.48.0. `pip check` passed.
 - Baseline: `data/generated/p5_stage1_baseline_03`, Parts 1 and 3 on port 8000, read-only
@@ -26,7 +26,9 @@
 | Metadata and chunk feasibility | PASS | All three complete metadata rows and 119 candidate chunks fit. See measurements below. |
 | Agent contract | PASS | [Proposed schemas, APIs and lifecycle](CONTRACT_P5.md). |
 | Single live OpenAI call and agent evidence review | PASS | Completed once in 2.96 s. 425 input and 40 output tokens. Both answer claims are supported by the reviewed passage. |
-| Human corpus and answer review, team agreement, reproduction | PENDING_HUMAN | H4–H6 below. |
+| Independent human corpus and answer review | PASS | JPCP signed off on 2026-11-09. |
+| Team agreement and teammate reproduction | PASS | JPCP confirmed team agreement and reported that EPCR reproduced the baseline results. |
+| Stage 1 closure | PASS | JPCP gave final sign-off after the technical checks, independent review and teammate reproduction were recorded. |
 
 The first setup attempt hit a Windows console-encoding error. Using `-X utf8` resolved it. A second setup attempt hit a sandbox restriction while publishing the text registry, so the final run used a fresh directory and the required local filesystem access. The initial pytest command needed its scratch parent directory created before the successful rerun. The baseline browser logged a favicon 404. npm also reported five advisories for the locked dependencies, including two critical. The frontend build and functional check passed.
 
@@ -82,11 +84,11 @@ Create `tmp/p5_stage1` before the focused pytest command. Reproducing the REST b
 
 | Guide item | Owner | State and remaining action |
 | --- | --- | --- |
-| H1 | D3 | Reuse and the bounded call were authorized. Record who owns usage and confirm the intended OpenAI project with nonsecret identifiers if needed. |
+| H1 | JPCP (D3) | PASS. JPCP confirmed ownership of the existing key and identified BD2 as the OpenAI Platform project for Part 5. Reuse and the bounded call were authorized. |
 | H2 | D3 | NOT_NEEDED. The existing key worked in the probe runtime. |
 | H3 | D2 / D4 | NOT_NEEDED for this workstation. REST and browser checks completed. |
-| H4 | D1 or D4 | PENDING_HUMAN. Compare the three PDFs, manifest and extracted passages. Check that each question is answerable and that the actual LLM answer and [S1] are supported. Record initials, date and verdict. |
-| H5 | All four | PENDING_HUMAN. Agree on the proposed contract and have one other developer reproduce the baseline REST probe on their setup. Record their result. |
-| H6 | Team | PENDING_HUMAN. Record the reviews and reproduction, verify the evidence, then mark Stage 1 PASS. |
+| H4 | JPCP | PASS. JPCP approved the three papers and signed off on the independent corpus and answer review on 2026-11-09. |
+| H5 | All four | PASS. JPCP confirmed that the team agrees on the contract and that EPCR reproduced the baseline REST results on their setup. |
+| H6 | Team | PASS. JPCP approved the Stage 1 closure. The record includes the technical checks, JPCP's independent review, team agreement and EPCR's baseline reproduction. |
 
 The next planned work is production ingestion (D1), offline publication and retrieval (D2), the REST-to-OpenAI application flow (D3), and the scoped chat panel (D4), following the agreed contract.
