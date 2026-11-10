@@ -1,13 +1,22 @@
 # AGENTS.md
 
-## Current authorization — 2026-11-07
+## Current authorization — 2026-11-09
+
+Part 5 Option A Stage 1 is accepted. The user authorized Stage 2 offline
+academic corpus preparation, persistence and verification under
+`PART_05/GUIDE_05_S02.md`. The accepted contract is
+`PART_05/CONTRACT_P5.md`. JPCP accepted Stage 2 on 2026-11-10.
+The evidence and sign-off are in `PART_05/STAGE_02_RESULTS.md`. Stage 3
+and later work require separate authorization.
+
+## Previous authorization — 2026-11-07
 
 The user requested one port for the whole evaluation: `python -m api --all`
 (`api/unified.py`, `scripts/setup_all.py`) mounts each part at `/parteN`, and
 the frontend shows one tab per part; Docker Compose runs one service on 8000.
 Part 3 gained real demo texts (`data/text_demo`) and Parts 2–3 gained SQL
-presets. Part 5 still needs its own authorization; when it comes, add it as
-a new tab of this server.
+presets. Future authorized Part 5 web integration belongs in a new tab of
+this server.
 
 ## Previous authorization — 2026-11-06
 

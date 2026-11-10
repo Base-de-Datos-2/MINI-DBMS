@@ -100,8 +100,26 @@ Uso, API y reglas del SQL en [docs/multimedia.md](docs/multimedia.md);
 contrato en [docs/multimedia-contract.md](docs/multimedia-contract.md);
 experimentos con 100 000 imágenes en
 [docs/EXPERIMENTOS_MULTIMEDIA.md](docs/EXPERIMENTOS_MULTIMEDIA.md); evidencia
-por fase en `PART_04/BLOQUE_*.md`. La Parte 5 (aplicación) queda para la
-entrega final.
+por fase en `PART_04/BLOQUE_*.md`.
+
+### Parte 5 — Preparación del corpus académico
+
+Guarda los PDF indicados en [el manifiesto](PART_05/corpus.json) en
+`data/generated/p5_inputs/` con los nombres registrados. Desde la raíz del
+proyecto, con CPython 3.12, ejecuta:
+
+```bash
+python -X utf8 -m pip install -e ".[test,api,academic]"
+python -X utf8 scripts/setup_academic.py --manifest PART_05/corpus.json --pdf-dir data/generated/p5_inputs --data-dir data/generated/todas/parte5
+python -X utf8 scripts/setup_academic.py --verify-only --data-dir data/generated/todas/parte5
+```
+
+La preparación requiere un directorio de destino nuevo. Verifica los hashes
+de los PDF y guarda `papers` y `chunks`, con un índice SPIMI para
+`chunks.content`. La verificación reabre los datos guardados. Consulta la
+[evidencia y revisión de la etapa 2](PART_05/STAGE_02_RESULTS.md) para
+descargar las fuentes y comprobar los resultados. La integración con el
+servidor corresponde a la etapa 3.
 
 ## Arquitectura
 

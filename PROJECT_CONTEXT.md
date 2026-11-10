@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.19** — adds the unified server and the tabbed
-> frontend (one port, one tab per part) after the complete Part 4.
+> Context version: **4.20** — adds offline academic corpus preparation for
+> Part 5 Option A Stage 2.
 
 ## Project identity
 
@@ -19,7 +19,8 @@ The current implementation focus is:
 > the PostgreSQL comparison, documentation and a 3,561-test regression
 > (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). **Part 4 is
 > complete** (phases 1–8, `PART_04/BLOQUE_8.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`);
-> Part 5 remains. Block 4A sealing details are kept below.
+> **Part 5 Option A** has an accepted Stage 1 contract and an implemented
+> Stage 2 offline corpus, accepted by the stage owner on 2026-11-10.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -92,9 +93,26 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request (2026-11-06) authorized Part 4 phases 1–8 (phase 1
-first, then 2–8 autonomously). Part 3 is complete (2026-11-04). Part 5 remains
-pending. Earlier scope statements below do not override this authorization.
+The latest request (2026-11-09) authorized Part 5 Option A Stage 2 under
+`PART_05/GUIDE_05_S02.md`. Parts 3 and 4 are complete. The Stage 2 results
+and review status are in `PART_05/STAGE_02_RESULTS.md`. Part 5 Stage 3
+retrieval and server integration are pending separate authorization.
+
+### Part 5 academic preparation (Stage 2)
+
+- The offline preparation script uses `PART_05/corpus.json` to verify pinned
+  PDFs and load the ordinary `papers` Heap and the indexed `chunks` Heap
+  defined in `PART_05/CONTRACT_P5.md`. PDF extraction stays in preparation
+  code and uses the optional `academic` dependency.
+- Page text is joined in source order and whitespace is normalized. Balanced
+  splits preserve the entire normalized text, with 200–500 words per chunk.
+  Paper IDs determine global chunk order and per-paper positions start at
+  one. Both schemas use the engine codec and complete-record size limit.
+- `Database.prepare_text` loads ordinary companion tables with the same
+  owner as the indexed collections. After the owner closes, the existing
+  offline lifecycle seals and publishes `chunks.content`. The fresh
+  directory and registry rules are shared with Part 3. Verification opens
+  the stored database under the `text` definition.
 
 ### Part 4 contract decisions (phase 1)
 
