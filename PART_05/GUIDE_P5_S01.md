@@ -2,10 +2,12 @@
 
 This guide has two parts with separate responsibilities:
 
-- **Part I — Agent execution guide:** instructions for a coding agent assigned to execute Stage 1, including commands, probes, contract drafting and evidence.
-- **Part II — Human guide:** account/key setup, inaccessible local actions, independent review and team decisions.
+- **Part I — Coding agent execution guide:** repository setup, baseline checks, PDF collection, contracts, credential checks, OpenAI testing and evidence, using the installed OpenAI Developers plugin where applicable.
+- **Part II — Human guide:** account ownership, secure interactions that require you, inaccessible local actions, independent review and team decisions.
 
-Start agent tasks A1–A4 while the human completes H1–H2. Run the real OpenAI check after the credential becomes available, then finish H3–H6 using the produced evidence. The agent must continue independent work while a human dependency is pending.
+**Current starting point:** The user reports that the **OpenAI Developers plugin is installed in Codex** and that an **OpenAI API key has already been created**. Do not reinstall the plugin or create a duplicate key as routine Stage 1 work. These facts do not yet establish that the project's Python process can use the key or access the chosen model.
+
+Start with agent tasks A1–A4 and the credential check in A5.2. The human completes H1 once and H2 only if secure access needs an interaction. Run the real OpenAI check after the credential is accessible and its use is authorized, then finish H3–H6 using the produced evidence. Continue independent work while a human dependency is pending.
 
 The roles describe the workflow; they do not require multiple AI agents or a new orchestration system. Editing this guide alone does not execute Stage 1.
 
@@ -34,6 +36,20 @@ This is a baseline and feasibility stage. It does not require building the produ
 **Basis:** The repository's [Part 5 plan][plan] at commit `762559fcbd30b7c879a070b06a84a6f666acb4a5`. The latest user decision selects **OpenAI directly**, replacing the plan's undecided provider/OpenRouter candidate. The initial model is **`gpt-6-luna`**, as listed in the [official model documentation][luna]; actual project access must be verified.
 
 The commands and existing interfaces were checked against repository source. They have not been executed against your workstation or OpenAI account. Checklist items must remain pending until your team runs them.
+
+#### A0.1 Responsibilities with the installed plugin
+
+| Work | Coding agent responsibility | Human responsibility |
+| --- | --- | --- |
+| Existing application | Prepare environment, build, run API/restart/tests and inspect UI when accessible. | Resolve an actual local access gap; reproduce the essential baseline on a teammate's setup. |
+| Sample papers | Find and download three public PDFs, verify metadata, extract text and check storage limits. | Review suitability and extraction independently; provide restricted material only if needed. |
+| Contracts | Draft schemas, routes and examples consistent with the repository. | Confirm the four developers understand and can use them. |
+| Existing OpenAI key | Check presence without exposing it, verify how the Python process receives it, and reuse it when authorized. | Identify the intended account/project and authorize reuse if not already authorized; enter secrets only through a secure local facility when necessary. |
+| Plugin assistance | Use available OpenAI documentation, setup and troubleshooting capabilities. Check which capabilities the session actually exposes. | Complete sign-in or connection interactions only when requested for a concrete blocker. |
+| API feasibility | Prepare the passage/question, run one bounded real request, diagnose failures and record results. | Handle account, payment or permission decisions; run the prepared probe only if the agent cannot access the credential/runtime. |
+| Answer quality | Compare the answer with its supplied evidence and report problems. | Independently review the answer and source passage. |
+
+The [OpenAI Developers plugin][developers-plugin] assists the coding workflow. Its installation does not inject a credential into every shell, make API access free, or implement the application integration. MINI-DBMS still uses the official Python SDK and Responses API. The plugin is a development aid, not a runtime dependency or a reason to add Agents SDK, hosted retrieval, or another service.
 
 ### A1. Establish the baseline safely
 
@@ -646,7 +662,9 @@ Record these boundaries:
 
 #### A5.1 Use the selected provider and model
 
-The human owns account creation, project access and credential provisioning (H1–H2). Do not search unrelated files for keys or attempt account/billing changes as part of this technical workflow.
+The user already has the plugin and an API key. The agent owns the technical configuration checks and connection test; the human retains account ownership, sign-in, secret input when necessary, and usage/access decisions (H1–H2). Do not search unrelated files for keys or make account/billing changes as part of this workflow.
+
+Use the installed plugin's available documentation and troubleshooting capabilities when needed. If a capability is absent from the current session, report that specific limitation and use the existing SDK/environment workflow where possible. A missing Platform connector does not prevent an API test when a valid credential is already available to Python. Do not require a new key merely to exercise the plugin.
 
 The initial model ID is **`gpt-6-luna`**, not the display name “GPT luna.” The [model page][luna] documents its supported reasoning settings. This guide uses `none` for a small passage-answering connectivity test. Keep the model configurable and confirm its actual accessibility through a real request.
 
@@ -665,7 +683,7 @@ Record its working version. Before production integration, declare the accepted 
 
 | Variable | Purpose | Initial value |
 | --- | --- | --- |
-| `OPENAI_API_KEY` | Secret supplied privately to the executing process | Human task H2. |
+| `OPENAI_API_KEY` | Existing secret available privately to the executing process | Agent checks availability; H2 only if intervention is needed. |
 | `OPENAI_MODEL` | API model identifier | `gpt-6-luna` |
 | `P5_ENGINE_BASE_URL` | Proposed future engine API base | `http://127.0.0.1:8000/parte5` |
 
@@ -677,15 +695,22 @@ $env:OPENAI_MODEL = "gpt-6-luna"
 
 Bash equivalent: `export OPENAI_MODEL="gpt-6-luna"`.
 
-Check only whether a key is available; do not display its value, prefix, length or environment dump:
+Using the exact interpreter selected in A1, check only whether a key is available; do not display its value, prefix, length or environment dump:
 
 ```powershell
 & $P5Python -c "import os; print('CONFIGURED' if os.environ.get('OPENAI_API_KEY', '').strip() else 'MISSING')"
 ```
 
-If it is missing, finish all independent tasks and record the LLM test as `BLOCKED_CREDENTIAL`. Do not start an interactive password prompt from an unattended agent. The script below is noninteractive by default; `--prompt-key` is reserved for the human-run fallback in H2.
+This reports **presence**, not validity. Follow these steps:
 
-When a key is securely available and the stage's real request is already authorized, run the bounded test without asking for the same authorization again. If the credential exists only on a human's workstation, hand over the prepared script instead of requesting that the key be pasted into chat. Request only the nonsensitive result.
+1. Check the project runtime first. If it reports `MISSING`, inspect only repository-documented or user-identified secret locations using checks that return presence/absence. Never print an env file or search unrelated folders for credentials.
+2. Establish how the existing key reaches this Python process. A key saved by a setup flow in an env file is not automatically loaded by Python. Reuse the project's documented loader or secret facility if one exists; otherwise use the secure environment route in H2. Do not add a configuration framework for this probe.
+3. Reuse the existing key when the user has authorized it. If that decision is still missing, request it once through H1. Do not ask again after it has been answered. A newly discovered credential is not by itself authorization to use it.
+4. If the installed plugin offers a suitable secure setup capability, use it for the specific missing step. Complete any required destination choice before writing a secret; never overwrite or relocate an existing secret silently. If a setup flow would create a new key, do not use it for routine reuse of this one. Creation or replacement requires a separate user decision.
+5. If an account connection, sign-in or private input cannot be completed by the agent, hand off only that interaction through H2. If the credential is confined to a different machine, use H2's human-run fallback rather than requesting its value in chat.
+6. Once the key is accessible and the real request is authorized, execute A5.4 and record the actual result. Do not require a separate human connectivity test after an agent-executed success.
+
+If access remains unavailable, record `BLOCKED_CREDENTIAL` with the exact missing action and owner, then finish independent tasks. Do not start an interactive password prompt from an unattended agent. The script below is noninteractive by default; `--prompt-key` is reserved for the human-run fallback in H2.
 
 #### A5.3 Prepare the passage and question
 
@@ -727,7 +752,8 @@ if not key and "--prompt-key" in sys.argv:
 if not key:
     raise SystemExit(
         "BLOCKED: OPENAI_API_KEY is not available to this process. "
-        "Complete human task H2. Human-run fallback: use --prompt-key."
+        "Complete the runtime credential check in A5.2; use H2 if needed. "
+        "Human-run fallback: use --prompt-key."
     )
 
 started = perf_counter()
@@ -793,6 +819,8 @@ If the response is incomplete because of the output limit, inspect that reason a
 
 #### A5.5 Diagnose failures and hand off only the blocked action
 
+Use the plugin's troubleshooting guidance when available. The agent diagnoses request/configuration problems and reports only safe error categories or status codes. The human handles the account action only when the diagnosis requires one. Never include authorization headers, env-file contents or raw secret-bearing diagnostics in evidence.
+
 | Symptom | Check/action |
 | --- | --- |
 | HTTP 401 | Check nonsecret configuration and report the status; ask the account owner to verify or replace the key in H1–H2. |
@@ -824,6 +852,10 @@ Keep one short **`PART_05/STAGE_01_RESULTS.md`**. Start with this template and r
 - Node / npm:
 - pypdf / openai SDK:
 - Baseline data directory:
+- Plugin installation: USER_REPORTED_INSTALLED
+- Existing API key: USER_REPORTED_CREATED (value never recorded)
+- Credential available to tested Python process: PENDING
+- API test executor/environment:
 - OpenAI requested model:
 - OpenAI returned model:
 
@@ -841,6 +873,7 @@ Keep one short **`PART_05/STAGE_01_RESULTS.md`**. Start with this template and r
 | Candidate chunks satisfy word/byte bounds | PENDING | |
 | Contract document complete (agent) | PENDING | |
 | Team contract review (human) | PENDING | |
+| Existing credential available to tested Python process | PENDING | Presence only; validity requires the real request. |
 | Real OpenAI call completes | PENDING | |
 | Agent comparison of answer and passage | PENDING | |
 | Independent human review of answer | PENDING | |
@@ -892,6 +925,7 @@ Follow the user's existing instructions for commits and pull requests. Preparing
 - [ ] Inspect the UI if the environment supports it; otherwise supply H3 with the URL and pending checks.
 - [ ] Obtain three suitable PDFs, verify metadata, and run word/byte feasibility checks.
 - [ ] Prepare the contract, real passage, question and OpenAI probe.
+- [ ] Check existing credential availability safely; record the runtime and reuse decision without recording the key.
 - [ ] Run the OpenAI probe if its credential is accessible; otherwise record the precise dependency and complete other tasks.
 - [ ] Review the generated answer against the passage and prepare evidence for H4.
 - [ ] Record actual outcomes, limitations and human items still pending.
@@ -901,42 +935,50 @@ Use `PASS`, `FAIL`, `PENDING_HUMAN` or `BLOCKED` per item. A missing key does no
 
 ## Part II — Human guide
 
-This section is for the four developers. Let the coding agent perform Part I. Your responsibilities are account ownership, private access, decisions that belong to the team, and an independent review of the evidence. Technical checks only move here when the agent cannot access the relevant environment.
+This section is for the four developers. Let the coding agent perform Part I. Your responsibilities are account ownership, any required private interaction, decisions that belong to the team, and an independent review of the evidence. The agent now owns technical credential checks, execution and troubleshooting with the installed plugin where useful. Technical checks only move here when the agent cannot access the relevant environment.
 
-### H1. Prepare the OpenAI account and project
+### H1. Confirm ownership and reuse of the existing key
 
 **Owner:** The developer responsible for OpenAI access (D3).
 
-1. Sign in to the [OpenAI API dashboard][dashboard] yourself.
-2. Create or select the project that will be used for MINI-DBMS.
-3. Check that the project can make API requests and that you are comfortable with its usage/billing settings.
-4. Create an API key with the access needed for the selected model and Responses API.
-5. Keep the key private. Give the agent only the nonsecret model choice and the confirmation that provisioning is complete.
-6. If a test reports an account, quota or permission issue, resolve it in the dashboard. The agent can diagnose the technical status, but should not decide to purchase credits, change billing or broaden account access for you.
+**Already completed, according to your report:** installing the OpenAI Developers plugin and creating an API key. Do not repeat those tasks.
 
-The selected initial model remains `gpt-6-luna`. Account access is confirmed by the real request, not just by finding the model in documentation.
+1. Confirm which account/project the existing key belongs to and who is responsible for its usage. Share only nonsecret identifiers if needed.
+2. When assigning Stage 1 execution, authorize reuse of that existing key and the single bounded test if you have not already done so. For example:
 
-**Done when:** The API project and key are available, and the person responsible for usage understands the intended single connection test. Existing authorization to run that test does not need to be repeated.
+   > Execute Stage 1 using my existing OpenAI API key. Check its availability without displaying it, run the guide's single passage-based request, and record the result. Do not create another key. Continue the independent baseline and PDF tasks if credential access is blocked.
 
-### H2. Make the key available privately
+3. Let the coding agent check runtime availability and diagnose any technical failure. You do not need to run the same check separately when it succeeds in the intended environment.
+4. If the diagnosis identifies an account, quota or permission problem, resolve it through the [OpenAI API dashboard][dashboard]. Purchases, billing changes and expanded access remain your decisions. A new key is not the default remedy for every failure.
 
-**Owner:** D3. **Dependency:** H1.
+The selected initial model remains `gpt-6-luna`. Actual model access is established by the real request. Plugin installation and key creation alone are not connectivity evidence.
 
-Choose the route that matches the execution environment. Do not perform both unless troubleshooting requires it.
+**Done when:** Account ownership and intended credential reuse are clear, and the bounded test is authorized. This does not mark A5's API test complete.
 
-#### Route A — Supply the secret to the agent's runtime
+### H2. Complete only the secure interaction the agent cannot perform
 
-If your coding environment has a supported secret/environment-variable facility, configure `OPENAI_API_KEY` there. Set `OPENAI_MODEL=gpt-6-luna` as nonsecret configuration.
+**Owner:** D3. **Conditional task:** Needed only if A5.2 identifies a credential/access gap.
 
-Confirm that these settings reach the process that will execute `check_openai.py`. An environment variable set in your PowerShell window is not automatically available in a remote agent, another terminal, or a running server. Use the environment's documented mechanism and restart/relaunch the relevant process only if required.
+The coding agent should state the precise missing action and prepare the rest. Do not paste the key into chat, source code, screenshots, command-line arguments, evidence files, or a frontend `VITE_*` variable.
 
-Tell the agent: “The credential is configured in the execution environment.” Do not send its value. The agent will check presence and execute the prepared probe.
+#### Route A — Make the existing credential accessible to the intended runtime
 
-#### Route B — Run the prepared probe yourself
+Use the existing setup if it already works. Otherwise:
 
-Use this route if the agent cannot access your local credential securely.
+1. Complete a sign-in or connection interaction only if the available plugin capability needs it for the reported task. Installing a plugin and connecting its account tools are distinct from configuring the application's Python process.
+2. If private key input is required, enter the existing key yourself through the environment's supported secret facility or a secure local input. The agent can guide and verify the setup without seeing the plaintext in conversation.
+3. If a persistent secret file must be written, confirm its intended location when required and keep it excluded from Git. A file called `.env` or `.env.local` is only useful when the execution path explicitly loads it; Python does not load these files automatically.
+4. Tell the agent that configuration is complete, without sending the value. The agent verifies presence using the selected Python interpreter, sets the nonsecret model configuration, and runs A5.4.
 
-1. Let the agent finish `check_openai.py`, `context.txt` and `question.txt` under `tmp/p5_stage1/`.
+An environment variable set in your PowerShell window is not automatically available to a remote agent, another terminal or a server that is already running. Use the intended environment's documented mechanism; the agent should identify which process needs the setting before asking you to change it.
+
+If the agent can already access the key and run the test, **no manual credential setup is required**. If a plugin setup screen proposes creating a new key, do not complete it merely to reuse the existing one.
+
+#### Route B — Run the prepared probe yourself only when necessary
+
+Use this route when secure credential/runtime access cannot be provided to the coding agent. It is a fallback, not an additional mandatory test.
+
+1. Let the agent prepare `check_openai.py`, `context.txt` and `question.txt` under `tmp/p5_stage1/`.
 2. Open a terminal at your local repository root using the prepared Python environment.
 3. Run the script with the explicit human-input flag:
 
@@ -956,13 +998,11 @@ export OPENAI_MODEL="gpt-6-luna"
 "$P5_PYTHON" tmp/p5_stage1/check_openai.py --prompt-key
 ```
 
-4. If no key is already configured, enter it at the hidden prompt. The prompt does not display the key.
-5. Review `tmp/p5_stage1/openai_result.json` and share only that nonsensitive result or a concise error status with the agent. The script does not write the key to the result.
-6. Let the agent incorporate the measured result into `STAGE_01_RESULTS.md`. It should label this check as human-executed, not agent-executed.
+4. If no key is already configured, enter it at the hidden local prompt. The script does not save the key.
+5. Share only `tmp/p5_stage1/openai_result.json` or a concise error status with the agent. The result file contains no key.
+6. Let the agent record the actual outcome as human-executed and identify the environment tested. A local success does not prove that a different agent/server environment is configured.
 
-Do not place the key in source code, screenshots, chat, a command-line argument or a frontend `VITE_*` variable. A local `.env` is an alternative only if its loader is explicitly configured; Python does not automatically read it. The repository ignores `.env` and `.env.*`, while `.env.example` must contain no secrets.
-
-**Done when:** One real request succeeds and its result reaches the evidence document. Merely creating or configuring the key is insufficient.
+**Done when:** The requested access interaction is complete and the agent can verify the result, or the human-run fallback produces real evidence. Mark the chosen route; mark H2 as `NOT_NEEDED` if no intervention was required. A failed request stays failed or blocked until resolved.
 
 ### H3. Resolve local access gaps and check the interface when needed
 
@@ -1022,7 +1062,7 @@ Record `PASS` or the specific issue, your name/initials and the review date. A s
 | --- | --- |
 | D1 — Corpus | Confirm the topic/sample and independently review extraction evidence. |
 | D2 — Engine/API | Resolve local runtime access issues and understand storage/API decisions. |
-| D3 — OpenAI | Own project access, credentials and usage decisions. |
+| D3 — OpenAI | Own the existing project/key and usage decisions; complete secure interactions only when the agent needs them. |
 | D4 — Frontend | Review usability, response fields and the agent's evidence. |
 
 Read the agent's concise contract summary and `PART_05/CONTRACT_P5.md`. Confirm that:
@@ -1041,7 +1081,7 @@ Have another developer reproduce the baseline using the exact environment/setup/
 & $P5Python tmp/p5_stage1/check_baseline.py
 ```
 
-The temporary probe is ignored by Git, so obtain it from Part I or the agent's handoff if it is absent in the second checkout. This reproduction checks that the instructions transfer to another developer; it does not require another paid LLM request if H2 and H4 already supply the required evidence.
+The temporary probe is ignored by Git, so obtain it from Part I or the agent's handoff if it is absent in the second checkout. This reproduction checks that the instructions transfer to another developer; it does not require another paid LLM request if A5 (or its H2 fallback) and H4 already supply the required evidence.
 
 **Done when:** The team understands the contract and one teammate reproduces the essential baseline. Record the result without duplicating the entire test campaign.
 
@@ -1051,7 +1091,8 @@ Check the final `PART_05/STAGE_01_RESULTS.md`:
 
 - [ ] Agent baseline, restart, tests and storage-feasibility checks have real results.
 - [ ] Any unavailable UI/local checks were completed through H3.
-- [ ] Account/credential setup and one real OpenAI request are complete.
+- [ ] Existing-key reuse and runtime configuration are recorded; one real OpenAI request succeeds in the stated environment.
+- [ ] Plugin/key creation is not being used as a substitute for connectivity evidence; H2 is completed or explicitly `NOT_NEEDED`.
 - [ ] Independent corpus and answer review is complete.
 - [ ] The team understands the contracts and a teammate reproduced the essential baseline.
 - [ ] Remaining limitations are explicit and no required item is silently marked complete.
@@ -1071,7 +1112,7 @@ Repository references below are pinned to the inspected commit. File names in th
 - [Database owner and text preparation][owner], [text response serialization][text-api].
 - [Record-size constants][binary], [record codec][codec].
 - [Unified-server tests][unified-tests], [real text HTTP acceptance tests][text-tests].
-- [OpenAI quickstart][openai-quickstart], [GPT-6 Luna][luna], [Responses API][responses].
+- [OpenAI Developers plugin][developers-plugin], [OpenAI quickstart][openai-quickstart], [GPT-6 Luna][luna], [Responses API][responses].
 - [pypdf text extraction][pypdf].
 
 [plan]: https://github.com/Base-de-Datos-2/MINI-DBMS/blob/762559fcbd30b7c879a070b06a84a6f666acb4a5/PART_05/PART_05_OPTION_A.md
@@ -1086,6 +1127,7 @@ Repository references below are pinned to the inspected commit. File names in th
 [codec]: https://github.com/Base-de-Datos-2/MINI-DBMS/blob/762559fcbd30b7c879a070b06a84a6f666acb4a5/engine/storage/record_codec.py
 [unified-tests]: https://github.com/Base-de-Datos-2/MINI-DBMS/blob/762559fcbd30b7c879a070b06a84a6f666acb4a5/tests/api/test_unified.py
 [text-tests]: https://github.com/Base-de-Datos-2/MINI-DBMS/blob/762559fcbd30b7c879a070b06a84a6f666acb4a5/tests/text/test_4b_5_real_http_acceptance.py
+[developers-plugin]: https://developers.openai.com/learn/developers-codex-plugin
 [dashboard]: https://platform.openai.com/
 [openai-quickstart]: https://developers.openai.com/api/docs/quickstart
 [luna]: https://developers.openai.com/api/docs/models/gpt-6-luna
