@@ -1,0 +1,112 @@
+[
+  {
+    "paper_id": 1,
+    "pdf": "paper_01.pdf",
+    "source_url": "https://arxiv.org/pdf/1603.09320v4",
+    "version": "1603.09320v4",
+    "sha256": "f78da128a3ea9ac08d37cfe6c4b641f371f88adb677d6d2bf637d90bad8d414a",
+    "authors": "Yu. A. Malkov, D. A. Yashunin",
+    "year": 2018,
+    "title": "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs",
+    "abstract": "We present a new approach for the approximate K-nearest neighbor search based on navigable small world graphs with controllable hierarchy (Hierarchical NSW, HNSW). The proposed solution is fully graph-based, without any need for additional search structures, which are typically used at the coarse search stage of the most proximity graph techniques. Hierarchical NSW incrementally builds a multi-layer structure consisting from hierarchical set of proximity graphs (layers) for nested subsets of the stored elements. The maximum layer in which an element is present is selected randomly with an exponentially decaying probability distribution. This allows producing graphs similar to the previously studied Navigable Small World (NSW) structures while additionally having the links separated by their characteristic distance scales. Starting search from the upper layer together with utilizing the scale separation boosts the performance compared to NSW and allows a logarithmic complexity scaling. Additional employment of a heuristic for selecting proximity graph neighbors significantly increases performance at high recall and in case of highly clustered data. Performance evaluation has demonstrated that the proposed general metric space search index is able to strongly outperform previous opensource state-of-the-art vector-only approaches. Similarity of the algorithm to the skip list structure allows straightforward balanced distributed implementation."
+  },
+  {
+    "paper_id": 2,
+    "pdf": "paper_02.pdf",
+    "source_url": "https://arxiv.org/pdf/1702.08734v1",
+    "version": "1702.08734v1",
+    "sha256": "89b2371b261846059d416bdf1423b15a6e3cc7d1b2d5dc2729ee5f6c3399049a",
+    "authors": "Jeff Johnson, Matthijs Douze, Hervé Jégou",
+    "year": 2017,
+    "title": "Billion-scale similarity search with GPUs",
+    "abstract": "Similarity search finds application in specialized database systems handling complex data such as images or videos, which are typically represented by high-dimensional features and require specific indexing structures. This paper tackles the problem of better utilizing GPUs for this task. While GPUs excel at data-parallel tasks, prior approaches are bottlenecked by algorithms that expose less parallelism, such as k-min selection, or make poor use of the memory hierarchy. We propose a design for k-selection that operates at up to 55% of theoretical peak performance, enabling a nearest neighbor implementation that is 8.5× faster than prior GPU state of the art. We apply it in different similarity search scenarios, by proposing optimized design for brute-force, approximate and compressed-domain search based on product quantization. In all these setups, we outperform the state of the art by large margins. Our implementation enables the construction of a high accuracy k-NN graph on 95 million images from the Yfcc100M dataset in 35 minutes, and of a graph connecting 1 billion vectors in less than 12 hours on 4 Maxwell Titan X GPUs. We have open-sourced our approach for the sake of comparison and reproducibility."
+  },
+  {
+    "paper_id": 3,
+    "pdf": "paper_03.pdf",
+    "source_url": "https://arxiv.org/pdf/2004.04906v2",
+    "version": "2004.04906v2",
+    "sha256": "cb551710ff63f08048057924d0f4e7a954aaaeff19e31b6e306fa0aef32d6291",
+    "authors": "Vladimir Karpukhin, Barlas Oğuz, Sewon Min, Patrick Lewis, Ledell Wu, Sergey Edunov, Danqi Chen, Wen-tau Yih",
+    "year": 2020,
+    "title": "Dense Passage Retrieval for Open-Domain Question Answering",
+    "abstract": "Open-domain question answering relies on efficient passage retrieval to select candidate contexts, where traditional sparse vector space models, such as TF-IDF or BM25, are the de facto method. In this work, we show that retrieval can be practically implemented using dense representations alone, where embeddings are learned from a small number of questions and passages by a simple dual-encoder framework. When evaluated on a wide range of open-domain QA datasets, our dense retriever outperforms a strong Lucene-BM25 system largely by 9%-19% absolute in terms of top-20 passage retrieval accuracy, and helps our end-to-end QA system establish new state-of-the-art on multiple open-domain QA benchmarks."
+  },
+  {
+    "paper_id": 4,
+    "pdf": "paper_04.pdf",
+    "source_url": "https://arxiv.org/pdf/2401.08281v1",
+    "version": "2401.08281v1",
+    "sha256": "6fa6ee4b9ce59615d5335ac21423e2555af3e46922b744aace37c2540adbc4e1",
+    "authors": "Matthijs Douze, Alexandr Guzhva, Chengqi Deng, Jeff Johnson, Gergely Szilvasy, Pierre-Emmanuel Mazaré, Maria Lomeli, Lucas Hosseini, Hervé Jégou",
+    "year": 2024,
+    "title": "The Faiss library",
+    "abstract": "Vector databases manage large collections of embedding vectors. As AI applications are growing rapidly, so are the number of embeddings that need to be stored and indexed. The Faiss library is dedicated to vector similarity search, a core functionality of vector databases. Faiss is a toolkit of indexing methods and related primitives used to search, cluster, compress and transform vectors. This paper first describes the tradeoff space of vector search, then the design principles of Faiss in terms of structure, approach to optimization and interfacing. We benchmark key features of the library and discuss a few selected applications to highlight its broad applicability."
+  },
+  {
+    "paper_id": 5,
+    "pdf": "paper_05.pdf",
+    "source_url": "https://arxiv.org/pdf/1908.10396v1",
+    "version": "1908.10396v1",
+    "sha256": "cceee610e69f36f0ddbe8ec1ec576625cc1821e727cffbe0eca4ef336d356e79",
+    "authors": "Ruiqi Guo, Quan Geng, David Simcha, Felix Chern, Sanjiv Kumar, Xiang Wu",
+    "year": 2019,
+    "title": "New Loss Functions for Fast Maximum Inner Product Search",
+    "abstract": "Quantization based methods are popular for solving large scale maximum inner product search problems. However, in most traditional quantization works, the objective is to minimize the reconstruction error for datapoints to be searched. In this work, we focus directly on minimizing error in inner product approximation and derive a new class of quantization loss functions. One key aspect of the new loss functions is that we weight the error term based on the value of the inner product, giving more importance to pairs of queries and datapoints whose inner products are high. We provide theoretical grounding to the new quantization loss function, which is simple, intuitive and able to work with a variety of quantization techniques, including binary quantization and product quantization. We conduct experiments on standard benchmarking datasets to demonstrate that our method using the new objective outperforms other state-of-the-art methods."
+  },
+  {
+    "paper_id": 6,
+    "pdf": "paper_06.pdf",
+    "source_url": "https://arxiv.org/pdf/2005.11401v1",
+    "version": "2005.11401v1",
+    "sha256": "25b55fd0f7c6c91cbe2c88690a33923077103e8f563d154faa1ce11d3527e601",
+    "authors": "Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Tim Rocktäschel, Sebastian Riedel, Douwe Kiela",
+    "year": 2020,
+    "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+    "abstract": "Large pre-trained language models have been shown to store factual knowledge in their parameters, and achieve state-of-the-art results when fine-tuned on downstream NLP tasks. However, their ability to access and precisely manipulate knowledge is still limited, and hence on knowledge-intensive tasks, their performance lags behind task-specific architectures. Additionally, providing provenance for their decisions and updating their world knowledge remain open research problems. Pre-trained models with a differentiable access mechanism to explicit non-parametric memory can overcome this issue, but have so far been only investigated for extractive downstream tasks. We explore a general-purpose fine-tuning recipe for retrieval-augmented generation (RAG) -- models which combine pre-trained parametric and non-parametric memory for language generation. We introduce RAG models where the parametric memory is a pre-trained seq2seq model and the non-parametric memory is a dense vector index of Wikipedia, accessed with a pre-trained neural retriever. We compare two RAG formulations, one which conditions on the same retrieved passages across the whole generated sequence, the other can use different passages per token. We fine-tune and evaluate our models on a wide range of knowledge-intensive NLP tasks and set the state-of-the-art on three open domain QA tasks, outperforming parametric seq2seq models and task-specific retrieve-and-extract architectures. For language generation tasks, we find that RAG models generate more specific, diverse and factual language than a state-of-the-art parametric-only seq2seq baseline."
+  },
+  {
+    "paper_id": 7,
+    "pdf": "paper_07.pdf",
+    "source_url": "https://arxiv.org/pdf/2112.01488v1",
+    "version": "2112.01488v1",
+    "sha256": "62fcada0c16bea99d8f5849f194497d9b144496685ba017e7b70999d3397ce1c",
+    "authors": "Keshav Santhanam, Omar Khattab, Jon Saad-Falcon, Christopher Potts, Matei Zaharia",
+    "year": 2021,
+    "title": "ColBERTv2: Effective and Efficient Retrieval via Lightweight Late Interaction",
+    "abstract": "Neural information retrieval (IR) has greatly advanced search and other knowledge-intensive language tasks. While many neural IR methods encode queries and documents into single-vector representations, late interaction models produce multi-vector representations at the granularity of each token and decompose relevance modeling into scalable token-level computations. This decomposition has been shown to make late interaction more effective, but it inflates the space footprint of these models by an order of magnitude. In this work, we introduce ColBERTv2, a retriever that couples an aggressive residual compression mechanism with a denoised supervision strategy to simultaneously improve the quality and space footprint of late interaction. We evaluate ColBERTv2 across a wide range of benchmarks, establishing state-of-the-art quality within and outside the training domain while reducing the space footprint of late interaction models by 5--8$\\times$."
+  },
+  {
+    "paper_id": 8,
+    "pdf": "paper_08.pdf",
+    "source_url": "https://arxiv.org/pdf/2104.08663v1",
+    "version": "2104.08663v1",
+    "sha256": "3e34e224ea186759abedb52ebe7e047834f401cbfebc75933540dabf7cee81ca",
+    "authors": "Nandan Thakur, Nils Reimers, Andreas Rücklé, Abhishek Srivastava, Iryna Gurevych",
+    "year": 2021,
+    "title": "BEIR: A Heterogenous Benchmark for Zero-shot Evaluation of Information Retrieval Models",
+    "abstract": "Neural IR models have often been studied in homogeneous and narrow settings, which has considerably limited insights into their generalization capabilities. To address this, and to allow researchers to more broadly establish the effectiveness of their models, we introduce BEIR (Benchmarking IR), a heterogeneous benchmark for information retrieval. We leverage a careful selection of 17 datasets for evaluation spanning diverse retrieval tasks including open-domain datasets as well as narrow expert domains. We study the effectiveness of nine state-of-the-art retrieval models in a zero-shot evaluation setup on BEIR, finding that performing well consistently across all datasets is challenging. Our results show BM25 is a robust baseline and Reranking-based models overall achieve the best zero-shot performances, however, at high computational costs. In contrast, Dense-retrieval models are computationally more efficient but often underperform other approaches, highlighting the considerable room for improvement in their generalization capabilities. In this work, we extensively analyze different retrieval models and provide several suggestions that we believe may be useful for future work. BEIR datasets and code are available at this https URL."
+  },
+  {
+    "paper_id": 9,
+    "pdf": "paper_09.pdf",
+    "source_url": "https://arxiv.org/pdf/2007.00808v1",
+    "version": "2007.00808v1",
+    "sha256": "3bd8350b016246f9a086ad74a3bc8a4acdf535efb142b9d5be9b64387681e6d3",
+    "authors": "Lee Xiong, Chenyan Xiong, Ye Li, Kwok-Fung Tang, Jialin Liu, Paul Bennett, Junaid Ahmed, Arnold Overwijk",
+    "year": 2020,
+    "title": "Approximate Nearest Neighbor Negative Contrastive Learning for Dense Text Retrieval",
+    "abstract": "Conducting text retrieval in a dense learned representation space has many intriguing advantages over sparse retrieval. Yet the effectiveness of dense retrieval (DR) often requires combination with sparse retrieval. In this paper, we identify that the main bottleneck is in the training mechanisms, where the negative instances used in training are not representative of the irrelevant documents in testing. This paper presents Approximate nearest neighbor Negative Contrastive Estimation (ANCE), a training mechanism that constructs negatives from an Approximate Nearest Neighbor (ANN) index of the corpus, which is parallelly updated with the learning process to select more realistic negative training instances. This fundamentally resolves the discrepancy between the data distribution used in the training and testing of DR. In our experiments, ANCE boosts the BERT-Siamese DR model to outperform all competitive dense and sparse retrieval baselines. It nearly matches the accuracy of sparse-retrieval-and-BERT-reranking using dot-product in the ANCE-learned representation space and provides almost 100x speed-up."
+  },
+  {
+    "paper_id": 10,
+    "pdf": "paper_10.pdf",
+    "source_url": "https://arxiv.org/pdf/2010.08191v1",
+    "version": "2010.08191v1",
+    "sha256": "c258fbc3fc41a1cd9782b7b1f07103d7c7301537693dff57a035fcc80b08c6e0",
+    "authors": "Yingqi Qu, Yuchen Ding, Jing Liu, Kai Liu, Ruiyang Ren, Xin Zhao, Daxiang Dong, Hua Wu, Haifeng Wang",
+    "year": 2020,
+    "title": "RocketQA: An Optimized Training Approach to Dense Passage Retrieval for Open-Domain Question Answering",
+    "abstract": "In open-domain question answering, dense passage retrieval has become a new paradigm to retrieve relevant passages for answer finding. Typically, the dual-encoder architecture is adopted to learn dense representations of questions and passages for matching. However, it is difficult to train an effective dual-encoder due to the challenges including the discrepancy between training and inference, the existence of unlabeled positives and limited training data. To address these challenges, we propose an optimized training approach, called RocketQA, to improving dense passage retrieval. We make three major technical contributions in RocketQA, namely cross-batch negatives, denoised negative sampling and data augmentation. Extensive experiments show that RocketQA significantly outperforms previous state-of-the-art models on both MSMARCO and Natural Questions. Besides, built upon RocketQA, we achieve the first rank at the leaderboard of MSMARCO Passage Ranking Task."
+  }
+]

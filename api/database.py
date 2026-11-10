@@ -253,22 +253,35 @@ class Database:
         raise TypeError("Use Database.open() to open a database")
 
     @classmethod
-    def prepare_text(cls, directory, collections, *, memory_budget_bytes=8 * 1024 * 1024):
+    def prepare_text(
+        cls, directory, collections, *, companion_tables=(),
+        memory_budget_bytes=8 * 1024 * 1024,
+    ):
         """Create NEW text data, then publish offline and verify a fresh owner.
 
-        Each collection is (NewTable, rows, id_column, text_column). Rows may
-        stream from a CSV. Existing destinations are never overwritten. Failed
-        preparations remain unpublished for inspection; rebuild elsewhere.
+        Each collection is (NewTable, rows, id_column, text_column). Each
+        companion is (NewTable, rows) and stays outside the text registry.
+        Rows may be one-shot iterables. Existing destinations are refused.
         """
         from contextlib import ExitStack
         from uuid import uuid4
         from engine.text import build_spimi, seal_text_collection
         from engine.text.registry import TextRegistration, publish_text_registry
+        collections = tuple(collections)
+        companion_tables = tuple(companion_tables)
+        if not collections:
+            raise ValidationError('At least one text collection is required')
+        names = [spec.name for spec, *_ in collections]
+        names.extend(spec.name for spec, _ in companion_tables)
+        if len(set(names)) != len(names):
+            raise DuplicateError('Text collections and companion tables must have distinct names')
         root = Path(directory).resolve()
         root.mkdir(parents=True, exist_ok=False)
         snapshots = []
         definition = DatabaseDefinition('text')
         with cls.create(definition, root) as database:
+            for new_table, rows in companion_tables:
+                database.create_gui_table(new_table, rows, origin='prepared')
             for new_table, rows, id_column, text_column in collections:
                 database.create_gui_table(new_table, rows, origin='csv', source_filename='text-source.csv')
                 table = database._catalog.get_table(new_table.name)
@@ -276,8 +289,6 @@ class Database:
                     raise ValidationError('Text collections require Heap storage')
                 snapshots.append((database._catalog, table, database._table_files(database._tables[table.name]),
                                   id_column, text_column))
-        if not snapshots:
-            raise ValidationError('At least one text collection is required')
         registrations = []
         # No live owner/coordinator exists while engine-level publication runs.
         for catalog, table, files, id_column, text_column in snapshots:
