@@ -9,6 +9,7 @@ one under ``/parte<N>``:
     /parte2/api/...             Part 2, spatial demo (Lima)
     /parte3/api/...             Part 3, text collections
     /parte4/api/...             Part 4, image and audio collections
+    /parte5/api/...             Part 5, academic text and paper metadata
     /                           the frontend, one tab per part
 
 Each part keeps its own data directory, owner, sessions and limits: a part is
@@ -25,7 +26,9 @@ from typing import Any, Sequence
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from engine.errors import DatabaseError
 
+from .academic_schema import CHUNK_COLUMNS, PAPER_COLUMNS
 from .app import create_app
 from .database import Database, DatabaseDefinition, DatabaseSetupError
 from .demo import (
@@ -39,6 +42,7 @@ from .demo import (
 )
 from .engine_service import EngineService
 from .schemas import SESSION_SWEEP_INTERVAL_SECONDS
+from .text_search import published_tables
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,8 +63,7 @@ class PartSpec:
 
 
 #: The parts in tab order. ``registry`` is the file a prepared directory must
-#: hold; ``writable`` says whether ``--allow-writes`` applies (Parts 3 and 4
-#: publish sealed collections, which reject writes anyway).
+#: hold; ``writable`` says whether ``--allow-writes`` applies.
 PARTS = (
     PartSpec("parte1", 1, "Relacional",
              "Heap, archivo secuencial, B+, hashing extensible, SQL y transacciones",
@@ -71,6 +74,8 @@ PARTS = (
              "text", "text_tables.json", False),
     PartSpec("parte4", 4, "Multimedia", "SIFT y MFCC con índices IVF y HNSW",
              "multimedia", "multimedia_tables.json", False),
+    PartSpec("parte5", 5, "RAG académico", "Recuperación de papers con texto y metadata relacional",
+             "text", "text_tables.json", False),
 )
 
 PRESETS_BY_KIND: dict[str, tuple[Preset, ...]] = {
@@ -87,6 +92,49 @@ def definition_for(kind: str) -> DatabaseDefinition:
     return demo_database() if kind == "demo" else DatabaseDefinition(kind)
 
 
+def academic_setup_command(directory: Path) -> str:
+    return ("python scripts/setup_academic.py --manifest PART_05/corpus.json "
+            '--pdf-dir data/generated/p5_inputs '
+            f'--data-dir "{directory.as_posix()}"')
+
+
+def _require_academic_database(database: Database) -> None:
+    if set(database.table_names()) != {"papers", "chunks"}:
+        raise DatabaseSetupError("Usa una base académica con las tablas papers y chunks.")
+    for name, columns in (("papers", PAPER_COLUMNS), ("chunks", CHUNK_COLUMNS)):
+        summary = database.describe_table(name)
+        if summary.organization != "HEAP" or summary.columns != tuple(
+            (column, kind.value) for column, kind in columns
+        ):
+            raise DatabaseSetupError(f"El esquema de {name} no corresponde a la base académica.")
+    registrations = [(entry["table"], entry["column"], entry["id_column"])
+                     for entry in published_tables(database)]
+    if registrations != [("chunks", "content", "chunk_id")]:
+        raise DatabaseSetupError("Publica chunks.content con chunk_id mediante la preparación académica.")
+
+
+def _open_service(spec: PartSpec, directory: Path, allow_writes: bool) -> EngineService:
+    try:
+        database = Database.open(definition_for(spec.kind), directory,
+                                 memory_budget_bytes=DEMO_MEMORY_BUDGET_BYTES)
+    except DatabaseSetupError:
+        raise
+    except (DatabaseError, OSError) as error:
+        if spec.id != "parte5":
+            raise
+        raise DatabaseSetupError(
+            "No se pudo abrir la base académica. Comprueba sus archivos con "
+            f'python scripts/setup_academic.py --verify-only --data-dir "{directory.as_posix()}".'
+        ) from error
+    try:
+        if spec.id == "parte5":
+            _require_academic_database(database)
+        return EngineService(database, allow_writes=allow_writes and spec.writable)
+    except BaseException:
+        database.close()
+        raise
+
+
 @dataclass(slots=True)
 class OpenedPart:
     """One part after the launcher tried to open it."""
@@ -94,6 +142,7 @@ class OpenedPart:
     spec: PartSpec
     service: EngineService | None
     problem: str | None = None
+    setup: str = SETUP_COMMAND
 
     def describe(self) -> dict[str, Any]:
         ready = self.service is not None
@@ -107,7 +156,7 @@ class OpenedPart:
             "status": "ready" if ready else "missing",
             "mode": self.service.mode if ready else None,
             "problem": self.problem,
-            "setup": None if ready else SETUP_COMMAND,
+            "setup": None if ready else self.setup,
         }
 
 
@@ -123,17 +172,16 @@ def open_parts(root: Path, *, allow_writes: bool,
     try:
         for spec in specs:
             directory = Path(root) / spec.id
+            setup = academic_setup_command(directory) if spec.id == "parte5" else SETUP_COMMAND
             if spec.registry is not None and not (directory / spec.registry).is_file():
-                opened.append(OpenedPart(spec, None, f"No hay datos preparados en {directory.name}/"))
+                opened.append(OpenedPart(spec, None, f"No hay datos preparados en {directory.name}/", setup))
                 continue
             try:
-                database = Database.open(definition_for(spec.kind), directory,
-                                         memory_budget_bytes=DEMO_MEMORY_BUDGET_BYTES)
+                service = _open_service(spec, directory, allow_writes)
             except DatabaseSetupError as error:
-                opened.append(OpenedPart(spec, None, str(error)))
+                opened.append(OpenedPart(spec, None, str(error), setup))
                 continue
-            opened.append(OpenedPart(spec, EngineService(
-                database, allow_writes=allow_writes and spec.writable)))
+            opened.append(OpenedPart(spec, service))
     except BaseException:
         close_parts(opened)
         raise
@@ -163,7 +211,8 @@ def create_unified_app(
     """Mount the Stage 9 API of each ready part under its prefix."""
 
     children = {
-        part.spec.id: create_app(part.service, presets=PRESETS_BY_KIND[part.spec.kind],
+        part.spec.id: create_app(part.service,
+                                 presets=() if part.spec.id == "parte5" else PRESETS_BY_KIND[part.spec.kind],
                                  sweep_interval_seconds=sweep_interval_seconds)
         for part in parts if part.service is not None
     }
@@ -204,5 +253,5 @@ def create_unified_app(
     return app
 
 
-__all__ = ["PARTS", "PRESETS_BY_KIND", "OpenedPart", "PartSpec", "close_parts",
+__all__ = ["PARTS", "PRESETS_BY_KIND", "OpenedPart", "PartSpec", "academic_setup_command", "close_parts",
            "create_unified_app", "definition_for", "open_parts"]

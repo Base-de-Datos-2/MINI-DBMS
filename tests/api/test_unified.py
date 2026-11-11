@@ -17,7 +17,7 @@ from tests.api_helpers import small_demo
 
 @pytest.fixture(scope="module")
 def root(tmp_path_factory):
-    """Parts 1-3 prepared; Part 4 deliberately missing."""
+    """Parts 1–3 prepared, with Parts 4 and 5 deliberately missing."""
 
     directory = tmp_path_factory.mktemp("todas")
     Database.create(small_demo(), directory / "parte1").close()
@@ -46,7 +46,7 @@ def run(client, part, sql, token=None):
 
 def test_parts_list_every_part_in_tab_order_and_explains_a_missing_one(client):
     listed = client.get("/api/parts").json()
-    assert [part["id"] for part in listed] == [spec.id for spec in PARTS]
+    assert [part["id"] for part in listed] == [f"parte{i}" for i in range(1, 6)]
     ready = {part["id"]: part for part in listed}
     for identifier in ("parte1", "parte2", "parte3"):
         assert ready[identifier]["status"] == "ready"
@@ -55,12 +55,17 @@ def test_parts_list_every_part_in_tab_order_and_explains_a_missing_one(client):
     assert missing["status"] == "missing" and missing["base"] is None
     assert "setup_all.py" in missing["setup"] and missing["problem"]
     assert client.get("/parte4/api/health").status_code == 404
+    academic = ready["parte5"]
+    assert academic["status"] == "missing" and academic["base"] is None
+    assert "setup_academic.py" in academic["setup"] and academic["problem"]
+    assert client.get("/parte5/api/health").status_code == 404
 
 
 def test_root_health_summarizes_the_parts_for_hosting_checks(client):
     body = client.get("/api/health").json()
     assert body == {"status": "ready", "parts": {"parte1": "ready", "parte2": "ready",
-                                                 "parte3": "ready", "parte4": "missing"}}
+                                                 "parte3": "ready", "parte4": "missing",
+                                                 "parte5": "missing"}}
 
 
 def test_each_prefix_reaches_its_own_database_and_presets(client):
@@ -74,7 +79,7 @@ def test_each_prefix_reaches_its_own_database_and_presets(client):
 def test_writes_apply_only_to_the_parts_that_accept_them(client):
     modes = {part["id"]: part["mode"] for part in client.get("/api/parts").json()}
     assert modes == {"parte1": "serialized-writes", "parte2": "serialized-writes",
-                     "parte3": "read-only", "parte4": None}
+                     "parte3": "read-only", "parte4": None, "parte5": None}
 
 
 def test_sessions_belong_to_one_part(client):
@@ -134,6 +139,21 @@ def test_setup_all_never_touches_an_existing_part(tmp_path):
     assert list((tmp_path / "parte1").iterdir()) == []
     assert (tmp_path / "parte3" / "text_tables.json").is_file()
     assert prepare_all(tmp_path, {"parte3"}) == {"parte3": "exists"}
+
+
+def test_setup_all_explains_explicit_academic_preparation(tmp_path, capsys):
+    root = tmp_path / "custom root"
+    directory = root / "parte5"
+    assert prepare_all(root, {"parte5"}) == {"parte5": "manual"}
+    assert not directory.exists()
+    output = capsys.readouterr().out
+    assert "setup_academic.py" in output
+    assert f'--data-dir "{directory.as_posix()}"' in output
+    assert "Unknown part" not in output
+    directory.mkdir()
+    (directory / "keep.txt").write_text("unchanged", encoding="utf-8")
+    assert prepare_all(root, {"parte5"}) == {"parte5": "exists"}
+    assert (directory / "keep.txt").read_text(encoding="utf-8") == "unchanged"
 
 
 def test_text_demo_files_hold_the_documented_collections():

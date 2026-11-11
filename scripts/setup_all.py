@@ -8,10 +8,11 @@ Each part is built by its own setup script into ``DIR/<part>``:
     parte2  scripts/setup_lima.py        spatial demo with OpenStreetMap Lima
     parte3  scripts/setup_text.py        text demo collections (data/text_demo)
     parte4  scripts/setup_multimedia.py  real images and audio (data/multimedia_demo)
+    parte5  scripts/setup_academic.py    explicit preparation from local PDFs
 
-A part whose directory already exists is left untouched and reported, so the
-script never replaces data; delete that subdirectory to rebuild it. Part 4
-needs the ``multimedia`` extra (OpenCV, librosa) to extract features.
+The script reports and preserves existing part directories. Use a fresh root
+for a rebuild. Part 4 needs the ``multimedia`` extra (OpenCV, librosa) to
+extract features.
 """
 
 from __future__ import annotations
@@ -25,7 +26,7 @@ REPOSITORY = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPOSITORY))
 
 from api.database import Database  # noqa: E402
-from api.unified import PARTS  # noqa: E402
+from api.unified import PARTS, academic_setup_command  # noqa: E402
 
 DEFAULT_DIRECTORY = REPOSITORY / "data" / "generated" / "todas"
 MULTIMEDIA_ASSETS = REPOSITORY / "data" / "multimedia_demo"
@@ -49,7 +50,7 @@ def _prepare_part(identifier: str, directory: Path) -> None:
 
 
 def prepare_all(root: Path, only: set[str] | None = None) -> dict[str, str]:
-    """Prepare each missing part; return ``{part: created|exists|error message}``."""
+    """Prepare demo parts and report any manual academic preparation."""
 
     root = Path(root).resolve()
     root.mkdir(parents=True, exist_ok=True)
@@ -58,9 +59,14 @@ def prepare_all(root: Path, only: set[str] | None = None) -> dict[str, str]:
         if only and spec.id not in only:
             continue
         directory = root / spec.id
-        if directory.exists():
+        if directory.exists() or directory.is_symlink():
             outcome[spec.id] = "exists"
             print(f"Parte {spec.number}: {directory} ya existe; no se modifica.", flush=True)
+            continue
+        if spec.id == "parte5":
+            outcome[spec.id] = "manual"
+            print("Parte 5: la preparación académica requiere los PDF locales.", flush=True)
+            print(f"  {academic_setup_command(directory)}", flush=True)
             continue
         print(f"Parte {spec.number} ({spec.title}) → {directory}", flush=True)
         started = perf_counter()
@@ -84,11 +90,11 @@ def main(argv: list[str] | None = None) -> int:
                         help="prepara solo estas partes")
     args = parser.parse_args(argv)
     outcome = prepare_all(args.data_dir, set(args.only) if args.only else None)
-    failed = [part for part, state in outcome.items() if state not in ("created", "exists")]
+    failed = [part for part, state in outcome.items() if state not in ("created", "exists", "manual")]
     if failed:
         print(f"Partes con error: {', '.join(failed)}", flush=True)
         return 1
-    print(f"Listo. Inicia el servidor con: python -m api --all --data-dir {args.data_dir}", flush=True)
+    print(f"Inicia las partes preparadas con: python -m api --all --data-dir {args.data_dir}", flush=True)
     return 0
 
 
