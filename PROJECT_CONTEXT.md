@@ -1,7 +1,7 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.20** — adds offline academic corpus preparation for
-> Part 5 Option A Stage 2.
+> Context version: **4.21** — serves the Part 5 academic corpus and
+> retrieves ranked passages and relational metadata through REST.
 
 ## Project identity
 
@@ -19,8 +19,8 @@ The current implementation focus is:
 > the PostgreSQL comparison, documentation and a 3,561-test regression
 > (`PART_03/BLOQUE_6_7.md`, `docs/EXPERIMENTOS_TEXTO.md`). **Part 4 is
 > complete** (phases 1–8, `PART_04/BLOQUE_8.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`);
-> **Part 5 Option A** has an accepted Stage 1 contract and an implemented
-> Stage 2 offline corpus, accepted by the stage owner on 2026-11-10.
+> **Part 5 Option A** has an accepted Stage 1 contract and Stage 2 offline
+> corpus. Stage 3 REST retrieval was accepted by JPCP on 2026-11-10.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -93,10 +93,12 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request (2026-11-09) authorized Part 5 Option A Stage 2 under
-`PART_05/GUIDE_05_S02.md`. Parts 3 and 4 are complete. The Stage 2 results
-and review status are in `PART_05/STAGE_02_RESULTS.md`. Part 5 Stage 3
-retrieval and server integration are pending separate authorization.
+The latest request authorized Part 5 Option A Stage 3 under
+`PART_05/GUIDE_05_S03.md`. Parts 3 and 4 are complete. Part 5 Stage 2 was
+accepted on 2026-11-10, and JPCP accepted Stage 3 on the same date.
+The Stage 3 results and sign-off are in
+`PART_05/STAGE_03_RESULTS.md`. Part 5 generation and the chat interface
+are subsequent stages.
 
 ### Part 5 academic preparation (Stage 2)
 
@@ -113,6 +115,18 @@ retrieval and server integration are pending separate authorization.
   offline lifecycle seals and publishes `chunks.content`. The fresh
   directory and registry rules are shared with Part 3. Verification opens
   the stored database under the `text` definition.
+
+### Part 5 academic REST retrieval (Stage 3)
+
+- The unified server mounts the academic database at `/parte5` with its
+  own owner and sessions. Readiness checks the academic Heap schemas and
+  the published `chunks.content` index. The mounted service is read-only
+  under all unified modes, and academic preparation uses its own offline
+  command and local PDFs.
+- `api.academic_retrieval.retrieve_academic` uses async HTTP to obtain up
+  to three BM25 hits and read each distinct paper's metadata with bounded
+  SQL. The helper preserves engine rank and distinguishes empty context,
+  invalid input, engine unavailability and invalid engine data.
 
 ### Part 4 contract decisions (phase 1)
 
@@ -2632,8 +2646,8 @@ not fatal. Single-part modes (`--text`, `--spatial`, `--multimedia`, default)
 remain, and the frontend detects them by the absence of `/api/parts`.
 The frontend shows one tab per part (`#parteN`), mounted on first use and
 kept mounted; each tab binds its own API prefix and element-id prefix
-(`frontend/src/workspaceScope.ts`). Adding Part 5 means adding a `PartSpec`
-and its panels, not a new port.
+(`frontend/src/workspaceScope.ts`). Part 5 uses the same `PartSpec` and
+tab mechanism with the ordinary text workspace.
 
 The DBMS engine must be callable independently from the web layer.
 
