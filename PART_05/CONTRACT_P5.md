@@ -1,6 +1,7 @@
 # Part 5 Option A contract
 
-Stage 1 proposal for team review. The Part 5 routes below are planned.
+Accepted in Stage 1. Stage 2 prepared the academic data, and Stage 3
+exposes its engine REST routes. The chat route describes the Stage 4 contract.
 
 ## Data and publication
 
@@ -13,11 +14,11 @@ Use positive, unique manifest paper IDs and globally unique chunk IDs assigned i
 
 Count whitespace-separated words. Aim for 250 words without overlap, balance the final fragment, and keep every chunk between 200 and 500 words. Preserve original readable text. Validate complete serialized rows against the engine's `MAX_RECORD_SIZE` (4,079 bytes on this baseline). Reject incompatible rows with their source identified.
 
-Prepare both tables in a fresh directory under `data/generated/todas/parte5`. Extend `Database.prepare_text` later to support the unindexed metadata table. Close the preparation owner, build SPIMI on `chunks.content`, seal the indexed collection, publish its registration and verify a fresh reopen. Serve the new part read-only from the existing unified server.
+Prepare both tables in a fresh directory at `data/generated/todas/parte5`. The offline command uses `Database.prepare_text` with an ordinary metadata table. It closes the preparation owner, builds SPIMI on `chunks.content`, seals the indexed collection, publishes its registration and verifies a fresh reopen. The unified server opens the prepared Part 5 data read-only.
 
 ## Engine REST
 
-The Stage 1 baseline exposes the same route shapes under `/parte3`. The Part 5 application will use `GET /parte5/api/text/tables`, `POST /parte5/api/text/query` and `POST /parte5/api/query`.
+The unified server mounts `GET /parte5/api/text/tables`, `POST /parte5/api/text/query` and `POST /parte5/api/query`. These routes use the same response shapes as the Part 3 REST API.
 
 ```json
 {
@@ -33,6 +34,17 @@ The Stage 1 baseline exposes the same route shapes under `/parte3`. The Part 5 a
 ```
 
 Map row arrays using the returned `columns` names. Decode and validate integer IDs before using them in SQL. Deduplicate paper IDs and fetch each through a bounded equality query, for example `SELECT paper_id, authors, year, title, abstract FROM papers WHERE paper_id = 1;`. The score in `relevancia` is a BM25 ranking value. The question goes in the text request JSON.
+
+### Internal retrieval helper
+
+`api.academic_retrieval.retrieve_academic(question, base_url=..., client=...)`
+accepts a configured Part 5 base URL and a caller-owned `httpx2.AsyncClient`.
+The helper uses a ten-second HTTP timeout and returns
+`{"status":"context","sources":[...]}` or
+`{"status":"no_context","sources":[]}`. Each source contains the public
+source fields below plus the complete abstract. The helper distinguishes
+`InvalidQuestion`, `EngineUnavailable` and `InvalidEngineResponse`.
+Stage 4 owns the public endpoint and error mapping.
 
 ## Chat application
 
