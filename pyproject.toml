@@ -45,6 +45,7 @@ bench = [
 # Stage 9 HTTP interface: run it from the repository root with `python -m api`.
 api = [
     "fastapi>=0.110,<1",
+    "httpx2>=2,<3",
     "uvicorn>=0.29,<1",
     "anyio>=4,<4.15",
 ]
