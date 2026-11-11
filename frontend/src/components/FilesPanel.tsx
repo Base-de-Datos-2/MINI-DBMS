@@ -19,6 +19,7 @@ const ORIGIN_LABELS: Record<TableOrigin, string | null> = {
   demo: null,
   csv: "CSV",
   empty: "creada aquí",
+  prepared: "preparada",
 };
 
 function originText(table: TableDetail): string | null {

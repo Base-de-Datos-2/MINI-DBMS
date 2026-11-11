@@ -112,7 +112,7 @@ export type Organization = "HEAP" | "SEQUENTIAL";
 export type ColumnType = "INTEGER" | "FLOAT" | "BOOLEAN" | "VARCHAR";
 export type IndexType = "BPLUS" | "EXTENDIBLE_HASH";
 /** Declared demo fixture, or a table created from the Files panel. */
-export type TableOrigin = "demo" | "csv" | "empty";
+export type TableOrigin = "demo" | "csv" | "empty" | "prepared";
 
 export interface TableSummary {
   id: string;
