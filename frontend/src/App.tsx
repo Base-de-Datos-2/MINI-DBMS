@@ -138,7 +138,8 @@ export default function App() {
               </div>
             ) : opened.has(part.id) && (
               <WorkspaceContext.Provider value={scope}>
-                <Workspace kind={part.kind} title={`Parte ${part.number} · ${part.title}`} description={part.description} />
+                <Workspace kind={part.kind} title={`Parte ${part.number} · ${part.title}`}
+                  description={part.description} partNumber={part.number} />
               </WorkspaceContext.Provider>
             )}
           </main>

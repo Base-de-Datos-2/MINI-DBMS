@@ -12,7 +12,9 @@ interface SearchResult {
   metrics: { backend_elapsed_ms: number };
 }
 
-export default function TextPanel({ token, onSql }: { token: string | null; onSql: (sql: string) => void }) {
+export default function TextPanel({ token, onSql, partNumber }: {
+  token: string | null; onSql: (sql: string) => void; partNumber: number;
+}) {
   const { api, id: scoped } = useWorkspace();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [selected, setSelected] = useState("");
@@ -63,7 +65,7 @@ export default function TextPanel({ token, onSql }: { token: string | null; onSq
     finally { if (generation.current === requestGeneration) setBusy(false); }
   };
   return <section className="panel" id={scoped("text-title")} aria-label="Búsqueda textual" style={{ margin: "1rem" }}>
-    <div className="panel-heading"><h2 className="panel-title">Búsqueda textual · Parte 3</h2>
+    <div className="panel-heading"><h2 className="panel-title">Búsqueda textual · Parte {partNumber}</h2>
       <button type="button" onClick={() => void reload()}>Actualizar colecciones</button></div>
     <p>Consulta colecciones publicadas y selladas. Los resultados provienen de SPIMI, TF-IDF o BM25.</p>
     {collections.length === 0 && <p>No hay colecciones textuales publicadas en esta base.</p>}

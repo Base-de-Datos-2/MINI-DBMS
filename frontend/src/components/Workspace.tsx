@@ -35,6 +35,7 @@ function describeFailure(error: unknown): string {
 const SESSION_POLL_MS = 400;
 
 interface Props {
+  partNumber?: number;
   kind: PartInfo["kind"];
   /** Tab heading; null on a single-part server, whose page has no tabs. */
   title: string | null;
@@ -46,7 +47,7 @@ interface Props {
  * (map for Part 2, text search for Part 3). Every call goes to that part's API
  * and every session belongs to that part's engine.
  */
-export default function Workspace({ kind, title, description }: Props) {
+export default function Workspace({ kind, title, description, partNumber = 3 }: Props) {
   const { api } = useWorkspace();
   const [health, setHealth] = useState<Health | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -366,7 +367,8 @@ export default function Workspace({ kind, title, description }: Props) {
           onPreview={spatialPreview} onRequest={spatialRequest} onSql={(text, values) => { setSql(text); setParameters(values); }} />
       </>}
 
-      {loadError === null && kind === "text" && <TextPanel token={token.current} onSql={(text) => { setSql(text); setParameters(undefined); }} />}
+      {loadError === null && kind === "text" && <TextPanel token={token.current} partNumber={partNumber}
+        onSql={(text) => { setSql(text); setParameters(undefined); }} />}
 
       {creating && health !== null && (
         <CreateTableDialog
