@@ -36,17 +36,17 @@ python scripts/setup_all.py
 python -m api --all --allow-writes
 ```
 
-Abrir `http://127.0.0.1:8000`. La interfaz tiene una pestaña por parte
-(Relacional, Espacial, Texto y Multimedia), cada una con su base, su sesión y
-sus **Ejemplos SQL**. `setup_all.py` prepara las cuatro bases en
-`data/generated/todas/` y nunca reemplaza una parte que ya existe; para
-reconstruir una, borra su subdirectorio. `--allow-writes` solo afecta a las
-Partes 1 y 2: las colecciones de texto y multimedia están selladas. Cada
-pestaña tiene dirección propia (`#parte3`), y la API de cada parte vive en
+Abre `http://127.0.0.1:8000`. La interfaz tiene una pestaña por parte
+(Relacional, Espacial, Texto, Multimedia y RAG académico), cada una con su
+base y sus sesiones. `setup_all.py` prepara las cuatro bases de demostración
+en `data/generated/todas/`, conserva los directorios existentes e indica el
+comando de preparación manual si falta la Parte 5. `--allow-writes` solo
+afecta a las Partes 1 y 2. Cada pestaña tiene dirección propia (`#parte3`),
+y la API de cada parte vive en
 `/parteN/api/...` (detalles en [api/unified.py](api/unified.py)).
 
-Cada parte se puede seguir sirviendo sola (`python -m api --text`, etc.), como
-se describe abajo.
+Los modos individuales de las demos (`python -m api --text`, etc.) siguen
+disponibles.
 
 ## Demo textual — bloques 4B y 5
 
@@ -116,10 +116,20 @@ python -X utf8 scripts/setup_academic.py --verify-only --data-dir data/generated
 
 La preparación requiere un directorio de destino nuevo. Verifica los hashes
 de los PDF y guarda `papers` y `chunks`, con un índice SPIMI para
-`chunks.content`. La verificación reabre los datos guardados. Consulta la
-[evidencia y revisión de la etapa 2](PART_05/STAGE_02_RESULTS.md) para
-descargar las fuentes y comprobar los resultados. La integración con el
-servidor corresponde a la etapa 3.
+`chunks.content`. Ejecuta `--verify-only` con el servidor detenido.
+Las fuentes y los resultados de preparación están en la
+[evidencia de la etapa 2](PART_05/STAGE_02_RESULTS.md).
+
+Inicia el servidor unificado con `python -m api --all`. Desde otra terminal,
+comprueba la recuperación REST de hasta tres pasajes con sus metadatos:
+
+```bash
+python -X utf8 scripts/check_academic_retrieval.py --base-url http://127.0.0.1:8000/parte5 --question "How does HNSW use a hierarchy of proximity graphs?"
+```
+
+La Parte 5 se monta en `/parte5` en modo de solo lectura. La
+[evidencia de la etapa 3](PART_05/STAGE_03_RESULTS.md) incluye las preguntas
+probadas, los pasajes y la verificación tras reiniciar el servidor.
 
 ## Arquitectura
 
