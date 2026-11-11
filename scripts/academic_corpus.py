@@ -7,7 +7,8 @@ import json
 from pathlib import Path, PureWindowsPath
 import re
 
-from engine.catalog import Column, DataType, Schema
+from api.academic_schema import CHUNK_COLUMNS, PAPER_COLUMNS
+from engine.catalog import Column, Schema
 from engine.storage.binary import MAX_RECORD_SIZE
 from engine.storage.record import Record
 from engine.storage.record_codec import RecordCodec
@@ -15,15 +16,6 @@ from engine.storage.record_codec import RecordCodec
 
 MAX_SAFE_ID = 2**53 - 1
 MIN_WORDS, TARGET_WORDS, MAX_WORDS = 200, 250, 500
-PAPER_COLUMNS = (
-    ("paper_id", DataType.INTEGER), ("authors", DataType.VARCHAR),
-    ("year", DataType.INTEGER), ("title", DataType.VARCHAR),
-    ("abstract", DataType.VARCHAR),
-)
-CHUNK_COLUMNS = (
-    ("chunk_id", DataType.INTEGER), ("paper_id", DataType.INTEGER),
-    ("position", DataType.INTEGER), ("content", DataType.VARCHAR),
-)
 PAPER_SCHEMA = Schema([Column(name, kind) for name, kind in PAPER_COLUMNS])
 CHUNK_SCHEMA = Schema([Column(name, kind) for name, kind in CHUNK_COLUMNS])
 PaperRow = tuple[int, str, int, str, str]
