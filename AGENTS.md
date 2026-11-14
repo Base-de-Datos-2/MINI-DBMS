@@ -1,12 +1,24 @@
 # AGENTS.md
 
-## Current authorization — Part 5 Stage 4
+## Current authorization — Part 5 Stage 7
+
+The user authorized Part 5 delivery under `PART_05/PART_05_OPTION_A.md`.
+Stage 6 validation and correction evidence is in `PART_05/STAGE_06_RESULTS.md`.
+Stage 7 documentation and handoff status are in `PART_05/STAGE_07_RESULTS.md`.
+Keep the local `.env` and `.env.example` outside Git. Ask before committing
+the pending changes and before pushing.
+
+## Previous authorization — Part 5 Stage 5
+
+The user authorized the chat panel in the unified Part 5 tab under
+`PART_05/PART_05_OPTION_A.md`. Implementation and browser evidence are in
+`PART_05/STAGE_05_RESULTS.md`.
+
+## Previous authorization — Part 5 Stage 4
 
 The user authorized Stage 4 under `PART_05/GUIDE_05_S04.md`. The backend
 answer endpoint and technical verification are complete. Evidence and the
 owner's pending answer/source review are in `PART_05/STAGE_04_RESULTS.md`.
-Stage 5 covers the dedicated chat panel and requires separate authorization.
-Keep the local `.env` and `.env.example` outside Git. Ask before pushing.
 
 ## Previous authorization — Part 5 Stage 3
 

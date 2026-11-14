@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.22** — serves grounded academic answers through Part 5 REST.
+> Context version: **4.24** — records the validated Part 5 application and its delivery materials.
 
 ## Project identity
 
@@ -20,7 +20,7 @@ The current implementation focus is:
 > complete** (phases 1–8, `PART_04/BLOQUE_8.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`);
 > **Part 5 Option A** has an accepted Stage 1 contract and Stage 2 offline
 > corpus. Stage 3 REST retrieval was accepted by JPCP on 2026-11-10.
-> Stage 4 answer generation is implemented and technically verified.
+> The Part 5 chat and its REST integration were verified in Stages 4–6.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -93,10 +93,13 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The current work is Part 5 Option A Stage 4 under `PART_05/GUIDE_05_S04.md`.
+The current work is Part 5 Option A Stage 7 under `PART_05/PART_05_OPTION_A.md`.
 Parts 3 and 4 are complete. JPCP accepted Part 5 Stages 2 and 3 on
 2026-11-10. Stage 4 technical evidence and the owner review package are in
-`PART_05/STAGE_04_RESULTS.md`. The dedicated chat panel is Stage 5.
+`PART_05/STAGE_04_RESULTS.md`. The Stage 5 browser checks are in
+`PART_05/STAGE_05_RESULTS.md`. Stage 6 retrieval and grounding evidence is
+in `PART_05/STAGE_06_RESULTS.md`. Delivery and remaining external checks are
+tracked in `PART_05/STAGE_07_RESULTS.md`.
 
 ### Part 5 academic preparation (Stage 2)
 
@@ -139,6 +142,17 @@ Parts 3 and 4 are complete. JPCP accepted Part 5 Stages 2 and 3 on
   same ranked source records. Empty retrieval returns `no_context` without
   generation. Provider and retrieval failures use the existing HTTP error
   envelope with a request ID.
+- The prompt asks for plain text and individual citations. The backend
+  verifies source labels in both individual and grouped citations.
+
+### Part 5 chat panel (Stage 5)
+
+- The ready `parte5` tab renders the academic chat above its SQL workspace.
+  The panel posts each question through the tab's scoped REST client, with
+  no session token or provider credential in the browser request.
+- Questions are independent. Completed answers stay in memory while switching
+  between mounted tabs. The panel renders the answer and expandable source
+  passages as plain text, and surfaces empty retrieval and HTTP failures.
 
 ### Part 4 contract decisions (phase 1)
 
