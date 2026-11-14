@@ -1,7 +1,36 @@
-# Esquema de la presentación final — Parte 1
+# Esquema de la presentación final — MINI-DBMS
 
-Para el equipo que presenta. Una diapositiva por fila; unos 12–15 minutos con
-la demo en vivo. Las cifras salen de `docs/EXPERIMENTOS.md`.
+## Defensa de las cinco partes (15 min + 5 min de preguntas)
+
+La [presentación PowerPoint](presentacion_final.pptx) incorpora los gráficos
+originales y una captura de una respuesta real del chat. Las notas del
+presentador indican qué demostrar en vivo en cada tramo.
+
+| Tiempo | Tema | Evidencia y demostración |
+| --- | --- | --- |
+| 0:00–1:30 | Alcance y arquitectura | Cinco pestañas y un servidor. Explica el flujo desde React y la API hasta el parser, el motor y el disco. [Arquitectura](../../README.md#arquitectura) |
+| 1:30–4:20 | Almacenamiento, SQL y concurrencia | Heap, secuencial, B+ y hash. Demuestra un plan con y sin índice, y el resultado de la prueba de hilos. [Parte 1](informe_parte_01.md) |
+| 4:20–6:05 | Consultas espaciales | Ventana por radio, mapa, R-Tree y comparación con GiST. [Experimentos espaciales](../EXPERIMENTOS_ESPACIALES.md) |
+| 6:05–8:05 | Búsqueda textual | SPIMI, TF-IDF/coseno, BM25 y un `MATCH` con `SCORE()`. Muestra las curvas de consultas y relevancia. [Parte 3](informe_parte_03.md) |
+| 8:05–10:10 | Búsqueda multimedia | Vocabulario, TF-IDF, IVF y HNSW. Ejecuta los ejemplos de imagen y audio. Señala la comparación de Recall@10 de imágenes. [Parte 4](informe_parte_04.md) |
+| 10:10–13:30 | Aplicación RAG | Presenta `papers` y `chunks`. Muestra BM25, la fila relacional y la respuesta de OpenAI con un pasaje desplegado. [Parte 5](informe_parte_05.md) · [Secuencia de demo](guion_video.md#secuencia-de-la-parte-5) |
+| 13:30–15:00 | Resultados y límites | Resume qué decisiones respaldan las mediciones. Explica el límite de la coincidencia léxica y cómo el usuario verifica una cita. Muestra la evidencia tras reiniciar. [Validación RAG](../../PART_05/STAGE_06_RESULTS.md) |
+| 15:00–20:00 | Preguntas | Consulta las cuatro comparaciones, el contrato HTTP y las respuestas de aceptación si se necesita el detalle. |
+
+**Preguntas sobre el RAG**
+
+- *¿Dónde se almacenan los metadatos?* `papers` es una tabla Heap. El
+  backend consulta sus filas por SQL mediante la API y las asocia por `paper_id`.
+- *¿Qué decide qué texto recibe OpenAI?* BM25 ordena los pasajes del índice
+  SPIMI. El backend toma hasta tres y les asigna etiquetas según su orden.
+- *¿Qué pasa si los términos coinciden y el texto carece de la respuesta?*
+  El modelo puede expresar que la evidencia es insuficiente. El chat muestra
+  el contexto para revisarlo. Con cero coincidencias se omite OpenAI.
+
+## Material de apoyo de la Parte 1
+
+El esquema ampliado de la demo relacional conserva las referencias a los
+gráficos de `docs/EXPERIMENTOS.md`.
 
 | # | Diapositiva | Contenido | Fuente |
 |---|---|---|---|
