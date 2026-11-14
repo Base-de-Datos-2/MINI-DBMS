@@ -97,7 +97,9 @@ The existing error envelope carries the request ID, also available in
 ```
 
 The Stage 5 panel shows pending, answer, empty-context and error states.
-Render the answer and source passages as text.
+It renders the answer and source passages as text. The answer prompt asks
+for individual citations in plain text. The backend also checks the labels
+in grouped citations against the supplied sources.
 
 ## Integration boundaries
 
