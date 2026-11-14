@@ -25,14 +25,17 @@ los experimentos.
 | Experimentos | Comparaciones de estructuras relacionales, de búsqueda secuencial/R-Tree/GiST, de TF-IDF/BM25 propios frente a PostgreSQL GIN y de IVF frente a HNSW (euclidiana y coseno), con 1 000, 10 000 y 100 000 registros, documentos o imágenes |
 | Búsqueda textual | SPIMI persistente, TF-IDF/coseno y BM25 propios; MATCH/USING/SCORE en el motor SQL nativo, Heap sellado, preparación offline, API y paneles con scores/planes reales |
 | Búsqueda multimedia | SIFT (imágenes) y MFCC (audio), vocabulario K-Means e histogramas TF-IDF; IVF y HNSW propios con métricas euclidiana, producto punto y coseno; SIMILAR_TO/SIMILARITY_SCORE en SQL, miniaturas y reproductor de audio en la interfaz |
+| RAG académico | Chat con pasajes BM25 de artículos en PDF, metadatos relacionales y respuestas generadas por OpenAI con fuentes consultables |
 
 ## Demo completa en un solo puerto
 
-Con Python 3.11 o superior y desde la raíz del proyecto:
+Con CPython 3.12 y desde la raíz del proyecto:
 
 ```bash
-python -m pip install -e ".[test,api,multimedia]"
+python -m pip install -e ".[api,multimedia,academic,rag]"
 python scripts/setup_all.py
+npm --prefix frontend ci
+npm --prefix frontend run build
 python -m api --all --allow-writes
 ```
 
@@ -44,6 +47,8 @@ comando de preparación manual si falta la Parte 5. `--allow-writes` solo
 afecta a las Partes 1 y 2. Cada pestaña tiene dirección propia (`#parte3`),
 y la API de cada parte vive en
 `/parteN/api/...` (detalles en [api/unified.py](api/unified.py)).
+Para abrir las cinco partes juntas, completa también la
+[preparación académica](#parte-5--preparación-del-corpus-académico).
 
 Los modos individuales de las demos (`python -m api --text`, etc.) siguen
 disponibles.
@@ -104,19 +109,34 @@ por fase en `PART_04/BLOQUE_*.md`.
 
 ### Parte 5 — Preparación del corpus académico
 
-Guarda los PDF indicados en [el manifiesto](PART_05/corpus.json) en
-`data/generated/p5_inputs/` con los nombres registrados. Desde la raíz del
-proyecto, con CPython 3.12, ejecuta:
+Usa **CPython 3.12** para reproducir el tokenizador y el índice publicado.
+Desde la raíz del proyecto, guarda cada PDF de [el manifiesto](PART_05/corpus.json)
+en `data/generated/p5_inputs/` con el nombre del campo `pdf` y la versión
+del campo `source_url`. Este ejemplo descarga los que faltan en PowerShell.
+
+```powershell
+$pdfDir = 'data/generated/p5_inputs'
+New-Item -ItemType Directory -Force -Path $pdfDir | Out-Null
+$papers = Get-Content PART_05/corpus.json -Raw -Encoding UTF8 | ConvertFrom-Json
+foreach ($paper in $papers) {
+  $destination = Join-Path $pdfDir $paper.pdf
+  if (-not (Test-Path -LiteralPath $destination)) {
+    Invoke-WebRequest -Uri $paper.source_url -OutFile $destination -ErrorAction Stop
+  }
+}
+```
 
 ```bash
-python -X utf8 -m pip install -e ".[test,api,academic]"
+python -X utf8 -m pip install -e ".[api,academic,rag]"
 python -X utf8 scripts/setup_academic.py --manifest PART_05/corpus.json --pdf-dir data/generated/p5_inputs --data-dir data/generated/todas/parte5
 python -X utf8 scripts/setup_academic.py --verify-only --data-dir data/generated/todas/parte5
 ```
 
-La preparación requiere un directorio de destino nuevo. Verifica los hashes
-de los PDF y guarda `papers` y `chunks`, con un índice SPIMI para
-`chunks.content`. Ejecuta `--verify-only` con el servidor detenido.
+Si el destino ya existe, usa solo `--verify-only` con el servidor detenido.
+La preparación verifica los hashes de los PDF y publica `papers` y `chunks`,
+con un índice SPIMI para `chunks.content`. Espera `PASS`, 10 papers y 393
+pasajes. Para repetir la preparación desde cero, elige otra raíz y usa su
+subdirectorio `parte5`. Pasa esa misma raíz a `python -m api --all --data-dir`.
 Las fuentes y los resultados de preparación están en la
 [evidencia de la etapa 2](PART_05/STAGE_02_RESULTS.md).
 
@@ -130,6 +150,55 @@ python -X utf8 scripts/check_academic_retrieval.py --base-url http://127.0.0.1:8
 La Parte 5 se monta en `/parte5` en modo de solo lectura. La
 [evidencia de la etapa 3](PART_05/STAGE_03_RESULTS.md) incluye las preguntas
 probadas, los pasajes y la verificación tras reiniciar el servidor.
+
+### Parte 5 — Generación de respuestas con fuentes
+
+Configura `OPENAI_API_KEY` en el `.env` privado de la raíz del proyecto.
+`OPENAI_MODEL` es opcional y usa `gpt-6-luna` por defecto. Si defines
+`P5_ENGINE_BASE_URL`, debe apuntar a `/parte5` en el mismo servidor y puerto.
+El valor por defecto es `http://127.0.0.1:8000/parte5` con el puerto estándar.
+Las variables del proceso tienen precedencia sobre el archivo. Mantén el
+`.env` en tu equipo y reinicia el servidor tras cambiar la configuración.
+
+```powershell
+python -X utf8 -m api.academic_config
+python -X utf8 -m api --all --data-dir data/generated/todas --host 127.0.0.1 --port 8000
+```
+
+El primer comando solo informa si hay una clave configurada. En otra terminal,
+puedes probar el endpoint. Esta pregunta recupera evidencia y llama a OpenAI.
+
+```powershell
+$body = @{ question = "How does HNSW use a hierarchy of proximity graphs?" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/parte5/api/rag/ask" `
+  -ContentType "application/json" -Body $body -TimeoutSec 120 | ConvertTo-Json -Depth 10
+```
+
+El endpoint recupera hasta tres pasajes con BM25 y adjunta los textos y
+metadatos usados para responder. Si la búsqueda no devuelve pasajes,
+responde con `no_context` sin llamar al modelo. Consulta el
+[contrato HTTP](PART_05/CONTRACT_P5.md#chat-application) y la
+[evidencia de la etapa 4](PART_05/STAGE_04_RESULTS.md).
+
+### Parte 5 — Chat académico en la interfaz
+
+Con Node.js 20 o superior, compila el frontend antes del arranque.
+
+```bash
+npm --prefix frontend ci
+npm --prefix frontend run build
+```
+
+Con el servidor unificado en marcha, abre [RAG académico](http://127.0.0.1:8000/#parte5).
+Escribe una pregunta, pulsa **Preguntar** y abre las fuentes para ver el
+pasaje y los datos del paper. Puedes hacer varias consultas independientes.
+El historial se conserva al cambiar de pestaña y se reinicia al recargar
+la página. Los controles de SQL y búsqueda textual están debajo del chat.
+
+Prueba con `How does HNSW use a hierarchy of proximity graphs?` y abre `S1`
+para revisar el pasaje y sus metadatos. La fase 6 amplía las preguntas y
+documenta los casos de evidencia insuficiente y de fallo del proveedor.
+[Pruebas de navegador](PART_05/STAGE_05_RESULTS.md) · [Validación](PART_05/STAGE_06_RESULTS.md)
 
 ## Arquitectura
 
@@ -171,15 +240,18 @@ sesiones y la coherencia de los índices.
 
 ## Evaluación rápida con Docker Compose
 
-Solo se necesita Docker. Desde la raíz del repositorio:
+Abre Docker Desktop y deja libre el puerto 8000. Para generar respuestas en
+el chat, configura `OPENAI_API_KEY` en el `.env` privado de la raíz. Desde
+esa misma carpeta ejecuta:
 
 ```bash
 docker compose up --build
 ```
 
-La primera vez tarda unos minutos: compila la interfaz y prepara las cuatro
-bases dentro de la imagen (la multimedia extrae SIFT/MFCC y construye IVF y
-HNSW). Luego abre **http://localhost:8000**: una pestaña por parte.
+La primera compilación requiere Internet. Docker compila la interfaz,
+prepara las cinco bases y descarga los PDF fijados en el manifiesto. La
+preparación comprueba sus hashes y publica el índice académico. Abre la
+[interfaz local](http://127.0.0.1:8000/) cuando el servicio esté listo.
 
 | Pestaña | Datos |
 |---|---|
@@ -187,10 +259,14 @@ HNSW). Luego abre **http://localhost:8000**: una pestaña por parte.
 | Parte 2 · Espacial | `tiendas`, `restaurantes` y `lugares_lima` con mapa; escritura habilitada |
 | Parte 3 · Texto | `documentos`, `articulos` y `productos` (1 000 títulos ESCI); colecciones selladas, solo lectura |
 | Parte 4 · Multimedia | `imagenes` (120 fotos COCO) y `canciones` (30 clips FMA); solo lectura |
+| Parte 5 · RAG académico | `papers` y `chunks`, con 10 artículos y 393 pasajes indexados; solo lectura |
 
-Un único proceso es dueño de los cuatro directorios de datos. Cada pestaña
-tiene su propia sesión y sus **Ejemplos SQL**. `docker compose down` descarta
-los cambios: el siguiente `up` empieza desde las bases originales.
+Un único proceso sirve la interfaz y la API. `docker compose down` descarta
+los cambios de la demo y el siguiente `up` abre las bases originales de la
+imagen. Compose pasa la clave solo al backend durante el arranque. Con la
+clave vacía puedes consultar el corpus y sus metadatos. Para generar una
+respuesta en [RAG académico](http://127.0.0.1:8000/#parte5), configura la
+clave y vuelve a ejecutar `docker compose up --build`.
 
 ## Instalación
 
@@ -411,6 +487,7 @@ El servidor publica la referencia interactiva en
 | `POST /api/spatial/query` | Consultas tipadas de radio, k-NN o polígono |
 | `GET /api/multimedia/tables` | Colecciones de imágenes/audio publicadas, índices y consultas registradas |
 | `GET /api/multimedia/{tabla}/media/{archivo}` | Sirve solo archivos registrados de una colección |
+| `POST /parte5/api/rag/ask` | Consulta académica con respuesta generada y los pasajes recuperados |
 
 Las peticiones de una sesión llevan `X-Session-Token`. El token identifica
 una sesión del motor y permanece en memoria en la interfaz. Las consultas
@@ -504,3 +581,10 @@ entre procesos ni commit atómico de múltiples archivos ante pérdida de energ�
 - [Búsqueda textual](docs/text.md) y [búsqueda multimedia](docs/multimedia.md).
 - [Configuración de despliegue](docs/despliegue.md).
 - [Especificación del proyecto](Proyecto_Final.pdf).
+
+## Entrega final
+
+- [Informe incremental de la Parte 5](docs/informe/informe_parte_05.md).
+- [Video de demostración de las cinco partes](docs/informe/demo_final.mp4) y [guion para grabación](docs/informe/guion_video.md).
+- [Presentación final](docs/informe/presentacion_final.pptx) y [esquema de defensa](docs/informe/presentacion.md).
+- [Verificación del manual y estado de entrega](PART_05/STAGE_07_RESULTS.md).

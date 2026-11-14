@@ -1,4 +1,5 @@
 import type {
+  AcademicAnswer,
   OpenedSession,
   SessionStatus,
   CreateTableRequest,
@@ -36,12 +37,11 @@ export class ApiError extends Error {
 }
 
 function isEnvelope(body: unknown): body is ErrorEnvelope {
-  return (
-    typeof body === "object" &&
-    body !== null &&
-    "error" in body &&
-    typeof (body as { error: unknown }).error === "object"
-  );
+  if (typeof body !== "object" || body === null || !("error" in body)) return false;
+  const { error } = body;
+  return typeof error === "object" && error !== null &&
+    "code" in error && typeof error.code === "string" &&
+    "message" in error && typeof error.message === "string";
 }
 
 /** Every call of one API. ``prefix`` is the part's mount ("/parte3"), or "". */
@@ -152,6 +152,7 @@ export function createApi(prefix = "") {
 
   const fetchTextTables = () => getJson<TextCollection[]>("/api/text/tables");
   const runTextQuery = (request: TextQueryRequest, token: string | null) => postJson<TextQueryResult>("/api/text/query", request, token);
+  const askAcademic = (question: string) => postJson<AcademicAnswer>("/api/rag/ask", { question });
   const fetchMultimediaTables = () =>
     getJson<import("./multimedia").MultimediaTable[]>("/api/multimedia/tables");
 
@@ -176,6 +177,7 @@ export function createApi(prefix = "") {
     runQuery,
     fetchTextTables,
     runTextQuery,
+    askAcademic,
     fetchMultimediaTables,
     mediaUrl,
   };

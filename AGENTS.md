@@ -1,14 +1,33 @@
 # AGENTS.md
 
-## Current authorization — Part 5 Stage 3
+## Current authorization — Part 5 Stage 7
+
+The user authorized Part 5 delivery under `PART_05/PART_05_OPTION_A.md`.
+Stage 6 validation and correction evidence is in `PART_05/STAGE_06_RESULTS.md`.
+Stage 7 documentation and handoff status are in `PART_05/STAGE_07_RESULTS.md`.
+Keep the local `.env` and `.env.example` outside Git. Ask before committing
+the pending changes and before pushing.
+
+## Previous authorization — Part 5 Stage 5
+
+The user authorized the chat panel in the unified Part 5 tab under
+`PART_05/PART_05_OPTION_A.md`. Implementation and browser evidence are in
+`PART_05/STAGE_05_RESULTS.md`.
+
+## Previous authorization — Part 5 Stage 4
+
+The user authorized Stage 4 under `PART_05/GUIDE_05_S04.md`. The backend
+answer endpoint and technical verification are complete. Evidence and the
+owner's pending answer/source review are in `PART_05/STAGE_04_RESULTS.md`.
+
+## Previous authorization — Part 5 Stage 3
 
 The user authorized the Stage 3 implementation under
 `PART_05/GUIDE_05_S03.md`. Reuse the accepted academic data and published
 index in the unified server. Stage 3 covers REST retrieval, relational
 metadata and verification for the single stage owner. JPCP accepted Stage 3
 on 2026-11-10. The evidence and sign-off are in
-`PART_05/STAGE_03_RESULTS.md`. Generation and the
-dedicated chat interface require separate authorization.
+`PART_05/STAGE_03_RESULTS.md`.
 
 ## Previous authorization — 2026-11-09
 

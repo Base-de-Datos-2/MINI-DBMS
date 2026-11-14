@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { createApi, fetchHealth, fetchParts, type PartInfo } from "./api";
+import AcademicChat from "./components/AcademicChat";
 import Workspace from "./components/Workspace";
 import { partFromHash, kindOfDatabase } from "./parts";
 import { ROOT_SCOPE, WorkspaceContext, scopeFor } from "./workspaceScope";
@@ -138,6 +139,7 @@ export default function App() {
               </div>
             ) : opened.has(part.id) && (
               <WorkspaceContext.Provider value={scope}>
+                {part.id === "parte5" && <AcademicChat />}
                 <Workspace kind={part.kind} title={`Parte ${part.number} · ${part.title}`}
                   description={part.description} partNumber={part.number} />
               </WorkspaceContext.Provider>
