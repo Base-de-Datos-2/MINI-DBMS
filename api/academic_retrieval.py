@@ -61,7 +61,7 @@ class RetrievalResult(TypedDict):
     sources: list[Source]
 
 
-def _question_text(question: object) -> str:
+def normalize_question(question: object) -> str:
     if not isinstance(question, str):
         raise InvalidQuestion("Question must be a string")
     question = question.strip()
@@ -162,7 +162,7 @@ async def retrieve_academic(
     question: object, *, base_url: str, client: httpx2.AsyncClient,
 ) -> RetrievalResult:
     """Use a caller-owned async client and a server-configured Part 5 base URL."""
-    question = _question_text(question)
+    question = normalize_question(question)
     base_url = base_url.rstrip("/")
     rows = await _query_rows(
         client, f"{base_url}/api/text/query",
