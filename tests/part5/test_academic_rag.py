@@ -74,6 +74,7 @@ def test_generation_sends_only_the_passages_and_returns_the_same_sources(monkeyp
     assert payload["model"] == SETTINGS.model and payload["store"] is False
     assert payload["reasoning"] == {"effort": "none"} and payload["max_output_tokens"] == 500
     assert "insufficient" in payload["instructions"]
+    assert "plain text without Markdown" in payload["instructions"]
     assert json.loads(payload["input"]) == {
         "question": "How does the graph search work?",
         "sources": [{key: SOURCE[key] for key in ("label", "title", "authors", "year", "chunk_id", "content")}],
@@ -117,11 +118,22 @@ def test_missing_key_is_detected_when_generation_is_needed():
     ("completed", [{"type": "refusal", "refusal": "I decline."}], "no usable text"),
     ("completed", [{"type": "output_text", "text": "  ", "annotations": []}], "no usable text"),
     ("completed", [{"type": "output_text", "text": "Invented source [S2].", "annotations": []}], "unknown source"),
+    ("completed", [{"type": "output_text", "text": "Invented range [S1–S3].", "annotations": []}], "unknown source"),
+    ("completed", [{"type": "output_text", "text": "Invented list [S1, S3].", "annotations": []}], "unknown source"),
 ])
 def test_unusable_provider_output_is_rejected(monkeypatch, status, content, message):
     client, _ = install_provider(monkeypatch, lambda request: provider_response(status=status, content=content))
     with pytest.raises(academic_rag.AnswerProviderError, match=message):
         asyncio.run(academic_rag.generate_answer("Question", [SOURCE], SETTINGS))
+    assert client.is_closed
+
+
+def test_grouped_citations_can_reference_supplied_sources(monkeypatch):
+    answer = "These passages describe [CLS] representations [S1–S2]."
+    client, _ = install_provider(monkeypatch, lambda request: provider_response(content=[
+        {"type": "output_text", "text": answer, "annotations": []},
+    ]))
+    assert asyncio.run(academic_rag.generate_answer("Question", [SOURCE, {**SOURCE, "label": "S2"}], SETTINGS)) == answer
     assert client.is_closed
 
 
