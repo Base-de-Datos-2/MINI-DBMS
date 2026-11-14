@@ -1,7 +1,8 @@
 # Part 5 Option A contract
 
 Accepted in Stage 1. Stage 2 prepared the academic data, and Stage 3
-exposes its engine REST routes. The chat route describes the Stage 4 contract.
+exposes its engine REST routes. Stage 4 implements the answer endpoint.
+Stage 5 will add its chat panel to the existing frontend.
 
 ## Data and publication
 
@@ -44,7 +45,7 @@ The helper uses a ten-second HTTP timeout and returns
 `{"status":"no_context","sources":[]}`. Each source contains the public
 source fields below plus the complete abstract. The helper distinguishes
 `InvalidQuestion`, `EngineUnavailable` and `InvalidEngineResponse`.
-Stage 4 owns the public endpoint and error mapping.
+The Stage 4 endpoint uses this helper and maps its errors to HTTP.
 
 ## Chat application
 
@@ -74,12 +75,16 @@ The example values illustrate the shape. Number the retrieved context as `S1` th
 
 | Condition | Outcome |
 | --- | --- |
-| Invalid question | 422 with the application's validation error |
-| Engine unavailable | 503 with a safe engine error |
-| Provider rejection or failure | 502 with a safe application error |
-| Provider timeout | 504 with a safe application error |
+| Invalid question or JSON | 422 `INVALID_REQUEST` |
+| HTTP body exceeds the existing limit | 413 `REQUEST_TOO_LARGE` |
+| Engine unavailable | 503 `ENGINE_UNAVAILABLE` |
+| Invalid engine source data | 502 `RAG_RETRIEVAL_ERROR` |
+| Answer generation is unconfigured | 503 `RAG_NOT_CONFIGURED` |
+| Provider rejection, unusable answer or other failure | 502 `RAG_PROVIDER_ERROR` |
+| Provider timeout | 504 `RAG_PROVIDER_TIMEOUT` |
 
-Keep the existing error envelope. An example provider timeout response is:
+The existing error envelope carries the request ID, also available in
+`X-Request-ID`. A provider timeout returns the following error object.
 
 ```json
 {
@@ -91,7 +96,8 @@ Keep the existing error envelope. An example provider timeout response is:
 }
 ```
 
-The UI shows pending, answer, empty-context and error states. Render the answer and source passages as text.
+The Stage 5 panel shows pending, answer, empty-context and error states.
+Render the answer and source passages as text.
 
 ## Integration boundaries
 

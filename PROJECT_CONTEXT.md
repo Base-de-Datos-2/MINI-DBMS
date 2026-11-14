@@ -1,7 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.21** — serves the Part 5 academic corpus and
-> retrieves ranked passages and relational metadata through REST.
+> Context version: **4.22** — serves grounded academic answers through Part 5 REST.
 
 ## Project identity
 
@@ -21,6 +20,7 @@ The current implementation focus is:
 > complete** (phases 1–8, `PART_04/BLOQUE_8.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`);
 > **Part 5 Option A** has an accepted Stage 1 contract and Stage 2 offline
 > corpus. Stage 3 REST retrieval was accepted by JPCP on 2026-11-10.
+> Stage 4 answer generation is implemented and technically verified.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -93,12 +93,10 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorized Part 5 Option A Stage 3 under
-`PART_05/GUIDE_05_S03.md`. Parts 3 and 4 are complete. Part 5 Stage 2 was
-accepted on 2026-11-10, and JPCP accepted Stage 3 on the same date.
-The Stage 3 results and sign-off are in
-`PART_05/STAGE_03_RESULTS.md`. Part 5 generation and the chat interface
-are subsequent stages.
+The current work is Part 5 Option A Stage 4 under `PART_05/GUIDE_05_S04.md`.
+Parts 3 and 4 are complete. JPCP accepted Part 5 Stages 2 and 3 on
+2026-11-10. Stage 4 technical evidence and the owner review package are in
+`PART_05/STAGE_04_RESULTS.md`. The dedicated chat panel is Stage 5.
 
 ### Part 5 academic preparation (Stage 2)
 
@@ -127,6 +125,20 @@ are subsequent stages.
   to three BM25 hits and read each distinct paper's metadata with bounded
   SQL. The helper preserves engine rank and distinguishes empty context,
   invalid input, engine unavailability and invalid engine data.
+
+### Part 5 academic answer generation (Stage 4)
+
+- The unified server mounts `POST /parte5/api/rag/ask` on the ready
+  academic service. The handler reuses the Stage 3 async HTTP retrieval
+  and releases its client before requesting generation.
+- The launcher reads the repository-root `.env` explicitly and gives the
+  process environment precedence. The engine base uses loopback, the
+  listener's port and `/parte5`. Provider configuration is server-side.
+- The application supplies bounded source text and numbered labels to the
+  OpenAI Responses API with storage disabled. The response attaches the
+  same ranked source records. Empty retrieval returns `no_context` without
+  generation. Provider and retrieval failures use the existing HTTP error
+  envelope with a request ID.
 
 ### Part 4 contract decisions (phase 1)
 

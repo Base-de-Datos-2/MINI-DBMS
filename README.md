@@ -131,6 +131,41 @@ La Parte 5 se monta en `/parte5` en modo de solo lectura. La
 [evidencia de la etapa 3](PART_05/STAGE_03_RESULTS.md) incluye las preguntas
 probadas, los pasajes y la verificación tras reiniciar el servidor.
 
+### Parte 5 — Generación de respuestas con fuentes
+
+Con el corpus preparado, instala el extra `rag` en el mismo entorno de Python.
+
+```powershell
+python -X utf8 -m pip install -e ".[api,academic,rag]"
+```
+
+Configura `OPENAI_API_KEY` en el `.env` privado de la raíz del proyecto.
+`OPENAI_MODEL` es opcional y usa `gpt-6-luna` por defecto. Si defines
+`P5_ENGINE_BASE_URL`, debe apuntar a `/parte5` en el mismo servidor y puerto.
+El valor por defecto es `http://127.0.0.1:8000/parte5` con el puerto estándar.
+Las variables del proceso tienen precedencia sobre el archivo. Mantén el
+`.env` en tu equipo y reinicia el servidor tras cambiar la configuración.
+
+```powershell
+python -X utf8 -m api.academic_config
+python -X utf8 -m api --all --data-dir data/generated/todas --host 127.0.0.1 --port 8000
+```
+
+El primer comando solo informa si hay una clave configurada. En otra terminal,
+puedes probar el endpoint. Esta pregunta recupera evidencia y llama a OpenAI.
+
+```powershell
+$body = @{ question = "How does HNSW use a hierarchy of proximity graphs?" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:8000/parte5/api/rag/ask" `
+  -ContentType "application/json" -Body $body -TimeoutSec 120 | ConvertTo-Json -Depth 10
+```
+
+El endpoint recupera hasta tres pasajes con BM25 y adjunta los textos y
+metadatos usados para responder. Si la búsqueda no devuelve pasajes,
+responde con `no_context` sin llamar al modelo. Consulta el
+[contrato HTTP](PART_05/CONTRACT_P5.md#chat-application) y la
+[evidencia de la etapa 4](PART_05/STAGE_04_RESULTS.md).
+
 ## Arquitectura
 
 ```mermaid
