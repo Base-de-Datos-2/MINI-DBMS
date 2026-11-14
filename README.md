@@ -29,10 +29,10 @@ los experimentos.
 
 ## Demo completa en un solo puerto
 
-Con Python 3.11 o superior y desde la raíz del proyecto:
+Con CPython 3.12 y desde la raíz del proyecto:
 
 ```bash
-python -m pip install -e ".[test,api,multimedia]"
+python -m pip install -e ".[api,multimedia,academic,rag]"
 python scripts/setup_all.py
 npm --prefix frontend ci
 npm --prefix frontend run build
@@ -240,15 +240,18 @@ sesiones y la coherencia de los índices.
 
 ## Evaluación rápida con Docker Compose
 
-Solo se necesita Docker. Desde la raíz del repositorio:
+Abre Docker Desktop y deja libre el puerto 8000. Para generar respuestas en
+el chat, configura `OPENAI_API_KEY` en el `.env` privado de la raíz. Desde
+esa misma carpeta ejecuta:
 
 ```bash
 docker compose up --build
 ```
 
-La primera vez tarda unos minutos: compila la interfaz y prepara las cuatro
-bases dentro de la imagen (la multimedia extrae SIFT/MFCC y construye IVF y
-HNSW). Luego abre **http://localhost:8000**: una pestaña por parte.
+La primera compilación requiere Internet. Docker compila la interfaz,
+prepara las cinco bases y descarga los PDF fijados en el manifiesto. La
+preparación comprueba sus hashes y publica el índice académico. Abre la
+[interfaz local](http://127.0.0.1:8000/) cuando el servicio esté listo.
 
 | Pestaña | Datos |
 |---|---|
@@ -256,12 +259,14 @@ HNSW). Luego abre **http://localhost:8000**: una pestaña por parte.
 | Parte 2 · Espacial | `tiendas`, `restaurantes` y `lugares_lima` con mapa; escritura habilitada |
 | Parte 3 · Texto | `documentos`, `articulos` y `productos` (1 000 títulos ESCI); colecciones selladas, solo lectura |
 | Parte 4 · Multimedia | `imagenes` (120 fotos COCO) y `canciones` (30 clips FMA); solo lectura |
+| Parte 5 · RAG académico | `papers` y `chunks`, con 10 artículos y 393 pasajes indexados; solo lectura |
 
-Un único proceso es dueño de los cuatro directorios de datos. Cada pestaña
-tiene su propia sesión y sus **Ejemplos SQL**. `docker compose down` descarta
-los cambios: el siguiente `up` empieza desde las bases originales.
-La demo RAG se prepara y ejecuta localmente con los PDF y el proveedor
-configurado. [Preparación del corpus académico](#parte-5--preparación-del-corpus-académico)
+Un único proceso sirve la interfaz y la API. `docker compose down` descarta
+los cambios de la demo y el siguiente `up` abre las bases originales de la
+imagen. Compose pasa la clave solo al backend durante el arranque. Con la
+clave vacía puedes consultar el corpus y sus metadatos. Para generar una
+respuesta en [RAG académico](http://127.0.0.1:8000/#parte5), configura la
+clave y vuelve a ejecutar `docker compose up --build`.
 
 ## Instalación
 

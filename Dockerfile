@@ -8,7 +8,7 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY pyproject.toml README.md ./
@@ -20,14 +20,16 @@ COPY benchmarks/spatial/__init__.py benchmarks/spatial/datasets.py benchmarks/sp
 COPY data/lima/ data/lima/
 COPY data/multimedia_demo/ data/multimedia_demo/
 COPY data/text_demo/ data/text_demo/
-# Part 4 needs numpy, OpenCV (SIFT), soundfile and librosa (MFCC).
-RUN pip install --no-cache-dir -e ".[api,multimedia]"
+# Part 4 extracts features. Part 5 prepares PDFs and generates answers.
+RUN pip install --no-cache-dir -e ".[api,multimedia,academic,rag]"
 COPY --from=frontend /app/frontend/dist frontend/dist
-# The four demo databases are built into the image (data/generated/todas);
-# a recreated container starts from them again.
-RUN python scripts/setup_all.py
+COPY PART_05/corpus.json PART_05/corpus.json
+# Fetch the fixed corpus only during the build. The offline preparer checks
+# every hash before publishing the academic database.
+RUN python -m scripts.setup_academic_image
+RUN python scripts/setup_all.py --only parte1 parte2 parte3 parte4
 EXPOSE 8000
-# One process owns the four data directories and serves every part on one
+# One process owns the five data directories and serves every part on one
 # port, one tab each. Render sets PORT; ALLOW_WRITES=1 enables INSERT/DELETE,
 # table creation and transactions in Parts 1 and 2.
 CMD ["sh", "-c", "exec python -m api --all --host 0.0.0.0 --port \"${PORT:-8000}\" ${ALLOW_WRITES:+--allow-writes}"]

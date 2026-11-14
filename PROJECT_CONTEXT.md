@@ -153,6 +153,9 @@ tracked in `PART_05/STAGE_07_RESULTS.md`.
 - Questions are independent. Completed answers stay in memory while switching
   between mounted tabs. The panel renders the answer and expandable source
   passages as plain text, and surfaces empty retrieval and HTTP failures.
+- Docker prepares all five demo databases at build time. The academic build
+  fetches the pinned PDFs and uses the same hash-checked offline preparer as
+  the local workflow. Compose injects provider settings only at runtime.
 
 ### Part 4 contract decisions (phase 1)
 
