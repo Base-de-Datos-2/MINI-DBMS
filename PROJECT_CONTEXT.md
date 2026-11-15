@@ -1,7 +1,6 @@
 # PROJECT_CONTEXT.md
 
-> Context version: **4.21** — serves the Part 5 academic corpus and
-> retrieves ranked passages and relational metadata through REST.
+> Context version: **4.24** — records the validated Part 5 application and its delivery materials.
 
 ## Project identity
 
@@ -21,6 +20,7 @@ The current implementation focus is:
 > complete** (phases 1–8, `PART_04/BLOQUE_8.md`, `docs/EXPERIMENTOS_MULTIMEDIA.md`);
 > **Part 5 Option A** has an accepted Stage 1 contract and Stage 2 offline
 > corpus. Stage 3 REST retrieval was accepted by JPCP on 2026-11-10.
+> The Part 5 chat and its REST integration were verified in Stages 4–6.
 
 The project must remain modular because later parts build on structures created earlier.
 
@@ -93,12 +93,13 @@ The project is not intended to be a thin wrapper around PostgreSQL, SQLite or an
 
 ## Current development scope
 
-The latest request authorized Part 5 Option A Stage 3 under
-`PART_05/GUIDE_05_S03.md`. Parts 3 and 4 are complete. Part 5 Stage 2 was
-accepted on 2026-11-10, and JPCP accepted Stage 3 on the same date.
-The Stage 3 results and sign-off are in
-`PART_05/STAGE_03_RESULTS.md`. Part 5 generation and the chat interface
-are subsequent stages.
+The current work is Part 5 Option A Stage 7 under `PART_05/PART_05_OPTION_A.md`.
+Parts 3 and 4 are complete. JPCP accepted Part 5 Stages 2 and 3 on
+2026-11-10. Stage 4 technical evidence and the owner review package are in
+`PART_05/STAGE_04_RESULTS.md`. The Stage 5 browser checks are in
+`PART_05/STAGE_05_RESULTS.md`. Stage 6 retrieval and grounding evidence is
+in `PART_05/STAGE_06_RESULTS.md`. Delivery and remaining external checks are
+tracked in `PART_05/STAGE_07_RESULTS.md`.
 
 ### Part 5 academic preparation (Stage 2)
 
@@ -127,6 +128,34 @@ are subsequent stages.
   to three BM25 hits and read each distinct paper's metadata with bounded
   SQL. The helper preserves engine rank and distinguishes empty context,
   invalid input, engine unavailability and invalid engine data.
+
+### Part 5 academic answer generation (Stage 4)
+
+- The unified server mounts `POST /parte5/api/rag/ask` on the ready
+  academic service. The handler reuses the Stage 3 async HTTP retrieval
+  and releases its client before requesting generation.
+- The launcher reads the repository-root `.env` explicitly and gives the
+  process environment precedence. The engine base uses loopback, the
+  listener's port and `/parte5`. Provider configuration is server-side.
+- The application supplies bounded source text and numbered labels to the
+  OpenAI Responses API with storage disabled. The response attaches the
+  same ranked source records. Empty retrieval returns `no_context` without
+  generation. Provider and retrieval failures use the existing HTTP error
+  envelope with a request ID.
+- The prompt asks for plain text and individual citations. The backend
+  verifies source labels in both individual and grouped citations.
+
+### Part 5 chat panel (Stage 5)
+
+- The ready `parte5` tab renders the academic chat above its SQL workspace.
+  The panel posts each question through the tab's scoped REST client, with
+  no session token or provider credential in the browser request.
+- Questions are independent. Completed answers stay in memory while switching
+  between mounted tabs. The panel renders the answer and expandable source
+  passages as plain text, and surfaces empty retrieval and HTTP failures.
+- Docker prepares all five demo databases at build time. The academic build
+  fetches the pinned PDFs and uses the same hash-checked offline preparer as
+  the local workflow. Compose injects provider settings only at runtime.
 
 ### Part 4 contract decisions (phase 1)
 

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createRequestGate, runQuery } from "./api";
+import { createApi, createRequestGate, runQuery } from "./api";
 
 const OPTIONS = { max_rows: 100, use_indexes: true, join_strategy: "AUTO" as const };
 
@@ -65,5 +65,36 @@ describe("createRequestGate", () => {
 
     expect(gate.isLatest(first)).toBe(false);
     expect(gate.isLatest(second)).toBe(true);
+  });
+});
+
+describe("askAcademic", () => {
+  const api = createApi("/parte5");
+
+  it("posts only the question under the current part prefix", async () => {
+    const result = { status: "no_context", answer: "No relevant passages were found.", sources: [] };
+    const fetch = vi.fn(async () => jsonResponse(200, result));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(api.askAcademic("What is HNSW?")).resolves.toEqual(result);
+    expect(fetch).toHaveBeenCalledOnce();
+    expect(fetch).toHaveBeenCalledWith("/parte5/api/rag/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: '{"question":"What is HNSW?"}',
+    });
+  });
+
+  it("preserves the status and request ID from an upstream timeout", async () => {
+    const envelope = { error: { code: "RAG_PROVIDER_TIMEOUT", message: "Timed out", request_id: "rag-1" } };
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(504, envelope)));
+
+    await expect(api.askAcademic("What is HNSW?")).rejects.toMatchObject({ httpStatus: 504, envelope });
+  });
+
+  it("handles a malformed error envelope as an HTTP failure", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => jsonResponse(502, { error: null })));
+
+    await expect(api.askAcademic("What is HNSW?")).rejects.toMatchObject({ httpStatus: 502, envelope: null });
   });
 });

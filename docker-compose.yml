@@ -1,5 +1,5 @@
 # Evaluation: `docker compose up --build`, then open http://localhost:8000
-# One tab per part: Relacional, Espacial, Texto and Multimedia.
+# One tab per part, including RAG académico.
 # One process owns every part's data directory inside the image.
 # `docker compose down` discards changes; the next `up` starts clean.
 services:
@@ -8,9 +8,12 @@ services:
     image: minidbms:demo
     restart: unless-stopped
     command: ["python", "-m", "api", "--all", "--host", "0.0.0.0", "--port", "8000", "--allow-writes"]
-    ports: ["8000:8000"]
+    ports: ["127.0.0.1:${MINIDBMS_HOST_PORT:-8000}:8000"]
+    environment:
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-gpt-6-luna}"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/parts')"]
+      test: ["CMD", "python", "-c", "import json, urllib.request; parts = json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/parts', timeout=3)); assert len(parts) == 5 and all(part['status'] == 'ready' for part in parts)"]
       interval: 10s
       timeout: 5s
       retries: 5

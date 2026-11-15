@@ -358,6 +358,24 @@ export interface SpatialResponse {
   session?: SessionStatus;
 }
 
+export interface AcademicSource {
+  label: string;
+  chunk_id: number;
+  paper_id: number;
+  position: number;
+  title: string;
+  authors: string;
+  year: number;
+  content: string;
+  score: number;
+}
+
+export interface AcademicAnswer {
+  status: "answered" | "no_context";
+  answer: string;
+  sources: AcademicSource[];
+}
+
 /** How one submitted statement ended, tied to the SQL that produced it. */
 export type Outcome =
   | { status: "success"; sql: string; roundTripMs: number; body: QueryResponse }

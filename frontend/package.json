@@ -10,7 +10,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "test:browser": "node scripts/leaflet-browser-check.cjs",
-    "test:browser:text": "node scripts/text-browser-check.cjs"
+    "test:browser:text": "node scripts/text-browser-check.cjs",
+    "test:browser:academic": "node scripts/academic-browser-check.mjs"
   },
   "dependencies": {
     "leaflet": "^1.9.4",

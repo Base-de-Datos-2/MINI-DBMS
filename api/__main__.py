@@ -27,6 +27,7 @@ from time import perf_counter
 
 import uvicorn
 
+from .academic_config import AcademicConfigError, load_academic_settings
 from .app import create_app
 from .database import Database, DatabaseDefinition, DatabaseSetupError
 from .demo import DEMO_MEMORY_BUDGET_BYTES, demo_database
@@ -188,7 +189,13 @@ def _serve_all(args) -> None:
                  else f"no disponible ({part.problem})")
         print(f"  Parte {part.spec.number} {part.spec.title:11} {state}", flush=True)
     try:
-        app = create_unified_app(parts, frontend_dir=args.frontend_dir)
+        academic_settings = None
+        if any(part.spec.id == "parte5" for part in ready):
+            try:
+                academic_settings = load_academic_settings(port=args.port)
+            except AcademicConfigError as error:
+                logging.getLogger("minidbms.api").warning("Academic RAG configuration: %s", error)
+        app = create_unified_app(parts, frontend_dir=args.frontend_dir, academic_settings=academic_settings)
         _run(app, args, *(part.service for part in ready))
     finally:
         problems = close_parts(parts)

@@ -15,6 +15,8 @@ dependencies = []
 corpus = ["pyarrow>=16,<27"]
 # Offline academic PDF preparation, using the extractor verified in Stage 1.
 academic = ["pypdf==7.0.0"]
+# Part 5 answer generation and explicit local backend configuration.
+rag = ["openai==3.48.0", "python-dotenv>=1.0,<2"]
 # Starlette 1.6 still imports an alias that anyio 4.15 deprecates. The strict
 # suite runs with warnings as errors, so anyio stays below 4.15 until that is
 # fixed upstream; httpx2 is what Starlette's test client now expects.

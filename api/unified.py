@@ -28,6 +28,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from engine.errors import DatabaseError
 
+from .academic_config import AcademicSettings
+from .academic_routes import academic_router
 from .academic_schema import CHUNK_COLUMNS, PAPER_COLUMNS
 from .app import create_app
 from .database import Database, DatabaseDefinition, DatabaseSetupError
@@ -207,6 +209,7 @@ def create_unified_app(
     *,
     frontend_dir: object | None = None,
     sweep_interval_seconds: float = SESSION_SWEEP_INTERVAL_SECONDS,
+    academic_settings: AcademicSettings | None = None,
 ) -> FastAPI:
     """Mount the Stage 9 API of each ready part under its prefix."""
 
@@ -216,6 +219,8 @@ def create_unified_app(
                                  sweep_interval_seconds=sweep_interval_seconds)
         for part in parts if part.service is not None
     }
+    if "parte5" in children:
+        children["parte5"].include_router(academic_router(academic_settings))
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
