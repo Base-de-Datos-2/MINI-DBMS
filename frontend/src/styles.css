@@ -893,6 +893,8 @@ input[type="text"], input[type="number"], select { border-color: #d9d8d4; }
 }
 
 .academic-form textarea {
+  line-height: 1.6;
+  caret-color: var(--accent);
   width: 100%;
   padding: 10px 12px;
   resize: vertical;
@@ -927,6 +929,8 @@ input[type="text"], input[type="number"], select { border-color: #d9d8d4; }
 }
 
 .academic-question {
+  border-inline-start: 3px solid var(--accent);
+  padding-inline-start: 12px;
   margin: 0 0 10px;
   font-size: 1rem;
   font-weight: 600;
