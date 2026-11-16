@@ -226,16 +226,19 @@ pre {
   width: 100%;
   min-height: 170px;
   resize: vertical;
-  padding: 16px;
+  padding: 18px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--code-bg);
-  color: var(--text);
+  background: #142e3a;
+  color: #e7f7f2;
+  caret-color: #a0ebce;
   font-family: var(--mono);
   font-size: 0.92rem;
   tab-size: 2;
   line-height: 1.7;
 }
+
+.sql-editor::placeholder { color: #b0c6cf; }
 
 .sql-editor:focus-visible,
 button:focus-visible,
