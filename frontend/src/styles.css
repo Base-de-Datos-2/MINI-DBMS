@@ -150,7 +150,7 @@ pre {
   white-space: nowrap;
 }
 
-.key-chip { margin-left: 6px; }
+.key-chip { margin-left: 6px; background: #dceaf3; color: #25475d; }
 
 .warn-chip {
   background: var(--warn-bg);
@@ -544,7 +544,7 @@ button:active:not(:disabled) { transform: scale(0.98); }
   background: var(--chip);
 }
 
-.table-button.active { border-left: 3px solid var(--accent); }
+.table-button.active { border-left: 3px solid var(--accent); background: #e0efeb; color: #164c46; }
 .table-name, .index-name { overflow-wrap: anywhere; }
 .column-table code { overflow-wrap: anywhere; }
 .column-table td { vertical-align: top; }
