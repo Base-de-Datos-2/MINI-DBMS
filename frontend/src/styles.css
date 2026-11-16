@@ -416,7 +416,7 @@ button:active:not(:disabled) { transform: scale(0.98); }
   letter-spacing: 0.03em;
 }
 
-.metric-value { font-weight: 600; }
+.metric-value { font: 600 1rem var(--mono); color: #164c46; }
 
 .meter {
   height: 6px;
@@ -458,8 +458,10 @@ button:active:not(:disabled) { transform: scale(0.98); }
 .plan-node { margin-top: 8px; }
 
 .plan-node-card {
+  background: #f7fbfa;
   padding: 12px;
   border: 1px solid var(--border);
+  border-inline-start: 3px solid #5e9e92;
   border-radius: 6px;
 }
 
