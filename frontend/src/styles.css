@@ -1,18 +1,18 @@
 :root {
-  --bg: #f7f6f3;
+  --bg: #eef3f5;
   --panel: #ffffff;
-  --text: #2f3437;
-  --muted: #64635f;
-  --border: #eaeaea;
-  --accent: #111111;
+  --text: #172d3a;
+  --muted: #4e6571;
+  --border: #cedbe0;
+  --accent: #086759;
   --accent-text: #ffffff;
-  --chip: #f1f0ec;
+  --chip: #e4efed;
   --warn-bg: #fbf3db;
   --warn-text: #7a5300;
   --error-bg: #fdebec;
   --error-text: #9f2f2d;
-  --code-bg: #fbfbfa;
-  --radius: 8px;
+  --code-bg: #f3f7f8;
+  --radius: 12px;
   --mono: "Geist Mono", "SFMono-Regular", "Cascadia Code", Consolas, monospace;
   font-family: "Geist Sans", "Helvetica Neue", -apple-system, "Segoe UI", sans-serif;
   color: var(--text);
