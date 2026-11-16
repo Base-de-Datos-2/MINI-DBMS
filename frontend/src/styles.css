@@ -841,13 +841,14 @@ input[type="text"], input[type="number"], select { border-color: #d9d8d4; }
 
 @media (max-width: 700px) {
   .app { padding: 0 12px 16px; }
-  .app-header { padding: 22px 2px 16px; gap: 12px; }
+  .app-header { padding: 20px 16px; gap: 14px; }
   .workspace { gap: 12px; }
   .panel, .spatial-panel { padding: 16px; }
   .panel-title { font-size: 1.25rem; }
   .workspace-bar > .session-bar { gap: 8px; }
   .part-tabs { margin-left: 0; width: 100%; }
-  .part-tab { flex: 1 1 calc(50% - 6px); min-width: 0; }
+  .part-tab { flex: 1 1 calc(50% - 6px); min-width: 0; min-height: 48px; }
+  .part-tab:last-child:nth-child(odd) { flex-basis: 100%; }
   .session-state { flex-basis: 100%; }
   .toolbar { gap: 10px; }
   .toolbar > .inline-field { flex-wrap: wrap; }
