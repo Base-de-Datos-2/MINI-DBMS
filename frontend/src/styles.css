@@ -286,8 +286,8 @@ button.primary,
 button.secondary,
 .tabs button {
   min-height: 36px;
-  padding: 7px 14px;
-  border-radius: 6px;
+  padding: 8px 15px;
+  border-radius: 8px;
   font: inherit;
   font-size: 0.88rem;
   cursor: pointer;
@@ -295,6 +295,7 @@ button.secondary,
 }
 
 button.primary {
+  box-shadow: 0 2px 4px rgb(4 80 69 / 16%);
   border: 1px solid var(--accent);
   background: var(--accent);
   color: var(--accent-text);
@@ -313,7 +314,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button.primary:hover:not(:disabled) { background: #333333; }
+button.primary:hover:not(:disabled) { background: #055247; }
 button.secondary:hover:not(:disabled), .tabs button:hover:not(:disabled) { background: var(--chip); }
 button:active:not(:disabled) { transform: scale(0.98); }
 
