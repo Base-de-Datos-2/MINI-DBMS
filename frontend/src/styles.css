@@ -364,6 +364,7 @@ button:active:not(:disabled) { transform: scale(0.98); }
 }
 
 .error-box {
+  border-inline-start: 3px solid #b14c55;
   padding: 10px 12px;
   border-radius: 6px;
   background: var(--error-bg);
@@ -374,6 +375,8 @@ button:active:not(:disabled) { transform: scale(0.98); }
 .error-type { font-weight: 700; }
 
 .error-context {
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
   margin: 6px 0;
   padding: 6px 8px;
   border-radius: 4px;
