@@ -343,7 +343,8 @@ button:active:not(:disabled) { transform: scale(0.98); }
 .result-table th {
   position: sticky;
   top: 0;
-  background: var(--code-bg);
+  background: #e8eff2;
+  color: #294654;
   z-index: 1;
 }
 
@@ -352,7 +353,8 @@ button:active:not(:disabled) { transform: scale(0.98); }
   font-variant-numeric: tabular-nums;
 }
 
-.result-table tbody tr:hover { background: var(--code-bg); }
+.result-table tbody tr:nth-child(even) { background: #f7fafb; }
+.result-table tbody tr:hover { background: #e2f1ed; }
 
 .column-type {
   display: block;
