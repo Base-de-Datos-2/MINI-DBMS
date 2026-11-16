@@ -47,13 +47,17 @@ pre {
   flex-wrap: wrap;
   align-items: center;
   gap: 14px 20px;
-  padding: 26px 0 22px;
+  padding: 26px clamp(18px, 3vw, 42px);
+  margin: 16px 0;
+  color: #fff;
+  border-radius: 18px;
+  background: linear-gradient(112deg, #102b39, #14434a 74%, #175b53);
 }
 
 .app-header h1 {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 500;
+  font-family: inherit;
+  font-weight: 720;
   font-size: clamp(1.7rem, 2.4vw, 2.25rem);
   line-height: 1.1;
   letter-spacing: -0.035em;
@@ -744,7 +748,7 @@ input[type="text"] {
   padding-left: 18px;
 }
 
-.app-description { margin: 8px 0 0; color: var(--muted); font-size: 0.86rem; }
+.app-description { margin: 8px 0 0; color: #c5dadd; font-size: 0.86rem; }
 /* One tab per project part (python -m api --all). */
 .part-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 .part-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 120px; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
