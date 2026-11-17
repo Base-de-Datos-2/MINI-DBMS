@@ -7,8 +7,8 @@ results are in [docs/EXPERIMENTOS_TEXTO.md](../../docs/EXPERIMENTOS_TEXTO.md).
 | File | Table.column | Rows | Origin |
 |---|---|---:|---|
 | `productos.csv` | `productos.titulo` | 1,000 | Real product titles from the Amazon Shopping Queries Dataset (ESCI) |
-| `documentos.csv` | `documentos.contenido` | 36 | Short Spanish sentences written for the demo about the course topics |
-| `articulos.csv` | `articulos.texto` | 20 | Short English sentences written for the demo about machine learning and databases |
+| `documentos.csv` | `documentos.contenido` | 54 | Short Spanish sentences written for the demo about the course topics |
+| `articulos.csv` | `articulos.texto` | 32 | Short English sentences written for the demo about machine learning and databases |
 
 `documentos` and `articulos` keep the table and column names of the two SQL
 examples in the assignment (§2.3), and their first rows are the original demo
@@ -26,3 +26,5 @@ rows.
 - Changes: the experiment's 64-bit document ids are renumbered 1–1,000; the
   `asin` column keeps each product's original identifier. Titles are
   unchanged.
+
+Rows 37–54 in `documentos` and 30–41 in `articulos` are original practice examples about field observations, not experimental measurements.
