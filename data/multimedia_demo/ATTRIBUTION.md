@@ -169,3 +169,7 @@ Audio: Free Music Archive (fma_small, Defferrard et al., ISMIR 2017), 10-second 
 | fma_054467.mp3 | 54467 | Chacha Dub | DuBoLoGy | Creative Commons Attribution |
 | fma_091164.mp3 | 91164 | Roller Star | Monroeville Music Center | Creative Commons Attribution |
 | fma_067163.mp3 | 67163 | Poserslave | Hisko Detria | Creative Commons Attribution |
+
+## Muestras de práctica originales
+
+Los cuatro `patron_*.png` son tramas geométricas de 128 × 128 píxeles. `consulta_rombos.png` desplaza la trama de rombos tres píxeles. Los cuatro `motivo_*.wav` son secuencias sintéticas mono a 16 kHz. `consulta_motivo.wav` desplaza el segundo motivo 62,5 ms. Estas familias permiten observar cómo cambian los vecinos de una consulta transformada. Los experimentos publicados conservan sus datasets originales.
