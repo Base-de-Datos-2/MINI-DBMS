@@ -23,10 +23,11 @@ COPY data/text_demo/ data/text_demo/
 # Part 4 extracts features. Part 5 prepares PDFs and generates answers.
 RUN pip install --no-cache-dir -e ".[api,multimedia,academic,rag]"
 COPY --from=frontend /app/frontend/dist frontend/dist
-COPY PART_05/corpus.json PART_05/corpus.json
+COPY PART_05/corpus.json PART_05/corpus_extra.json PART_05/
 # Fetch the fixed corpus only during the build. The offline preparer checks
 # every hash before publishing the academic database.
-RUN python -m scripts.setup_academic_image
+ARG ACADEMIC_CORPUS=base
+RUN python -m scripts.setup_academic_image --corpus "$ACADEMIC_CORPUS"
 RUN python scripts/setup_all.py --only parte1 parte2 parte3 parte4
 EXPOSE 8000
 # One process owns the five data directories and serves every part on one
