@@ -619,6 +619,26 @@
           120,
           "COCO 413704",
           "000000413704.jpg"
+        ],
+        [
+          121,
+          "Patrón de círculos",
+          "patron_circulos.png"
+        ],
+        [
+          122,
+          "Patrón de rombos",
+          "patron_rombos.png"
+        ],
+        [
+          123,
+          "Patrón de cruces",
+          "patron_cruces.png"
+        ],
+        [
+          124,
+          "Patrón de aspas",
+          "patron_aspas.png"
         ]
       ],
       "media_directory": "images",
@@ -627,7 +647,8 @@
         "images/consulta_000000035190.jpg",
         "images/consulta_000000400410.jpg",
         "images/consulta_000000357294.jpg",
-        "images/consulta_000000136185.jpg"
+        "images/consulta_000000136185.jpg",
+        "images/consulta_rombos.png"
       ],
       "vocabulary_size": 256
     },
@@ -834,6 +855,30 @@
           "Poserslave",
           "Hisko Detria",
           "fma_067163.mp3"
+        ],
+        [
+          31,
+          "Motivo 1",
+          "Síntesis de prueba",
+          "motivo_1.wav"
+        ],
+        [
+          32,
+          "Motivo 2",
+          "Síntesis de prueba",
+          "motivo_2.wav"
+        ],
+        [
+          33,
+          "Motivo 3",
+          "Síntesis de prueba",
+          "motivo_3.wav"
+        ],
+        [
+          34,
+          "Motivo 4",
+          "Síntesis de prueba",
+          "motivo_4.wav"
         ]
       ],
       "media_directory": "audio",
@@ -842,7 +887,8 @@
         "audio/consulta_006679.mp3",
         "audio/consulta_061011.mp3",
         "audio/consulta_024432.mp3",
-        "audio/consulta_050956.mp3"
+        "audio/consulta_050956.mp3",
+        "audio/consulta_motivo.wav"
       ],
       "vocabulary_size": 64
     }
