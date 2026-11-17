@@ -19,3 +19,15 @@ id,texto
 27,Transfer learning reuses a model trained on one task as the starting point for another.
 28,Indexing structures such as B+ trees and hash tables speed up database lookups.
 29,Distributed databases replicate and partition data across several machines.
+30,A tidal gauge measures estuary height at fixed intervals.
+31,Estuary salinity rises when seawater advances upstream.
+32,A control sample distinguishes a calibration error from an estuary salinity change.
+33,A glacier survey compares the ice margin across seasons.
+34,Glacier photographs with cloud cover require manual inspection.
+35,An ice core preserves layers from successive years.
+36,A coastal wetland provides shelter for migratory birds.
+37,A wetland inventory records the date and location of each sighting.
+38,A bird census can miss animals hidden by dense vegetation.
+39,Cacao fermentation produces heat inside a batch of beans.
+40,A cacao cooperative records the humidity of each drying tray.
+41,Repeated temperature readings describe fermentation across several days.
