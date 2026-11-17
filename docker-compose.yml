@@ -4,7 +4,10 @@
 # `docker compose down` discards changes; the next `up` starts clean.
 services:
   minidbms:
-    build: .
+    build:
+      context: .
+      args:
+        ACADEMIC_CORPUS: "${MINIDBMS_ACADEMIC_CORPUS:-base}"
     image: minidbms:demo
     restart: unless-stopped
     command: ["python", "-m", "api", "--all", "--host", "0.0.0.0", "--port", "8000", "--allow-writes"]
