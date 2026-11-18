@@ -6,6 +6,7 @@ from io import BytesIO
 import json
 from pathlib import Path, PureWindowsPath
 import re
+import subprocess
 
 from api.academic_schema import CHUNK_COLUMNS, PAPER_COLUMNS
 from engine.catalog import Column, Schema
@@ -27,6 +28,7 @@ class PaperSource:
     path: Path
     digest: str
     row: PaperRow
+    text_extractor: str = "pypdf"
 
 
 def require_id(value, label):
@@ -84,6 +86,9 @@ def load_manifest(manifest: Path, pdf_dir: Path) -> list[PaperSource]:
         paper_id = entry.get("paper_id")
         filename = _text_field(entry, "pdf", f"Manifest entry {position} (paper_id={paper_id!r})")
         label = f"Paper {paper_id!r} ({filename})"
+        text_extractor = entry.get("text_extractor", "pypdf")
+        if text_extractor not in ("pypdf", "pdftotext"):
+            raise ValueError(f"{label}: text_extractor must be pypdf or pdftotext")
         require_id(paper_id, f"{label} paper_id")
         if paper_id in ids:
             raise ValueError(f"{label}: duplicate paper_id")
@@ -106,7 +111,7 @@ def load_manifest(manifest: Path, pdf_dir: Path) -> list[PaperSource]:
         row = (paper_id, _text_field(entry, "authors", label), entry.get("year"),
                _text_field(entry, "title", label), _text_field(entry, "abstract", label))
         validate_paper(row, label)
-        papers.append(PaperSource(path, digest, row))
+        papers.append(PaperSource(path, digest, row, text_extractor))
         ids.add(paper_id)
         paths.add(path)
         digests.add(digest)
@@ -129,8 +134,25 @@ def extract_pdf(source: PaperSource) -> tuple[str, int, int]:
         with PdfReader(BytesIO(data)) as reader:
             if reader.is_encrypted and not reader.decrypt(""):
                 raise ValueError("encrypted PDF requires a password")
-            pages = [page.extract_text() or "" for page in reader.pages]
-    except (PyPdfError, ValueError, OSError) as error:
+            page_count = len(reader.pages)
+            if source.text_extractor == "pypdf":
+                pages = [page.extract_text() or "" for page in reader.pages]
+            else:
+                # Selected legacy PDFs need Poppler's font decoding. Keep
+                # its page separators so page order/count remain verifiable.
+                try:
+                    extracted = subprocess.run(
+                        ["pdftotext", "-enc", "UTF-8", "-eol", "unix", "-", "-"],
+                        input=data, capture_output=True, check=True, timeout=60,
+                    )
+                except FileNotFoundError:
+                    raise ValueError("install Poppler and put pdftotext on PATH") from None
+                pages = extracted.stdout.decode("utf-8").split("\f")
+                if pages and not pages[-1].strip():
+                    pages.pop()
+                if len(pages) != page_count:
+                    raise ValueError("pdftotext page count differs from the PDF")
+    except (PyPdfError, ValueError, OSError, subprocess.SubprocessError) as error:
         raise ValueError(f"{label}: could not extract PDF: {error}") from error
 
     text = " ".join(" ".join(pages).split())
