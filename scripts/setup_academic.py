@@ -127,6 +127,7 @@ def prepare_academic(manifest: Path, pdf_dir: Path, directory: Path):
         chunks.extend(rows)
         sources.append({
             "paper_id": paper_id, "pdf": source.path.name, "pages": pages,
+            "text_extractor": source.text_extractor,
             "empty_text_pages": empty_pages, "input_sha256": source.digest,
             "first_chunk_id": rows[0][0], "last_chunk_id": rows[-1][0],
         })
@@ -137,6 +138,7 @@ def prepare_academic(manifest: Path, pdf_dir: Path, directory: Path):
     )
     report = verify_database(directory, expected=(papers, chunks))
     return {**report, "pdfs": len(sources), "extractor": f"pypdf {version('pypdf')}",
+            "text_extractors": sorted({source["text_extractor"] for source in sources}),
             "input_hashes_verified": True, "rows_match_inputs": True, "sources": sources}
 
 
