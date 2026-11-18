@@ -8,7 +8,7 @@
     "authors": "François Rousseau, Michalis Vazirgiannis",
     "year": 2013,
     "title": "Graph-of-word and TW-IDF: New Approach to Ad Hoc IR",
-    "abstract": "The authors model each document as a graph of terms and use term weights derived from that graph for ad hoc retrieval."
+    "abstract": "In this paper, we introduce novel document representation (graph-of-word) and retrieval model (TW-IDF) for ad hoc IR. Questioning the term independence assumption behind the traditional bag-of-word model, we propose a different representation of a document that captures the relationships between the terms using an unweighted directed graph of terms. From this graph, we extract at indexing time meaningful term weights (TW) that replace traditional term frequencies (TF) and from which we define a novel scoring function, namely TW-IDF, by analogy with TF-IDF. This approach leads to a retrieval model that consistently and significantly outperforms BM25 and in some cases its extension BM25+ on various standard TREC datasets. In particular, experiments show that counting the number of different contexts in which a term occurs inside a document is more effective and relevant to search than considering an overall concave term frequency in the context of ad hoc IR."
   },
   {
     "paper_id": 12,
@@ -19,7 +19,9 @@
     "authors": "Stephen E. Robertson, Steve Walker, Susan Jones, Micheline Hancock-Beaulieu, Mike Gatford",
     "year": 1995,
     "title": "Okapi at TREC-3",
-    "abstract": "The paper reports experiments with probabilistic retrieval in the Okapi system for the third Text REtrieval Conference."
+    "abstract": "The emphasis in TREC-3 has been on further refinement of term-weighting functions; an investigation of run-time passage determination and searching; expansion of ad hoc queries by terms extracted from the top documents retrieved by a trial search; new methods for choosing query expansion terms after relevance feedback, now split into: methods of ranking terms prior to selection; subsequent selection procedures; and the development of a user interface and search procedure within the new TREC interactive search framework. The two successes have been in query expansion and in routing term selection. The modified term-weighting functions and passage retrieval have had small beneficial effects. For TREC-3 there were to be topics without the CONCEPTS fields, which had proved to be by far the most useful source of query terms. Query expansion, passage retrieval and the modified weighting functions, used together, have gone a long way towards compensating for this loss.",
+    "text_extractor": "pdftotext",
+    "abstract_source_url": "https://pages.nist.gov/trec-browser/trec3/proceedings/#okapi-at-trec-3"
   },
   {
     "paper_id": 13,
@@ -28,8 +30,9 @@
     "version": "0b33c953aae0c90e6d15c4ed41b01e76358f3c28",
     "sha256": "4473fcd2e4f98587474f9c1dc4909a4b92f0e151f52007b4acd627e627a63bbf",
     "authors": "Lawrence Page, Sergey Brin, Rajeev Motwani, Terry Winograd",
-    "year": 1999,
+    "year": 1998,
     "title": "The PageRank Citation Ranking: Bringing Order to the Web",
-    "abstract": "This technical report uses the web link graph to estimate the relative importance of pages and describes the random surfer interpretation."
+    "abstract": "The importance of a Web page is an inherently subjective matter, which depends on the readers interests, knowledge and attitudes. But there is still much that can be said objectively about the relative importance of Web pages. This paper describes PageRank, a method for rating Web pages objectively and mechanically, effectively measuring the human interest and attention devoted to them. We compare PageRank to an idealized random Web surfer. We show how to efficiently compute PageRank for large numbers of pages. And, we show how to apply PageRank to search and to user navigation.",
+    "text_extractor": "pdftotext"
   }
 ]
