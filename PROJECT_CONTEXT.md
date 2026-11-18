@@ -116,6 +116,11 @@ tracked in `PART_05/STAGE_07_RESULTS.md`.
   offline lifecycle seals and publishes `chunks.content`. The fresh
   directory and registry rules are shared with Part 3. Verification opens
   the stored database under the `text` definition.
+- The optional extended practice corpus adds papers 11–13 with full source
+  abstracts. Its manifest explicitly selects Poppler `pdftotext` for the
+  legacy fonts in Okapi and PageRank. This extraction option stays in the
+  offline preparation layer. The standard corpus uses pypdf. Docker installs
+  Poppler, and local extended preparation requires `pdftotext` on `PATH`.
 
 ### Part 5 academic REST retrieval (Stage 3)
 
