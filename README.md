@@ -572,9 +572,25 @@ ORDER BY score DESC;
 SELECT paper_id, title FROM papers WHERE paper_id = 13;
 ```
 
-Los artículos nuevos tienen los IDs 11 (TW-IDF), 12 (Okapi) y 13 (PageRank). El manifiesto suplementario incluye versiones, SHA-256 y resúmenes descriptivos redactados para la demo. Las cifras históricas de 393 pasajes corresponden al perfil base. Para preparar solo la Parte 5 localmente usa el entorno del proyecto con el extra `academic` y un directorio nuevo:
+Los artículos nuevos tienen los IDs 11 (TW-IDF), 12 (Okapi) y 13 (PageRank).
+El manifiesto suplementario conserva los resúmenes completos de las fuentes.
+El resumen de Okapi procede del catálogo oficial de NIST, enlazado en
+`abstract_source_url`. El año de PageRank sigue la fecha del borrador PDF
+fijado, 1998.
+
+Los PDF antiguos de Okapi y PageRank usan `text_extractor: "pdftotext"`
+para recuperar sus fuentes tipográficas mediante Poppler. Docker instala
+`poppler-utils`. Para preparar el perfil ampliado localmente, instala
+Poppler y comprueba que `pdftotext` esté disponible en `PATH`. Las cifras
+históricas de 393 pasajes corresponden al perfil base.
+La [verificación del corpus ampliado](PART_05/EXTENDED_CORPUS_FIXES.md)
+registra los resultados y las versiones usadas.
+
+Para preparar solo la Parte 5 localmente usa el entorno del proyecto con el
+extra `academic` y un directorio nuevo:
 
 ```powershell
+pdftotext -v
 python -m scripts.setup_academic_image --corpus extended --data-dir data/generated/practica/parte5
 python scripts/setup_academic.py --verify-only --data-dir data/generated/practica/parte5
 ```

@@ -61,6 +61,7 @@ def inputs(tmp_path):
 
 @pytest.mark.parametrize(("updates", "match"), [
     ({"abstract": None}, "abstract must be nonempty"),
+    ({"text_extractor": "unknown"}, "text_extractor must be"),
     ({"paper_id": True}, "JavaScript-safe integer"),
     ({"paper_id": "8"}, "JavaScript-safe integer"),
     ({"paper_id": 2**53}, "JavaScript-safe integer"),

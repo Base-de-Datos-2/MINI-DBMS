@@ -41,6 +41,12 @@ def check(base):
         chunks = query(5, f"SELECT content FROM chunks WHERE paper_id = {paper_id} LIMIT 1;")
         if len(papers) != 1 or not chunks or not 200 <= len(chunks[0][0].split()) <= 500:
             raise ValueError(f"Incomplete paper or passage for paper {paper_id}")
+    for term, expected_paper in (("Okapi", 12), ("PageRank", 13)):
+        for ranking in ("TF_IDF", "BM25"):
+            rows = query(5, f"SELECT paper_id FROM chunks WHERE MATCH(content, '{term}') "
+                            f"USING {ranking} LIMIT 10;")
+            if expected_paper not in {row[0] for row in rows}:
+                raise ValueError(f"{ranking}: {term} did not retrieve paper {expected_paper}")
     print("Five parts ready; both text rankings, media searches, media files and extra papers passed.")
 
 
