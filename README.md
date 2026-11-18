@@ -64,7 +64,7 @@ python -m api --text
 Abrir `http://127.0.0.1:8000`. El paquete incluye el frontend compilado.
 La preparación crea un destino nuevo; para repetirla, usar otro `--data-dir`.
 La demo publica tres colecciones ([data/text_demo](data/text_demo/ATTRIBUTION.md)):
-`documentos` (36 frases en español sobre el curso) y `articulos` (20 en
+`documentos` (54 frases en español) y `articulos` (32 en
 inglés), que son las tablas de los dos ejemplos del PDF, y `productos`, con
 1 000 títulos reales de Amazon ESCI: el mismo subconjunto N = 1 000 del
 experimento. Los ejemplos literales del PDF, el modo CSV, la arquitectura y la
@@ -90,6 +90,7 @@ python -m api --multimedia
 
 La demo incluye 120 fotos de COCO y 30 fragmentos de canciones de FMA con su
 atribución ([data/multimedia_demo/ATTRIBUTION.md](data/multimedia_demo/ATTRIBUTION.md)).
+También incluye cuatro patrones geométricos y cuatro motivos sonoros de práctica.
 En «Ejemplos SQL» están los dos ejemplos literales del enunciado:
 
 ```sql
@@ -258,7 +259,7 @@ preparación comprueba sus hashes y publica el índice académico. Abre la
 | Parte 1 · Relacional | `students`, `courses`, `enrollments` y sus versiones `_big`; escritura habilitada |
 | Parte 2 · Espacial | `tiendas`, `restaurantes` y `lugares_lima` con mapa; escritura habilitada |
 | Parte 3 · Texto | `documentos`, `articulos` y `productos` (1 000 títulos ESCI); colecciones selladas, solo lectura |
-| Parte 4 · Multimedia | `imagenes` (120 fotos COCO) y `canciones` (30 clips FMA); solo lectura |
+| Parte 4 · Multimedia | `imagenes` (124 imágenes) y `canciones` (34 audios); solo lectura |
 | Parte 5 · RAG académico | `papers` y `chunks`, con 10 artículos y 393 pasajes indexados; solo lectura |
 
 Un único proceso sirve la interfaz y la API. `docker compose down` descarta
@@ -535,6 +536,47 @@ necesita además las imágenes descargadas):
 
 ```bash
 python -m benchmarks.multimedia.results --input benchmarks/results/multimedia/2026-11-06 --output docs/figuras/multimedia
+```
+
+## Datos nuevos para probar las Partes 3, 4 y 5
+
+En Windows PowerShell, desde la raíz de esta rama, prepara las cinco pestañas con el corpus académico ampliado:
+
+```powershell
+$env:MINIDBMS_ACADEMIC_CORPUS = "extended"
+docker compose up --build -d
+docker compose ps
+```
+
+Abre <http://localhost:8000> cuando el servicio figure como saludable. El perfil `extended` descarga 13 artículos y verifica sus huellas. El perfil `base` utiliza los diez artículos de la evaluación original. Si tienes datos de trabajo en un contenedor anterior, utiliza otro proyecto y puerto para el ensayo (`$env:MINIDBMS_HOST_PORT = "8010"` y `docker compose -p minidbms-practica up --build -d`). En ese caso abre el puerto 8010.
+
+| Pestaña | Ejercicio | Qué revisar |
+| --- | --- | --- |
+| Texto | Ejecuta la consulta de Colca y cambia BM25 por TF_IDF. | Los IDs 37, 38 y 39 contienen el término; observa el orden y el puntaje. |
+| Multimedia | Ejecuta las consultas de imagen y de audio. | Inspecciona las miniaturas, los reproductores y el operador de índice. El orden depende de la métrica y el índice. |
+| RAG académico | Pregunta *How does PageRank use links between web pages?* | Abre las fuentes y compara los pasajes con la respuesta. La generación requiere el proveedor configurado. |
+
+```sql
+-- Parte 3
+SELECT id, SCORE() AS relevancia FROM documentos
+WHERE MATCH(contenido, 'Colca') USING BM25 ORDER BY relevancia DESC LIMIT 10;
+
+-- Parte 4
+SELECT * FROM imagenes WHERE SIMILAR_TO('consulta_rombos.png', k=5)
+USING HNSW WITH METRIC=cosine;
+SELECT nombre, artista, SIMILARITY_SCORE() AS score FROM canciones
+WHERE SIMILAR_TO('consulta_motivo.wav', k=5) USING IVF WITH METRIC=euclidean
+ORDER BY score DESC;
+
+-- Parte 5, perfil extended
+SELECT paper_id, title FROM papers WHERE paper_id = 13;
+```
+
+Los artículos nuevos tienen los IDs 11 (TW-IDF), 12 (Okapi) y 13 (PageRank). El manifiesto suplementario incluye versiones, SHA-256 y resúmenes descriptivos redactados para la demo. Las cifras históricas de 393 pasajes corresponden al perfil base. Para preparar solo la Parte 5 localmente usa el entorno del proyecto con el extra `academic` y un directorio nuevo:
+
+```powershell
+python -m scripts.setup_academic_image --corpus extended --data-dir data/generated/practica/parte5
+python scripts/setup_academic.py --verify-only --data-dir data/generated/practica/parte5
 ```
 
 ## Pruebas

@@ -160,5 +160,5 @@ def test_text_demo_files_hold_the_documented_collections():
     from scripts.setup_text import DEMO_COLLECTIONS, DEMO_DIRECTORY, _csv_rows
     counts = {name: len(list(_csv_rows(DEMO_DIRECTORY / filename, column)))
               for name, column, filename in DEMO_COLLECTIONS}
-    assert counts == {"documentos": 36, "articulos": 20, "productos": 1000}
+    assert counts == {"documentos": 54, "articulos": 32, "productos": 1000}
     assert Path(DEMO_DIRECTORY / "ATTRIBUTION.md").is_file()

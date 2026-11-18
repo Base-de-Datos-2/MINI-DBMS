@@ -1,0 +1,51 @@
+name: Demo regression
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'data/text_demo/**'
+      - 'data/multimedia_demo/**'
+      - 'PART_05/corpus*.json'
+      - 'scripts/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.github/workflows/demo-regression.yml'
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+  integrated-demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MINIDBMS_ACADEMIC_CORPUS: extended
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose up --build --wait --wait-timeout 180
+      - run: python3 scripts/check_extended_demo.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci && npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: node frontend/scripts/workspace-viewport-check.mjs http://127.0.0.1:8000 viewport-previews
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: vistas-del-gestor
+          path: viewport-previews/
+          if-no-files-found: ignore
+      - if: failure()
+        run: docker compose logs --tail=100

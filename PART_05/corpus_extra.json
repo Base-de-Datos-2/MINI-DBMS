@@ -1,0 +1,35 @@
+[
+  {
+    "paper_id": 11,
+    "pdf": "paper_11.pdf",
+    "source_url": "https://raw.githubusercontent.com/papers-we-love/papers-we-love/0b33c953aae0c90e6d15c4ed41b01e76358f3c28/information_retrieval/graph_of_word_and_tw_idf.pdf",
+    "version": "0b33c953aae0c90e6d15c4ed41b01e76358f3c28",
+    "sha256": "b7c9de589657798375d90628443d14223e14f608a45b51354652f78f0a1ac5ee",
+    "authors": "François Rousseau, Michalis Vazirgiannis",
+    "year": 2013,
+    "title": "Graph-of-word and TW-IDF: New Approach to Ad Hoc IR",
+    "abstract": "The authors model each document as a graph of terms and use term weights derived from that graph for ad hoc retrieval."
+  },
+  {
+    "paper_id": 12,
+    "pdf": "paper_12.pdf",
+    "source_url": "https://raw.githubusercontent.com/papers-we-love/papers-we-love/0b33c953aae0c90e6d15c4ed41b01e76358f3c28/information_retrieval/okapi-at-trec3.pdf",
+    "version": "0b33c953aae0c90e6d15c4ed41b01e76358f3c28",
+    "sha256": "03e7eb520fdaacafd368683db47aa41030aca59d1fec85bf6453dd307030ac78",
+    "authors": "Stephen E. Robertson, Steve Walker, Susan Jones, Micheline Hancock-Beaulieu, Mike Gatford",
+    "year": 1995,
+    "title": "Okapi at TREC-3",
+    "abstract": "The paper reports experiments with probabilistic retrieval in the Okapi system for the third Text REtrieval Conference."
+  },
+  {
+    "paper_id": 13,
+    "pdf": "paper_13.pdf",
+    "source_url": "https://raw.githubusercontent.com/papers-we-love/papers-we-love/0b33c953aae0c90e6d15c4ed41b01e76358f3c28/information_retrieval/the-pagerank-citation-ranking-bringing-order-to-the-web.pdf",
+    "version": "0b33c953aae0c90e6d15c4ed41b01e76358f3c28",
+    "sha256": "4473fcd2e4f98587474f9c1dc4909a4b92f0e151f52007b4acd627e627a63bbf",
+    "authors": "Lawrence Page, Sergey Brin, Rajeev Motwani, Terry Winograd",
+    "year": 1999,
+    "title": "The PageRank Citation Ranking: Bringing Order to the Web",
+    "abstract": "This technical report uses the web link graph to estimate the relative importance of pages and describes the random surfer interpretation."
+  }
+]
