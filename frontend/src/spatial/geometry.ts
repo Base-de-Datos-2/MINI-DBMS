@@ -40,6 +40,33 @@ export function previewPoints(response: QueryResponse, table: SpatialTable): Spa
   });
 }
 
+/**
+ * Map points for a SQL result. A full projection (id, latitude, longitude)
+ * is read as is. A result with only the id column, such as
+ * ``SELECT id, nombre``, borrows the coordinates of the stored points already
+ * on the map; ids outside that preview are counted, not invented. Without the
+ * id column nothing can be placed and the result is null.
+ */
+export function sqlPoints(response: QueryResponse, table: SpatialTable, base: SpatialPoint[]):
+  { points: SpatialPoint[]; unplaced: number } | null {
+  const position = (name: string) => response.columns.findIndex((column) => column.name === name);
+  const id = position(table.id_column);
+  if (id < 0) return null;
+  if (position(table.latitude_column) >= 0 && position(table.longitude_column) >= 0) {
+    return { points: previewPoints(response, table), unplaced: 0 };
+  }
+  const stored = new Map(base.map((point) => [String(point.id), point]));
+  const points: SpatialPoint[] = [];
+  let unplaced = 0;
+  for (const row of response.rows) {
+    const known = stored.get(String(row[id]));
+    if (known === undefined) { unplaced += 1; continue; }
+    points.push({ ...known, record: { ...known.record,
+      ...Object.fromEntries(response.columns.map((column, index) => [column.name, row[index]])) } });
+  }
+  return { points, unplaced };
+}
+
 export function mergePoints(base: SpatialPoint[], hits: SpatialPoint[]): SpatialPoint[] {
   const points = new Map(base.map((point) => [String(point.id), point]));
   for (const point of hits) points.set(String(point.id), point);

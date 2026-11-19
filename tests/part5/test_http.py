@@ -16,7 +16,7 @@ from api.academic_config import AcademicSettings
 from api.academic_retrieval import EngineUnavailable, InvalidEngineResponse, retrieve_academic
 from api.academic_schema import CHUNK_COLUMNS, PAPER_COLUMNS
 from api.database import Database, DatabaseDefinition, NewTable
-from api.demo import TEXT_PRESETS
+from api.demo import ACADEMIC_PRESETS, TEXT_PRESETS
 from api.unified import PARTS, close_parts, create_unified_app, open_parts
 from engine.catalog import DataType
 from engine.text.registry import read_text_registry
@@ -77,7 +77,9 @@ def test_academic_rest_is_read_only_and_survives_reopen(tmp_path):
             [published] = client.get("/parte5/api/text/tables").json()
             assert (published["table"], published["column"], published["id_column"],
                     published["documents"]) == ("chunks", "content", "chunk_id", 3)
-            assert client.get("/parte5/api/presets").json() == []
+            assert [p["sql"] for p in client.get("/parte5/api/presets").json()] == [
+                p.sql for p in ACADEMIC_PRESETS
+            ]
             assert [p["sql"] for p in client.get("/parte3/api/presets").json()] == [
                 p.sql for p in TEXT_PRESETS
             ]

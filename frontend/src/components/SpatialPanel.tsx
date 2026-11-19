@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Coordinate, Outcome, PointParameters, QueryResponse, SpatialPoint, SpatialRequest, SpatialResponse, SpatialTable } from "../types";
 import LeafletMap from "./LeafletMap";
-import { inDomain, mergePoints, parsePolygon, previewPoints, radiusRing, spatialSql } from "../spatial/geometry";
+import { inDomain, mergePoints, parsePolygon, previewPoints, radiusRing, spatialSql, sqlPoints } from "../spatial/geometry";
 import { useWorkspace } from "../workspaceScope";
 
 interface Props {
@@ -41,6 +41,7 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
   const [response, setResponse] = useState<SpatialResponse | null>(null);
   const [snapshot, setSnapshot] = useState<SpatialRequest | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [reload, setReload] = useState(0);
   const requestId = useRef(0);
@@ -71,7 +72,7 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
 
   useEffect(() => {
     const id = ++requestId.current;
-    setBase([]); setResponse(null); setSnapshot(null); setError(null);
+    setBase([]); setResponse(null); setSnapshot(null); setError(null); setNote(null);
     if (table === undefined) return;
     setLoading(true);
     preview.current(table.table).then((result) => {
@@ -88,10 +89,19 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
     const sqlText = outcome.sql.replace(/--[^\n]*/g, "");
     const source = /\bFROM\s+([A-Za-z_][A-Za-z_0-9]*)\b/i.exec(sqlText)?.[1];
     if (source !== table.table || !/\b(?:distancia|distance)\s*\(/i.test(sqlText)) return;
-    if (outcome.status !== "success") { setResponse(null); setSnapshot(null); return; }
+    if (outcome.status !== "success") { setResponse(null); setSnapshot(null); setNote(null); return; }
     if (outcome.body.kind !== "rows") return;
     try {
-      const values = previewPoints(outcome.body, table);
+      const placed = sqlPoints(outcome.body, table, base);
+      if (placed === null) {
+        // Not an error: the query is valid, it just does not project the id.
+        setResponse(null); setSnapshot(null); setError(null);
+        setNote(`El resultado SQL no incluye la columna «${table.id_column}», así que el mapa no puede resaltarlo. Agrégala al SELECT para verlo aquí.`);
+        return;
+      }
+      const values = placed.points;
+      setNote(placed.unplaced > 0
+        ? `${placed.unplaced} filas del resultado están fuera de la vista previa del mapa y no se resaltan.` : null);
       const request = loaded?.sql === outcome.sql && loaded.request.table === table.table ? loaded.request : null;
       setSnapshot(request);
       setError(null);
@@ -101,8 +111,8 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
         stats: { source: "SQL", plan: outcome.body.plan_status },
         matches: values.map((point, index) => ({ ...point, distance_metres: null,
           record: Object.fromEntries(outcome.body.columns.map((column, position) => [column.name, outcome.body.rows[index]?.[position]])) })) });
-    } catch (reason: unknown) { setError(failure(reason)); setResponse(null); }
-  }, [outcome, table]);
+    } catch (reason: unknown) { setError(failure(reason)); setResponse(null); setNote(null); }
+  }, [outcome, table, base]);
 
   const buildRequest = (): SpatialRequest => {
     if (table === undefined) throw new Error("No hay una tabla espacial seleccionada.");
@@ -209,6 +219,7 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
         </div>
         <div className="spatial-results">
           {error !== null && <p className="error-box" role="alert">{error}</p>}
+          {note !== null && <p className="notice" role="status">{note}</p>}
           {response === null ? <p className="muted small">Envía una búsqueda para resaltar coincidencias reales. Editar los controles no cambia el resultado de la última consulta.</p>
             : <><p role="status"><strong>{response.total_rows === null ? "Total de coincidencias desconocido" : `${response.total_rows} coincidencias`}</strong> · {response.returned_rows} mostradas · {response.backend_elapsed_ms.toFixed(2)} ms en el servidor</p>
               <p className="muted small">{snapshot === null ? "Consulta SQL: revisa la sentencia y el plan de ejecución" : snapshot.kind === "polygon" ? "Polígono con frontera incluida" : `${snapshot.metric} · centro ${snapshot.center?.join(", ")}`} · {Object.entries(response.stats).map(([key, value]) => `${key}: ${value}`).join(" · ")}</p>

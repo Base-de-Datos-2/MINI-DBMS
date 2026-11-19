@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ApiError, createRequestGate, type PartInfo } from "../api";
 import CreateTableDialog from "./CreateTableDialog";
 import FilesPanel from "./FilesPanel";
@@ -36,6 +36,8 @@ const SESSION_POLL_MS = 400;
 
 interface Props {
   partNumber?: number;
+  /** A part's own panel shown right under its heading (Part 5: the chat). */
+  intro?: ReactNode;
   kind: PartInfo["kind"];
   /** Tab heading; null on a single-part server, whose page has no tabs. */
   title: string | null;
@@ -47,7 +49,7 @@ interface Props {
  * (map for Part 2, text search for Part 3). Every call goes to that part's API
  * and every session belongs to that part's engine.
  */
-export default function Workspace({ kind, title, description, partNumber = 3 }: Props) {
+export default function Workspace({ kind, title, description, partNumber = 3, intro }: Props) {
   const { api } = useWorkspace();
   const [health, setHealth] = useState<Health | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
@@ -314,6 +316,8 @@ export default function Workspace({ kind, title, description, partNumber = 3 }: 
         )}
       </div>
 
+
+      {intro}
       {loadError !== null ? (
         <div className="load-error" role="alert">
           <h2>No se pudo conectar con la API</h2>

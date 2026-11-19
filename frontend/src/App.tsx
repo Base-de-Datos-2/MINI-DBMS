@@ -58,6 +58,12 @@ export default function App() {
     if (active !== null && !opened.has(active)) setOpened(new Set([...opened, active]));
   }, [active, opened]);
 
+  // On a phone the tabs are one scrollable row: keep the open one in view.
+  useEffect(() => {
+    if (active === null) return;
+    document.getElementById(`tab-${active}`)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [active]);
+
   const scopes = useMemo(
     () => new Map((parts ?? []).filter((part) => part.base !== null)
       .map((part) => [part.id, scopeFor(createApi(part.base ?? ""), part.id)])),
@@ -139,9 +145,9 @@ export default function App() {
               </div>
             ) : opened.has(part.id) && (
               <WorkspaceContext.Provider value={scope}>
-                {part.id === "parte5" && <AcademicChat />}
                 <Workspace kind={part.kind} title={`Parte ${part.number} · ${part.title}`}
-                  description={part.description} partNumber={part.number} />
+                  description={part.description} partNumber={part.number}
+                  intro={part.id === "parte5" ? <AcademicChat /> : undefined} />
               </WorkspaceContext.Provider>
             )}
           </main>

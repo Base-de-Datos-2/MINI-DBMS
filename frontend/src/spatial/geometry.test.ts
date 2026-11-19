@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inDomain, mergePoints, parsePolygon, previewPoints, project, radiusRing, spatialSql, unproject } from "./geometry";
+import { inDomain, mergePoints, parsePolygon, previewPoints, project, radiusRing, spatialSql, sqlPoints, unproject } from "./geometry";
 import type { Coordinate, QueryResponse, SpatialTable } from "../types";
 
 const table: SpatialTable = { table: "tiendas", location_column: "ubicacion", id_column: "id", latitude_column: "latitud", longitude_column: "longitud", row_count: 9,
@@ -52,5 +52,18 @@ describe("geographic map contracts", () => {
       expect(ring[0]?.[0]).toBeCloseTo(-12.0464 + 5000 / 6371008.771415059 * 180 / Math.PI, 7);
       expect(ring[0]?.[1]).toBeCloseTo(ring[72]?.[1] ?? 0, 8);
     }
+  });
+  it("places SQL results that only project the id with the stored coordinates", () => {
+    const base = [{ id: 1, latitude: -12.04, longitude: -77.04, record: { nombre: "Centro" } },
+      { id: 2, latitude: -12.05, longitude: -77.05 }];
+    const response = { columns: [{ name: "id" }, { name: "nombre" }], rows: [[1, "Centro"], [7, "Lejano"]] } as QueryResponse;
+    const placed = sqlPoints(response, table, base);
+    expect(placed?.points.map((point) => [point.id, point.latitude])).toEqual([[1, -12.04]]);
+    expect(placed?.points[0]?.record).toEqual({ id: 1, nombre: "Centro" });
+    expect(placed?.unplaced).toBe(1);
+  });
+  it("reports a SQL result without the id column instead of failing", () => {
+    const response = { columns: [{ name: "nombre" }], rows: [["Centro"]] } as QueryResponse;
+    expect(sqlPoints(response, table, [])).toBeNull();
   });
 });
