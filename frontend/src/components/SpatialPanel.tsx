@@ -109,8 +109,7 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
         returned_rows: outcome.body.returned_rows, truncated: outcome.body.truncated,
         backend_elapsed_ms: outcome.body.metrics.backend_elapsed_ms,
         stats: { source: "SQL", plan: outcome.body.plan_status },
-        matches: values.map((point, index) => ({ ...point, distance_metres: null,
-          record: Object.fromEntries(outcome.body.columns.map((column, position) => [column.name, outcome.body.rows[index]?.[position]])) })) });
+        matches: values.map(point => ({ ...point, distance_metres: null })) });
     } catch (reason: unknown) { setError(failure(reason)); setResponse(null); setNote(null); }
   }, [outcome, table, base]);
 

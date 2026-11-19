@@ -25,7 +25,9 @@ export function inDomain(point: Coordinate, table: SpatialTable): boolean {
     && point[1] <= table.conventions.longitude_bounds[1];
 }
 
-export function previewPoints(response: QueryResponse, table: SpatialTable): SpatialPoint[] {
+type PointWithRecord = SpatialPoint & { record: Record<string, unknown> };
+
+export function previewPoints(response: QueryResponse, table: SpatialTable): PointWithRecord[] {
   const position = (name: string) => response.columns.findIndex((column) => column.name === name);
   const id = position(table.id_column), lat = position(table.latitude_column), lon = position(table.longitude_column);
   if (id < 0 || lat < 0 || lon < 0) throw new Error("La respuesta no incluye el mapeo de coordenadas registrado.");
@@ -48,7 +50,7 @@ export function previewPoints(response: QueryResponse, table: SpatialTable): Spa
  * id column nothing can be placed and the result is null.
  */
 export function sqlPoints(response: QueryResponse, table: SpatialTable, base: SpatialPoint[]):
-  { points: SpatialPoint[]; unplaced: number } | null {
+  { points: PointWithRecord[]; unplaced: number } | null {
   const position = (name: string) => response.columns.findIndex((column) => column.name === name);
   const id = position(table.id_column);
   if (id < 0) return null;
@@ -56,7 +58,7 @@ export function sqlPoints(response: QueryResponse, table: SpatialTable, base: Sp
     return { points: previewPoints(response, table), unplaced: 0 };
   }
   const stored = new Map(base.map((point) => [String(point.id), point]));
-  const points: SpatialPoint[] = [];
+  const points: PointWithRecord[] = [];
   let unplaced = 0;
   for (const row of response.rows) {
     const known = stored.get(String(row[id]));
