@@ -7,7 +7,13 @@ module.exports=async function(p, reportFile){
  let jsErrors=[];p.on('pageerror',e=>jsErrors.push(e.message));
  const waitMarkers=async n=>p.waitForFunction(n=>document.querySelectorAll('[data-point-id]').length===n,n);
  const submit=async()=>{const pending=p.waitForResponse(r=>r.url().endsWith('/api/spatial/query') && r.request().method()==='POST'); await p.getByRole('button',{name:'Buscar en el mapa',exact:true}).click(); const r=await pending;check('HTTP espacial correcto',r.ok()); const data=await r.json();await p.waitForFunction(n=>document.querySelectorAll('[data-match="true"]').length===n,data.matches.length);return data;};
- const sql=async text=>{await p.getByLabel('Editor SQL',{exact:true}).fill(text);const pending=p.waitForResponse(r=>r.url().endsWith('/api/query') && r.request().method()==='POST');await p.getByRole('button',{name:'Ejecutar',exact:true}).click(); const r=await pending;check('SQL correcto: '+text.slice(0,35),r.ok());return r.json();};
+ const sql=async text=>{
+  await p.getByLabel('Editor SQL',{exact:true}).fill(text);
+  const pending=p.waitForResponse(r=>r.url().endsWith('/api/query') &&
+   r.request().method()==='POST' && r.request().postDataJSON().sql===text);
+  await p.getByRole('button',{name:'Ejecutar',exact:true}).click();
+  const r=await pending;check('SQL correcto: '+text.slice(0,35),r.ok());return r.json();
+ };
  const initialLat=await p.getByLabel('Latitud del centro').inputValue();
  await p.locator('[data-point-id="13"]').press('Enter');
  check('Popup identifica monumento real',await p.locator('.leaflet-popup-content').innerText().then(t=>t.includes('Combate del Dos de Mayo')));
