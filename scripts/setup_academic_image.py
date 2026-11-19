@@ -12,7 +12,7 @@ from scripts.setup_academic import main as prepare
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--corpus", choices=("base", "extended"), default="base")
+    parser.add_argument("--corpus", choices=("base", "extended", "practica"), default="base")
     parser.add_argument("--data-dir", type=Path, default=Path("data/generated/todas/parte5"))
     args = parser.parse_args(argv)
     if args.data_dir.exists():
@@ -20,8 +20,11 @@ def main(argv=None):
 
     source = Path(__file__).resolve().parents[1] / "PART_05"
     entries = json.loads((source / "corpus.json").read_text(encoding="utf-8"))
-    if args.corpus == "extended":
+    if args.corpus in ("extended", "practica"):
         entries.extend(json.loads((source / "corpus_extra.json").read_text(encoding="utf-8")))
+
+    if args.corpus == "practica":
+        entries.extend(json.loads((source / "corpus_practica.json").read_text(encoding="utf-8")))
 
     with TemporaryDirectory(prefix="minidbms-papers-") as directory:
         staging = Path(directory)
