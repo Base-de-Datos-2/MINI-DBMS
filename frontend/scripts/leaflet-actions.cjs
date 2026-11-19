@@ -49,6 +49,38 @@ module.exports=async function(p, reportFile){
  const loaded=await p.getByLabel('Editor SQL').inputValue();check('Consulta SQL enlazada al centro',loaded.includes('mi_ubicacion'));
  await sql(loaded);await p.waitForFunction(()=>document.querySelector('.spatial-results')?.textContent.includes('source: SQL'));
  check('Resultados SQL aparecen en el mapa',await p.locator('[data-match="true"]').count()>0);
+ // Limit only the preview request. The ranked queries still search all 20 real places.
+ const queryRoute='**/api/query';
+ const limitPreview=async route=>{
+  const body=route.request().postDataJSON();
+  if(body.sql==='SELECT * FROM lugares_lima LIMIT 500;'){
+   await route.continue({postData:JSON.stringify({...body,sql:'SELECT * FROM lugares_lima ORDER BY id LIMIT 1;'})});
+  }else await route.continue();
+ };
+ await p.route(queryRoute,limitPreview);
+ await p.getByRole('button',{name:'Actualizar puntos'}).click();
+ await p.getByText('Vista previa: 1 de 20',{exact:false}).waitFor();
+ await p.unroute(queryRoute,limitPreview);
+ const results=p.locator('.spatial-results');
+ const nearest='FROM lugares_lima ORDER BY distancia(ubicacion, POINT(-12.0463851, -77.0427655))';
+ const mixed=await sql(`SELECT id, nombre ${nearest} LIMIT 20;`);
+ const known=mixed.rows.find(row=>row[0]===1);
+ check('La primera fila SQL queda fuera de la vista previa',known && mixed.rows[0][0]!==1);
+ await results.getByText('Filas recibidas: 20 · Puntos resaltados: 1',{exact:false}).waitFor();
+ const marker=p.locator('[data-match="true"][data-point-id="1"]');
+ await marker.press('Enter');
+ check('El marcador y su fila conservan el nombre del mismo lugar',
+  (await p.locator('.leaflet-popup-content strong').innerText())===known[1] &&
+  (await results.locator('tbody tr').innerText()).includes(known[1]));
+ await p.locator('.leaflet-popup-close-button').click();
+ await sql(`SELECT id ${nearest} LIMIT 1;`);
+ await results.getByText('Filas recibidas: 1 · Puntos resaltados: 0',{exact:false}).waitFor();
+ check('Una coincidencia fuera del mapa conserva el aviso y el conteo',
+  await results.locator('.notice').isVisible() && await results.locator('.empty-state').count()===0);
+ await sql(`SELECT nombre ${nearest} LIMIT 1;`);
+ await results.getByText('El resultado SQL no incluye la columna',{exact:false}).waitFor();
+ await submit();
+ check('Una nueva búsqueda en el mapa limpia el aviso SQL',await results.locator('.notice').count()===0);
  const name='map_test_'+Date.now();
  await sql(`CREATE TABLE ${name} (id INTEGER PRIMARY KEY, nombre VARCHAR(80), latitud FLOAT, longitud FLOAT)`);
  await p.getByLabel('Tabla espacial').selectOption(name);await waitMarkers(0);
