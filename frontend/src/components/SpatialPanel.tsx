@@ -220,10 +220,10 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
           {error !== null && <p className="error-box" role="alert">{error}</p>}
           {note !== null && <p className="notice" role="status">{note}</p>}
           {response === null ? <p className="muted small">Envía una búsqueda para resaltar coincidencias reales. Editar los controles no cambia el resultado de la última consulta.</p>
-            : <><p role="status"><strong>{response.total_rows === null ? "Total de coincidencias desconocido" : `${response.total_rows} coincidencias`}</strong> · {response.returned_rows} mostradas · {response.backend_elapsed_ms.toFixed(2)} ms en el servidor</p>
+            : <><p role="status"><strong>{response.total_rows === null ? "Total de coincidencias desconocido" : `${response.total_rows} coincidencias`}</strong> · Filas recibidas: {response.returned_rows} · Puntos resaltados: {hitIds.size} · {response.backend_elapsed_ms.toFixed(2)} ms en el servidor</p>
               <p className="muted small">{snapshot === null ? "Consulta SQL: revisa la sentencia y el plan de ejecución" : snapshot.kind === "polygon" ? "Polígono con frontera incluida" : `${snapshot.metric} · centro ${snapshot.center?.join(", ")}`} · {Object.entries(response.stats).map(([key, value]) => `${key}: ${value}`).join(" · ")}</p>
               {response.truncated && <p className="warning">Resultado limitado por filas o bytes. Solo se resaltan las coincidencias recibidas.</p>}
-              {matches.length === 0 ? <p className="empty-state">No se encontraron puntos para esta búsqueda.</p>
+              {matches.length === 0 ? response.total_rows === 0 && <p className="empty-state">No se encontraron puntos para esta búsqueda.</p>
                 : <div className="table-scroll"><table><thead><tr><th>ID</th><th>Latitud</th><th>Longitud</th><th>Distancia (m)</th><th>Registro</th></tr></thead>
                   <tbody>{matches.map((point) => <tr key={String(point.id)}><td>{point.id}</td><td>{point.latitude.toFixed(6)}</td><td>{point.longitude.toFixed(6)}</td><td>{point.distance_metres === null ? snapshot?.kind === "polygon" ? "No aplica" : "No proyectada" : point.distance_metres.toFixed(3)}</td><td>{Object.entries(point.record).map(([key, value]) => `${key}: ${String(value)}`).join(" · ")}</td></tr>)}</tbody></table></div>}</>}
         </div>
