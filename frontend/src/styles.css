@@ -47,18 +47,18 @@ pre {
   flex-wrap: wrap;
   align-items: center;
   gap: 14px 20px;
-  padding: 26px clamp(18px, 3vw, 42px);
-  margin: 16px 0;
+  padding: 14px clamp(16px, 2.4vw, 28px);
+  margin: 14px 0;
   color: #fff;
-  border-radius: 18px;
-  background: linear-gradient(112deg, #102b39, #14434a 74%, #175b53);
+  border-radius: 14px;
+  background: #14363f;
 }
 
 .app-header h1 {
   margin: 0;
   font-family: inherit;
   font-weight: 720;
-  font-size: clamp(1.7rem, 2.4vw, 2.25rem);
+  font-size: clamp(1.35rem, 1.9vw, 1.7rem);
   line-height: 1.1;
   letter-spacing: -0.035em;
 }
@@ -760,10 +760,10 @@ input[type="text"] {
   padding-left: 18px;
 }
 
-.app-description { margin: 8px 0 0; color: #c5dadd; font-size: 0.86rem; }
+.app-description { margin: 4px 0 0; color: #c5dadd; font-size: 0.82rem; }
 /* One tab per project part (python -m api --all). */
 .part-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
-.part-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 120px; padding: 8px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.part-tab { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-width: 112px; padding: 6px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .part-tab { background: #193e49; border-color: #4d7079; color: #eef9f8; }
 .part-tab:hover { color: #123b42; background: var(--chip); }
 .part-tab:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
@@ -846,9 +846,8 @@ input[type="text"], input[type="number"], select { border-color: #d9d8d4; }
   .panel, .spatial-panel { padding: 16px; }
   .panel-title { font-size: 1.25rem; }
   .workspace-bar > .session-bar { gap: 8px; }
-  .part-tabs { margin-left: 0; width: 100%; }
-  .part-tab { flex: 1 1 calc(50% - 6px); min-width: 0; min-height: 48px; }
-  .part-tab:last-child:nth-child(odd) { flex-basis: 100%; }
+  .part-tabs { margin-left: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .part-tab { flex: 0 0 auto; min-width: 0; min-height: 44px; }
   .session-state { flex-basis: 100%; }
   .toolbar { gap: 10px; }
   .toolbar > .inline-field { flex-wrap: wrap; }
@@ -879,8 +878,7 @@ input[type="text"], input[type="number"], select { border-color: #d9d8d4; }
 }
 
 .academic-content {
-  max-width: 860px;
-  margin-inline: auto;
+  max-width: 920px;
 }
 
 .academic-form {
@@ -958,3 +956,25 @@ input[type="text"], input[type="number"], select { border-color: #d9d8d4; }
 .academic-source-title { color: #195b51; font-size: 0.9rem; font-weight: 600; }
 .academic-source-meta { display: block; margin: 3px 0 0 1rem; font-size: 0.82rem; color: var(--muted); }
 .academic-source-text { background: #f1f7f5; border-radius: 8px; padding: 12px 16px; font-size: 0.9rem; }
+
+/* Text search panel (Parts 3 and 5), aligned with the other panels. */
+.text-panel { margin-top: 20px; padding: 24px; }
+.panel-subtitle { margin: 4px 0 0; }
+.text-search { display: grid; grid-template-columns: minmax(180px, 240px) minmax(150px, 190px) minmax(0, 1fr) auto; gap: 12px 16px; align-items: end; margin-top: 14px; }
+.text-search .field { min-width: 0; }
+.text-search .field select, .text-search .field input[type="text"] { width: 100%; max-width: none; min-height: 38px; }
+.text-search-index { padding-bottom: 8px; white-space: nowrap; }
+.text-search-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.sql-preview { display: grid; gap: 4px; margin-top: 16px; padding: 10px 14px; border-radius: 8px; background: var(--code-bg); border: 1px solid var(--border); }
+.sql-preview code { overflow-wrap: anywhere; font-size: 0.82rem; }
+.text-results { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.text-results-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+.text-results .table-scroll { max-height: 420px; }
+.text-panel .error-box { margin-top: 14px; }
+@media (max-width: 900px) {
+  .text-search { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .text-search-query { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .text-search { grid-template-columns: minmax(0, 1fr); }
+}

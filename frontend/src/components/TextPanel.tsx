@@ -64,30 +64,51 @@ export default function TextPanel({ token, onSql, partNumber }: {
     } catch (cause) { if (generation.current === requestGeneration) setError(cause instanceof Error ? cause.message : String(cause)); }
     finally { if (generation.current === requestGeneration) setBusy(false); }
   };
-  return <section className="panel" id={scoped("text-title")} aria-label="Búsqueda textual" style={{ margin: "1rem" }}>
-    <div className="panel-heading"><h2 className="panel-title">Búsqueda textual · Parte {partNumber}</h2>
-      <button type="button" onClick={() => void reload()}>Actualizar colecciones</button></div>
-    <p>Consulta colecciones publicadas y selladas. Los resultados provienen de SPIMI, TF-IDF o BM25.</p>
-    {collections.length === 0 && <p>No hay colecciones textuales publicadas en esta base.</p>}
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "0.7rem", alignItems: "center" }}>
-      <label>Colección <select aria-label="Colección textual" value={selected} onChange={(event) => { setSelected(event.target.value); invalidate(); }}>
-        {collections.map((c) => <option key={c.table} value={c.table}>{c.table} · {c.documents} documentos</option>)}
-      </select></label>
-      <label>Modelo <select aria-label="Modelo textual" value={model} onChange={(event) => { setModel(event.target.value as "BM25" | "TF_IDF"); invalidate(); }}>
-        <option value="BM25">BM25</option><option value="TF_IDF">TF-IDF + coseno</option>
-      </select></label>
-      <label><input type="checkbox" checked={useIndexes} onChange={(event) => { setUseIndexes(event.target.checked); invalidate(); }}/> Usar índice</label>
-      <label>Consulta <input aria-label="Consulta textual" value={query} maxLength={4096} onChange={(event) => { setQuery(event.target.value); invalidate(); }} /></label>
-      <button type="button" disabled={!current || busy || !query.trim()} onClick={() => void search()}>{busy ? "Buscando…" : "Buscar"}</button>
-      <button type="button" disabled={!current} onClick={() => sendToEditor(exampleSql)}>Enviar SQL al editor</button>
-      <button type="button" disabled={!current} onClick={() => sendToEditor(explainSql)}>Ver EXPLAIN en SQL</button>
+  const numeric = (value: unknown) => typeof value === "number";
+  return <section className="panel text-panel" id={scoped("text-title")} aria-labelledby={scoped("text-heading")}>
+    <div className="panel-heading">
+      <div>
+        <h2 className="panel-title" id={scoped("text-heading")}>Búsqueda textual</h2>
+        <p className="muted small panel-subtitle">
+          Colecciones publicadas y selladas de la Parte {partNumber}: índice SPIMI con TF-IDF o BM25.
+        </p>
+      </div>
+      <button type="button" className="secondary" onClick={() => void reload()}>Actualizar colecciones</button>
     </div>
-    {current && <p className="small">Ejemplo SQL ({model}): <code>{exampleSql}</code></p>}
-    {error && <p role="alert">{error}</p>}
-    {result && <div>
-      <p role="status">Modelo: {result.model} · Operador: {result.plan.operator} · Selección: {result.plan.selection} · Coincidencias: {result.total_rows} · Tiempo: {result.metrics.backend_elapsed_ms} ms{result.truncated ? " · Vista truncada" : ""}</p>
-      <div style={{ overflowX: "auto" }}><table><thead><tr>{result.columns.map((c, i) => <th key={i}>{c.name}</th>)}</tr></thead>
-        <tbody>{result.rows.map((row, i) => <tr key={i}>{row.map((value, j) => <td key={j}>{String(value)}</td>)}</tr>)}</tbody></table></div>
+    {collections.length === 0 && <p className="empty-state">No hay colecciones textuales publicadas en esta base.</p>}
+    <form className="text-search" onSubmit={(event) => { event.preventDefault(); void search(); }}>
+      <label className="field">Colección
+        <select aria-label="Colección textual" value={selected} onChange={(event) => { setSelected(event.target.value); invalidate(); }}>
+          {collections.map((c) => <option key={c.table} value={c.table}>{c.table} · {c.documents} documentos</option>)}
+        </select></label>
+      <label className="field">Modelo
+        <select aria-label="Modelo textual" value={model} onChange={(event) => { setModel(event.target.value as "BM25" | "TF_IDF"); invalidate(); }}>
+          <option value="BM25">BM25</option><option value="TF_IDF">TF-IDF + coseno</option>
+        </select></label>
+      <label className="field text-search-query">Consulta
+        <input type="text" aria-label="Consulta textual" value={query} maxLength={4096}
+          placeholder={current?.table === "productos" ? "wireless headphones" : "base de datos vectorial"}
+          onChange={(event) => { setQuery(event.target.value); invalidate(); }} /></label>
+      <label className="inline-field text-search-index"><input type="checkbox" checked={useIndexes} onChange={(event) => { setUseIndexes(event.target.checked); invalidate(); }}/> Usar índice</label>
+      <div className="text-search-actions">
+        <button type="submit" className="primary" disabled={!current || busy || !query.trim()}>{busy ? "Buscando…" : "Buscar"}</button>
+        <button type="button" className="secondary" disabled={!current} onClick={() => sendToEditor(exampleSql)}>Enviar SQL al editor</button>
+        <button type="button" className="secondary" disabled={!current} onClick={() => sendToEditor(explainSql)}>Ver EXPLAIN en SQL</button>
+      </div>
+    </form>
+    {current && <div className="sql-preview"><span className="muted small">SQL equivalente ({model === "BM25" ? "BM25" : "TF-IDF"})</span><code>{exampleSql}</code></div>}
+    {error && <p className="error-box" role="alert">{error}</p>}
+    {result && <div className="text-results">
+      <p className="text-results-summary" role="status">
+        <strong>{result.total_rows} coincidencias</strong>
+        <span className="chip">{result.model}</span>
+        <span className="chip">{result.plan.operator}</span>
+        <span className="chip">selección: {result.plan.selection}</span>
+        <span className="muted small">{result.metrics.backend_elapsed_ms} ms en el servidor{result.truncated ? " · vista truncada" : ""}</span>
+      </p>
+      {result.rows.length === 0 ? <p className="empty-state">Ningún documento contiene esos términos.</p>
+        : <div className="table-scroll"><table className="result-table"><thead><tr>{result.columns.map((c, i) => <th key={i}>{c.name}</th>)}</tr></thead>
+          <tbody>{result.rows.map((row, i) => <tr key={i}>{row.map((value, j) => <td key={j} className={numeric(value) ? "numeric" : undefined}>{String(value)}</td>)}</tr>)}</tbody></table></div>}
     </div>}
   </section>;
 }
