@@ -26,12 +26,15 @@ COPY data/text_demo/ data/text_demo/
 # Part 4 extracts features. Part 5 prepares PDFs and generates answers.
 RUN pip install --no-cache-dir -e ".[api,multimedia,academic,rag]"
 COPY --from=frontend /app/frontend/dist frontend/dist
-COPY PART_05/corpus.json PART_05/corpus_extra.json PART_05/
+COPY PART_05/corpus.json PART_05/corpus_extra.json PART_05/corpus_practica.json PART_05/
 # Fetch the fixed corpus only during the build. The offline preparer checks
 # every hash before publishing the academic database.
 ARG ACADEMIC_CORPUS=base
 RUN python -m scripts.setup_academic_image --corpus "$ACADEMIC_CORPUS"
-RUN python scripts/setup_all.py --only parte1 parte2 parte3 parte4
+RUN if [ "$ACADEMIC_CORPUS" = "practica" ]; then \
+        python scripts/setup_all.py --only parte1 parte2 && \
+        OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python -m scripts.setup_practica --data-dir data/generated/todas; \
+    else python scripts/setup_all.py --only parte1 parte2 parte3 parte4; fi
 EXPOSE 8000
 # One process owns the five data directories and serves every part on one
 # port, one tab each. Render sets PORT; ALLOW_WRITES=1 enables INSERT/DELETE,
