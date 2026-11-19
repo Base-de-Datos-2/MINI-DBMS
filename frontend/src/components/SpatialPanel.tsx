@@ -136,7 +136,7 @@ export default function SpatialPanel({ tables, metadataError, revision, busy, ou
 
   const execute = async () => {
     const id = ++requestId.current;
-    setError(null); setResponse(null); setSnapshot(null);
+    setError(null); setResponse(null); setSnapshot(null); setNote(null);
     try {
       const request = buildRequest();
       if (request.center !== undefined) chooseCenter(request.center);
