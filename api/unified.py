@@ -34,6 +34,7 @@ from .academic_schema import CHUNK_COLUMNS, PAPER_COLUMNS
 from .app import create_app
 from .database import Database, DatabaseDefinition, DatabaseSetupError
 from .demo import (
+    ACADEMIC_PRESETS,
     DEMO_MEMORY_BUDGET_BYTES,
     MULTIMEDIA_PRESETS,
     PRESETS,
@@ -215,7 +216,7 @@ def create_unified_app(
 
     children = {
         part.spec.id: create_app(part.service,
-                                 presets=() if part.spec.id == "parte5" else PRESETS_BY_KIND[part.spec.kind],
+                                 presets=ACADEMIC_PRESETS if part.spec.id == "parte5" else PRESETS_BY_KIND[part.spec.kind],
                                  sweep_interval_seconds=sweep_interval_seconds)
         for part in parts if part.service is not None
     }

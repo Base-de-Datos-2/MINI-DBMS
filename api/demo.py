@@ -354,6 +354,48 @@ TEXT_PRESETS = (
 )
 
 
+#: Part 5 examples over the academic database (papers + chunks): the same
+#: engine SQL that the RAG retrieval uses, so its behaviour can be inspected.
+ACADEMIC_PRESETS = (
+    Preset(
+        "Papers del corpus",
+        "Metadata relacional de cada paper, ordenada por año.",
+        "SELECT paper_id, title, year FROM papers ORDER BY year, paper_id;",
+    ),
+    Preset(
+        "Pasajes con BM25",
+        "Los pasajes que la recuperación del RAG puntúa primero para una pregunta sobre HNSW.",
+        "SELECT chunk_id, paper_id, SCORE() AS relevancia FROM chunks "
+        "WHERE MATCH(content, 'hierarchical navigable small world graphs') "
+        "USING BM25 ORDER BY relevancia DESC LIMIT 5;",
+    ),
+    Preset(
+        "Pasajes con TF-IDF",
+        "La misma pregunta con TF-IDF + coseno: compara el orden con BM25.",
+        "SELECT chunk_id, paper_id, SCORE() AS relevancia FROM chunks "
+        "WHERE MATCH(content, 'hierarchical navigable small world graphs') "
+        "USING TF_IDF ORDER BY relevancia DESC LIMIT 5;",
+    ),
+    Preset(
+        "Pasajes por paper (JOIN)",
+        "Une papers y chunks y cuenta los pasajes de cada paper.",
+        "SELECT p.title, COUNT(*) AS pasajes FROM papers AS p JOIN chunks AS c "
+        "ON p.paper_id = c.paper_id GROUP BY p.title ORDER BY p.title;",
+    ),
+    Preset(
+        "Inicio de un paper",
+        "Los tres primeros pasajes del paper de HNSW, en orden.",
+        "SELECT c.position, c.content FROM chunks AS c WHERE c.paper_id = 1 ORDER BY c.position LIMIT 3;",
+    ),
+    Preset(
+        "Plan con EXPLAIN ANALYZE",
+        "El índice SPIMI de chunks.content, los candidatos puntuados y el tiempo.",
+        "EXPLAIN ANALYZE SELECT chunk_id, SCORE() AS relevancia FROM chunks "
+        "WHERE MATCH(content, 'dense passage retrieval') USING BM25 ORDER BY relevancia DESC LIMIT 5;",
+    ),
+)
+
+
 #: Part 4 examples: both literal queries of the assignment (§2.4.3) plus the
 #: comparison switches. They only fill the editor; POST /api/query runs them.
 MULTIMEDIA_PRESETS = (
