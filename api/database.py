@@ -889,6 +889,14 @@ class Database:
                             index_type=f"{method} ({metric})", unique=False, clustered=False,
                             supports_range=False, entry_count=collection.size,
                             file_bytes=folder_bytes(collection.directory / folder)))
+            spatial = self._spatial_indexes.get(name)
+            if spatial is not None:
+                # The R-Tree lives in the spatial registry, not the Catalog,
+                # so list it here the way IVF/HNSW and SPIMI are listed.
+                indexes.append(IndexSummary(
+                    name=f"{name}_rtree", column=spatial.mapping.location_name, index_type="R-Tree",
+                    unique=False, clustered=False, supports_range=True,
+                    entry_count=spatial.tree.entry_count, file_bytes=_file_bytes(spatial.path)))
             text = self._text_indexes.get(name)
             if text is not None:
                 registration = next(item for item in read_text_registry(self._directory) if item.table == name)

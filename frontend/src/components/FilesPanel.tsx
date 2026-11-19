@@ -39,7 +39,8 @@ function IndexRow({ index }: { index: IndexInfo }) {
   // Part 4 vector indexes arrive as "IVF (metrics)" or "HNSW (metric)".
   const vector = /^(IVF|HNSW) \((.+)\)$/.exec(index.type);
   const flags = vector !== null ? [vector[1] ?? "", `métrica: ${(vector[2] ?? "").replaceAll(",", ", ")}`, "k-NN", "solo lectura"]
-    : index.type === 'SPIMI' ? ['SPIMI', 'TF-IDF / BM25', 'solo lectura'] : [
+    : index.type === 'SPIMI' ? ['SPIMI', 'TF-IDF / BM25', 'solo lectura']
+    : index.type === "R-Tree" ? ["R-Tree", "radio, k-NN y polígono"] : [
     index.type === "BPLUS" ? "B+" : "Hash extensible",
     index.clustered ? "clustered" : "unclustered",
     index.unique ? "único" : null,

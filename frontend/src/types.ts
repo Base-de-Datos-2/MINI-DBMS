@@ -128,7 +128,7 @@ export interface TableSummary {
 export interface IndexInfo {
   name: string;
   column: string;
-  type: IndexType | "SPIMI";
+  type: IndexType | "SPIMI" | "R-Tree";
   unique: boolean;
   clustered: boolean;
   supports_range: boolean;

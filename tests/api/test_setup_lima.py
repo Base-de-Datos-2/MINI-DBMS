@@ -13,6 +13,10 @@ def test_real_place_demo_reopens_and_never_overwrites(tmp_path):
     with Database.open(SPATIAL_DATABASE, directory) as database:
         assert database.describe_table('lugares_lima').row_count == 20
         assert database.spatial_mapping_for('lugares_lima') is not None
+        [rtree] = database.describe_table('lugares_lima').indexes
+        assert (rtree.name, rtree.column, rtree.index_type, rtree.entry_count) == (
+            'lugares_lima_rtree', 'ubicacion', 'R-Tree', 20)
+        assert rtree.supports_range and rtree.file_bytes > 0
     before = (directory / 'gui_tables.json').read_bytes()
     with pytest.raises(FileExistsError):
         prepare_lima(directory)
